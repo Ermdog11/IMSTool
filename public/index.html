@@ -665,7 +665,7 @@ async function callClaude(prompt, outputEl, heading) {
   out.className = 'aaction-output visible';
   out.innerHTML = `<h4>${heading}</h4><i class="ti ti-loader spin"></i> Working...`;
   try {
-    const res = await fetch("https://api.anthropic.com/v1/messages", {
+    const res = await fetch("/api/scan", {
       method: "POST", headers: {"Content-Type":"application/json"},
       body: JSON.stringify({ model:"claude-sonnet-4-6", max_tokens:600, messages:[{role:"user",content:prompt}] })
     });
@@ -810,7 +810,7 @@ async function scanSocial() {
   const c = document.getElementById('socialContainer');
   c.innerHTML = '<div class="empty"><i class="ti ti-loader spin"></i>Scanning Reddit, X, YouTube for high-engagement Terps posts...</div>';
   try {
-    const res = await fetch("https://api.anthropic.com/v1/messages", {
+    const res = await fetch("/api/scan", {
       method:"POST", headers:{"Content-Type":"application/json"},
       body: JSON.stringify({
         model:"claude-sonnet-4-6", max_tokens:1000,
@@ -849,7 +849,7 @@ async function draftReply(idx, postText) {
   el.className = 'draft-reply visible';
   tel.innerHTML = '<i class="ti ti-loader spin"></i>';
   try {
-    const res = await fetch("https://api.anthropic.com/v1/messages", {
+    const res = await fetch("/api/scan", {
       method:"POST", headers:{"Content-Type":"application/json"},
       body:JSON.stringify({model:"claude-sonnet-4-6",max_tokens:300,messages:[{role:"user",content:`You are helping Jeff Ermann of InsideMDSports reply to a social media post about Maryland Terrapins. Write a sharp, knowledgeable reply that adds value, positions Jeff as the authority on Terps news, and naturally includes "More at InsideMDSports [LINK]". Keep it under 250 characters for X. Sound like a beat reporter, not a marketer.\n\nPost: ${postText}`}]})
     });
@@ -914,7 +914,7 @@ async function generateBacklog() {
   const c = document.getElementById('backlogContainer');
   c.innerHTML = '<div class="empty"><i class="ti ti-loader spin"></i>Generating story ideas...</div>';
   try {
-    const res = await fetch("https://api.anthropic.com/v1/messages", {
+    const res = await fetch("/api/scan", {
       method:"POST", headers:{"Content-Type":"application/json"},
       body:JSON.stringify({model:"claude-sonnet-4-6",max_tokens:800,messages:[{role:"user",content:`You are the editor of InsideMDSports, a Maryland Terrapins sports site. Based on these recent alerts, suggest 6 specific story ideas a reporter could write today. Be concrete and Terps-specific. Return as JSON array with: title, angle (one sentence), priority (1-3, 1=highest).\n\nAlerts:\n${allAlerts.slice(0,8).map(a=>a.headline).join('\n')}\n\nNo markdown, just raw JSON array.`}]})
     });
