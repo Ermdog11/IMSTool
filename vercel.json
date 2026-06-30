@@ -1,5 +1,16 @@
 {
   "version": 2,
+  "functions": {
+    "api/scan.js": {
+      "maxDuration": 60
+    },
+    "api/digest.js": {
+      "maxDuration": 60
+    },
+    "api/morning-brief.js": {
+      "maxDuration": 60
+    }
+  },
   "crons": [
     {
       "path": "/api/digest",
