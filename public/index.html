@@ -1,0 +1,949 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>InsideMDSports — Terps News Monitor</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@2.44.0/tabler-icons.min.css">
+<style>
+:root {
+  --red: #cf0315;
+  --red-dark: #a80210;
+  --red-light: #fff0f0;
+  --gold: #ffd520;
+  --gold-light: #fffae0;
+  --dark: #111111;
+  --dark2: #1e1e1e;
+  --dark3: #2a2a2a;
+  --gray: #888;
+  --border: #e8e6e1;
+  --bg: #f7f6f3;
+  --bg2: #ffffff;
+  --text: #1a1a1a;
+  --text2: #555;
+  --text3: #888;
+  --green: #3B6D11;
+  --green-light: #eaf3de;
+  --blue-light: #e8f4ff;
+  --blue: #0c447c;
+  --purple-light: #f0eaff;
+  --purple: #3c3489;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: var(--bg); color: var(--text); font-size: 14px; }
+
+/* TOPBAR */
+.topbar { background: var(--dark); padding: 0 20px; display: flex; align-items: center; justify-content: space-between; height: 52px; position: sticky; top: 0; z-index: 100; }
+.topbar-left { display: flex; align-items: center; gap: 12px; }
+.ims-logo { width: 34px; height: 34px; background: var(--red); border-radius: 5px; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 11px; color: #fff; letter-spacing: 0.3px; }
+.site-name { color: #fff; font-size: 15px; font-weight: 600; }
+.site-sub { color: #888; font-size: 11px; margin-top: 1px; }
+.topbar-right { display: flex; align-items: center; gap: 10px; }
+.live-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--red); display: inline-block; margin-right: 5px; animation: pulse 2s infinite; }
+@keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
+.pill { font-size: 11px; font-weight: 500; padding: 3px 10px; border-radius: 20px; }
+.pill-live { background: var(--red); color: #fff; }
+.pill-email { background: transparent; border: 0.5px solid #555; color: #ccc; cursor: pointer; }
+.pill-email:hover { border-color: #999; color: #fff; }
+
+/* NAV */
+.nav { background: var(--red); display: flex; padding: 0 20px; overflow-x: auto; }
+.nav-tab { font-size: 12px; font-weight: 600; padding: 10px 16px; color: rgba(255,255,255,0.7); border: none; background: transparent; cursor: pointer; border-bottom: 2px solid transparent; white-space: nowrap; transition: all 0.15s; }
+.nav-tab:hover { color: rgba(255,255,255,0.9); }
+.nav-tab.active { color: #fff; border-bottom-color: var(--gold); }
+
+/* LAYOUT */
+.page { display: none; padding: 16px 20px; max-width: 1200px; margin: 0 auto; }
+.page.active { display: block; }
+
+/* METRICS ROW */
+.metrics { display: grid; grid-template-columns: repeat(auto-fit, minmax(110px, 1fr)); gap: 10px; margin-bottom: 14px; }
+.metric { background: var(--bg2); border-radius: 8px; padding: 12px 14px; border-left: 3px solid var(--red); box-shadow: 0 1px 3px rgba(0,0,0,0.06); }
+.metric-label { font-size: 10px; color: var(--text3); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 3px; }
+.metric-value { font-size: 22px; font-weight: 700; color: var(--text); line-height: 1; }
+.metric-sub { font-size: 10px; color: var(--text3); margin-top: 3px; }
+
+/* SCAN STATUS */
+.scan-bar { background: var(--bg2); border-radius: 8px; padding: 10px 14px; margin-bottom: 14px; display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; box-shadow: 0 1px 3px rgba(0,0,0,0.06); }
+.scan-indicator { display: flex; align-items: center; gap: 10px; }
+.scan-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--gold); flex-shrink: 0; }
+.scan-text { font-size: 12px; color: var(--text2); }
+.scan-text strong { color: var(--text); }
+.scan-btn { background: var(--red); color: #fff; border: none; border-radius: 6px; padding: 6px 14px; font-size: 12px; font-weight: 600; cursor: pointer; display: flex; align-items: center; gap: 5px; }
+.scan-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+/* FILTERS */
+.filters { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 14px; }
+.chip { font-size: 12px; padding: 4px 12px; border-radius: 20px; border: 1px solid var(--border); background: var(--bg2); color: var(--text2); cursor: pointer; transition: all 0.12s; }
+.chip:hover { border-color: var(--red); color: var(--red); }
+.chip.active { background: var(--red); color: #fff; border-color: var(--red); }
+
+/* ALERT CARDS */
+.alerts { display: flex; flex-direction: column; gap: 8px; }
+.acard { background: var(--bg2); border: 1px solid var(--border); border-radius: 10px; padding: 13px 15px; transition: border-color 0.15s; box-shadow: 0 1px 2px rgba(0,0,0,0.04); }
+.acard:hover { border-color: #ccc; }
+.acard.r5 { border-left: 3px solid var(--red); border-radius: 0 10px 10px 0; }
+.acard.r4 { border-left: 3px solid var(--gold); border-radius: 0 10px 10px 0; }
+.acard-top { display: flex; justify-content: space-between; align-items: flex-start; gap: 10px; margin-bottom: 6px; }
+.acard-headline { font-size: 13px; font-weight: 600; color: var(--text); line-height: 1.4; flex: 1; }
+.rating { font-size: 10px; font-weight: 700; padding: 2px 8px; border-radius: 20px; flex-shrink: 0; }
+.r5-badge { background: var(--red-light); color: var(--red-dark); }
+.r4-badge { background: var(--gold-light); color: #7a5200; }
+.r3-badge { background: var(--blue-light); color: var(--blue); }
+.r2-badge,.r1-badge { background: #f0f0f0; color: var(--text3); }
+.acard-meta { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; margin-bottom: 5px; }
+.tag { font-size: 10px; padding: 2px 7px; border-radius: 20px; font-weight: 500; }
+.tag-rec { background: var(--red-light); color: var(--red-dark); }
+.tag-fb { background: var(--gold-light); color: #7a5200; }
+.tag-bk { background: var(--blue-light); color: var(--blue); }
+.tag-alum { background: #f0ede8; color: #555; }
+.tag-soc { background: var(--purple-light); color: var(--purple); }
+.tag-gen { background: #f0f0f0; color: var(--text3); }
+.tag-pod { background: var(--green-light); color: var(--green); }
+.asrc { font-size: 11px; color: var(--text3); }
+.atime { font-size: 11px; color: var(--text3); }
+.asum { font-size: 12px; color: var(--text2); line-height: 1.5; margin-bottom: 8px; }
+.acard-actions { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 8px; border-top: 1px solid var(--border); padding-top: 8px; }
+.aaction { font-size: 11px; padding: 4px 10px; border-radius: 6px; border: 1px solid var(--border); background: transparent; color: var(--text2); cursor: pointer; display: flex; align-items: center; gap: 4px; transition: all 0.12s; }
+.aaction:hover { background: var(--red); color: #fff; border-color: var(--red); }
+.aaction-output { background: #f7f6f3; border-radius: 6px; padding: 10px 12px; margin-top: 8px; font-size: 12px; color: var(--text2); line-height: 1.6; display: none; }
+.aaction-output.visible { display: block; }
+.aaction-output h4 { font-size: 11px; font-weight: 700; color: var(--red); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 6px; }
+
+/* EMPTY / LOADING */
+.empty { text-align: center; padding: 3rem 1rem; color: var(--text3); }
+.empty i { font-size: 32px; display: block; margin-bottom: 10px; color: var(--red); opacity: 0.3; }
+.spin { animation: spin 1s linear infinite; }
+@keyframes spin { from{transform:rotate(0deg)} to{transform:rotate(360deg)} }
+
+/* SECTION LABELS */
+.section-label { font-size: 11px; font-weight: 700; color: var(--text3); text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 10px; }
+
+/* DIGEST */
+.digest-wrap { background: var(--bg2); border-radius: 10px; padding: 16px 18px; box-shadow: 0 1px 3px rgba(0,0,0,0.06); }
+.digest-hdr { display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; }
+.digest-hdr h3 { font-size: 14px; font-weight: 700; }
+.digest-section { margin-bottom: 12px; }
+.digest-section-title { font-size: 10px; font-weight: 700; color: var(--text3); text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 6px; }
+.digest-item { font-size: 12px; color: var(--text); padding: 5px 0; border-bottom: 1px solid var(--border); line-height: 1.4; display: flex; gap: 8px; align-items: baseline; }
+.gen-btn { width: 100%; background: var(--dark); color: #fff; border: none; border-radius: 8px; padding: 10px; font-size: 13px; font-weight: 600; cursor: pointer; margin-top: 12px; display: flex; align-items: center; justify-content: center; gap: 6px; }
+
+/* CHAT */
+.chat-layout { display: flex; flex-direction: column; height: calc(100vh - 200px); min-height: 400px; }
+.chat-messages { flex: 1; overflow-y: auto; background: var(--bg2); border-radius: 10px 10px 0 0; padding: 14px; display: flex; flex-direction: column; gap: 10px; border: 1px solid var(--border); border-bottom: none; }
+.chat-msg { max-width: 85%; }
+.chat-msg.system { align-self: center; background: var(--bg); border-radius: 20px; padding: 5px 14px; font-size: 11px; color: var(--text3); }
+.chat-msg.alert-drop { align-self: stretch; background: var(--red-light); border: 1px solid #f7c1c1; border-radius: 8px; padding: 10px 12px; }
+.chat-msg.alert-drop .alert-headline { font-size: 12px; font-weight: 600; color: var(--red-dark); margin-bottom: 3px; }
+.chat-msg.alert-drop .alert-meta { font-size: 11px; color: var(--text3); }
+.chat-msg.me { align-self: flex-end; background: var(--red); color: #fff; border-radius: 12px 12px 2px 12px; padding: 8px 12px; font-size: 13px; }
+.chat-msg.other { align-self: flex-start; background: #f0f0f0; border-radius: 12px 12px 12px 2px; padding: 8px 12px; font-size: 13px; }
+.chat-msg .sender { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; margin-bottom: 3px; color: var(--text3); }
+.chat-input-row { display: flex; gap: 8px; background: var(--bg2); border: 1px solid var(--border); border-radius: 0 0 10px 10px; padding: 10px; }
+.chat-input { flex: 1; border: 1px solid var(--border); border-radius: 8px; padding: 8px 12px; font-size: 13px; background: var(--bg); color: var(--text); outline: none; }
+.chat-input:focus { border-color: var(--red); }
+.chat-send { background: var(--red); color: #fff; border: none; border-radius: 8px; padding: 8px 14px; cursor: pointer; font-size: 13px; font-weight: 600; }
+
+/* HOT SOCIAL */
+.social-card { background: var(--bg2); border: 1px solid var(--border); border-radius: 10px; padding: 14px; margin-bottom: 10px; box-shadow: 0 1px 2px rgba(0,0,0,0.04); }
+.social-card-top { display: flex; justify-content: space-between; align-items: flex-start; gap: 10px; margin-bottom: 8px; }
+.social-platform { font-size: 10px; font-weight: 700; padding: 2px 8px; border-radius: 20px; }
+.plat-x { background: #000; color: #fff; }
+.plat-reddit { background: #ff4500; color: #fff; }
+.plat-youtube { background: #ff0000; color: #fff; }
+.social-post { font-size: 13px; color: var(--text); line-height: 1.5; margin-bottom: 8px; }
+.social-stats { font-size: 11px; color: var(--text3); margin-bottom: 10px; }
+.draft-reply { background: var(--bg); border-radius: 8px; padding: 10px; margin-top: 8px; font-size: 12px; color: var(--text2); line-height: 1.5; display: none; border-left: 3px solid var(--red); }
+.draft-reply.visible { display: block; }
+.draft-reply-label { font-size: 10px; font-weight: 700; color: var(--red); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 5px; }
+.social-actions { display: flex; gap: 6px; }
+
+/* BACKLOG */
+.backlog-card { background: var(--bg2); border: 1px solid var(--border); border-radius: 10px; padding: 12px 14px; margin-bottom: 8px; display: flex; gap: 12px; align-items: flex-start; box-shadow: 0 1px 2px rgba(0,0,0,0.04); }
+.backlog-priority { width: 28px; height: 28px; border-radius: 50%; background: var(--red-light); color: var(--red-dark); font-size: 12px; font-weight: 700; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.backlog-title { font-size: 13px; font-weight: 600; color: var(--text); margin-bottom: 3px; }
+.backlog-meta { font-size: 11px; color: var(--text3); }
+
+/* SETTINGS */
+.settings-card { background: var(--bg2); border-radius: 10px; padding: 14px 16px; margin-bottom: 12px; box-shadow: 0 1px 3px rgba(0,0,0,0.06); }
+.settings-card h3 { font-size: 13px; font-weight: 700; color: var(--text); margin-bottom: 10px; display: flex; align-items: center; gap: 6px; }
+.param-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.param-cell { background: var(--bg); border-radius: 6px; padding: 8px 10px; border: 1px solid var(--border); }
+.param-label { font-size: 10px; color: var(--text3); text-transform: uppercase; letter-spacing: 0.04em; margin-bottom: 2px; }
+.param-value { font-size: 12px; font-weight: 600; color: var(--text); }
+.tag-cloud { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 6px; }
+.stag { font-size: 11px; padding: 3px 8px; border-radius: 20px; background: var(--bg); border: 1px solid var(--border); color: var(--text2); }
+.stag.red { background: var(--red-light); color: var(--red-dark); border-color: #f7c1c1; }
+.stag.gold { background: var(--gold-light); color: #7a5200; border-color: #fac775; }
+.stag.blue { background: var(--blue-light); color: var(--blue); border-color: #b5d4f4; }
+.stag.purple { background: var(--purple-light); color: var(--purple); border-color: #afa9ec; }
+.stag.green { background: var(--green-light); color: var(--green); border-color: #c0dd97; }
+.stag.excluded { background: #f0ede8; color: #999; border-color: #ddd; text-decoration: line-through; opacity: 0.7; }
+.src-row { display: flex; align-items: center; gap: 8px; padding: 3px 0; font-size: 12px; color: var(--text2); }
+.src-row i { font-size: 14px; }
+.src-row.ex i { color: var(--red); }
+.pri-row { display: flex; justify-content: space-between; align-items: center; padding: 5px 0; border-bottom: 1px solid var(--border); font-size: 12px; color: var(--text2); }
+.pri-row:last-child { border-bottom: none; }
+.email-row { display: flex; gap: 8px; margin-top: 8px; }
+.email-input { flex: 1; padding: 7px 10px; border: 1px solid var(--border); border-radius: 6px; font-size: 13px; color: var(--text); background: var(--bg); }
+.email-input:focus { outline: none; border-color: var(--red); }
+.email-save { background: var(--red); color: #fff; border: none; border-radius: 6px; padding: 7px 14px; font-size: 12px; font-weight: 600; cursor: pointer; }
+.notice { background: #fff8e0; border: 1px solid #fac775; border-radius: 8px; padding: 9px 12px; font-size: 12px; color: #7a5200; margin-bottom: 12px; display: flex; align-items: center; gap: 8px; }
+.sdiv { height: 1px; background: var(--border); margin: 8px 0; }
+.sdiv-label { font-size: 10px; font-weight: 700; color: var(--text3); text-transform: uppercase; letter-spacing: 0.05em; margin: 10px 0 6px; }
+
+/* BOTTOM BAR */
+.bottom-bar { background: var(--red); padding: 8px 20px; display: flex; justify-content: space-between; align-items: center; position: fixed; bottom: 0; left: 0; right: 0; z-index: 100; }
+.bb-brand { font-size: 13px; font-weight: 700; color: #fff; letter-spacing: 0.5px; }
+.bb-tag { font-size: 11px; font-weight: 600; color: var(--gold); }
+body { padding-bottom: 40px; }
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="topbar-left">
+    <div class="ims-logo">IMS</div>
+    <div>
+      <div class="site-name">InsideMDSports</div>
+      <div class="site-sub">Terps news monitor — powered by Claude</div>
+    </div>
+  </div>
+  <div class="topbar-right">
+    <span class="pill pill-live"><span class="live-dot"></span>Live</span>
+    <button class="pill pill-email" onclick="switchTab(6)"><i class="ti ti-mail"></i> Email setup</button>
+  </div>
+</div>
+
+<div class="nav">
+  <button class="nav-tab active" id="tab-btn-0" onclick="switchTab(0)">Alerts</button>
+  <button class="nav-tab" id="tab-btn-1" onclick="switchTab(1)">Nightly digest</button>
+  <button class="nav-tab" id="tab-btn-2" onclick="switchTab(2)">Hot social</button>
+  <button class="nav-tab" id="tab-btn-3" onclick="switchTab(3)">Team chat</button>
+  <button class="nav-tab" id="tab-btn-4" onclick="switchTab(4)">Story backlog</button>
+  <button class="nav-tab" id="tab-btn-5" onclick="switchTab(5)">Recruiting tracker</button>
+  <button class="nav-tab" id="tab-btn-6" onclick="switchTab(6)">Settings</button>
+</div>
+
+<!-- ALERTS TAB -->
+<div class="page active" id="page-0">
+  <div class="metrics">
+    <div class="metric"><div class="metric-label">Total alerts</div><div class="metric-value" id="m-total">—</div><div class="metric-sub">this scan</div></div>
+    <div class="metric"><div class="metric-label">Breaking (5)</div><div class="metric-value" id="m-r5">—</div><div class="metric-sub">immediate email</div></div>
+    <div class="metric"><div class="metric-label">High (4)</div><div class="metric-value" id="m-r4">—</div><div class="metric-sub">2-hr digest</div></div>
+    <div class="metric"><div class="metric-label">Recruiting</div><div class="metric-value" id="m-rec">—</div><div class="metric-sub">FB &amp; BK priority</div></div>
+    <div class="metric"><div class="metric-label">Last scan</div><div class="metric-value" id="m-last" style="font-size:14px;padding-top:3px;">—</div><div class="metric-sub">next in <span id="m-next">—</span></div></div>
+  </div>
+  <div class="scan-bar">
+    <div class="scan-indicator">
+      <div class="scan-dot" id="scanDot"></div>
+      <div class="scan-text" id="scanText"><strong>Ready</strong> — every 30 min, 24/7 · all stories rated 1-5 · your content excluded</div>
+    </div>
+    <button class="scan-btn" id="scanBtn" onclick="runScan()"><i class="ti ti-refresh"></i> Scan now</button>
+  </div>
+  <div class="filters">
+    <button class="chip active" onclick="setFilter('all',this)">All</button>
+    <button class="chip" onclick="setFilter('5',this)">Breaking (5)</button>
+    <button class="chip" onclick="setFilter('4',this)">High (4)</button>
+    <button class="chip" onclick="setFilter('recruiting',this)">Recruiting</button>
+    <button class="chip" onclick="setFilter('football',this)">Football</button>
+    <button class="chip" onclick="setFilter('basketball',this)">Basketball</button>
+    <button class="chip" onclick="setFilter('alumni',this)">Alumni</button>
+    <button class="chip" onclick="setFilter('social',this)">Social/Pods</button>
+  </div>
+  <div class="alerts" id="alertsContainer">
+    <div class="empty"><i class="ti ti-radar"></i>Hit "Scan now" to pull the latest Terps news from all external sources</div>
+  </div>
+</div>
+
+<!-- NIGHTLY DIGEST TAB -->
+<div class="page" id="page-1">
+  <div class="digest-wrap" id="digestContent">
+    <div class="empty" style="padding:2rem 0;"><i class="ti ti-file-description"></i>Run a scan first, then generate tonight's digest here.</div>
+  </div>
+  <button class="gen-btn" onclick="generateDigest()"><i class="ti ti-send"></i> Generate 8 PM digest</button>
+</div>
+
+<!-- HOT SOCIAL TAB -->
+<div class="page" id="page-2">
+  <div class="scan-bar" style="margin-bottom:14px;">
+    <div class="scan-indicator">
+      <div class="scan-dot" style="background:#3B6D11;"></div>
+      <div class="scan-text"><strong>Monitoring</strong> — X/Twitter (indexed), Reddit, YouTube, Instagram public posts</div>
+    </div>
+    <button class="scan-btn" onclick="scanSocial()"><i class="ti ti-refresh"></i> Scan social</button>
+  </div>
+  <div class="section-label">High-engagement Terps posts — draft a reply with your link before posting</div>
+  <div id="socialContainer">
+    <div class="empty"><i class="ti ti-brand-twitter"></i>Scan to surface high-engagement Maryland posts across platforms</div>
+  </div>
+</div>
+
+<!-- TEAM CHAT TAB -->
+<div class="page" id="page-3">
+  <div class="notice"><i class="ti ti-users"></i> General channel — alerts rated 4+ auto-drop here. Two staffers + you.</div>
+  <div class="chat-layout">
+    <div class="chat-messages" id="chatMessages">
+      <div class="chat-msg system">InsideMDSports News Monitor — General Channel</div>
+      <div class="chat-msg system">Alerts rated 4 or 5 will auto-drop here for the team to discuss and claim.</div>
+    </div>
+    <div class="chat-input-row">
+      <input class="chat-input" id="chatInput" placeholder="Message the team..." onkeydown="if(event.key==='Enter')sendChat()" />
+      <button class="chat-send" onclick="sendChat()">Send</button>
+    </div>
+  </div>
+</div>
+
+<!-- STORY BACKLOG TAB -->
+<div class="page" id="page-4">
+  <div class="scan-bar" style="margin-bottom:14px;">
+    <div class="scan-indicator">
+      <div class="scan-dot" style="background:#3B6D11;"></div>
+      <div class="scan-text"><strong>Story ideas</strong> — auto-generated from alerts, plus manual adds</div>
+    </div>
+    <button class="scan-btn" onclick="generateBacklog()"><i class="ti ti-bulb"></i> Generate ideas</button>
+  </div>
+  <div id="backlogContainer">
+    <div class="empty"><i class="ti ti-notebook"></i>Run a scan first, then generate story ideas from the latest alerts</div>
+  </div>
+</div>
+
+<!-- RECRUITING TRACKER TAB -->
+<div class="page" id="page-5">
+  <div class="section-label">Football — 2027 class</div>
+  <div class="alerts" style="margin-bottom:16px;">
+    <div class="acard r5">
+      <div class="acard-top"><div class="acard-headline">Myles McAfee — WR, Archbishop Spalding (Severn, MD)</div><span class="rating r5-badge">COMMITTED</span></div>
+      <div class="acard-meta"><span class="tag tag-fb">Football</span><span class="tag tag-rec">WR · 4★ · #6 nationally</span></div>
+      <div class="asum">Committed June 2026. Reunites with QB Malik Washington. First offer from Maryland in 8th grade. Crystal Ball prediction from Brian Dohn.</div>
+    </div>
+    <div class="acard r5">
+      <div class="acard-top"><div class="acard-headline">Levi Babin — CB, Episcopal (Alexandria, VA)</div><span class="rating r5-badge">COMMITTED</span></div>
+      <div class="acard-meta"><span class="tag tag-fb">Football</span><span class="tag tag-rec">CB · 3★ · #111 athlete nationally</span></div>
+      <div class="asum">Committed October 2025. Maryland's first 2027 commit. Chose Terps over Wake Forest, Penn State, Rutgers, WVU, Syracuse.</div>
+    </div>
+    <div class="acard r5">
+      <div class="acard-top"><div class="acard-headline">Mekhi Graham — RB, Owen J. Roberts (Pottstown, PA)</div><span class="rating r5-badge">COMMITTED</span></div>
+      <div class="acard-meta"><span class="tag tag-fb">Football</span><span class="tag tag-rec">RB · 3★ · #89 RB nationally</span></div>
+      <div class="asum">Committed March 2026. #36 player in Pennsylvania.</div>
+    </div>
+    <div class="acard r4">
+      <div class="acard-top"><div class="acard-headline">Kenaz Sullivan — S, The St. James (Springfield, VA)</div><span class="rating r4-badge">TOP TARGET</span></div>
+      <div class="acard-meta"><span class="tag tag-fb">Football</span><span class="tag tag-rec">S · 4★ · #28 safety nationally</span></div>
+      <div class="asum">Final four: Ohio State, Florida, Tennessee, Maryland. Official visit June 19. Deciding in July. Recruited by Aazaar Abdul-Rahim.</div>
+    </div>
+    <div class="acard r4">
+      <div class="acard-top"><div class="acard-headline">James Pace III — EDGE · Final 5 includes Maryland</div><span class="rating r4-badge">TOP TARGET</span></div>
+      <div class="acard-meta"><span class="tag tag-fb">Football</span><span class="tag tag-rec">EDGE · High priority</span></div>
+    </div>
+    <div class="acard r4">
+      <div class="acard-top"><div class="acard-headline">Dallas Pauldo — DL, Rockvale (Rockvale, TN)</div><span class="rating r4-badge">TOP TARGET</span></div>
+      <div class="acard-meta"><span class="tag tag-fb">Football</span><span class="tag tag-rec">DL · 3★ · 89 rating</span></div>
+      <div class="asum">6-5, 245 lbs. Offers from Alabama, Georgia, Maryland, Missouri, Tennessee. Visited Maryland spring showcase in April.</div>
+    </div>
+  </div>
+  <div class="section-label">Basketball — 2027 class</div>
+  <div class="alerts">
+    <div class="acard r4">
+      <div class="acard-top"><div class="acard-headline">Amir Jenkins — PG · Active target</div><span class="rating r4-badge">MONITORING</span></div>
+      <div class="acard-meta"><span class="tag tag-bk">Basketball</span><span class="tag tag-rec">PG · Buzz Williams target</span></div>
+    </div>
+    <div class="acard r4">
+      <div class="acard-top"><div class="acard-headline">J'Lon Lyons — G, Class of 2027</div><span class="rating r4-badge">MONITORING</span></div>
+      <div class="acard-meta"><span class="tag tag-bk">Basketball</span><span class="tag tag-rec">G · #53 nationally · #14 PG · #2 in MD</span></div>
+      <div class="asum">Maryland, Alabama, Indiana, VCU, Tennessee, Virginia, Louisville all pursuing. Strong relationship with new staff reported.</div>
+    </div>
+    <div class="acard r4">
+      <div class="acard-top"><div class="acard-headline">Beau Daniels — C, Montverde Academy (FL)</div><span class="rating r4-badge">MONITORING</span></div>
+      <div class="acard-meta"><span class="tag tag-bk">Basketball</span><span class="tag tag-rec">C · #68 nationally · #9 center</span></div>
+      <div class="asum">6-7, 230 lbs. Former Paul VI (VA) standout. Maryland, VT, UNLV, WVU, Ohio State, Auburn, Northwestern pursuing. "Coach Buzz and them have a great coaching staff."</div>
+    </div>
+  </div>
+</div>
+
+<!-- SETTINGS TAB -->
+<div class="page" id="page-6">
+  <div class="notice"><i class="ti ti-user-check"></i> You are Jeff Ermann, publisher of InsideMDSports. Your content and IMS Radio are excluded from all alerts.</div>
+
+  <div class="settings-card">
+    <h3><i class="ti ti-clock"></i> Scan parameters</h3>
+    <div class="param-grid">
+      <div class="param-cell"><div class="param-label">Frequency</div><div class="param-value">Every 30 minutes</div></div>
+      <div class="param-cell"><div class="param-label">Hours active</div><div class="param-value">24/7</div></div>
+      <div class="param-cell"><div class="param-label">Lookback window</div><div class="param-value">Since last scan</div></div>
+      <div class="param-cell"><div class="param-label">Email alerts</div><div class="param-value">Every story</div></div>
+      <div class="param-cell"><div class="param-label">Immediate email</div><div class="param-value">Rating 5 only</div></div>
+      <div class="param-cell"><div class="param-label">Nightly digest</div><div class="param-value">8:00 PM daily</div></div>
+      <div class="param-cell"><div class="param-label">Morning brief</div><div class="param-value">8:00 AM daily</div></div>
+      <div class="param-cell"><div class="param-label">2-hr digest bundle</div><div class="param-value">Ratings 1-4</div></div>
+    </div>
+  </div>
+
+  <div class="settings-card">
+    <h3><i class="ti ti-ban"></i> Excluded sources</h3>
+    <div class="src-row ex"><i class="ti ti-x"></i> InsideMDSports / 247sports.com/college/maryland</div>
+    <div class="src-row ex"><i class="ti ti-x"></i> Jeff Ermann — any story authored by or attributed to you</div>
+    <div class="src-row ex"><i class="ti ti-x"></i> IMS Radio podcast — your own show</div>
+    <div class="src-row ex"><i class="ti ti-x"></i> Minor sports (tennis, track, golf, wrestling, field hockey, softball, baseball, lacrosse, soccer, gymnastics, swimming) unless major news</div>
+    <div style="font-size:11px;color:var(--text3);margin-top:8px;line-height:1.5;">Note: if another outlet cites or reacts to your reporting, that reaction IS included.</div>
+  </div>
+
+  <div class="settings-card">
+    <h3><i class="ti ti-radar"></i> Direct-fetch URLs</h3>
+    <div class="src-row"><i class="ti ti-check" style="color:var(--green);"></i> testudotimes.com</div>
+    <div class="src-row"><i class="ti ti-check" style="color:var(--green);"></i> The Athletic — Maryland football &amp; basketball</div>
+    <div class="src-row"><i class="ti ti-check" style="color:var(--green);"></i> ESPN — Maryland men's basketball</div>
+    <div class="src-row"><i class="ti ti-check" style="color:var(--green);"></i> insidetheblackandgold.net</div>
+    <div class="src-row"><i class="ti ti-check" style="color:var(--green);"></i> dbknews.com/category/sports/</div>
+    <div class="src-row"><i class="ti ti-check" style="color:var(--green);"></i> umterps.com — football &amp; basketball archives</div>
+    <div class="src-row"><i class="ti ti-check" style="color:var(--green);"></i> ESPN recruiting — Maryland 2026 basketball class</div>
+    <div class="src-row"><i class="ti ti-check" style="color:var(--green);"></i> CBS Sports College Basketball YouTube</div>
+    <div class="src-row"><i class="ti ti-check" style="color:var(--green);"></i> MarylandAthletics YouTube</div>
+    <div class="src-row"><i class="ti ti-check" style="color:var(--green);"></i> Yahoo Sports — Maryland basketball</div>
+    <div class="src-row"><i class="ti ti-check" style="color:var(--green);"></i> listennotes.com — podcast search</div>
+    <div class="src-row"><i class="ti ti-check" style="color:var(--green);"></i> 247Sports MD commits pages (2026 &amp; 2027 FB &amp; BK)</div>
+    <div class="src-row"><i class="ti ti-check" style="color:var(--green);"></i> On3, Rivals, Terrapin Times, SI/AllTerrapins</div>
+    <div class="src-row"><i class="ti ti-check" style="color:var(--green);"></i> Google News — 4 targeted MD queries</div>
+    <div class="src-row"><i class="ti ti-check" style="color:var(--green);"></i> Reddit — r/MarylandTerrapins, r/CFB, r/CollegeBasketball</div>
+    <div class="src-row"><i class="ti ti-check" style="color:var(--green);"></i> YouTube — Maryland-specific search terms</div>
+  </div>
+
+  <div class="settings-card">
+    <h3><i class="ti ti-adjustments"></i> Priority settings</h3>
+    <div class="pri-row"><span>Football recruiting (commits, decommits, portal)</span><span class="stag red">Highest — Rate 5</span></div>
+    <div class="pri-row"><span>Basketball recruiting</span><span class="stag red">Highest — Rate 5</span></div>
+    <div class="pri-row"><span>Transfer portal moves</span><span class="stag gold">High — Rate 4-5</span></div>
+    <div class="pri-row"><span>Named recruit/target activity</span><span class="stag gold">High — Rate 4</span></div>
+    <div class="pri-row"><span>Beat reporter breaking news</span><span class="stag gold">High — Rate 4</span></div>
+    <div class="pri-row"><span>Coaching news</span><span class="stag gold">High — Rate 4</span></div>
+    <div class="pri-row"><span>Game results &amp; team news</span><span>Normal — Rate 3</span></div>
+    <div class="pri-row"><span>Alumni news (named individuals)</span><span>Normal — Rate 3</span></div>
+    <div class="pri-row"><span>Social &amp; podcasts</span><span>Normal — Rate 2-3</span></div>
+    <div class="pri-row"><span>InsideMDSports / Jeff Ermann</span><span class="stag excluded">Excluded</span></div>
+  </div>
+
+  <div class="settings-card">
+    <h3><i class="ti ti-user-star"></i> Coaches &amp; staff watch list</h3>
+    <div class="tag-cloud">
+      <span class="stag red">Mike Locksley</span><span class="stag red">Buzz Williams</span><span class="stag red">Brenda Frese</span><span class="stag red">Ted Monachino</span><span class="stag red">Clint Trickett</span><span class="stag red">Aazaar Abdul-Rahim</span><span class="stag red">Jeremy Shapiro</span><span class="stag">Jim Smith (AD)</span><span class="stag">Darryll Pines</span><span class="stag">Johnny Holliday</span>
+    </div>
+  </div>
+
+  <div class="settings-card">
+    <h3><i class="ti ti-trophy"></i> Football watch list — 2026 commits</h3>
+    <div class="tag-cloud">
+      <span class="stag red">Zion Elee</span><span class="stag red">Darrell Carey</span><span class="stag red">Jamarcus Whyce</span><span class="stag red">Javonte Williams</span><span class="stag red">Jesse Moody</span><span class="stag red">Ontario Washington Jr.</span><span class="stag red">Chuck Roberts</span>
+    </div>
+    <div class="sdiv-label">2027 commits</div>
+    <div class="tag-cloud">
+      <span class="stag red">Myles McAfee</span><span class="stag red">Levi Babin</span><span class="stag red">Mekhi Graham</span><span class="stag red">Davion Vanderbilt</span>
+    </div>
+    <div class="sdiv-label">Active targets</div>
+    <div class="tag-cloud">
+      <span class="stag gold">Kenaz Sullivan</span><span class="stag gold">James Pace III</span><span class="stag gold">Dallas Pauldo</span><span class="stag gold">Anthony Jennings</span><span class="stag gold">Cahron Wheeler</span><span class="stag gold">Emerson Lewis</span><span class="stag gold">James Branch</span><span class="stag gold">Kendon Bauer</span><span class="stag gold">Franklin Richardson</span>
+    </div>
+    <div class="sdiv-label">Current roster (key names)</div>
+    <div class="tag-cloud">
+      <span class="stag">Malik Washington</span><span class="stag">Zahir Mathis</span><span class="stag">Sidney Stewart</span><span class="stag">Daniel Wingate</span><span class="stag">Dontay Joyner</span><span class="stag">Jamare Glasker</span><span class="stag">Messiah Delhomme</span><span class="stag">Justin Merriman</span>
+    </div>
+  </div>
+
+  <div class="settings-card">
+    <h3><i class="ti ti-ball-basketball"></i> Basketball watch list</h3>
+    <div class="sdiv-label">2026-27 roster</div>
+    <div class="tag-cloud">
+      <span class="stag red">Pharrel Payne</span><span class="stag red">Andre Mills</span><span class="stag red">DJ Wagner</span><span class="stag red">Tomislav Buljan</span><span class="stag red">Bishop Boswell</span><span class="stag red">Kaden House</span><span class="stag red">Austin Brown</span><span class="stag red">Adama Tambedou</span><span class="stag red">Robert Jennings</span><span class="stag red">Baba Oladotun</span><span class="stag red">Guillermo del Pino</span><span class="stag red">Alexandre K'Medehouto</span><span class="stag red">George Turkson Jr.</span><span class="stag red">Michael McNair</span><span class="stag red">Maban Jabriel</span>
+    </div>
+    <div class="sdiv-label">2027 targets</div>
+    <div class="tag-cloud">
+      <span class="stag gold">Amir Jenkins</span><span class="stag gold">J'Lon Lyons</span><span class="stag gold">Beau Daniels</span>
+    </div>
+  </div>
+
+  <div class="settings-card">
+    <h3><i class="ti ti-award"></i> Alumni watch list</h3>
+    <div class="sdiv-label">Active NFL Terps</div>
+    <div class="tag-cloud">
+      <span class="stag blue">DJ Moore</span><span class="stag blue">Stefon Diggs</span><span class="stag blue">Chig Okonkwo</span><span class="stag blue">Nick Cross</span><span class="stag blue">Tai Felton</span><span class="stag blue">DJ Glaze</span><span class="stag blue">Deonte Banks</span><span class="stag blue">Jakorian Bennett</span><span class="stag blue">Tarheeb Still</span><span class="stag blue">Corey Bullock</span><span class="stag blue">Jalil Farooq</span><span class="stag blue">Shaleak Knotts</span><span class="stag blue">Dante Trader Jr.</span><span class="stag blue">Kaden Prather</span><span class="stag blue">Ruben Hyppolite II</span>
+    </div>
+    <div class="sdiv-label">NBA/WNBA alumni</div>
+    <div class="tag-cloud">
+      <span class="stag blue">Derik Queen</span><span class="stag blue">Aaron Wiggins</span><span class="stag blue">Kevin Huerter</span>
+    </div>
+    <div class="sdiv-label">All-time scoring leaders</div>
+    <div class="tag-cloud">
+      <span class="stag">Juan Dixon</span><span class="stag">Greivis Vasquez</span><span class="stag">Len Bias</span><span class="stag">Albert King</span><span class="stag">Adrian Branch</span><span class="stag">John Lucas</span><span class="stag">Lonny Baxter</span><span class="stag">Tom McMillen</span><span class="stag">Walt Williams</span><span class="stag">Jake Layman</span><span class="stag">Dez Wells</span><span class="stag">Melo Trimble</span><span class="stag">Anthony Cowan Jr.</span><span class="stag">Steve Blake</span><span class="stag">Gary Williams</span>
+    </div>
+    <div class="sdiv-label">Legends &amp; HOF</div>
+    <div class="tag-cloud">
+      <span class="stag">Shawne Merriman</span><span class="stag">Boomer Esiason</span><span class="stag">Marissa Coleman</span><span class="stag">Taylor Cummings</span><span class="stag">Dominique Dawes</span><span class="stag">Buck Williams</span><span class="stag">Len Elmore</span><span class="stag">Gene Shue</span><span class="stag">Joe Smith</span><span class="stag">Graham Zusi</span>
+    </div>
+  </div>
+
+  <div class="settings-card">
+    <h3><i class="ti ti-microphone"></i> Channels monitored</h3>
+    <div class="sdiv-label">Beat reporters</div>
+    <div class="tag-cloud">
+      <span class="stag purple">@testudotimes</span><span class="stag purple">@TerpRecruiting</span><span class="stag purple">@DBKSports</span><span class="stag purple">@UMTerps</span><span class="stag purple">Ahmed Ghafir</span><span class="stag purple">Nolan Rogalski</span><span class="stag purple">Matt Germack</span>
+    </div>
+    <div class="sdiv-label">Podcasts</div>
+    <div class="tag-cloud">
+      <span class="stag green">Testudo Talk</span><span class="stag green">Locked On Terps</span><span class="stag green">Hear The Turtle</span><span class="stag green">Under The Shell</span><span class="stag green">Protect The Shell</span><span class="stag green">Testudos &amp; Touchdowns</span>
+      <span class="stag excluded">IMS Radio (yours)</span>
+    </div>
+  </div>
+
+  <div class="settings-card">
+    <h3><i class="ti ti-mail"></i> Email &amp; alerts</h3>
+    <p style="font-size:12px;color:var(--text2);line-height:1.5;margin-bottom:8px;">Rating 5 = immediate email, any time, 24/7. Ratings 1-4 = 2-hour digest bundle. Full digest at 8 PM, morning brief at 8 AM. Requires SendGrid/Mailgun at deployment.</p>
+    <div class="email-row">
+      <input class="email-input" id="emailInput" type="email" placeholder="you@insidemdsports.com">
+      <button class="email-save" onclick="saveEmail()">Save</button>
+    </div>
+    <div id="emailStatus" style="font-size:11px;margin-top:6px;color:var(--text3);"></div>
+  </div>
+</div>
+
+<div class="bottom-bar">
+  <span class="bb-brand">INSIDEMDSPORTS</span>
+  <span class="bb-tag">TERPS NEWS MONITOR</span>
+</div>
+
+<script>
+// ============================================================
+// FULL WATCH LIST
+// ============================================================
+const EXCLUDED = ['InsideMDSports','Jeff Ermann','IMS Radio','insidemdsports.com','247sports.com/college/maryland'];
+
+const WATCH = {
+  coaches: ['Mike Locksley','Buzz Williams','Brenda Frese','Ted Monachino','Clint Trickett','Aazaar Abdul-Rahim','Jeremy Shapiro','Latrell Scott','Kyle Schmitt','Andre Powell'],
+  fbCommits26: ['Zion Elee','Darrell Carey','Jamarcus Whyce','Javonte Williams','Jesse Moody','Ontario Washington Jr.','Chuck Roberts'],
+  fbCommits27: ['Myles McAfee','Levi Babin','Mekhi Graham','Davion Vanderbilt'],
+  fbTargets: ['Kenaz Sullivan','James Pace III','Dallas Pauldo','Anthony Jennings','Cahron Wheeler','Emerson Lewis','James Branch','Kendon Bauer','Franklin Richardson'],
+  fbRoster: ['Malik Washington','Zahir Mathis','Sidney Stewart','Daniel Wingate','Dontay Joyner','Jamare Glasker','Messiah Delhomme','Justin Merriman'],
+  bkRoster: ['Pharrel Payne','Andre Mills','DJ Wagner','Tomislav Buljan','Bishop Boswell','Kaden House','Austin Brown','Adama Tambedou','Robert Jennings','Baba Oladotun','Guillermo del Pino','Alexandre K\'Medehouto','George Turkson','Michael McNair','Maban Jabriel'],
+  bkTargets: ['Amir Jenkins','J\'Lon Lyons','Beau Daniels'],
+  nflAlumni: ['DJ Moore','Stefon Diggs','Chig Okonkwo','Nick Cross','Tai Felton','DJ Glaze','Deonte Banks','Jakorian Bennett','Tarheeb Still','Corey Bullock','Jalil Farooq','Shaleak Knotts','Dante Trader Jr.','Kaden Prather','Ruben Hyppolite II','Shawne Merriman','Boomer Esiason'],
+  nbaAlumni: ['Derik Queen','Aaron Wiggins','Kevin Huerter'],
+  legends: ['Juan Dixon','Greivis Vasquez','Len Bias','Albert King','Adrian Branch','John Lucas','Lonny Baxter','Tom McMillen','Walt Williams','Jake Layman','Dez Wells','Melo Trimble','Anthony Cowan','Steve Blake','Gary Williams','Buck Williams','Len Elmore','Gene Shue','Joe Smith','Dominique Dawes','Marissa Coleman','Taylor Cummings'],
+  reporters: ['Testudo Times','TerpRecruiting','DBKSports','Ahmed Ghafir','Nolan Rogalski','Matt Germack'],
+  admin: ['Jim Smith','Darryll Pines','Johnny Holliday'],
+  podcasts: ['Testudo Talk','Locked On Terps','Hear The Turtle','Under The Shell','Protect The Shell','Testudos and Touchdowns']
+};
+
+const SCAN_PROMPT = () => `You are a news monitor for InsideMDSports on 247Sports, covering University of Maryland Terrapins athletics exclusively for publisher Jeff Ermann. Search for the latest UMD Terrapins news right now.
+
+CRITICAL: EXCLUDE all content from InsideMDSports, Jeff Ermann, IMS Radio, or 247sports.com/college/maryland. Exception: include it if another outlet is REACTING to Jeff's reporting.
+
+PEOPLE TO WATCH — flag any mention of these immediately:
+Coaches: ${WATCH.coaches.join(', ')}
+FB commits (2026): ${WATCH.fbCommits26.join(', ')}
+FB commits (2027): ${WATCH.fbCommits27.join(', ')}
+FB targets: ${WATCH.fbTargets.join(', ')}
+FB roster: ${WATCH.fbRoster.join(', ')}
+BK roster: ${WATCH.bkRoster.join(', ')}
+BK targets: ${WATCH.bkTargets.join(', ')}
+NFL alumni: ${WATCH.nflAlumni.join(', ')}
+NBA/WNBA alumni: ${WATCH.nbaAlumni.join(', ')}
+Legends: ${WATCH.legends.join(', ')}
+Reporters: ${WATCH.reporters.join(', ')}
+Admin: ${WATCH.admin.join(', ')}
+
+CHANNELS TO CHECK:
+- r/MarylandTerrapins, r/CFB, r/CollegeBasketball
+- Testudo Times, Inside the Black and Gold, The Diamondback
+- ESPN Maryland, The Athletic Maryland, On3, Rivals
+- 247Sports Maryland recruiting boards
+- Podcasts: ${WATCH.podcasts.join(', ')}
+- YouTube: Maryland Terrapins, Maryland recruiting, Buzz Williams, Mike Locksley
+- Transfer portal trackers
+
+KEY PHRASES: "commits to Maryland", "decommits from Maryland", "Maryland offer", "Maryland official visit", "Crystal Ball Maryland", "Terps transfer portal", "Maryland football recruiting", "Buzz Williams recruit", "Locksley offer", "Maryland basketball commit"
+
+SPORT EXCLUSIONS: Exclude tennis, track, golf, wrestling, field hockey, softball, baseball, lacrosse, soccer, gymnastics, swimming UNLESS it's major news (NCAA title, national award, pro signing).
+
+RATING SCALE (be precise):
+5 = Breaking: commit, decommit, portal move, coaching hire/fire, major injury to starter, program-level news
+4 = High value: named recruit activity, beat reporter scoop, transfer interest, roster move, game result with context
+3 = Solid: general team/program news, depth chart, podcast, alumni signing
+2 = Informational: previews, minor notes, social buzz
+1 = Low signal: aggregated recaps, tangential mentions
+
+Return ONLY a valid JSON array (no markdown, no preamble, no explanation). Each item:
+- headline: string
+- summary: 1-2 sentences
+- category: "recruiting"|"football"|"basketball"|"other-sport"|"alumni"|"social"|"podcast"
+- sport: specific sport
+- source: outlet, reporter, subreddit, or platform
+- time: e.g. "15m ago", "1h ago", "this morning"
+- rating: integer 1-5
+
+Return 10-15 items. Sort by rating descending. Always include recruiting if found.`;
+
+// ============================================================
+// STATE
+// ============================================================
+let allAlerts = [];
+let currentFilter = 'all';
+let savedEmail = '';
+let lastScanTime = null;
+let countdownInterval = null;
+const SCAN_MS = 30 * 60 * 1000;
+
+// ============================================================
+// TAB SWITCHING
+// ============================================================
+function switchTab(idx) {
+  document.querySelectorAll('.page').forEach((p, i) => p.classList.toggle('active', i === idx));
+  document.querySelectorAll('.nav-tab').forEach((t, i) => t.classList.toggle('active', i === idx));
+}
+
+// ============================================================
+// FILTER
+// ============================================================
+function setFilter(f, btn) {
+  currentFilter = f;
+  document.querySelectorAll('.chip').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  renderAlerts();
+}
+
+function isBball(s) { return ['basketball','mens-basketball','womens-basketball'].includes(s || ''); }
+
+// ============================================================
+// RENDER ALERTS
+// ============================================================
+function renderAlerts() {
+  const c = document.getElementById('alertsContainer');
+  let filtered = allAlerts;
+  if (currentFilter === '5') filtered = allAlerts.filter(a => a.rating === 5);
+  else if (currentFilter === '4') filtered = allAlerts.filter(a => a.rating === 4);
+  else if (currentFilter === 'recruiting') filtered = allAlerts.filter(a => a.category === 'recruiting');
+  else if (currentFilter === 'football') filtered = allAlerts.filter(a => a.sport === 'football');
+  else if (currentFilter === 'basketball') filtered = allAlerts.filter(a => isBball(a.sport));
+  else if (currentFilter === 'alumni') filtered = allAlerts.filter(a => a.category === 'alumni');
+  else if (currentFilter === 'social') filtered = allAlerts.filter(a => ['social','podcast'].includes(a.category));
+
+  if (!filtered.length) { c.innerHTML = '<div class="empty"><i class="ti ti-mood-empty"></i>No alerts in this category.</div>'; return; }
+
+  c.innerHTML = filtered.map((a, idx) => {
+    const isRec = a.category === 'recruiting';
+    const cardClass = a.rating === 5 ? 'r5' : a.rating === 4 ? 'r4' : '';
+    const ratingClass = `r${a.rating}-badge`;
+    const ratingLabel = a.rating === 5 ? '🔴 5 — Breaking' : a.rating === 4 ? '🟡 4 — High' : a.rating === 3 ? '🔵 3 — Solid' : `${a.rating} — Low`;
+    const tagClass = isRec ? 'tag-rec' : a.sport === 'football' ? 'tag-fb' : isBball(a.sport) ? 'tag-bk' : a.category === 'alumni' ? 'tag-alum' : ['social','podcast'].includes(a.category) ? 'tag-soc' : 'tag-gen';
+    const catLabel = isRec ? 'Recruiting' : a.category === 'alumni' ? 'Alumni' : a.category === 'social' ? 'Social' : a.category === 'podcast' ? 'Podcast' : 'News';
+    return `<div class="acard ${cardClass}" id="card-${idx}">
+      <div class="acard-top">
+        <div class="acard-headline">${a.headline}</div>
+        <span class="rating ${ratingClass}">${ratingLabel}</span>
+      </div>
+      <div class="acard-meta">
+        <span class="tag ${tagClass}">${catLabel}</span>
+        ${a.sport ? `<span class="tag tag-gen">${a.sport}</span>` : ''}
+        <span class="asrc">${a.source}</span>
+        <span class="atime">${a.time}</span>
+      </div>
+      ${a.summary ? `<div class="asum">${a.summary}</div>` : ''}
+      <div class="acard-actions">
+        <button class="aaction" onclick="getAngles(${idx})"><i class="ti ti-bulb"></i> Story angles</button>
+        <button class="aaction" onclick="getAutoBrief(${idx})"><i class="ti ti-file-text"></i> Auto-brief</button>
+        <button class="aaction" onclick="getSEO(${idx})"><i class="ti ti-search"></i> SEO</button>
+        <button class="aaction" onclick="getSocial(${idx})"><i class="ti ti-brand-twitter"></i> Draft social</button>
+        <button class="aaction" onclick="claimStory(${idx})"><i class="ti ti-hand-stop"></i> Claim</button>
+      </div>
+      <div class="aaction-output" id="output-${idx}"></div>
+    </div>`;
+  }).join('');
+}
+
+// ============================================================
+// CARD ACTIONS
+// ============================================================
+async function callClaude(prompt, outputEl, heading) {
+  const out = document.getElementById(outputEl);
+  out.className = 'aaction-output visible';
+  out.innerHTML = `<h4>${heading}</h4><i class="ti ti-loader spin"></i> Working...`;
+  try {
+    const res = await fetch("https://api.anthropic.com/v1/messages", {
+      method: "POST", headers: {"Content-Type":"application/json"},
+      body: JSON.stringify({ model:"claude-sonnet-4-6", max_tokens:600, messages:[{role:"user",content:prompt}] })
+    });
+    const data = await res.json();
+    const text = data.content.map(i => i.text || '').join('');
+    out.innerHTML = `<h4>${heading}</h4>${text.replace(/\n/g,'<br>')}`;
+  } catch(e) {
+    out.innerHTML = `<h4>${heading}</h4>Error — try again.`;
+  }
+}
+
+function getAngles(idx) {
+  const a = allAlerts[idx];
+  callClaude(`You are an editor at InsideMDSports, a University of Maryland Terrapins sports site on 247Sports. Given this news alert, suggest 3-4 specific story angles a writer could pursue. Be specific and Terps-focused. Keep it punchy — one sentence each.\n\nAlert: ${a.headline}\nSummary: ${a.summary || ''}\nSource: ${a.source}`, `output-${idx}`, 'Story angles');
+}
+
+function getAutoBrief(idx) {
+  const a = allAlerts[idx];
+  callClaude(`You are a news editor at InsideMDSports. Write a one-paragraph reporting brief for a writer assigned to this story. Include: what the story is, key people involved, what questions to answer, suggested sources to contact, and relevant background. Be specific to Maryland Terrapins coverage.\n\nAlert: ${a.headline}\nSummary: ${a.summary || ''}\nSource: ${a.source}\nCategory: ${a.category}`, `output-${idx}`, 'Auto-brief');
+}
+
+function getSEO(idx) {
+  const a = allAlerts[idx];
+  callClaude(`You are an SEO editor at InsideMDSports. For this news story, provide: 1) A strong SEO headline (under 60 chars), 2) A meta description (under 155 chars), 3) 5 target keywords, 4) Suggested internal linking topics. Keep it Maryland Terrapins focused.\n\nStory: ${a.headline}\nSummary: ${a.summary || ''}`, `output-${idx}`, 'SEO suggestions');
+}
+
+function getSocial(idx) {
+  const a = allAlerts[idx];
+  callClaude(`You are the social media manager at InsideMDSports. Draft platform-specific posts for this story. Include a link placeholder [LINK]. Write in a sharp, direct sports news voice — not overly promotional.\n\nX/Twitter (280 chars max): \nFacebook (2-3 sentences): \nInstagram caption: \n\nStory: ${a.headline}\nSummary: ${a.summary || ''}`, `output-${idx}`, 'Social copy');
+}
+
+function claimStory(idx) {
+  const a = allAlerts[idx];
+  const name = prompt('Who is claiming this story?', 'Jeff Ermann');
+  if (name) {
+    addChatMessage(`📌 ${name} claimed: "${a.headline}"`, 'system');
+    const out = document.getElementById(`output-${idx}`);
+    out.className = 'aaction-output visible';
+    out.innerHTML = `<h4>Claimed</h4>Assigned to ${name}`;
+  }
+}
+
+// ============================================================
+// SCAN
+// ============================================================
+async function runScan() {
+  const btn = document.getElementById('scanBtn');
+  const dot = document.getElementById('scanDot');
+  const txt = document.getElementById('scanText');
+  btn.disabled = true;
+  btn.innerHTML = '<i class="ti ti-loader spin"></i> Scanning...';
+  dot.style.background = '#cf0315';
+  txt.innerHTML = '<strong>Scanning now</strong> — checking all sources, names, and channels...';
+  document.getElementById('alertsContainer').innerHTML = '<div class="empty"><i class="ti ti-loader spin"></i>Searching news, Reddit, social, podcasts, recruiting boards...</div>';
+
+  try {
+    // Call our server-side API route (keeps API key secret)
+    const res = await fetch('/api/scan', { method: 'POST' });
+    const data = await res.json();
+
+    if (!data.success) throw new Error(data.error || 'Scan failed on server');
+
+    allAlerts = data.alerts || [];
+    lastScanTime = Date.now();
+
+    document.getElementById('m-total').textContent = allAlerts.length;
+    document.getElementById('m-r5').textContent = allAlerts.filter(a => a.rating === 5).length;
+    document.getElementById('m-r4').textContent = allAlerts.filter(a => a.rating === 4).length;
+    document.getElementById('m-rec').textContent = allAlerts.filter(a => a.category === 'recruiting').length;
+    document.getElementById('m-last').textContent = new Date().toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'});
+
+    dot.style.background = '#3B6D11';
+    txt.innerHTML = `<strong>Active</strong> — ${allAlerts.length} stories found · next scan in 30 min`;
+    startCountdown();
+    renderAlerts();
+
+    // Auto-drop rating 4+ alerts to team chat
+    allAlerts.filter(a => a.rating >= 4).forEach(a => {
+      addChatMessage(`🚨 ${a.rating === 5 ? 'BREAKING' : 'ALERT'}: ${a.headline} · ${a.source} · ${a.time} · Rating ${a.rating}/5`, 'alert-drop');
+    });
+
+    // Auto-populate backlog
+    generateBacklogFromAlerts();
+
+  } catch(e) {
+    document.getElementById('alertsContainer').innerHTML = `<div class="empty"><i class="ti ti-alert-triangle"></i>Scan failed: ${e.message}<br><br>Tap "Scan now" to retry.</div>`;
+    dot.style.background = '#ffd520';
+    txt.innerHTML = `<strong>Scan failed</strong> — ${e.message}`;
+  }
+  btn.disabled = false;
+  btn.innerHTML = '<i class="ti ti-refresh"></i> Scan now';
+}
+
+// ============================================================
+// COUNTDOWN
+// ============================================================
+function startCountdown() {
+  if (countdownInterval) clearInterval(countdownInterval);
+  countdownInterval = setInterval(() => {
+    if (!lastScanTime) return;
+    const rem = Math.max(0, SCAN_MS - (Date.now() - lastScanTime));
+    const m = Math.floor(rem / 60000), s = Math.floor((rem % 60000) / 1000);
+    document.getElementById('m-next').textContent = `${m}m ${s}s`;
+    if (rem === 0) runScan();
+  }, 1000);
+}
+
+// ============================================================
+// DIGEST
+// ============================================================
+function generateDigest() {
+  if (!allAlerts.length) {
+    document.getElementById('digestContent').innerHTML = '<div class="empty"><i class="ti ti-loader spin"></i>Run a scan first to populate the digest.</div>';
+    return;
+  }
+  const now = new Date();
+  const dateStr = now.toLocaleDateString('en-US',{weekday:'long',month:'long',day:'numeric'});
+  const groups = {
+    'Recruiting': allAlerts.filter(a => a.category === 'recruiting'),
+    'Football': allAlerts.filter(a => a.sport === 'football' && a.category !== 'recruiting'),
+    'Basketball': allAlerts.filter(a => isBball(a.sport) && a.category !== 'recruiting'),
+    'Other sports': allAlerts.filter(a => !['football','basketball','mens-basketball','womens-basketball'].includes(a.sport||'') && !['recruiting','alumni','social','podcast'].includes(a.category)),
+    'Alumni': allAlerts.filter(a => a.category === 'alumni'),
+    'Social & podcasts': allAlerts.filter(a => ['social','podcast'].includes(a.category))
+  };
+  const tagMap = {'Recruiting':'tag-rec','Football':'tag-fb','Basketball':'tag-bk','Other sports':'tag-gen','Alumni':'tag-alum','Social & podcasts':'tag-soc'};
+  let html = `<div class="digest-hdr"><h3>Nightly digest — ${dateStr}</h3><span class="stag">${allAlerts.length} items</span></div>`;
+  for (const [title, items] of Object.entries(groups)) {
+    if (!items.length) continue;
+    html += `<div class="digest-section"><div class="digest-section-title">${title}</div>`;
+    items.forEach(i => { html += `<div class="digest-item"><span class="tag ${tagMap[title]}" style="flex-shrink:0;">${i.sport||i.category}</span>${i.headline}</div>`; });
+    html += `</div>`;
+  }
+  if (savedEmail) html += `<div style="font-size:11px;color:var(--text3);margin-top:10px;"><i class="ti ti-mail"></i> Sends to ${savedEmail} at 8:00 PM</div>`;
+  document.getElementById('digestContent').innerHTML = html;
+}
+
+// ============================================================
+// HOT SOCIAL
+// ============================================================
+async function scanSocial() {
+  const c = document.getElementById('socialContainer');
+  c.innerHTML = '<div class="empty"><i class="ti ti-loader spin"></i>Scanning Reddit, X, YouTube for high-engagement Terps posts...</div>';
+  try {
+    const res = await fetch("https://api.anthropic.com/v1/messages", {
+      method:"POST", headers:{"Content-Type":"application/json"},
+      body: JSON.stringify({
+        model:"claude-sonnet-4-6", max_tokens:1000,
+        tools:[{"type":"web_search_20250305","name":"web_search"}],
+        messages:[{role:"user",content:`Search for high-engagement social media posts about Maryland Terrapins football and basketball from the past 48 hours. Look on Reddit (r/MarylandTerrapins, r/CFB, r/CollegeBasketball), Twitter/X (indexed public posts), and YouTube. Return ONLY a JSON array of 4-6 posts with: platform, post_text (summary of what the post says, max 100 chars), stats (likes/upvotes/views as string), url (if available), engagement_score (1-10). No markdown.`}]
+      })
+    });
+    const data = await res.json();
+    const text = data.content.map(i=>i.type==='text'?i.text:'').join('\n');
+    const match = text.replace(/```json|```/g,'').match(/\[[\s\S]*\]/);
+    if (!match) throw new Error('no json');
+    const posts = JSON.parse(match[0]);
+    c.innerHTML = posts.map((p, idx) => `
+      <div class="social-card">
+        <div class="social-card-top">
+          <span class="social-platform plat-${p.platform==='Twitter'||p.platform==='X'?'x':p.platform==='Reddit'?'reddit':'youtube'}">${p.platform}</span>
+          <span style="font-size:11px;color:var(--text3);">Engagement: ${p.engagement_score}/10</span>
+        </div>
+        <div class="social-post">${p.post_text}</div>
+        <div class="social-stats">${p.stats}</div>
+        <div class="social-actions">
+          <button class="aaction" onclick="draftReply(${idx}, \`${p.post_text.replace(/`/g,"'")}\`)"><i class="ti ti-edit"></i> Draft reply</button>
+          ${p.url ? `<button class="aaction" onclick="window.open('${p.url}')"><i class="ti ti-external-link"></i> View post</button>` : ''}
+        </div>
+        <div class="draft-reply" id="social-reply-${idx}"><div class="draft-reply-label">Drafted reply — review before posting</div><div id="social-reply-text-${idx}"></div></div>
+      </div>
+    `).join('');
+  } catch(e) {
+    c.innerHTML = '<div class="empty"><i class="ti ti-alert-triangle"></i>Scan failed — try again.</div>';
+  }
+}
+
+async function draftReply(idx, postText) {
+  const el = document.getElementById(`social-reply-${idx}`);
+  const tel = document.getElementById(`social-reply-text-${idx}`);
+  el.className = 'draft-reply visible';
+  tel.innerHTML = '<i class="ti ti-loader spin"></i>';
+  try {
+    const res = await fetch("https://api.anthropic.com/v1/messages", {
+      method:"POST", headers:{"Content-Type":"application/json"},
+      body:JSON.stringify({model:"claude-sonnet-4-6",max_tokens:300,messages:[{role:"user",content:`You are helping Jeff Ermann of InsideMDSports reply to a social media post about Maryland Terrapins. Write a sharp, knowledgeable reply that adds value, positions Jeff as the authority on Terps news, and naturally includes "More at InsideMDSports [LINK]". Keep it under 250 characters for X. Sound like a beat reporter, not a marketer.\n\nPost: ${postText}`}]})
+    });
+    const data = await res.json();
+    tel.innerHTML = data.content.map(i=>i.text||'').join('') + '<br><br><button class="aaction" onclick="navigator.clipboard.writeText(this.previousSibling.textContent)"><i class="ti ti-copy"></i> Copy</button>';
+  } catch(e) { tel.innerHTML = 'Failed — try again.'; }
+}
+
+// ============================================================
+// TEAM CHAT
+// ============================================================
+function addChatMessage(text, type, sender) {
+  const c = document.getElementById('chatMessages');
+  const div = document.createElement('div');
+  div.className = `chat-msg ${type}`;
+  if (sender) div.innerHTML = `<div class="sender">${sender}</div>${text}`;
+  else div.textContent = text;
+  c.appendChild(div);
+  c.scrollTop = c.scrollHeight;
+}
+
+function dropAlertToChat(a) {
+  const c = document.getElementById('chatMessages');
+  const div = document.createElement('div');
+  div.className = 'chat-msg alert-drop';
+  div.innerHTML = `<div class="alert-headline">🚨 ${a.rating === 5 ? 'BREAKING' : 'ALERT'}: ${a.headline}</div><div class="alert-meta">${a.category} · ${a.source} · ${a.time} · Rating ${a.rating}/5</div>`;
+  c.appendChild(div);
+  c.scrollTop = c.scrollHeight;
+}
+
+function sendChat() {
+  const input = document.getElementById('chatInput');
+  if (!input.value.trim()) return;
+  addChatMessage(input.value, 'me', 'Jeff Ermann');
+  input.value = '';
+}
+
+// ============================================================
+// STORY BACKLOG
+// ============================================================
+function generateBacklogFromAlerts() {
+  if (!allAlerts.length) return;
+  const c = document.getElementById('backlogContainer');
+  const ideas = allAlerts.slice(0,8).map((a, idx) => ({
+    title: `Story opportunity: ${a.headline}`,
+    meta: `${a.category} · From ${a.source} · Rating ${a.rating}/5`,
+    rating: a.rating
+  })).sort((a,b) => b.rating - a.rating);
+  c.innerHTML = ideas.map((idea, i) => `
+    <div class="backlog-card">
+      <div class="backlog-priority">${i+1}</div>
+      <div>
+        <div class="backlog-title">${idea.title}</div>
+        <div class="backlog-meta">${idea.meta}</div>
+      </div>
+    </div>
+  `).join('');
+}
+
+async function generateBacklog() {
+  if (!allAlerts.length) { alert('Run a scan first.'); return; }
+  const c = document.getElementById('backlogContainer');
+  c.innerHTML = '<div class="empty"><i class="ti ti-loader spin"></i>Generating story ideas...</div>';
+  try {
+    const res = await fetch("https://api.anthropic.com/v1/messages", {
+      method:"POST", headers:{"Content-Type":"application/json"},
+      body:JSON.stringify({model:"claude-sonnet-4-6",max_tokens:800,messages:[{role:"user",content:`You are the editor of InsideMDSports, a Maryland Terrapins sports site. Based on these recent alerts, suggest 6 specific story ideas a reporter could write today. Be concrete and Terps-specific. Return as JSON array with: title, angle (one sentence), priority (1-3, 1=highest).\n\nAlerts:\n${allAlerts.slice(0,8).map(a=>a.headline).join('\n')}\n\nNo markdown, just raw JSON array.`}]})
+    });
+    const data = await res.json();
+    const text = data.content.map(i=>i.text||'').join('');
+    const match = text.replace(/```json|```/g,'').match(/\[[\s\S]*\]/);
+    if (!match) throw new Error('no json');
+    const ideas = JSON.parse(match[0]);
+    c.innerHTML = ideas.map((idea,i) => `
+      <div class="backlog-card">
+        <div class="backlog-priority" style="background:${idea.priority===1?'#fff0f0':idea.priority===2?'#fffae0':'#f0f0f0'};color:${idea.priority===1?'#a80210':idea.priority===2?'#7a5200':'#555'}">${idea.priority}</div>
+        <div>
+          <div class="backlog-title">${idea.title}</div>
+          <div class="backlog-meta">${idea.angle}</div>
+        </div>
+      </div>
+    `).join('');
+  } catch(e) { c.innerHTML = '<div class="empty"><i class="ti ti-alert-triangle"></i>Failed — try again.</div>'; }
+}
+
+// ============================================================
+// EMAIL
+// ============================================================
+function saveEmail() {
+  savedEmail = document.getElementById('emailInput').value.trim();
+  const st = document.getElementById('emailStatus');
+  if (savedEmail.includes('@')) { st.textContent = '✓ Saved — rating 5 alerts and 8 PM digest will send to ' + savedEmail; st.style.color = 'var(--green)'; }
+  else { st.textContent = 'Enter a valid email.'; st.style.color = 'var(--red)'; }
+}
+</script>
+</body>
+</html>
