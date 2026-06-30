@@ -1,1 +1,13 @@
-{ "version": 2, "builds": [ { "src": "public/**", "use": "@vercel/static" }, { "src": "api/**/*.js", "use": "@vercel/node" } ], "routes": [ { "src": "/api/(.*)", "dest": "/api/$1" }, { "src": "/(.*)", "dest": "/public/$1" } ], "crons": [ { "path": "/api/digest", "schedule": "0 20 * * *" }, { "path": "/api/morning-brief", "schedule": "0 8 * * *" } ] }
+{
+  "version": 2,
+  "crons": [
+    {
+      "path": "/api/digest",
+      "schedule": "0 20 * * *"
+    },
+    {
+      "path": "/api/morning-brief",
+      "schedule": "0 8 * * *"
+    }
+  ]
+}
