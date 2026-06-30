@@ -138,18 +138,53 @@ export default async function handler(req, res) {
     }
 
     // Step 2: Extract the JSON from Claude's response
-    const text = claudeData.content
-      .map(block => block.type === 'text' ? block.text : '')
-      .join('\n');
+    // Web search responses contain multiple block types - collect all text blocks
+    const textBlocks = claudeData.content
+      .filter(block => block.type === 'text')
+      .map(block => block.text);
 
-    const cleanText = text.replace(/```json|```/g, '').trim();
-    const jsonMatch = cleanText.match(/\[[\s\S]*\]/);
+    const fullText = textBlocks.join('\n');
 
-    if (!jsonMatch) {
-      throw new Error('Claude did not return valid JSON');
+    // Try multiple extraction strategies
+    let alerts = null;
+
+    // Strategy 1: Look for JSON array in code blocks
+    const codeBlockMatch = fullText.match(/```(?:json)?\s*(\[[\s\S]*?\])\s*```/);
+    if (codeBlockMatch) {
+      try { alerts = JSON.parse(codeBlockMatch[1]); } catch(e) {}
     }
 
-    let alerts = JSON.parse(jsonMatch[0]);
+    // Strategy 2: Find the largest JSON array in the response
+    if (!alerts) {
+      const allArrays = [];
+      const regex = /\[[\s\S]*?\]/g;
+      let match;
+      const cleaned = fullText.replace(/```json|```/g, '');
+      while ((match = regex.exec(cleaned)) !== null) {
+        try {
+          const parsed = JSON.parse(match[0]);
+          if (Array.isArray(parsed) && parsed.length > 0 && parsed[0].headline) {
+            allArrays.push(parsed);
+          }
+        } catch(e) {}
+      }
+      if (allArrays.length > 0) {
+        alerts = allArrays.sort((a, b) => b.length - a.length)[0];
+      }
+    }
+
+    // Strategy 3: Find any JSON array at all
+    if (!alerts) {
+      const lastResort = fullText.replace(/```json|```/g, '').match(/\[[\s\S]*\]/);
+      if (lastResort) {
+        try { alerts = JSON.parse(lastResort[0]); } catch(e) {}
+      }
+    }
+
+    if (!alerts || !Array.isArray(alerts)) {
+      // Return the raw response for debugging
+      throw new Error(`Claude did not return valid JSON. Response preview: ${fullText.substring(0, 200)}`);
+    }
 
     // Step 3: Filter out any excluded sources that slipped through
     alerts = alerts.filter(alert =>
@@ -160,11 +195,14 @@ export default async function handler(req, res) {
     if (SENDGRID_API_KEY && ALERT_EMAIL && FROM_EMAIL) {
       sgMail.setApiKey(SENDGRID_API_KEY);
 
+      // Support multiple recipients: "email1@x.com, email2@x.com"
+      const recipients = ALERT_EMAIL.split(',').map(e => e.trim()).filter(Boolean);
+
       const breakingAlerts = alerts.filter(a => a.rating === 5);
 
       for (const alert of breakingAlerts) {
         await sgMail.send({
-          to: ALERT_EMAIL,
+          to: recipients,
           from: FROM_EMAIL,
           subject: `🔴 BREAKING: ${alert.headline}`,
           html: buildAlertEmail(alert)
