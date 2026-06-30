@@ -2,10 +2,6 @@
   "version": 2,
   "crons": [
     {
-      "path": "/api/scan",
-      "schedule": "*/30 * * * *"
-    },
-    {
       "path": "/api/digest",
       "schedule": "0 20 * * *"
     },
