@@ -3,9 +3,7 @@
   "version": "1.0.0",
   "description": "InsideMDSports Terps News Monitor",
   "private": true,
-  "type": "module",
   "dependencies": {
-    "@sendgrid/mail": "^8.1.0",
-    "node-fetch": "^3.3.2"
+    "@sendgrid/mail": "^8.1.0"
   }
 }
