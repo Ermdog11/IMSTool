@@ -2,7 +2,7 @@
 // Runs automatically at 8 PM every day via Vercel cron.
 // Scans for the day's news and sends a full digest email.
 
-import sgMail from '@sendgrid/mail';
+const sgMail = require('@sendgrid/mail');
 
 const buildDigestPrompt = () => `You are a news monitor for InsideMDSports, covering University of Maryland Terrapins athletics. Search for ALL Maryland Terrapins news from the past 24 hours across all sources.
 
@@ -63,7 +63,7 @@ const buildDigestEmailHTML = (alerts, date) => {
 </html>`;
 };
 
-export default async function handler(req, res) {
+module.exports = async function handler(req, res) {
   const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY;
   const SENDGRID_API_KEY = process.env.SENDGRID_API_KEY;
   const ALERT_EMAIL = process.env.ALERT_EMAIL;
