@@ -1,6 +1,6 @@
 module.exports = async function handler(req, res) {
   var key = process.env.ANTHROPIC_API_KEY;
-  if (!key) return res.status(500).json({ error: 'no key' });
+  if (!key) return res.status(500).json({ error: 'no key set' });
   try {
     var body = req.body || {};
     var r = await fetch('https://api.anthropic.com/v1/messages', {
