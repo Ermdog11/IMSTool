@@ -2,16 +2,20 @@ module.exports = async function handler(req, res) {
   var key = process.env.ANTHROPIC_API_KEY;
   if (!key) return res.status(500).json({ error: 'no key set' });
   try {
-    var body = req.body || {};
     var r = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         'x-api-key': key,
-        'anthropic-version': '2023-06-01'
-   'anthropic-beta': 'web-search-2025-03-05'
-},
-      body: JSON.stringify(body)
+        'anthropic-version': '2023-06-01',
+        'anthropic-beta': 'web-search-2025-03-05'
+      },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-6',
+        max_tokens: 2000,
+        tools: [{ type: 'web_search_20250305', name: 'web_search' }],
+        messages: [{ role: 'user', content: 'Search for Maryland Terrapins athletics news from the past 6 hours. Focus on football, basketball, and recruiting. EXCLUDE InsideMDSports and Jeff Ermann. Return ONLY a valid JSON array, each item: {headline, summary, category, sport, source, time, rating}. Up to 10 items sorted by rating descending.' }]
+      })
     });
     var d = await r.json();
     return res.status(r.status).json(d);
