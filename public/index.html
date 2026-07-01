@@ -723,12 +723,28 @@ async function runScan() {
 
   try {
     // Call our server-side API route (keeps API key secret)
-    const res = await fetch('/api/scan', { method: 'POST' });
+    const res = await fetch('/api/scan', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-6',
+        max_tokens: 2000,
+        tools: [{'type': 'web_search_20250305', 'name': 'web_search'}],
+        messages: [{role: 'user', content: SCAN_PROMPT()}]
+      })
+    });
     const data = await res.json();
+    if (data.error) throw new Error(typeof data.error === 'string' ? data.error : data.error.message || 'API error');
 
-    if (!data.success) throw new Error(data.error || 'Scan failed on server');
-
-    allAlerts = data.alerts || [];
+    // Extract JSON array from Claude's response text
+    const text = (data.content || []).map(i => i.type === 'text' ? i.text : '').join('\n');
+    const cleaned = text.replace(/```json|```/g, '').trim();
+    const start = cleaned.indexOf('[');
+    const end = cleaned.lastIndexOf(']');
+    if (start === -1 || end === -1) throw new Error('No alerts found in scan response');
+    let results = JSON.parse(cleaned.substring(start, end + 1));
+    results = results.filter(a => !EXCLUDED.some(ex => (a.source||'').toLowerCase().includes(ex.toLowerCase())));
+    allAlerts = results;
     lastScanTime = Date.now();
 
     document.getElementById('m-total').textContent = allAlerts.length;
