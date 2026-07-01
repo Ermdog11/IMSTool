@@ -724,7 +724,7 @@ async function runScan() {
   try {
     // Call our server-side API route (keeps API key secret)
     const res = await fetch('/api/scan', {
-     method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({model: 'claude-sonnet-4-6', max_tokens: 2000, tools: [{'type': 'web_search_20250305', 'name': 'web_search'}], messages: [{role: 'user', content: SCAN_PROMPT()}]})
+    
       headers: {'Content-Type': 'application/json'},
       body: JSON.stringify({
         model: 'claude-sonnet-4-6',
