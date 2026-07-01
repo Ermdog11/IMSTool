@@ -1,9 +1,9 @@
 // api/morning-brief.js
 // Runs at 8 AM every day. Quick summary of overnight news.
 
-import sgMail from '@sendgrid/mail';
+const sgMail = require('@sendgrid/mail');
 
-export default async function handler(req, res) {
+module.exports = async function handler(req, res) {
   const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY;
   const SENDGRID_API_KEY = process.env.SENDGRID_API_KEY;
   const ALERT_EMAIL = process.env.ALERT_EMAIL;
