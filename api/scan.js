@@ -9,9 +9,9 @@ module.exports = async function handler(req, res) {
         'x-api-key': key,
         'anthropic-version': '2023-06-01'
       },
-      body: JSON.stringify({
-        model: 'claude-sonnet-4-6',
+              model: 'claude-sonnet-4-6',
         max_tokens: 2000,
+        tools: [{ type: 'web_search_20250305', name: 'web_search' }],
         messages: [{ role: 'user', content: 'List 10 recent Maryland Terrapins athletics news stories. For each include: headline, summary, category (recruiting/football/basketball/other-sport/alumni/social/podcast), sport, source, time, and rating 1-5. Return ONLY a valid JSON array, no other text.' }]
       })
     });
