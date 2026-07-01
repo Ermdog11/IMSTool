@@ -730,7 +730,7 @@ async function runScan() {
         model: 'claude-sonnet-4-6',
         max_tokens: 4000,
         tools: [{'type': 'web_search_20250305', 'name': 'web_search'}],
-        messages: [{role: 'user', content: SCAN_PROMPT()}]
+        messages: [{role: 'user', content: 'Search for Maryland Terrapins athletics news from the past 6 hours. Focus on football, basketball, and recruiting. EXCLUDE InsideMDSports and Jeff Ermann. Return ONLY a valid JSON array, each item: {headline, summary, category, sport, source, time, rating}. Up to 10 items, sorted by rating descending.'}]
       })
     });
     const data = await res.json();
