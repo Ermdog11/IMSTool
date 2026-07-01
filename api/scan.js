@@ -9,7 +9,8 @@ module.exports = async function handler(req, res) {
         'Content-Type': 'application/json',
         'x-api-key': key,
         'anthropic-version': '2023-06-01'
-      },
+   'anthropic-beta': 'web-search-2025-03-05'
+},
       body: JSON.stringify(body)
     });
     var d = await r.json();
