@@ -7,12 +7,14 @@ module.exports = async function handler(req, res) {
       headers: {
         'Content-Type': 'application/json',
         'x-api-key': key,
-        'anthropic-version': '2023-06-01'
+        'anthropic-version': '2023-06-01',
+        'anthropic-beta': 'web-search-2025-03-05'
       },
-              model: 'claude-sonnet-4-6',
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-6',
         max_tokens: 2000,
         tools: [{ type: 'web_search_20250305', name: 'web_search' }],
-        messages: [{ role: 'user', content: 'List 10 recent Maryland Terrapins athletics news stories. For each include: headline, summary, category (recruiting/football/basketball/other-sport/alumni/social/podcast), sport, source, time, and rating 1-5. Return ONLY a valid JSON array, no other text.' }]
+        messages: [{ role: 'user', content: 'Search for Maryland Terrapins athletics news from the past 6 hours. Focus on football, basketball, and recruiting. EXCLUDE InsideMDSports and Jeff Ermann. Return ONLY a valid JSON array, each item: {headline, summary, category, sport, source, time, rating}. Up to 10 items, sorted by rating descending.' }]
       })
     });
     var d = await r.json();
