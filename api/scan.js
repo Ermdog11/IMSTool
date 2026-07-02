@@ -21,12 +21,13 @@ module.exports = async function handler(req, res) {
 
     var stories = [];
 
-    // Reddit r/MarylandTerrapins
+       // Reddit r/MarylandTerrapins
     if (results[0].status === 'fulfilled' && results[0].value.ok) {
       var reddit = await results[0].value.json();
       (reddit.data?.children || []).forEach(function(p) {
         var d = p.data;
         var hoursAgo = Math.round((Date.now() - d.created_utc * 1000) / 3600000);
+        if (hoursAgo > 48) return;
         stories.push({ title: d.title, source: 'r/MarylandTerrapins', time: hoursAgo + 'h ago' });
       });
     }
