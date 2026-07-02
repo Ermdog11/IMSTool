@@ -14,10 +14,11 @@ module.exports = async function handler(req, res) {
       fetch('https://news.google.com/rss/search?q=Maryland+Terrapins+recruiting&hl=en-US&gl=US&ceid=US:en', { headers: { 'User-Agent': 'InsideMDSports-Monitor/1.0' } }),
       fetch('https://news.google.com/rss/search?q=Maryland+Terrapins+transfer+portal&hl=en-US&gl=US&ceid=US:en', { headers: { 'User-Agent': 'InsideMDSports-Monitor/1.0' } }),
       fetch('https://news.google.com/rss/search?q=Maryland+Terrapins+NFL+NBA&hl=en-US&gl=US&ceid=US:en', { headers: { 'User-Agent': 'InsideMDSports-Monitor/1.0' } }),
-      fetch('https://www.reddit.com/r/CFB/search.json?q=Maryland+Terrapins&sort=new&limit=15', { headers: { 'User-Agent': 'InsideMDSports-Monitor/1.0' } }),
-      fetch('https://www.reddit.com/r/CollegeBasketball/search.json?q=Maryland&sort=new&limit=15', { headers: { 'User-Agent': 'InsideMDSports-Monitor/1.0' } }),
-      fetch('https://www.reddit.com/r/nfl/search.json?q=Maryland&sort=new&limit=10', { headers: { 'User-Agent': 'InsideMDSports-Monitor/1.0' } }),
-      fetch('https://www.reddit.com/r/nba/search.json?q=Maryland&sort=new&limit=10', { headers: { 'User-Agent': 'InsideMDSports-Monitor/1.0' } })
+      fetch('https://www.reddit.com/r/MarylandTerrapins/new.json?limit=25', { headers: { 'User-Agent': 'InsideMDSports-Monitor/1.0' } }),
+      fetch('https://www.reddit.com/r/CFB/search.json?q=Maryland+Terrapins&sort=new&restrict_sr=false&limit=15', { headers: { 'User-Agent': 'InsideMDSports-Monitor/1.0' } }),
+      fetch('https://www.reddit.com/r/CollegeBasketball/search.json?q=Maryland&sort=new&restrict_sr=false&limit=15', { headers: { 'User-Agent': 'InsideMDSports-Monitor/1.0' } }),
+      fetch('https://www.reddit.com/r/nfl/search.json?q=Maryland&sort=new&restrict_sr=false&limit=10', { headers: { 'User-Agent': 'InsideMDSports-Monitor/1.0' } }),
+      fetch('https://www.reddit.com/r/nba/search.json?q=Maryland&sort=new&restrict_sr=false&limit=10', { headers: { 'User-Agent': 'InsideMDSports-Monitor/1.0' } })
     ];
 
     var results = await Promise.allSettled(fetches);
@@ -37,16 +38,35 @@ module.exports = async function handler(req, res) {
       stories.push({ title: title, source: source, url: url || '', time: time });
     }
 
-    if (results[0].status === 'fulfilled' && results[0].value.ok) {
-      var r0 = await results[0].value.json();
-      (r0.data?.children || []).forEach(function(p) {
+    // Process all Reddit results
+    var redditIndices = [
+      { idx: 7, src: 'r/MarylandTerrapins' },
+      { idx: 8, src: 'r/CFB' },
+      { idx: 9, src: 'r/CollegeBasketball' },
+      { idx: 10, src: 'r/nfl' },
+      { idx: 11, src: 'r/nba' }
+    ];
+
+    var redditJsons = await Promise.allSettled(
+      redditIndices.map(function(s) {
+        return results[s.idx].status === 'fulfilled' && results[s.idx].value.ok
+          ? results[s.idx].value.json()
+          : Promise.resolve(null);
+      })
+    );
+
+    redditJsons.forEach(function(r, i) {
+      if (r.status !== 'fulfilled' || !r.value) return;
+      var src = redditIndices[i].src;
+      (r.value.data?.children || []).slice(0, 20).forEach(function(p) {
         var d = p.data;
         var ts = d.created_utc * 1000;
         if (ts < cutoff) return;
-        addStory(d.title, 'r/MarylandTerrapins', 'https://reddit.com' + d.permalink, Math.round((Date.now()-ts)/3600000) + 'h ago');
+        addStory(d.title, src, 'https://reddit.com' + d.permalink, Math.round((Date.now()-ts)/3600000) + 'h ago');
       });
-    }
+    });
 
+    // Process all Google News RSS feeds
     var xmlTexts = await Promise.allSettled(
       [1,2,3,4,5,6].map(function(i) {
         return results[i].status === 'fulfilled' && results[i].value.ok ? results[i].value.text() : Promise.resolve('');
@@ -67,28 +87,10 @@ module.exports = async function handler(req, res) {
       });
     });
 
-    var redditSubs = [
-      { idx: 7, src: 'r/CFB' },
-      { idx: 8, src: 'r/CollegeBasketball' },
-      { idx: 9, src: 'r/nfl' },
-      { idx: 10, src: 'r/nba' }
-    ];
-    for (var s of redditSubs) {
-      if (results[s.idx].status !== 'fulfilled' || !results[s.idx].value.ok) continue;
-      var j = await results[s.idx].value.json();
-      (j.data?.children || []).slice(0, 15).forEach(function(p) {
-        var d = p.data;
-        var ts = d.created_utc * 1000;
-        if (ts < cutoff) return;
-        addStory(d.title, s.src, 'https://reddit.com' + d.permalink, Math.round((Date.now()-ts)/3600000) + 'h ago');
-      });
-    }
-
     if (!stories.length) {
       return res.status(200).json({ content: [{ type: 'text', text: '[]' }] });
     }
 
-    // Send titles only to Claude, then match URLs back by index
     var claudeRes = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'x-api-key': key, 'anthropic-version': '2023-06-01' },
@@ -97,7 +99,7 @@ module.exports = async function handler(req, res) {
         max_tokens: 2000,
         messages: [{
           role: 'user',
-          content: 'You are a news monitor for InsideMDSports covering Maryland Terrapins athletics. Here are recent stories (each has an index number):\n\n' +
+          content: 'You are a news monitor for InsideMDSports covering Maryland Terrapins athletics. Here are recent stories:\n\n' +
             stories.map(function(s, i) { return i + '. "' + s.title + '" — ' + s.source + ' (' + s.time + ')'; }).join('\n') +
             '\n\nInclude all stories relevant to Maryland Terrapins — football, basketball, recruiting, transfer portal, alumni (NFL/NBA/WNBA), social. EXCLUDE anything from InsideMDSports, Jeff Ermann, IMS Radio, or 247Sports.\n\nRATING GUIDE:\n5 = Breaking under 6 hours (commit, decommit, coaching move, injury)\n4 = Important news from today\n3 = General news\n2 = Minor notes\n1 = Low relevance\n\nReturn ONLY a valid JSON array, no other text. Each item must include the original index number:\n{"idx":number,"headline":string,"summary":"1-2 sentences","category":"recruiting"|"football"|"basketball"|"other-sport"|"alumni"|"social"|"podcast","sport":string,"source":string,"time":string,"rating":1-5}\n\nSort by rating descending. Up to 15 items.'
         }]
