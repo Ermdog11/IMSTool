@@ -2,17 +2,18 @@ module.exports = async function handler(req, res) {
   var key = process.env.ANTHROPIC_API_KEY;
   if (!key) return res.status(500).json({ error: 'no key set' });
 
-  var cutoff = Date.now() - 24 * 60 * 60 * 1000;
+  var cutoff = Date.now() - 48 * 60 * 60 * 1000;
+  var excluded = ['insidemd', 'jeff ermann', 'ims radio', 'maryland.247sports.com'];
 
   try {
     var results = await Promise.allSettled([
       fetch('https://www.reddit.com/r/MarylandTerrapins/new.json?limit=25', {
         headers: { 'User-Agent': 'InsideMDSports-Monitor/1.0' }
       }),
-      fetch('https://news.google.com/rss/search?q=Maryland+Terrapins&hl=en-US&gl=US&ceid=US:en&after=1d', {
+      fetch('https://news.google.com/rss/search?q=Maryland+Terrapins&hl=en-US&gl=US&ceid=US:en', {
         headers: { 'User-Agent': 'InsideMDSports-Monitor/1.0' }
       }),
-      fetch('https://news.google.com/rss/search?q=Maryland+Terrapins+recruiting&hl=en-US&gl=US&ceid=US:en&after=1d', {
+      fetch('https://news.google.com/rss/search?q=Maryland+Terrapins+recruiting&hl=en-US&gl=US&ceid=US:en', {
         headers: { 'User-Agent': 'InsideMDSports-Monitor/1.0' }
       }),
       fetch('https://www.reddit.com/r/CFB/search.json?q=Maryland&sort=new&limit=15', {
@@ -41,6 +42,7 @@ module.exports = async function handler(req, res) {
         var src = (item.match(/<source[^>]*>(.*?)<\/source>/) || [])[1] || 'Google News';
         var pub = (item.match(/<pubDate>(.*?)<\/pubDate>/) || [])[1] || '';
         if (!title || title.includes('Google News')) return;
+        if (excluded.some(function(e) { return src.toLowerCase().includes(e); })) return;
         var pubTs = pub ? new Date(pub).getTime() : Date.now();
         if (pubTs < cutoff) return;
         var hoursAgo = Math.round((Date.now() - pubTs) / 3600000);
@@ -56,6 +58,7 @@ module.exports = async function handler(req, res) {
         var src = (item.match(/<source[^>]*>(.*?)<\/source>/) || [])[1] || 'Google News';
         var pub = (item.match(/<pubDate>(.*?)<\/pubDate>/) || [])[1] || '';
         if (!title || title.includes('Google News')) return;
+        if (excluded.some(function(e) { return src.toLowerCase().includes(e); })) return;
         var pubTs = pub ? new Date(pub).getTime() : Date.now();
         if (pubTs < cutoff) return;
         var hoursAgo = Math.round((Date.now() - pubTs) / 3600000);
@@ -90,9 +93,9 @@ module.exports = async function handler(req, res) {
         max_tokens: 2000,
         messages: [{
           role: 'user',
-          content: 'You are a news monitor for InsideMDSports covering Maryland Terrapins athletics. Here are recent stories from the past 24 hours:\n\n' +
+          content: 'You are a news monitor for InsideMDSports covering Maryland Terrapins athletics. Here are stories found in the past 48 hours:\n\n' +
             stories.map(function(s, i) { return (i+1) + '. "' + s.title + '" — ' + s.source + ' (' + s.time + ')'; }).join('\n') +
-            '\n\nRate and categorize only stories actually about Maryland Terrapins. EXCLUDE anything from InsideMDSports or Jeff Ermann. EXCLUDE any story where the time is more than 24h ago.\n\nReturn ONLY a valid JSON array, no other text. Each item:\n{"headline": string, "summary": "1-2 sentences about why this matters", "category": "recruiting"|"football"|"basketball"|"other-sport"|"alumni"|"social"|"podcast", "sport": string, "source": string, "time": string, "rating": 1-5}\n\nSort by rating descending. Up to 15 items.'
+            '\n\nRate and categorize only stories actually about Maryland Terrapins. EXCLUDE anything from: InsideMDSports, Jeff Ermann, IMS Radio, maryland.247sports.com. Use the time provided — do not call something breaking if it is more than 6 hours old.\n\nRATING GUIDE:\n5 = Breaking news under 6 hours old (commit, decommit, coaching move, major injury)\n4 = Important news from today\n3 = General news from past 48 hours\n2 = Minor notes\n1 = Low relevance\n\nReturn ONLY a valid JSON array, no other text. Each item:\n{"headline": string, "summary": "1-2 sentences", "category": "recruiting"|"football"|"basketball"|"other-sport"|"alumni"|"social"|"podcast", "sport": string, "source": string, "time": string, "rating": 1-5}\n\nSort by rating descending. Up to 15 items.'
         }]
       })
     });
