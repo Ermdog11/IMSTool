@@ -88,6 +88,7 @@ module.exports = async function handler(req, res) {
       return res.status(200).json({ content: [{ type: 'text', text: '[]' }] });
     }
 
+    // Send titles only to Claude, then match URLs back by index
     var claudeRes = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'x-api-key': key, 'anthropic-version': '2023-06-01' },
@@ -96,15 +97,26 @@ module.exports = async function handler(req, res) {
         max_tokens: 2000,
         messages: [{
           role: 'user',
-          content: 'You are a news monitor for InsideMDSports covering Maryland Terrapins athletics. Here are recent stories:\n\n' +
-            stories.map(function(s, i) { return (i+1) + '. "' + s.title + '" — ' + s.source + ' (' + s.time + ') [url:' + s.url + ']'; }).join('\n') +
-            '\n\nInclude all stories relevant to Maryland Terrapins — football, basketball, recruiting, transfer portal, alumni (NFL/NBA/WNBA), social. EXCLUDE anything from InsideMDSports, Jeff Ermann, IMS Radio, or 247Sports.\n\nRATING GUIDE:\n5 = Breaking under 6 hours (commit, decommit, coaching move, injury)\n4 = Important news from today\n3 = General news\n2 = Minor notes\n1 = Low relevance\n\nReturn ONLY a valid JSON array, no other text. Each item:\n{"headline":string,"summary":"1-2 sentences","category":"recruiting"|"football"|"basketball"|"other-sport"|"alumni"|"social"|"podcast","sport":string,"source":string,"url":string,"time":string,"rating":1-5}\n\nInclude the url field from the story. Sort by rating descending. Up to 15 items.'
+          content: 'You are a news monitor for InsideMDSports covering Maryland Terrapins athletics. Here are recent stories (each has an index number):\n\n' +
+            stories.map(function(s, i) { return i + '. "' + s.title + '" — ' + s.source + ' (' + s.time + ')'; }).join('\n') +
+            '\n\nInclude all stories relevant to Maryland Terrapins — football, basketball, recruiting, transfer portal, alumni (NFL/NBA/WNBA), social. EXCLUDE anything from InsideMDSports, Jeff Ermann, IMS Radio, or 247Sports.\n\nRATING GUIDE:\n5 = Breaking under 6 hours (commit, decommit, coaching move, injury)\n4 = Important news from today\n3 = General news\n2 = Minor notes\n1 = Low relevance\n\nReturn ONLY a valid JSON array, no other text. Each item must include the original index number:\n{"idx":number,"headline":string,"summary":"1-2 sentences","category":"recruiting"|"football"|"basketball"|"other-sport"|"alumni"|"social"|"podcast","sport":string,"source":string,"time":string,"rating":1-5}\n\nSort by rating descending. Up to 15 items.'
         }]
       })
     });
 
-    var d = await claudeRes.json();
-    return res.status(claudeRes.status).json(d);
+    var claudeData = await claudeRes.json();
+    var text = (claudeData.content || []).map(function(b) { return b.type === 'text' ? b.text : ''; }).join('\n');
+    var match = text.replace(/```json|```/g, '').match(/\[[\s\S]*\]/);
+    if (!match) return res.status(200).json({ content: [{ type: 'text', text: '[]' }] });
+
+    var rated = JSON.parse(match[0]);
+    rated.forEach(function(item) {
+      if (item.idx !== undefined && stories[item.idx]) {
+        item.url = stories[item.idx].url;
+      }
+    });
+
+    return res.status(200).json({ content: [{ type: 'text', text: JSON.stringify(rated) }] });
   } catch(e) {
     return res.status(500).json({ error: e.message });
   }
