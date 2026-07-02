@@ -2,17 +2,17 @@ module.exports = async function handler(req, res) {
   var key = process.env.ANTHROPIC_API_KEY;
   if (!key) return res.status(500).json({ error: 'no key set' });
 
-  var cutoff = Date.now() - 48 * 60 * 60 * 1000;
+  var cutoff = Date.now() - 24 * 60 * 60 * 1000;
 
   try {
     var results = await Promise.allSettled([
       fetch('https://www.reddit.com/r/MarylandTerrapins/new.json?limit=25', {
         headers: { 'User-Agent': 'InsideMDSports-Monitor/1.0' }
       }),
-      fetch('https://news.google.com/rss/search?q=Maryland+Terrapins&hl=en-US&gl=US&ceid=US:en', {
+      fetch('https://news.google.com/rss/search?q=Maryland+Terrapins&hl=en-US&gl=US&ceid=US:en&after=1d', {
         headers: { 'User-Agent': 'InsideMDSports-Monitor/1.0' }
       }),
-      fetch('https://news.google.com/rss/search?q=Maryland+Terrapins+recruiting&hl=en-US&gl=US&ceid=US:en', {
+      fetch('https://news.google.com/rss/search?q=Maryland+Terrapins+recruiting&hl=en-US&gl=US&ceid=US:en&after=1d', {
         headers: { 'User-Agent': 'InsideMDSports-Monitor/1.0' }
       }),
       fetch('https://www.reddit.com/r/CFB/search.json?q=Maryland&sort=new&limit=15', {
@@ -90,9 +90,9 @@ module.exports = async function handler(req, res) {
         max_tokens: 2000,
         messages: [{
           role: 'user',
-          content: 'You are a news monitor for InsideMDSports covering Maryland Terrapins athletics. Here are recent stories from the past 48 hours:\n\n' +
+          content: 'You are a news monitor for InsideMDSports covering Maryland Terrapins athletics. Here are recent stories from the past 24 hours:\n\n' +
             stories.map(function(s, i) { return (i+1) + '. "' + s.title + '" — ' + s.source + ' (' + s.time + ')'; }).join('\n') +
-            '\n\nRate and categorize only stories actually about Maryland Terrapins. EXCLUDE anything from InsideMDSports or Jeff Ermann.\n\nReturn ONLY a valid JSON array, no other text. Each item:\n{"headline": string, "summary": "1-2 sentences about why this matters", "category": "recruiting"|"football"|"basketball"|"other-sport"|"alumni"|"social"|"podcast", "sport": string, "source": string, "time": string, "rating": 1-5}\n\nSort by rating descending. Up to 15 items.'
+            '\n\nRate and categorize only stories actually about Maryland Terrapins. EXCLUDE anything from InsideMDSports or Jeff Ermann. EXCLUDE any story where the time is more than 24h ago.\n\nReturn ONLY a valid JSON array, no other text. Each item:\n{"headline": string, "summary": "1-2 sentences about why this matters", "category": "recruiting"|"football"|"basketball"|"other-sport"|"alumni"|"social"|"podcast", "sport": string, "source": string, "time": string, "rating": 1-5}\n\nSort by rating descending. Up to 15 items.'
         }]
       })
     });
