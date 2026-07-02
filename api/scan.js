@@ -2,7 +2,7 @@ module.exports = async function handler(req, res) {
   var key = process.env.ANTHROPIC_API_KEY;
   if (!key) return res.status(500).json({ error: 'no key set' });
 
-  try {
+  try {  var cutoff = Date.now() - 48 * 60 * 60 * 1000;
     // Fetch Reddit and Google News in parallel
     var results = await Promise.allSettled([
       fetch('https://www.reddit.com/r/MarylandTerrapins/new.json?limit=25', {
