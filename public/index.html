@@ -635,7 +635,7 @@ function renderAlerts() {
     const catLabel = isRec ? 'Recruiting' : a.category === 'alumni' ? 'Alumni' : a.category === 'social' ? 'Social' : a.category === 'podcast' ? 'Podcast' : 'News';
     return `<div class="acard ${cardClass}" id="card-${idx}">
       <div class="acard-top">
-        <div class="acard-headline">${a.headline}</div>
+        <div class="acard-headline">${a.url ? `<a href="${a.url}" target="_blank" rel="noopener" style="color:inherit;text-decoration:underline;">${a.headline}</a>` : a.headline}</div>
         <span class="rating ${ratingClass}">${ratingLabel}</span>
       </div>
       <div class="acard-meta">
@@ -726,12 +726,7 @@ async function runScan() {
     const res = await fetch('/api/scan', {
       method: 'POST',
       headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({
-        model: 'claude-sonnet-4-6',
-        max_tokens: 4000,
-        tools: [{'type': 'web_search_20250305', 'name': 'web_search'}],
-        messages: [{role: 'user', content: SCAN_PROMPT()}]
-      })
+      body: JSON.stringify({})
     });
     const data = await res.json();
     if (data.error) throw new Error(typeof data.error === 'string' ? data.error : data.error.message || 'API error');
