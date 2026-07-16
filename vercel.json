@@ -4,6 +4,9 @@
     "api/scan.js": {
       "maxDuration": 300
     },
+    "api/podcasts.js": {
+      "maxDuration": 30
+    },
     "api/digest.js": {
       "maxDuration": 60
     },

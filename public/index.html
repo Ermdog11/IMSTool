@@ -211,7 +211,7 @@ body { padding-bottom: 40px; }
   </div>
   <div class="topbar-right">
     <span class="pill pill-live"><span class="live-dot"></span>Live</span>
-    <button class="pill pill-email" onclick="switchTab(7)"><i class="ti ti-mail"></i> Email setup</button>
+    <button class="pill pill-email" onclick="switchTab(8)"><i class="ti ti-mail"></i> Email setup</button>
   </div>
 </div>
 
@@ -223,7 +223,8 @@ body { padding-bottom: 40px; }
   <button class="nav-tab" id="tab-btn-4" onclick="switchTab(4)">Story backlog</button>
   <button class="nav-tab" id="tab-btn-5" onclick="switchTab(5)">Recruiting tracker</button>
   <button class="nav-tab" id="tab-btn-6" onclick="switchTab(6)">🔥 Trending</button>
-  <button class="nav-tab" id="tab-btn-7" onclick="switchTab(7)">Settings</button>
+  <button class="nav-tab" id="tab-btn-7" onclick="switchTab(7)">🎙️ Podcasts</button>
+  <button class="nav-tab" id="tab-btn-8" onclick="switchTab(8)">Settings</button>
 </div>
 
 <!-- ALERTS TAB -->
@@ -372,8 +373,17 @@ body { padding-bottom: 40px; }
   <div id="trendingContainer"><div class="empty"><i class="ti ti-flame"></i> No overflow stories yet — run a scan first.</div></div>
 </div>
 
-<!-- SETTINGS TAB -->
+<!-- PODCASTS TAB -->
 <div class="page" id="page-7">
+  <div style="padding:16px 0 8px;display:flex;align-items:center;gap:12px;">
+    <button onclick="switchTab(0)" style="background:none;border:1px solid var(--border);border-radius:6px;padding:4px 12px;cursor:pointer;color:var(--fg);font-size:.85rem;">← Back to Alerts</button>
+    <div><h3 style="margin:0;font-size:1.1rem;">🎙️ Podcasts</h3><p style="color:var(--muted);font-size:.85rem;margin:2px 0 0;">Recent episodes mentioning Maryland Terrapins — last 72 hours.</p></div>
+  </div>
+  <div id="podcastsContainer"><div class="empty"><i class="ti ti-microphone"></i> Run a scan to load podcast episodes.</div></div>
+</div>
+
+<!-- SETTINGS TAB -->
+<div class="page" id="page-8">
   <div class="notice"><i class="ti ti-user-check"></i> You are Jeff Ermann, publisher of InsideMDSports. Your content and IMS Radio are excluded from all alerts.</div>
 
   <div class="settings-card">
@@ -639,6 +649,29 @@ function renderTrending() {
     </div>`).join('');
 }
 
+async function loadPodcasts() {
+  const c = document.getElementById('podcastsContainer');
+  c.innerHTML = '<div class="empty"><i class="ti ti-loader spin"></i> Searching podcast episodes...</div>';
+  try {
+    const res = await fetch('/api/podcasts');
+    const data = await res.json();
+    if (data.error && !data.episodes.length) { c.innerHTML = `<div class="empty">${data.error}</div>`; return; }
+    const eps = data.episodes || [];
+    if (!eps.length) { c.innerHTML = '<div class="empty"><i class="ti ti-microphone"></i> No podcast episodes found in the last 72 hours.</div>'; return; }
+    c.innerHTML = eps.map(ep => `<div class="acard" style="margin-bottom:10px;">
+      <div class="acard-headline" style="font-size:.92rem;">${ep.url ? `<a href="${ep.url}" target="_blank" rel="noopener" style="color:inherit;text-decoration:underline;">${ep.title}</a>` : ep.title}</div>
+      <div class="acard-meta" style="margin-top:4px;">
+        <span class="tag tag-soc">Podcast</span>
+        <span class="asrc">${ep.podcast}</span>
+        <span class="atime">${ep.age}h ago</span>
+      </div>
+      ${ep.description ? `<div class="asum" style="margin-top:6px;">${ep.description}…</div>` : ''}
+    </div>`).join('');
+  } catch(e) {
+    c.innerHTML = `<div class="empty">Error loading podcasts — ${e.message}</div>`;
+  }
+}
+
 function goToTrending(topic) {
   switchTab(6);
   setTimeout(function() {
@@ -744,6 +777,7 @@ async function runScan() {
     startCountdown();
     renderAlerts();
     renderTrending();
+    loadPodcasts();
 
     // Auto-drop rating 4+ alerts to team chat
     allAlerts.filter(a => a.rating >= 4).forEach(a => {
