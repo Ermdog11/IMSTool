@@ -250,6 +250,7 @@ body { padding-bottom: 40px; }
     <button class="chip" onclick="setFilter('basketball',this)">Basketball</button>
     <button class="chip" onclick="setFilter('alumni',this)">Alumni</button>
     <button class="chip" onclick="setFilter('social',this)">Social/Pods</button>
+    <button class="chip" onclick="setFilter('republished',this)" style="color:#888;border-color:#ddd;">♻️ Republished</button>
   </div>
   <div class="alerts" id="alertsContainer">
     <div class="empty"><i class="ti ti-radar"></i>Hit "Scan now" to pull the latest Terps news from all external sources</div>
@@ -552,13 +553,20 @@ function isBball(s) { return ['basketball','mens-basketball','womens-basketball'
 function renderAlerts() {
   const c = document.getElementById('alertsContainer');
   let filtered = allAlerts;
-  if (currentFilter === '5') filtered = allAlerts.filter(a => a.rating === 5);
-  else if (currentFilter === '4') filtered = allAlerts.filter(a => a.rating === 4);
-  else if (currentFilter === 'recruiting') filtered = allAlerts.filter(a => a.category === 'recruiting');
-  else if (currentFilter === 'football') filtered = allAlerts.filter(a => a.sport === 'football');
-  else if (currentFilter === 'basketball') filtered = allAlerts.filter(a => isBball(a.sport));
-  else if (currentFilter === 'alumni') filtered = allAlerts.filter(a => a.category === 'alumni');
-  else if (currentFilter === 'social') filtered = allAlerts.filter(a => ['social','podcast'].includes(a.category));
+  if (currentFilter === 'republished') {
+    filtered = allAlerts.filter(a => a.republished === true);
+  } else {
+    // Exclude republished from all other views
+    const fresh = allAlerts.filter(a => !a.republished);
+    if (currentFilter === 'all') filtered = fresh;
+    else if (currentFilter === '5') filtered = fresh.filter(a => a.rating === 5);
+    else if (currentFilter === '4') filtered = fresh.filter(a => a.rating === 4);
+    else if (currentFilter === 'recruiting') filtered = fresh.filter(a => a.category === 'recruiting');
+    else if (currentFilter === 'football') filtered = fresh.filter(a => a.sport === 'football');
+    else if (currentFilter === 'basketball') filtered = fresh.filter(a => isBball(a.sport));
+    else if (currentFilter === 'alumni') filtered = fresh.filter(a => a.category === 'alumni');
+    else if (currentFilter === 'social') filtered = fresh.filter(a => ['social','podcast'].includes(a.category));
+  }
 
   if (!filtered.length) { c.innerHTML = '<div class="empty"><i class="ti ti-mood-empty"></i>No alerts in this category.</div>'; return; }
 

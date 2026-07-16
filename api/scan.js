@@ -67,11 +67,12 @@ module.exports = async function handler(req, res) {
           var title = (item.match(/<title><!\[CDATA\[(.*?)\]\]><\/title>/) || item.match(/<title>(.*?)<\/title>/) || [])[1] || '';
           var link = (item.match(/<link>(.*?)<\/link>/) || [])[1] || '';
           var src = (item.match(/<source[^>]*>(.*?)<\/source>/) || [])[1] || 'Google News';
+          var srcUrl = (item.match(/<source[^>]*url="([^"]*)"/) || [])[1] || '';
           var pubDate = (item.match(/<pubDate>(.*?)<\/pubDate>/) || [])[1] || '';
           if (!title) return;
           var age = pubDate ? Math.round((Date.now() - new Date(pubDate).getTime()) / 3600000) : 0;
           if (pubDate && new Date(pubDate).getTime() < googleCutoff) return;
-          if (excluded.some(function(ex) { return src.toLowerCase().includes(ex) || title.toLowerCase().includes(ex); })) return;
+          if (excluded.some(function(ex) { return src.toLowerCase().includes(ex) || srcUrl.toLowerCase().includes(ex) || title.toLowerCase().includes(ex) || link.toLowerCase().includes(ex); })) return;
           stories.push({ title: title.replace(/&amp;/g,'&').replace(/&lt;/g,'<').replace(/&gt;/g,'>'), source: src, url: link, age: age });
         });
       } catch(e) { /* skip failed feed */ }
@@ -104,7 +105,7 @@ module.exports = async function handler(req, res) {
       return (i + 1) + '. [' + s.source + '] ' + s.title + ' (' + s.age + 'h ago)';
     }).join('\n');
 
-    var prompt = 'You are a sports news editor for InsideMDSports covering University of Maryland Terrapins athletics.\n\nRate and categorize ALL of these stories. Return ONLY a JSON array, no other text. Include EVERY story.\n\nEach object must have:\n- idx: the story number (1-based)\n- headline: improved headline (keep original meaning)\n- source: the [Source] shown\n- time: e.g. "2h ago"\n- rating: 1-5 (5=breaking news, 4=major, 3=solid, 2=minor, 1=filler)\n- category: one of: recruiting, football, basketball, alumni, social, podcast, news\n- sport: football, basketball, lacrosse, soccer, or other\n- summary: one sentence\n\nInclude ALL stories in the output. Do not skip any.\n\nIMPORTANT: If a story describes an event that clearly happened weeks or months ago (e.g. a visit that was announced long ago, a signing from a past cycle, an old game result) even if the article was published recently, rate it 1. These are republished/recycled articles and should be rated low.\n\nStories:\n' + storyList;
+    var prompt = 'You are a sports news editor for InsideMDSports covering University of Maryland Terrapins athletics.\n\nRate and categorize ALL of these stories. Return ONLY a JSON array, no other text. Include EVERY story.\n\nEach object must have:\n- idx: the story number (1-based)\n- headline: improved headline (keep original meaning)\n- source: the [Source] shown\n- time: e.g. "2h ago"\n- rating: 1-5 (5=breaking news, 4=major, 3=solid, 2=minor, 1=filler)\n- category: one of: recruiting, football, basketball, alumni, social, podcast, news\n- sport: football, basketball, lacrosse, soccer, or other\n- summary: one sentence\n- republished: true if this appears to be a recycled/republished article about events that clearly happened weeks or months ago (old visits, past signings, prior season results); false otherwise\n\nInclude ALL stories. Do not skip any.\n\nStories:\n' + storyList;
 
     var cr = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
