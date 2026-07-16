@@ -156,21 +156,23 @@ module.exports = async function handler(req, res) {
       return Object.assign({}, item, { url: orig ? orig.url : '' });
     });
 
-    // Apply 4-per-topic cap POST-rating so the most newsworthy stories stay in main feed
+    // Apply 3-per-topic cap POST-rating so the most newsworthy stories stay in main feed
+    // Check original titles (not Claude's rewrites) for reliable name detection
     var topicRatingCount = {};
     var overflowStories = [];
     // Sort by rating desc so highest-rated stories claim their topic slots first
     var sortedByRating = withUrls.slice().sort(function(a, b) { return (b.rating || 0) - (a.rating || 0); });
     var mainIds = new Set();
     sortedByRating.forEach(function(item) {
-      var names = (item.headline || '').match(/\b[A-Z][a-z]+ [A-Z][a-z]+\b/g) || [];
+      var orig = stories[item.idx - 1];
+      var originalTitle = orig ? orig.title : (item.headline || '');
+      var names = originalTitle.match(/\b[A-Z][a-z]+ [A-Z][a-z]+\b/g) || [];
       var overflowTopic = null;
       for (var n of names) {
         topicRatingCount[n] = (topicRatingCount[n] || 0) + 1;
-        if (topicRatingCount[n] > 4) overflowTopic = n;
+        if (topicRatingCount[n] > 3) overflowTopic = n;
       }
       if (overflowTopic) {
-        var orig = stories[item.idx - 1];
         overflowStories.push({ title: item.headline, source: item.source, url: item.url, age: orig ? orig.age : 0, trendingTopic: overflowTopic });
       } else {
         mainIds.add(item.idx);
