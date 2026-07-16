@@ -365,7 +365,10 @@ body { padding-bottom: 40px; }
 
 <!-- TRENDING OVERFLOW TAB -->
 <div class="page" id="page-6">
-  <div style="padding:16px 0 8px;"><h3 style="margin:0;font-size:1.1rem;">🔥 Trending Overflow</h3><p style="color:var(--muted);font-size:.85rem;margin:4px 0 0;">Stories beyond the 4-per-topic limit in the main feed.</p></div>
+  <div style="padding:16px 0 8px;display:flex;align-items:center;gap:12px;">
+    <button onclick="switchTab(0)" style="background:none;border:1px solid var(--border);border-radius:6px;padding:4px 12px;cursor:pointer;color:var(--fg);font-size:.85rem;">← Back to Alerts</button>
+    <div><h3 style="margin:0;font-size:1.1rem;">🔥 Trending Overflow</h3><p style="color:var(--muted);font-size:.85rem;margin:2px 0 0;">Stories beyond the 4-per-topic limit in the main feed.</p></div>
+  </div>
   <div id="trendingContainer"><div class="empty"><i class="ti ti-flame"></i> No overflow stories yet — run a scan first.</div></div>
 </div>
 
