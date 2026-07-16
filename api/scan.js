@@ -106,36 +106,7 @@ module.exports = async function handler(req, res) {
       return true;
     });
 
-    // Limit trending topic flood: max 4 stories per prominent name, collect overflow separately
-    var nameCount = {};
-    var overflowStories = [];
-    stories = stories.filter(function(s) {
-      var names = s.title.match(/\b[A-Z][a-z]+ [A-Z][a-z]+\b/g) || [];
-      var overflowTopic = null;
-      for (var n of names) {
-        nameCount[n] = (nameCount[n] || 0) + 1;
-        if (nameCount[n] > 4) { overflowTopic = n; }
-      }
-      if (overflowTopic) {
-        overflowStories.push(Object.assign({}, s, { trendingTopic: overflowTopic }));
-        return false;
-      }
-      return true;
-    });
-
-    // Tag main stories that have overflow with the topic and overflow count
-    var overflowCountByTopic = {};
-    overflowStories.forEach(function(s) {
-      overflowCountByTopic[s.trendingTopic] = (overflowCountByTopic[s.trendingTopic] || 0) + 1;
-    });
-    stories.forEach(function(s) {
-      var names = s.title.match(/\b[A-Z][a-z]+ [A-Z][a-z]+\b/g) || [];
-      for (var n of names) {
-        if (overflowCountByTopic[n]) { s.trendingTopic = n; s.overflowCount = overflowCountByTopic[n]; break; }
-      }
-    });
-
-    // Cap at 40 most recent stories to keep Claude response within token limits
+    // Cap at 40 most recent before sending to Claude
     stories = stories.sort(function(a, b) { return a.age - b.age; }).slice(0, 40);
 
     var redditCount = stories.filter(function(s){return s.source.includes('Reddit');}).length;
@@ -180,18 +151,44 @@ module.exports = async function handler(req, res) {
     var parsed = JSON.parse(cleaned.substring(start, end + 1));
 
     // Re-attach URLs by idx
-    var final = parsed.map(function(item) {
+    var withUrls = parsed.map(function(item) {
       var orig = stories[item.idx - 1];
       return Object.assign({}, item, { url: orig ? orig.url : '' });
     });
 
-    // Re-attach trendingTopic/overflowCount to final items
-    final = final.map(function(item) {
-      var orig = stories[item.idx - 1];
-      if (orig && orig.trendingTopic) {
-        return Object.assign({}, item, { trendingTopic: orig.trendingTopic, overflowCount: orig.overflowCount });
+    // Apply 4-per-topic cap POST-rating so the most newsworthy stories stay in main feed
+    var topicRatingCount = {};
+    var overflowStories = [];
+    // Sort by rating desc so highest-rated stories claim their topic slots first
+    var sortedByRating = withUrls.slice().sort(function(a, b) { return (b.rating || 0) - (a.rating || 0); });
+    var mainIds = new Set();
+    sortedByRating.forEach(function(item) {
+      var names = (item.headline || '').match(/\b[A-Z][a-z]+ [A-Z][a-z]+\b/g) || [];
+      var overflowTopic = null;
+      for (var n of names) {
+        topicRatingCount[n] = (topicRatingCount[n] || 0) + 1;
+        if (topicRatingCount[n] > 4) overflowTopic = n;
       }
-      return item;
+      if (overflowTopic) {
+        var orig = stories[item.idx - 1];
+        overflowStories.push({ title: item.headline, source: item.source, url: item.url, age: orig ? orig.age : 0, trendingTopic: overflowTopic });
+      } else {
+        mainIds.add(item.idx);
+      }
+    });
+
+    var final = withUrls.filter(function(item) { return mainIds.has(item.idx); });
+
+    // Tag main items that have overflow siblings
+    var overflowCountByTopic = {};
+    overflowStories.forEach(function(s) {
+      overflowCountByTopic[s.trendingTopic] = (overflowCountByTopic[s.trendingTopic] || 0) + 1;
+    });
+    final.forEach(function(item) {
+      var names = (item.headline || '').match(/\b[A-Z][a-z]+ [A-Z][a-z]+\b/g) || [];
+      for (var n of names) {
+        if (overflowCountByTopic[n]) { item.trendingTopic = n; item.overflowCount = overflowCountByTopic[n]; break; }
+      }
     });
 
     return res.status(200).json({ content: [{ type: 'text', text: JSON.stringify(final) }], overflow: overflowStories });
