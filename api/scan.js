@@ -32,7 +32,7 @@ module.exports = async function handler(req, res) {
       fetch('https://news.google.com/rss/search?q=Maryland+Terrapins+basketball&hl=en-US&gl=US&ceid=US:en'),
       fetch('https://news.google.com/rss/search?q=Maryland+Terrapins+recruiting&hl=en-US&gl=US&ceid=US:en'),
       fetch('https://news.google.com/rss/search?q=Maryland+Terrapins+sports&hl=en-US&gl=US&ceid=US:en'),
-      fetch('https://news.google.com/rss/search?q=247sports+Maryland+Terrapins&hl=en-US&gl=US&ceid=US:en')
+      fetch('https://news.google.com/rss/search?q=Maryland+Terrapins+transfer+portal&hl=en-US&gl=US&ceid=US:en')
     ];
 
     var results = await Promise.allSettled(fetches);
