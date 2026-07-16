@@ -112,12 +112,16 @@ module.exports = async function handler(req, res) {
     });
     var cd = await cr.json();
 
+    // Expose Claude API errors
+    if (cd.error) return res.status(200).json({ error: 'Claude error: ' + JSON.stringify(cd.error) });
+    if (!cd.content) return res.status(200).json({ error: 'Claude returned no content. Raw: ' + JSON.stringify(cd).substring(0, 300) });
+
     // Extract text from Claude response
-    var text = (cd.content || []).map(function(i) { return i.type === 'text' ? i.text : ''; }).join('\n');
+    var text = cd.content.map(function(i) { return i.type === 'text' ? i.text : ''; }).join('\n');
     var cleaned = text.replace(/```json|```/g, '').trim();
     var start = cleaned.indexOf('[');
     var end = cleaned.lastIndexOf(']');
-    if (start === -1 || end === -1) return res.status(200).json({ content: [{ type: 'text', text: '[]' }] });
+    if (start === -1 || end === -1) return res.status(200).json({ error: 'Claude did not return JSON. Response: ' + cleaned.substring(0, 300) });
 
     var parsed = JSON.parse(cleaned.substring(start, end + 1));
 
