@@ -20,6 +20,7 @@ module.exports = async function handler(req, res) {
 
   // Full scan: fetch Reddit + Google News RSS, then ask Claude to rate them
   var cutoff = Date.now() - 72 * 60 * 60 * 1000;
+  var googleCutoff = Date.now() - 24 * 60 * 60 * 1000;
   var excluded = ['insidemd', 'jeff ermann', 'ims radio', 'maryland.247sports', 'insidetheshell'];
 
   try {
@@ -69,7 +70,7 @@ module.exports = async function handler(req, res) {
           var pubDate = (item.match(/<pubDate>(.*?)<\/pubDate>/) || [])[1] || '';
           if (!title) return;
           var age = pubDate ? Math.round((Date.now() - new Date(pubDate).getTime()) / 3600000) : 0;
-          if (pubDate && new Date(pubDate).getTime() < cutoff) return;
+          if (pubDate && new Date(pubDate).getTime() < googleCutoff) return;
           if (excluded.some(function(ex) { return src.toLowerCase().includes(ex) || title.toLowerCase().includes(ex); })) return;
           stories.push({ title: title.replace(/&amp;/g,'&').replace(/&lt;/g,'<').replace(/&gt;/g,'>'), source: src, url: link, age: age });
         });
@@ -103,7 +104,7 @@ module.exports = async function handler(req, res) {
       return (i + 1) + '. [' + s.source + '] ' + s.title + ' (' + s.age + 'h ago)';
     }).join('\n');
 
-    var prompt = 'You are a sports news editor for InsideMDSports covering University of Maryland Terrapins athletics.\n\nRate and categorize ALL of these stories. Return ONLY a JSON array, no other text. Include EVERY story.\n\nEach object must have:\n- idx: the story number (1-based)\n- headline: improved headline (keep original meaning)\n- source: the [Source] shown\n- time: e.g. "2h ago"\n- rating: 1-5 (5=breaking news, 4=major, 3=solid, 2=minor, 1=filler)\n- category: one of: recruiting, football, basketball, alumni, social, podcast, news\n- sport: football, basketball, lacrosse, soccer, or other\n- summary: one sentence\n\nInclude ALL stories in the output. Do not skip any.\n\nStories:\n' + storyList;
+    var prompt = 'You are a sports news editor for InsideMDSports covering University of Maryland Terrapins athletics.\n\nRate and categorize ALL of these stories. Return ONLY a JSON array, no other text. Include EVERY story.\n\nEach object must have:\n- idx: the story number (1-based)\n- headline: improved headline (keep original meaning)\n- source: the [Source] shown\n- time: e.g. "2h ago"\n- rating: 1-5 (5=breaking news, 4=major, 3=solid, 2=minor, 1=filler)\n- category: one of: recruiting, football, basketball, alumni, social, podcast, news\n- sport: football, basketball, lacrosse, soccer, or other\n- summary: one sentence\n\nInclude ALL stories in the output. Do not skip any.\n\nIMPORTANT: If a story describes an event that clearly happened weeks or months ago (e.g. a visit that was announced long ago, a signing from a past cycle, an old game result) even if the article was published recently, rate it 1. These are republished/recycled articles and should be rated low.\n\nStories:\n' + storyList;
 
     var cr = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
