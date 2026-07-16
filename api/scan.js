@@ -78,6 +78,29 @@ module.exports = async function handler(req, res) {
       } catch(e) { /* skip failed feed */ }
     }
 
+    // Follow redirects for 247Sports links to get real URLs and filter Maryland subdomain
+    var sports247Indices = [];
+    stories.forEach(function(s, i) {
+      if (s.source === '247Sports' && s.url) sports247Indices.push(i);
+    });
+    if (sports247Indices.length) {
+      var redirectResults = await Promise.allSettled(
+        sports247Indices.map(function(i) {
+          return fetch(stories[i].url, { method: 'HEAD', redirect: 'follow' }).then(function(r) { return r.url; });
+        })
+      );
+      var toRemove = new Set();
+      redirectResults.forEach(function(r, i) {
+        if (r.status === 'fulfilled') {
+          var realUrl = r.value.toLowerCase();
+          if (excluded.some(function(ex) { return realUrl.includes(ex); })) {
+            toRemove.add(sports247Indices[i]);
+          }
+        }
+      });
+      if (toRemove.size) stories = stories.filter(function(s, i) { return !toRemove.has(i); });
+    }
+
     // Deduplicate by title similarity
     var seen = [];
     stories = stories.filter(function(s) {
@@ -105,7 +128,8 @@ module.exports = async function handler(req, res) {
       return (i + 1) + '. [' + s.source + '] ' + s.title + ' (' + s.age + 'h ago)';
     }).join('\n');
 
-    var prompt = 'You are a sports news editor for InsideMDSports covering University of Maryland Terrapins athletics.\n\nRate and categorize ALL of these stories. Return ONLY a JSON array, no other text. Include EVERY story.\n\nEach object must have:\n- idx: the story number (1-based)\n- headline: improved headline (keep original meaning)\n- source: the [Source] shown\n- time: e.g. "2h ago"\n- rating: 1-5 (5=breaking news, 4=major, 3=solid, 2=minor, 1=filler)\n- category: one of: recruiting, football, basketball, alumni, social, podcast, news\n- sport: football, basketball, lacrosse, soccer, or other\n- summary: one sentence\n- republished: true if this appears to be a recycled/republished article about events that clearly happened weeks or months ago (old visits, past signings, prior season results); false otherwise\n\nInclude ALL stories. Do not skip any.\n\nStories:\n' + storyList;
+    var today = new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
+    var prompt = 'You are a sports news editor for InsideMDSports covering University of Maryland Terrapins athletics. Today is ' + today + '.\n\nRate and categorize ALL of these stories. Return ONLY a JSON array, no other text. Include EVERY story.\n\nEach object must have:\n- idx: the story number (1-based)\n- headline: improved headline (keep original meaning)\n- source: the [Source] shown\n- time: e.g. "2h ago"\n- rating: 1-5 (5=breaking news, 4=major, 3=solid, 2=minor, 1=filler)\n- category: one of: recruiting, football, basketball, alumni, social, podcast, news\n- sport: football, basketball, lacrosse, soccer, or other\n- summary: one sentence\n- republished: true if this appears to be a recycled/republished article about events that clearly happened weeks or months ago (e.g. a recruiting visit scheduled in a prior month, an old signing, a past season result being re-reported). Use today\'s date to judge this. Set false for genuinely new stories.\n\nInclude ALL stories. Do not skip any.\n\nStories:\n' + storyList;
 
     var cr = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
