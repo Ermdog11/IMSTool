@@ -69,36 +69,16 @@ module.exports = async function handler(req, res) {
           var src = (item.match(/<source[^>]*>(.*?)<\/source>/) || [])[1] || 'Google News';
           var srcUrl = (item.match(/<source[^>]*url="([^"]*)"/) || [])[1] || '';
           var pubDate = (item.match(/<pubDate>(.*?)<\/pubDate>/) || [])[1] || '';
+          // Extract real article URL from description (Google News embeds it there)
+          var desc = (item.match(/<description><!\[CDATA\[([\s\S]*?)\]\]><\/description>/) || [])[1] || '';
+          var realUrl = (desc.match(/href="(https?:\/\/[^"]+)"/) || [])[1] || link;
           if (!title) return;
           var age = pubDate ? Math.round((Date.now() - new Date(pubDate).getTime()) / 3600000) : 0;
           if (pubDate && new Date(pubDate).getTime() < googleCutoff) return;
-          if (excluded.some(function(ex) { return src.toLowerCase().includes(ex) || srcUrl.toLowerCase().includes(ex) || title.toLowerCase().includes(ex) || link.toLowerCase().includes(ex); })) return;
-          stories.push({ title: title.replace(/&amp;/g,'&').replace(/&lt;/g,'<').replace(/&gt;/g,'>'), source: src, url: link, age: age });
+          if (excluded.some(function(ex) { return src.toLowerCase().includes(ex) || srcUrl.toLowerCase().includes(ex) || title.toLowerCase().includes(ex) || realUrl.toLowerCase().includes(ex); })) return;
+          stories.push({ title: title.replace(/&amp;/g,'&').replace(/&lt;/g,'<').replace(/&gt;/g,'>'), source: src, url: realUrl || link, age: age });
         });
       } catch(e) { /* skip failed feed */ }
-    }
-
-    // Follow redirects for 247Sports links to get real URLs and filter Maryland subdomain
-    var sports247Indices = [];
-    stories.forEach(function(s, i) {
-      if (s.source === '247Sports' && s.url) sports247Indices.push(i);
-    });
-    if (sports247Indices.length) {
-      var redirectResults = await Promise.allSettled(
-        sports247Indices.map(function(i) {
-          return fetch(stories[i].url, { method: 'HEAD', redirect: 'follow' }).then(function(r) { return r.url; });
-        })
-      );
-      var toRemove = new Set();
-      redirectResults.forEach(function(r, i) {
-        if (r.status === 'fulfilled') {
-          var realUrl = r.value.toLowerCase();
-          if (excluded.some(function(ex) { return realUrl.includes(ex); })) {
-            toRemove.add(sports247Indices[i]);
-          }
-        }
-      });
-      if (toRemove.size) stories = stories.filter(function(s, i) { return !toRemove.has(i); });
     }
 
     // Deduplicate by title similarity
