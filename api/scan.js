@@ -85,9 +85,18 @@ module.exports = async function handler(req, res) {
       return true;
     });
 
-    console.log('Total stories before Claude:', stories.length, '| Reddit:', stories.filter(function(s){return s.source.includes('Reddit');}).length, '| Google News:', stories.filter(function(s){return !s.source.includes('Reddit');}).length);
+    var redditCount = stories.filter(function(s){return s.source.includes('Reddit');}).length;
+    var googleCount = stories.filter(function(s){return !s.source.includes('Reddit');}).length;
+    var fetchStatuses = results.map(function(r, i) {
+      var names = ['Reddit/MarylandTerrapins','Reddit/CFB','Reddit/CollegeBasketball','GNews/football','GNews/basketball','GNews/recruiting','GNews/sports','GNews/247sports'];
+      return names[i] + ':' + (r.status === 'fulfilled' ? r.value.status : 'FAILED');
+    });
+    console.log('Stories:', stories.length, '| Reddit:', redditCount, '| Google:', googleCount, '| Fetches:', fetchStatuses.join(', '));
 
-    if (!stories.length) return res.status(200).json({ content: [{ type: 'text', text: '[]' }] });
+    if (!stories.length) {
+      var diagMsg = 'No stories found. Fetch results: ' + fetchStatuses.join(', ');
+      return res.status(200).json({ error: diagMsg });
+    }
 
     // Build numbered list for Claude
     var storyList = stories.map(function(s, i) {
