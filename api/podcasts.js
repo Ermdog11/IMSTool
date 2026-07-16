@@ -2,9 +2,6 @@ module.exports = async function handler(req, res) {
   var key = process.env.LISTEN_API_KEY;
   if (!key) return res.status(200).json({ episodes: [], error: 'LISTEN_API_KEY not set' });
 
-  var cutoff = Date.now() - 72 * 60 * 60 * 1000;
-  var publishedAfter = cutoff; // ListenNotes published_after is milliseconds
-
   var cannabisTerms = ['weed','cannabis','marijuana','420','dispensary','hemp',' thc ','cbd','strain','dab','kush','edible','stoner','pot podcast','pot show','smoke show','reefer'];
 
   function isCannabis(text) {
@@ -25,7 +22,7 @@ module.exports = async function handler(req, res) {
 
   for (var q of queries) {
     try {
-      var url = 'https://listen-api.listennotes.com/api/v2/search?q=' + encodeURIComponent(q) + '&type=episode&sort_by_date=1&published_after=' + publishedAfter + '&language=English&page_size=5';
+      var url = 'https://listen-api.listennotes.com/api/v2/search?q=' + encodeURIComponent(q) + '&type=episode&sort_by_date=1&language=English&page_size=5';
       var r = await fetch(url, { headers: { 'X-ListenAPI-Key': key } });
       if (!r.ok) continue;
       var data = await r.json();
