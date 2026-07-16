@@ -103,7 +103,7 @@ module.exports = async function handler(req, res) {
       return (i + 1) + '. [' + s.source + '] ' + s.title + ' (' + s.age + 'h ago)';
     }).join('\n');
 
-    var prompt = 'You are a sports news editor for InsideMDSports covering University of Maryland Terrapins athletics.\n\nRate and categorize these stories. Return ONLY a JSON array, no other text.\n\nEach object must have:\n- idx: the story number (1-based)\n- headline: improved headline (keep original meaning)\n- source: the [Source] shown\n- time: e.g. "2h ago"\n- rating: 1-5 (5=breaking news, 4=major, 3=solid, 2=minor, 1=filler)\n- category: one of: recruiting, football, basketball, alumni, social, podcast, news\n- sport: football, basketball, lacrosse, soccer, or other\n- summary: one sentence\n\nOnly include stories with rating 2 or higher. Exclude duplicate stories.\n\nStories:\n' + storyList;
+    var prompt = 'You are a sports news editor for InsideMDSports covering University of Maryland Terrapins athletics.\n\nRate and categorize ALL of these stories. Return ONLY a JSON array, no other text. Include EVERY story.\n\nEach object must have:\n- idx: the story number (1-based)\n- headline: improved headline (keep original meaning)\n- source: the [Source] shown\n- time: e.g. "2h ago"\n- rating: 1-5 (5=breaking news, 4=major, 3=solid, 2=minor, 1=filler)\n- category: one of: recruiting, football, basketball, alumni, social, podcast, news\n- sport: football, basketball, lacrosse, soccer, or other\n- summary: one sentence\n\nInclude ALL stories in the output. Do not skip any.\n\nStories:\n' + storyList;
 
     var cr = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
