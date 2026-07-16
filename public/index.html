@@ -515,71 +515,7 @@ body { padding-bottom: 40px; }
 // ============================================================
 const EXCLUDED = ['InsideMDSports','Jeff Ermann','IMS Radio','insidemdsports.com','247sports.com/college/maryland'];
 
-const WATCH = {
-  coaches: ['Mike Locksley','Buzz Williams','Brenda Frese','Ted Monachino','Clint Trickett','Aazaar Abdul-Rahim','Jeremy Shapiro','Latrell Scott','Kyle Schmitt','Andre Powell'],
-  fbCommits26: ['Zion Elee','Darrell Carey','Jamarcus Whyce','Javonte Williams','Jesse Moody','Ontario Washington Jr.','Chuck Roberts'],
-  fbCommits27: ['Myles McAfee','Levi Babin','Mekhi Graham','Davion Vanderbilt'],
-  fbTargets: ['Kenaz Sullivan','James Pace III','Dallas Pauldo','Anthony Jennings','Cahron Wheeler','Emerson Lewis','James Branch','Kendon Bauer','Franklin Richardson'],
-  fbRoster: ['Malik Washington','Zahir Mathis','Sidney Stewart','Daniel Wingate','Dontay Joyner','Jamare Glasker','Messiah Delhomme','Justin Merriman'],
-  bkRoster: ['Pharrel Payne','Andre Mills','DJ Wagner','Tomislav Buljan','Bishop Boswell','Kaden House','Austin Brown','Adama Tambedou','Robert Jennings','Baba Oladotun','Guillermo del Pino','Alexandre K\'Medehouto','George Turkson','Michael McNair','Maban Jabriel'],
-  bkTargets: ['Amir Jenkins','J\'Lon Lyons','Beau Daniels'],
-  nflAlumni: ['DJ Moore','Stefon Diggs','Chig Okonkwo','Nick Cross','Tai Felton','DJ Glaze','Deonte Banks','Jakorian Bennett','Tarheeb Still','Corey Bullock','Jalil Farooq','Shaleak Knotts','Dante Trader Jr.','Kaden Prather','Ruben Hyppolite II','Shawne Merriman','Boomer Esiason'],
-  nbaAlumni: ['Derik Queen','Aaron Wiggins','Kevin Huerter'],
-  legends: ['Juan Dixon','Greivis Vasquez','Len Bias','Albert King','Adrian Branch','John Lucas','Lonny Baxter','Tom McMillen','Walt Williams','Jake Layman','Dez Wells','Melo Trimble','Anthony Cowan','Steve Blake','Gary Williams','Buck Williams','Len Elmore','Gene Shue','Joe Smith','Dominique Dawes','Marissa Coleman','Taylor Cummings'],
-  reporters: ['Testudo Times','TerpRecruiting','DBKSports','Ahmed Ghafir','Nolan Rogalski','Matt Germack'],
-  admin: ['Jim Smith','Darryll Pines','Johnny Holliday'],
-  podcasts: ['Testudo Talk','Locked On Terps','Hear The Turtle','Under The Shell','Protect The Shell','Testudos and Touchdowns']
-};
-
-const SCAN_PROMPT = () => `You are a news monitor for InsideMDSports on 247Sports, covering University of Maryland Terrapins athletics exclusively for publisher Jeff Ermann. Search for the latest UMD Terrapins news right now.
-
-CRITICAL: EXCLUDE all content from InsideMDSports, Jeff Ermann, IMS Radio, or 247sports.com/college/maryland. Exception: include it if another outlet is REACTING to Jeff's reporting.
-
-PEOPLE TO WATCH — flag any mention of these immediately:
-Coaches: ${WATCH.coaches.join(', ')}
-FB commits (2026): ${WATCH.fbCommits26.join(', ')}
-FB commits (2027): ${WATCH.fbCommits27.join(', ')}
-FB targets: ${WATCH.fbTargets.join(', ')}
-FB roster: ${WATCH.fbRoster.join(', ')}
-BK roster: ${WATCH.bkRoster.join(', ')}
-BK targets: ${WATCH.bkTargets.join(', ')}
-NFL alumni: ${WATCH.nflAlumni.join(', ')}
-NBA/WNBA alumni: ${WATCH.nbaAlumni.join(', ')}
-Legends: ${WATCH.legends.join(', ')}
-Reporters: ${WATCH.reporters.join(', ')}
-Admin: ${WATCH.admin.join(', ')}
-
-CHANNELS TO CHECK:
-- r/MarylandTerrapins, r/CFB, r/CollegeBasketball
-- Testudo Times, Inside the Black and Gold, The Diamondback
-- ESPN Maryland, The Athletic Maryland, On3, Rivals
-- 247Sports Maryland recruiting boards
-- Podcasts: ${WATCH.podcasts.join(', ')}
-- YouTube: Maryland Terrapins, Maryland recruiting, Buzz Williams, Mike Locksley
-- Transfer portal trackers
-
-KEY PHRASES: "commits to Maryland", "decommits from Maryland", "Maryland offer", "Maryland official visit", "Crystal Ball Maryland", "Terps transfer portal", "Maryland football recruiting", "Buzz Williams recruit", "Locksley offer", "Maryland basketball commit"
-
-SPORT EXCLUSIONS: Exclude tennis, track, golf, wrestling, field hockey, softball, baseball, lacrosse, soccer, gymnastics, swimming UNLESS it's major news (NCAA title, national award, pro signing).
-
-RATING SCALE (be precise):
-5 = Breaking: commit, decommit, portal move, coaching hire/fire, major injury to starter, program-level news
-4 = High value: named recruit activity, beat reporter scoop, transfer interest, roster move, game result with context
-3 = Solid: general team/program news, depth chart, podcast, alumni signing
-2 = Informational: previews, minor notes, social buzz
-1 = Low signal: aggregated recaps, tangential mentions
-
-Return ONLY a valid JSON array (no markdown, no preamble, no explanation). Each item:
-- headline: string
-- summary: 1-2 sentences
-- category: "recruiting"|"football"|"basketball"|"other-sport"|"alumni"|"social"|"podcast"
-- sport: specific sport
-- source: outlet, reporter, subreddit, or platform
-- time: e.g. "15m ago", "1h ago", "this morning"
-- rating: integer 1-5
-
-Return 10-15 items. Sort by rating descending. Always include recruiting if found.`;
-
+const WATCH_LIST = [];
 // ============================================================
 // STATE
 // ============================================================
@@ -635,7 +571,7 @@ function renderAlerts() {
     const catLabel = isRec ? 'Recruiting' : a.category === 'alumni' ? 'Alumni' : a.category === 'social' ? 'Social' : a.category === 'podcast' ? 'Podcast' : 'News';
     return `<div class="acard ${cardClass}" id="card-${idx}">
       <div class="acard-top">
-        <div class="acard-headline">${a.url ? `<a href="${a.url}" target="_blank" rel="noopener" style="color:inherit;text-decoration:underline;">${a.headline}</a>` : a.headline}</div>
+             <div class="acard-headline">${a.url ? `<a href="${a.url}" target="_blank" rel="noopener" style="color:inherit;text-decoration:underline;">${a.headline}</a>` : a.headline}</div>
         <span class="rating ${ratingClass}">${ratingLabel}</span>
       </div>
       <div class="acard-meta">
@@ -825,8 +761,7 @@ async function scanSocial() {
       method:"POST", headers:{"Content-Type":"application/json"},
       body: JSON.stringify({
         model:"claude-sonnet-4-6", max_tokens:1000,
-        tools:[{"type":"web_search_20250305","name":"web_search"}],
-        messages:[{role:"user",content:`Search for high-engagement social media posts about Maryland Terrapins football and basketball from the past 48 hours. Look on Reddit (r/MarylandTerrapins, r/CFB, r/CollegeBasketball), Twitter/X (indexed public posts), and YouTube. Return ONLY a JSON array of 4-6 posts with: platform, post_text (summary of what the post says, max 100 chars), stats (likes/upvotes/views as string), url (if available), engagement_score (1-10). No markdown.`}]
+        messages:[{role:"user",content:`List 4-6 recent high-engagement Reddit discussions about Maryland Terrapins football or basketball from r/MarylandTerrapins, r/CFB, or r/CollegeBasketball. Return ONLY a JSON array with: platform, post_text (summary max 100 chars), stats (e.g. "85 upvotes"), url (leave blank ""), engagement_score (1-10). No markdown.`}]
       })
     });
     const data = await res.json();
