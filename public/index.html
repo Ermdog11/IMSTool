@@ -542,6 +542,7 @@ const WATCH_LIST = [];
 // ============================================================
 let allAlerts = [];
 let overflowAlerts = [];
+let podcastCache = null;
 let currentFilter = 'all';
 let savedEmail = '';
 let lastScanTime = null;
@@ -650,38 +651,52 @@ function renderTrending() {
     </div>`).join('');
 }
 
+function renderPodcastCache() {
+  const c = document.getElementById('podcastsContainer');
+  if (!c) return;
+  const eps = podcastCache;
+  if (!eps || !eps.length) {
+    c.innerHTML = '<div class="empty"><i class="ti ti-microphone"></i> No podcast episodes found. <button onclick="refreshPodcasts()" style="margin-left:8px;background:var(--red);color:#fff;border:none;border-radius:4px;padding:3px 10px;cursor:pointer;font-size:.8rem;">Refresh</button></div>';
+    return;
+  }
+  const cards = [];
+  for (let i = 0; i < eps.length; i++) {
+    const ep = eps[i];
+    const titleHtml = ep.url
+      ? '<a href="' + ep.url + '" target="_blank" rel="noopener" style="color:inherit;text-decoration:underline;">' + ep.title + '</a>'
+      : ep.title;
+    cards.push('<div class="acard" style="margin-bottom:10px;">' +
+      '<div class="acard-headline" style="font-size:.92rem;">' + titleHtml + '</div>' +
+      '<div class="acard-meta" style="margin-top:4px;">' +
+        '<span class="tag tag-soc">Podcast</span>' +
+        '<span class="asrc">' + (ep.podcast || '') + '</span>' +
+        '<span class="atime">' + ep.age + 'h ago</span>' +
+      '</div>' +
+      (ep.description ? '<div class="asum" style="margin-top:6px;">' + ep.description + '…</div>' : '') +
+      '</div>');
+  }
+  c.innerHTML = '<div style="text-align:right;margin-bottom:8px;"><button onclick="refreshPodcasts()" style="background:none;border:1px solid var(--border);border-radius:4px;padding:3px 10px;cursor:pointer;color:var(--muted);font-size:.8rem;">↻ Refresh</button></div>' + cards.join('');
+}
+
 async function loadPodcasts() {
   const c = document.getElementById('podcastsContainer');
   if (!c) return;
+  // Use cache if available — only fetch once per session to conserve API quota
+  if (podcastCache !== null) { renderPodcastCache(); return; }
   c.innerHTML = '<div class="empty"><i class="ti ti-loader spin"></i> Searching podcast episodes...</div>';
   try {
-    const res = await fetch('/api/podcasts?t=' + Date.now(), { cache: 'no-store' });
+    const res = await fetch('/api/podcasts', { cache: 'no-store' });
     const data = await res.json();
-    const eps = data.episodes || [];
-    if (!eps.length) {
-      c.innerHTML = '<div class="empty"><i class="ti ti-microphone"></i> No podcast episodes found.</div>';
-      return;
-    }
-    const cards = [];
-    for (let i = 0; i < eps.length; i++) {
-      const ep = eps[i];
-      const titleHtml = ep.url
-        ? '<a href="' + ep.url + '" target="_blank" rel="noopener" style="color:inherit;text-decoration:underline;">' + ep.title + '</a>'
-        : ep.title;
-      cards.push('<div class="acard" style="margin-bottom:10px;">' +
-        '<div class="acard-headline" style="font-size:.92rem;">' + titleHtml + '</div>' +
-        '<div class="acard-meta" style="margin-top:4px;">' +
-          '<span class="tag tag-soc">Podcast</span>' +
-          '<span class="asrc">' + (ep.podcast || '') + '</span>' +
-          '<span class="atime">' + ep.age + 'h ago</span>' +
-        '</div>' +
-        (ep.description ? '<div class="asum" style="margin-top:6px;">' + ep.description + '…</div>' : '') +
-        '</div>');
-    }
-    c.innerHTML = cards.join('');
+    podcastCache = data.episodes || [];
+    renderPodcastCache();
   } catch(e) {
     c.innerHTML = '<div class="empty">Error loading podcasts — ' + e.message + '</div>';
   }
+}
+
+async function refreshPodcasts() {
+  podcastCache = null;
+  await loadPodcasts();
 }
 
 function goToTrending(topic) {
@@ -789,7 +804,6 @@ async function runScan() {
     startCountdown();
     renderAlerts();
     renderTrending();
-    loadPodcasts();
 
     // Auto-drop rating 4+ alerts to team chat
     allAlerts.filter(a => a.rating >= 4).forEach(a => {
