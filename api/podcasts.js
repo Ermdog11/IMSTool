@@ -2,7 +2,7 @@ module.exports = async function handler(req, res) {
   var key = process.env.LISTEN_API_KEY;
   if (!key) return res.status(200).json({ episodes: [], error: 'LISTEN_API_KEY not set' });
 
-  var cannabisTerms = ['weed','cannabis','marijuana','420','dispensary','hemp',' thc ','cbd','strain','dab','kush','edible','stoner','pot podcast','pot show','smoke show','reefer'];
+  var cannabisTerms = ['cannabis podcast','marijuana podcast','weed podcast','420 podcast','dispensary podcast','thc podcast','cbd podcast','kush podcast','stoner podcast','pot podcast','smoke show','reefer podcast'];
 
   function isCannabis(text) {
     var t = (text || '').toLowerCase();
@@ -14,7 +14,8 @@ module.exports = async function handler(req, res) {
     '"Maryland football"',
     '"Maryland basketball"',
     '"Terps football"',
-    '"Terps basketball"'
+    '"Terps basketball"',
+    'Terps'
   ];
 
   var episodes = [];
