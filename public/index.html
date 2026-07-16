@@ -211,7 +211,7 @@ body { padding-bottom: 40px; }
   </div>
   <div class="topbar-right">
     <span class="pill pill-live"><span class="live-dot"></span>Live</span>
-    <button class="pill pill-email" onclick="switchTab(6)"><i class="ti ti-mail"></i> Email setup</button>
+    <button class="pill pill-email" onclick="switchTab(7)"><i class="ti ti-mail"></i> Email setup</button>
   </div>
 </div>
 
@@ -222,7 +222,8 @@ body { padding-bottom: 40px; }
   <button class="nav-tab" id="tab-btn-3" onclick="switchTab(3)">Team chat</button>
   <button class="nav-tab" id="tab-btn-4" onclick="switchTab(4)">Story backlog</button>
   <button class="nav-tab" id="tab-btn-5" onclick="switchTab(5)">Recruiting tracker</button>
-  <button class="nav-tab" id="tab-btn-6" onclick="switchTab(6)">Settings</button>
+  <button class="nav-tab" id="tab-btn-6" onclick="switchTab(6)">🔥 Trending</button>
+  <button class="nav-tab" id="tab-btn-7" onclick="switchTab(7)">Settings</button>
 </div>
 
 <!-- ALERTS TAB -->
@@ -362,8 +363,14 @@ body { padding-bottom: 40px; }
   </div>
 </div>
 
-<!-- SETTINGS TAB -->
+<!-- TRENDING OVERFLOW TAB -->
 <div class="page" id="page-6">
+  <div style="padding:16px 0 8px;"><h3 style="margin:0;font-size:1.1rem;">🔥 Trending Overflow</h3><p style="color:var(--muted);font-size:.85rem;margin:4px 0 0;">Stories beyond the 4-per-topic limit in the main feed.</p></div>
+  <div id="trendingContainer"><div class="empty"><i class="ti ti-flame"></i> No overflow stories yet — run a scan first.</div></div>
+</div>
+
+<!-- SETTINGS TAB -->
+<div class="page" id="page-7">
   <div class="notice"><i class="ti ti-user-check"></i> You are Jeff Ermann, publisher of InsideMDSports. Your content and IMS Radio are excluded from all alerts.</div>
 
   <div class="settings-card">
@@ -521,6 +528,7 @@ const WATCH_LIST = [];
 // STATE
 // ============================================================
 let allAlerts = [];
+let overflowAlerts = [];
 let currentFilter = 'all';
 let savedEmail = '';
 let lastScanTime = null;
@@ -588,6 +596,7 @@ function renderAlerts() {
         <span class="asrc">${a.source}</span>
         <span class="atime">${a.time}</span>
       </div>
+      ${a.trendingTopic && a.overflowCount ? `<div style="margin:4px 0 2px;"><a href="#" onclick="goToTrending('${a.trendingTopic.replace(/'/g,"\\'")}');return false;" style="font-size:.78rem;color:var(--red);font-weight:600;text-decoration:none;">🔥 +${a.overflowCount} more ${a.trendingTopic} stories →</a></div>` : ''}
       ${a.summary ? `<div class="asum">${a.summary}</div>` : ''}
       <div class="acard-actions">
         <button class="aaction" onclick="getAngles(${idx})"><i class="ti ti-bulb"></i> Story angles</button>
@@ -599,6 +608,40 @@ function renderAlerts() {
       <div class="aaction-output" id="output-${idx}"></div>
     </div>`;
   }).join('');
+}
+
+// ============================================================
+// TRENDING OVERFLOW
+// ============================================================
+function renderTrending() {
+  const c = document.getElementById('trendingContainer');
+  if (!overflowAlerts.length) {
+    c.innerHTML = '<div class="empty"><i class="ti ti-flame"></i> No overflow stories in this scan.</div>';
+    return;
+  }
+  // Group by topic
+  const groups = {};
+  overflowAlerts.forEach(function(s) {
+    const t = s.trendingTopic || 'Other';
+    if (!groups[t]) groups[t] = [];
+    groups[t].push(s);
+  });
+  c.innerHTML = Object.entries(groups).map(([topic, items]) => `
+    <div id="trending-topic-${topic.replace(/\s+/g,'-')}" style="margin-bottom:20px;">
+      <h4 style="margin:0 0 8px;font-size:.95rem;color:var(--red);">🔥 ${topic} <span style="color:var(--muted);font-size:.8rem;font-weight:400;">${items.length} more stories</span></h4>
+      ${items.map(s => `<div class="acard" style="margin-bottom:8px;">
+        <div class="acard-headline" style="font-size:.9rem;">${s.url ? `<a href="${s.url}" target="_blank" rel="noopener" style="color:inherit;text-decoration:underline;">${s.title}</a>` : s.title}</div>
+        <div class="acard-meta" style="margin-top:4px;"><span class="asrc">${s.source}</span><span class="atime">${s.age}h ago</span></div>
+      </div>`).join('')}
+    </div>`).join('');
+}
+
+function goToTrending(topic) {
+  switchTab(6);
+  setTimeout(function() {
+    const el = document.getElementById('trending-topic-' + topic.replace(/\s+/g,'-'));
+    if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }, 50);
 }
 
 // ============================================================
@@ -684,6 +727,7 @@ async function runScan() {
     let results = JSON.parse(cleaned.substring(start, end + 1));
     results = results.filter(a => !EXCLUDED.some(ex => (a.source||'').toLowerCase().includes(ex.toLowerCase())));
     allAlerts = results;
+    overflowAlerts = (data.overflow || []).filter(s => !EXCLUDED.some(ex => (s.source||'').toLowerCase().includes(ex.toLowerCase())));
     lastScanTime = Date.now();
 
     document.getElementById('m-total').textContent = allAlerts.length;
@@ -696,6 +740,7 @@ async function runScan() {
     txt.innerHTML = `<strong>Active</strong> — ${allAlerts.length} stories found · next scan in 30 min`;
     startCountdown();
     renderAlerts();
+    renderTrending();
 
     // Auto-drop rating 4+ alerts to team chat
     allAlerts.filter(a => a.rating >= 4).forEach(a => {

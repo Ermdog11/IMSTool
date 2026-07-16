@@ -106,15 +106,33 @@ module.exports = async function handler(req, res) {
       return true;
     });
 
-    // Limit trending topic flood: max 4 stories sharing the same prominent name
+    // Limit trending topic flood: max 4 stories per prominent name, collect overflow separately
     var nameCount = {};
+    var overflowStories = [];
     stories = stories.filter(function(s) {
       var names = s.title.match(/\b[A-Z][a-z]+ [A-Z][a-z]+\b/g) || [];
+      var overflowTopic = null;
       for (var n of names) {
         nameCount[n] = (nameCount[n] || 0) + 1;
-        if (nameCount[n] > 4) return false;
+        if (nameCount[n] > 4) { overflowTopic = n; }
+      }
+      if (overflowTopic) {
+        overflowStories.push(Object.assign({}, s, { trendingTopic: overflowTopic }));
+        return false;
       }
       return true;
+    });
+
+    // Tag main stories that have overflow with the topic and overflow count
+    var overflowCountByTopic = {};
+    overflowStories.forEach(function(s) {
+      overflowCountByTopic[s.trendingTopic] = (overflowCountByTopic[s.trendingTopic] || 0) + 1;
+    });
+    stories.forEach(function(s) {
+      var names = s.title.match(/\b[A-Z][a-z]+ [A-Z][a-z]+\b/g) || [];
+      for (var n of names) {
+        if (overflowCountByTopic[n]) { s.trendingTopic = n; s.overflowCount = overflowCountByTopic[n]; break; }
+      }
     });
 
     // Cap at 40 most recent stories to keep Claude response within token limits
@@ -167,7 +185,16 @@ module.exports = async function handler(req, res) {
       return Object.assign({}, item, { url: orig ? orig.url : '' });
     });
 
-    return res.status(200).json({ content: [{ type: 'text', text: JSON.stringify(final) }] });
+    // Re-attach trendingTopic/overflowCount to final items
+    final = final.map(function(item) {
+      var orig = stories[item.idx - 1];
+      if (orig && orig.trendingTopic) {
+        return Object.assign({}, item, { trendingTopic: orig.trendingTopic, overflowCount: orig.overflowCount });
+      }
+      return item;
+    });
+
+    return res.status(200).json({ content: [{ type: 'text', text: JSON.stringify(final) }], overflow: overflowStories });
 
   } catch(e) {
     console.error('Scan error:', e.message);
