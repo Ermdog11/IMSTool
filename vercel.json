@@ -2,7 +2,7 @@
   "version": 2,
   "functions": {
     "api/scan.js": {
-      "maxDuration": 60
+      "maxDuration": 300
     },
     "api/digest.js": {
       "maxDuration": 60

@@ -106,6 +106,9 @@ module.exports = async function handler(req, res) {
       return true;
     });
 
+    // Cap at 60 most recent stories to keep Claude prompt manageable
+    stories = stories.sort(function(a, b) { return a.age - b.age; }).slice(0, 60);
+
     var redditCount = stories.filter(function(s){return s.source.includes('Reddit');}).length;
     var googleCount = stories.filter(function(s){return !s.source.includes('Reddit');}).length;
     var fetchStatuses = results.map(function(r, i) {
