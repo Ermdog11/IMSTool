@@ -21,7 +21,7 @@ module.exports = async function handler(req, res) {
   // Full scan: fetch Reddit + Google News RSS, then ask Claude to rate them
   var cutoff = Date.now() - 72 * 60 * 60 * 1000;
   var googleCutoff = Date.now() - 24 * 60 * 60 * 1000;
-  var excluded = ['insidemd', 'jeff ermann', 'ims radio', 'maryland.247sports', 'insidetheshell'];
+  var excluded = ['insidemd', 'jeff ermann', 'ims radio', 'maryland.247sports', '247sports.com/college/maryland', 'insidetheshell'];
 
   try {
     var fetches = [
