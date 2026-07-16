@@ -106,6 +106,17 @@ module.exports = async function handler(req, res) {
       return true;
     });
 
+    // Limit trending topic flood: max 4 stories sharing the same prominent name
+    var nameCount = {};
+    stories = stories.filter(function(s) {
+      var names = s.title.match(/\b[A-Z][a-z]+ [A-Z][a-z]+\b/g) || [];
+      for (var n of names) {
+        nameCount[n] = (nameCount[n] || 0) + 1;
+        if (nameCount[n] > 4) return false;
+      }
+      return true;
+    });
+
     // Cap at 40 most recent stories to keep Claude response within token limits
     stories = stories.sort(function(a, b) { return a.age - b.age; }).slice(0, 40);
 
