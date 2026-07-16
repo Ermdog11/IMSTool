@@ -3,7 +3,7 @@ module.exports = async function handler(req, res) {
   if (!key) return res.status(200).json({ episodes: [], error: 'LISTEN_API_KEY not set' });
 
   var cutoff = Date.now() - 72 * 60 * 60 * 1000;
-  var publishedAfter = Math.floor(cutoff / 1000); // ListenNotes uses seconds
+  var publishedAfter = cutoff; // ListenNotes published_after is milliseconds
 
   var cannabisTerms = ['weed','cannabis','marijuana','420','dispensary','hemp',' thc ','cbd','strain','dab','kush','edible','stoner','pot podcast','pot show','smoke show','reefer'];
 
