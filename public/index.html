@@ -652,24 +652,35 @@ function renderTrending() {
 
 async function loadPodcasts() {
   const c = document.getElementById('podcastsContainer');
+  if (!c) return;
   c.innerHTML = '<div class="empty"><i class="ti ti-loader spin"></i> Searching podcast episodes...</div>';
   try {
-    const res = await fetch('/api/podcasts');
+    const res = await fetch('/api/podcasts?t=' + Date.now(), { cache: 'no-store' });
     const data = await res.json();
-    if (data.error && !data.episodes.length) { c.innerHTML = `<div class="empty">${data.error}</div>`; return; }
     const eps = data.episodes || [];
-    if (!eps.length) { c.innerHTML = '<div class="empty"><i class="ti ti-microphone"></i> No podcast episodes found in the last 72 hours.</div>'; return; }
-    c.innerHTML = eps.map(ep => `<div class="acard" style="margin-bottom:10px;">
-      <div class="acard-headline" style="font-size:.92rem;">${ep.url ? `<a href="${ep.url}" target="_blank" rel="noopener" style="color:inherit;text-decoration:underline;">${ep.title}</a>` : ep.title}</div>
-      <div class="acard-meta" style="margin-top:4px;">
-        <span class="tag tag-soc">Podcast</span>
-        <span class="asrc">${ep.podcast}</span>
-        <span class="atime">${ep.age}h ago</span>
-      </div>
-      ${ep.description ? `<div class="asum" style="margin-top:6px;">${ep.description}…</div>` : ''}
-    </div>`).join('');
+    if (!eps.length) {
+      c.innerHTML = '<div class="empty"><i class="ti ti-microphone"></i> No podcast episodes found.</div>';
+      return;
+    }
+    const cards = [];
+    for (let i = 0; i < eps.length; i++) {
+      const ep = eps[i];
+      const titleHtml = ep.url
+        ? '<a href="' + ep.url + '" target="_blank" rel="noopener" style="color:inherit;text-decoration:underline;">' + ep.title + '</a>'
+        : ep.title;
+      cards.push('<div class="acard" style="margin-bottom:10px;">' +
+        '<div class="acard-headline" style="font-size:.92rem;">' + titleHtml + '</div>' +
+        '<div class="acard-meta" style="margin-top:4px;">' +
+          '<span class="tag tag-soc">Podcast</span>' +
+          '<span class="asrc">' + (ep.podcast || '') + '</span>' +
+          '<span class="atime">' + ep.age + 'h ago</span>' +
+        '</div>' +
+        (ep.description ? '<div class="asum" style="margin-top:6px;">' + ep.description + '…</div>' : '') +
+        '</div>');
+    }
+    c.innerHTML = cards.join('');
   } catch(e) {
-    c.innerHTML = `<div class="empty">Error loading podcasts — ${e.message}</div>`;
+    c.innerHTML = '<div class="empty">Error loading podcasts — ' + e.message + '</div>';
   }
 }
 
