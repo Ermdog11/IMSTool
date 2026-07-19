@@ -1,55 +1,95 @@
 module.exports = async function handler(req, res) {
-  var key = process.env.LISTEN_API_KEY;
-  if (!key) return res.status(200).json({ episodes: [], error: 'LISTEN_API_KEY not set' });
+  // Free approach: resolve podcast RSS feeds via iTunes Search API (no key needed),
+  // then parse each feed directly. No ListenNotes dependency.
 
-  var cannabisTerms = ['cannabis podcast','marijuana podcast','weed podcast','420 podcast','dispensary podcast','thc podcast','cbd podcast','kush podcast','stoner podcast','pot podcast','smoke show','reefer podcast'];
-
-  function isCannabis(text) {
-    var t = (text || '').toLowerCase();
-    return cannabisTerms.some(function(c) { return t.includes(c); });
-  }
-
-  var queries = [
-    '"Maryland Terrapins"',
-    '"Maryland football"',
-    '"Maryland basketball"',
-    '"Terps football"',
-    '"Terps basketball"',
-    'Terps'
+  // Shows that are entirely Terps-focused: include every recent episode.
+  var terpsShows = [
+    'Locked On Terps'
   ];
 
-  var episodes = [];
-  var seen = [];
-  var debug = [];
+  // Regional DC/Baltimore shows: include only episodes that mention Terps/Maryland.
+  var regionalShows = [
+    'The Kevin Sheehan Show',
+    'The Sports Junkies',
+    'Grant and Danny',
+    '95 Connected Baltimore Maryland Sports',
+    'Glenn Clark Radio',
+    'BMitch & Finlay',
+    'District of Sports DC'
+  ];
 
-  for (var q of queries) {
-    try {
-      var url = 'https://listen-api.listennotes.com/api/v2/search?q=' + encodeURIComponent(q) + '&type=episode&sort_by_date=1&language=English&page_size=5';
-      var r = await fetch(url, { headers: { 'X-ListenAPI-Key': key } });
-      var qDebug = { query: q, status: r.status, ok: r.ok, added: 0, filtered: 0, deduped: 0 };
-      if (!r.ok) { debug.push(qDebug); continue; }
-      var data = await r.json();
-      var results = (data.results || []);
-      results.forEach(function(ep) {
-        var title = ep.title_original || ep.title || '';
-        var podcastTitle = (ep.podcast && ep.podcast.title_original) || (ep.podcast && ep.podcast.title) || '';
-        var description = ep.description_original || ep.description || '';
-        var listenUrl = ep.listennotes_url || '';
-        var pubMs = ep.pub_date_ms || 0;
-        if (!title) return;
-        if (isCannabis(title) || isCannabis(podcastTitle) || isCannabis(description)) { qDebug.filtered++; return; }
-        var norm = title.toLowerCase().replace(/[^a-z0-9 ]/g, '').substring(0, 60);
-        if (seen.includes(norm)) { qDebug.deduped++; return; }
-        seen.push(norm);
-        var age = pubMs ? Math.round((Date.now() - pubMs) / 3600000) : 0;
-        episodes.push({ title: title, podcast: podcastTitle, url: listenUrl, age: age, description: description.replace(/<[^>]+>/g,'').substring(0, 150) });
-        qDebug.added++;
-      });
-      debug.push(qDebug);
-    } catch(e) { debug.push({ query: q, error: e.message }); }
+  var keywords = ['terps', 'terrapins', 'maryland football', 'maryland basketball', 'maryland lacrosse', 'maryland recruiting', 'mike locksley', 'buzz williams', 'kevin willard', 'brenda frese', 'university of maryland'];
+  var cutoff = Date.now() - 14 * 24 * 60 * 60 * 1000; // 14 days
+
+  function matchesKeywords(text) {
+    var t = (text || '').toLowerCase();
+    return keywords.some(function(k) { return t.includes(k); });
   }
 
-  episodes.sort(function(a, b) { return a.age - b.age; });
+  async function resolveFeed(showName) {
+    try {
+      var r = await fetch('https://itunes.apple.com/search?term=' + encodeURIComponent(showName) + '&media=podcast&limit=1');
+      if (!r.ok) return null;
+      var d = await r.json();
+      var top = (d.results || [])[0];
+      return top ? { feedUrl: top.feedUrl, title: top.collectionName } : null;
+    } catch(e) { return null; }
+  }
 
-  return res.status(200).json({ episodes: episodes, debug: debug });
+  function parseFeed(xml, showTitle, requireKeywords) {
+    var out = [];
+    var items = xml.match(/<item>[\s\S]*?<\/item>/g) || [];
+    items.slice(0, 15).forEach(function(item) {
+      var title = (item.match(/<title><!\[CDATA\[([\s\S]*?)\]\]><\/title>/) || item.match(/<title>([\s\S]*?)<\/title>/) || [])[1] || '';
+      var desc = (item.match(/<description><!\[CDATA\[([\s\S]*?)\]\]><\/description>/) || item.match(/<description>([\s\S]*?)<\/description>/) || [])[1] || '';
+      var link = (item.match(/<link>([\s\S]*?)<\/link>/) || [])[1] || '';
+      var pubDate = (item.match(/<pubDate>([\s\S]*?)<\/pubDate>/) || [])[1] || '';
+      title = title.trim();
+      if (!title) return;
+      var pubMs = pubDate ? new Date(pubDate).getTime() : 0;
+      if (pubMs && pubMs < cutoff) return;
+      var plainDesc = desc.replace(/<[^>]+>/g, '').replace(/&amp;/g,'&').trim();
+      if (requireKeywords && !matchesKeywords(title + ' ' + plainDesc)) return;
+      var age = pubMs ? Math.round((Date.now() - pubMs) / 3600000) : 0;
+      out.push({ title: title.replace(/&amp;/g,'&'), podcast: showTitle, url: link.trim(), age: age, description: plainDesc.substring(0, 150) });
+    });
+    return out;
+  }
+
+  try {
+    var allShows = terpsShows.map(function(s) { return { name: s, requireKeywords: false }; })
+      .concat(regionalShows.map(function(s) { return { name: s, requireKeywords: true }; }));
+
+    var resolved = await Promise.allSettled(allShows.map(function(s) { return resolveFeed(s.name); }));
+
+    var feedFetches = resolved.map(function(r, i) {
+      if (r.status !== 'fulfilled' || !r.value || !r.value.feedUrl) return null;
+      return fetch(r.value.feedUrl).then(function(fr) { return fr.text(); }).then(function(xml) {
+        return { xml: xml, title: r.value.title, requireKeywords: allShows[i].requireKeywords };
+      }).catch(function() { return null; });
+    });
+
+    var feeds = await Promise.all(feedFetches);
+
+    var episodes = [];
+    feeds.forEach(function(f) {
+      if (!f || !f.xml) return;
+      episodes = episodes.concat(parseFeed(f.xml, f.title, f.requireKeywords));
+    });
+
+    // Dedupe by title
+    var seen = [];
+    episodes = episodes.filter(function(ep) {
+      var norm = ep.title.toLowerCase().replace(/[^a-z0-9 ]/g, '').substring(0, 60);
+      if (seen.includes(norm)) return false;
+      seen.push(norm);
+      return true;
+    });
+
+    episodes.sort(function(a, b) { return a.age - b.age; });
+
+    return res.status(200).json({ episodes: episodes });
+  } catch(e) {
+    return res.status(500).json({ episodes: [], error: e.message });
+  }
 };
