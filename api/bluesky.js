@@ -108,6 +108,29 @@ module.exports = async function handler(req, res) {
       });
     });
 
+    // Filter out low-follower accounts (min 150 followers)
+    var uniqueHandles = [];
+    posts.forEach(function(p) { if (!uniqueHandles.includes(p.handle)) uniqueHandles.push(p.handle); });
+    var followerCounts = {};
+    // getProfiles accepts up to 25 actors per call
+    for (var pi = 0; pi < uniqueHandles.length; pi += 25) {
+      var batch = uniqueHandles.slice(pi, pi + 25);
+      try {
+        var qs = batch.map(function(h) { return 'actors=' + encodeURIComponent(h); }).join('&');
+        var pr = await fetch('https://bsky.social/xrpc/app.bsky.actor.getProfiles?' + qs, { headers: { 'Authorization': 'Bearer ' + token } });
+        if (pr.ok) {
+          var pd = await pr.json();
+          (pd.profiles || []).forEach(function(prof) {
+            followerCounts[prof.handle] = prof.followersCount || 0;
+          });
+        }
+      } catch(e) { /* if profile lookup fails, posts pass through */ }
+    }
+    posts = posts.filter(function(p) {
+      var count = followerCounts[p.handle];
+      return count === undefined || count >= 150;
+    });
+
     // Sort by engagement then recency
     posts.sort(function(a, b) { return (b.likes + b.reposts * 2) - (a.likes + a.reposts * 2) || a.age - b.age; });
 
