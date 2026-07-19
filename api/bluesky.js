@@ -12,8 +12,8 @@ module.exports = async function handler(req, res) {
     '"Buzz Williams"',
     '"Maryland recruiting"',
     '"Maryland transfer portal"',
-    'Terps',
-    'Terrapins',
+    { q: 'Terps', requireContext: true },
+    { q: 'Terrapins', requireContext: true },
     '"Derik Queen"',
     '"Baba Oladotun"',
     '"Malik Washington"',
@@ -28,7 +28,18 @@ module.exports = async function handler(req, res) {
     var t = (text || '').toLowerCase();
     if (excluded.some(function(ex) { return t.includes(ex); })) return true;
     if (cannabisTerms.some(function(c) { return t.includes(c); })) return true;
+    // Actual turtles / off-topic wordplay
+    if (/tortoise|turtle disaster|sunbathing|pet terrapin|terf/.test(t)) return true;
+    // Dolphins WR Malik Washington (different player)
+    if (t.includes('malik washington') && (t.includes('dolphins') || t.includes('miami') || t.includes('dynasty') || t.includes('fantasy'))) return true;
     return false;
+  }
+
+  // Maryland sports context required for bare Terps/Terrapins searches
+  var contextWords = ['maryland', 'umd', 'college park', 'locksley', 'willard', 'buzz williams', 'frese', 'big ten', 'b1g', 'football', 'basketball', 'lacrosse', 'recruiting', 'commit', 'portal', 'testudo', 'xfinity', 'secu'];
+  function hasContext(text) {
+    var t = (text || '').toLowerCase();
+    return contextWords.some(function(w) { return t.includes(w); });
   }
 
   try {
@@ -53,11 +64,13 @@ module.exports = async function handler(req, res) {
     var session = await sessionRes.json();
     var token = session.accessJwt;
 
-    var searches = queries.map(function(q) {
+    var searches = queries.map(function(entry) {
+      var q = typeof entry === 'string' ? entry : entry.q;
+      var requireContext = typeof entry === 'object' && entry.requireContext;
       var url = 'https://bsky.social/xrpc/app.bsky.feed.searchPosts?sort=latest&limit=15&q=' + encodeURIComponent(q);
       return fetch(url, { headers: { 'Authorization': 'Bearer ' + token } }).then(function(r) {
         if (!r.ok) { return r.text().then(function(t) { debug.push({ q: q, status: r.status, body: t.substring(0, 120) }); return {}; }); }
-        return r.json().then(function(d) { debug.push({ q: q, status: r.status, found: (d.posts || []).length }); return d; });
+        return r.json().then(function(d) { debug.push({ q: q, status: r.status, found: (d.posts || []).length }); d.requireContext = requireContext; return d; });
       }).catch(function(e) { debug.push({ q: q, error: e.message }); return {}; });
     });
 
@@ -67,6 +80,7 @@ module.exports = async function handler(req, res) {
     var seen = [];
 
     results.forEach(function(data) {
+      var requireContext = data.requireContext;
       (data.posts || []).forEach(function(p) {
         var record = p.record || {};
         var text = record.text || '';
@@ -77,6 +91,7 @@ module.exports = async function handler(req, res) {
         if (!text) return;
         if (createdMs && createdMs < cutoff) return;
         if (isNoise(text + ' ' + handle + ' ' + displayName)) return;
+        if (requireContext && !hasContext(text)) return;
         var norm = text.toLowerCase().replace(/[^a-z0-9 ]/g, '').substring(0, 80);
         if (seen.includes(norm)) return;
         seen.push(norm);
