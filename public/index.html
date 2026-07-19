@@ -681,8 +681,6 @@ function renderPodcastCache() {
 async function loadPodcasts() {
   const c = document.getElementById('podcastsContainer');
   if (!c) return;
-  // Use cache if available — only fetch once per session to conserve API quota
-  if (podcastCache !== null) { renderPodcastCache(); return; }
   c.innerHTML = '<div class="empty"><i class="ti ti-loader spin"></i> Searching podcast episodes...</div>';
   try {
     const res = await fetch('/api/podcasts', { cache: 'no-store' });
