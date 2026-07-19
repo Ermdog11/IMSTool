@@ -100,12 +100,35 @@ module.exports = async function handler(req, res) {
         videos.push({
           title: title,
           channel: channel,
+          channelId: sn.channelId || '',
           url: 'https://www.youtube.com/watch?v=' + item.id.videoId,
           thumbnail: (sn.thumbnails && sn.thumbnails.medium && sn.thumbnails.medium.url) || '',
           age: pubMs ? Math.round((Date.now() - pubMs) / 3600000) : 0,
           description: desc.substring(0, 150)
         });
       });
+    });
+
+    // Filter out channels with fewer than 150 subscribers (garbage/bot content)
+    var channelIds = [];
+    videos.forEach(function(v) { if (v.channelId && !channelIds.includes(v.channelId)) channelIds.push(v.channelId); });
+    var subCounts = {};
+    for (var ci = 0; ci < channelIds.length; ci += 50) {
+      var batch = channelIds.slice(ci, ci + 50);
+      try {
+        var chUrl = 'https://www.googleapis.com/youtube/v3/channels?part=statistics&id=' + batch.join(',') + '&key=' + key;
+        var chRes = await fetch(chUrl);
+        if (chRes.ok) {
+          var chData = await chRes.json();
+          (chData.items || []).forEach(function(ch) {
+            subCounts[ch.id] = parseInt((ch.statistics && ch.statistics.subscriberCount) || '0', 10);
+          });
+        }
+      } catch(e) { /* pass through on lookup failure */ }
+    }
+    videos = videos.filter(function(v) {
+      var count = subCounts[v.channelId];
+      return count === undefined || count >= 150;
     });
 
     videos.sort(function(a, b) { return a.age - b.age; });
