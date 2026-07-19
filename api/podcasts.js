@@ -30,7 +30,7 @@ module.exports = async function handler(req, res) {
     'Sports Wave Baltimore'
   ];
 
-  var keywords = ['terps', 'terrapins', 'maryland football', 'maryland basketball', 'maryland lacrosse', 'maryland recruiting', 'mike locksley', 'buzz williams', 'kevin willard', 'brenda frese', 'university of maryland'];
+  var keywords = ['terps', 'terrapins', 'maryland football', 'maryland basketball', 'maryland lacrosse', 'maryland recruiting', 'mike locksley', 'buzz williams', 'kevin willard', 'brenda frese', 'university of maryland', 'malik washington', 'zahir mathis', 'pharrel payne', 'baba oladotun', 'kaden house', 'dj wagner', 'andre mills', 'juan dixon'];
   var cutoff = Date.now() - 14 * 24 * 60 * 60 * 1000; // 14 days
 
   function matchesKeywords(text) {
@@ -102,7 +102,7 @@ module.exports = async function handler(req, res) {
       }).catch(function() { return null; });
     });
 
-    var discoveryTerms = ['Maryland Terrapins', 'Terps basketball', 'Terps football', 'Maryland Terrapins recruiting'];
+    var discoveryTerms = ['Maryland Terrapins', 'Terps basketball', 'Terps football', 'Maryland Terrapins recruiting', 'Buzz Williams Maryland', 'Mike Locksley', 'Malik Washington Maryland', 'Zahir Mathis', 'Pharrel Payne', 'Baba Oladotun', 'Kaden House', 'DJ Wagner Maryland', 'Andre Mills', 'Juan Dixon'];
     var discoveryResults = await Promise.all(discoveryTerms.map(discoverEpisodes));
 
     var feeds = await Promise.all(feedFetches);
@@ -114,8 +114,13 @@ module.exports = async function handler(req, res) {
     });
     discoveryResults.forEach(function(list) {
       list.forEach(function(ep) {
-        // Discovery results must actually mention Maryland/Terps to avoid noise
-        if (matchesKeywords(ep.title + ' ' + ep.description + ' ' + ep.podcast)) episodes.push(ep);
+        var text = ep.title + ' ' + ep.description + ' ' + ep.podcast;
+        // Discovery results must actually mention Maryland/Terps names to avoid noise
+        if (!matchesKeywords(text)) return;
+        // Skip Miami Dolphins WR Malik Washington (different player, same name)
+        var t = text.toLowerCase();
+        if (t.includes('malik washington') && (t.includes('dolphins') || t.includes('miami'))) return;
+        episodes.push(ep);
       });
     });
 
