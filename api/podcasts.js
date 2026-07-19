@@ -68,6 +68,27 @@ module.exports = async function handler(req, res) {
     return out;
   }
 
+  // Discovery: search iTunes for episodes across ALL podcasts (free, no key)
+  async function discoverEpisodes(term) {
+    try {
+      var r = await fetch('https://itunes.apple.com/search?term=' + encodeURIComponent(term) + '&media=podcast&entity=podcastEpisode&limit=15');
+      if (!r.ok) return [];
+      var d = await r.json();
+      return (d.results || []).map(function(ep) {
+        var pubMs = ep.releaseDate ? new Date(ep.releaseDate).getTime() : 0;
+        if (pubMs && pubMs < cutoff) return null;
+        var desc = (ep.description || '').replace(/<[^>]+>/g, '').trim();
+        return {
+          title: ep.trackName || '',
+          podcast: ep.collectionName || '',
+          url: ep.trackViewUrl || '',
+          age: pubMs ? Math.round((Date.now() - pubMs) / 3600000) : 0,
+          description: desc.substring(0, 150)
+        };
+      }).filter(function(ep) { return ep && ep.title; });
+    } catch(e) { return []; }
+  }
+
   try {
     var allShows = terpsShows.map(function(s) { return { name: s, requireKeywords: false }; })
       .concat(regionalShows.map(function(s) { return { name: s, requireKeywords: true }; }));
@@ -81,12 +102,21 @@ module.exports = async function handler(req, res) {
       }).catch(function() { return null; });
     });
 
+    var discoveryTerms = ['Maryland Terrapins', 'Terps basketball', 'Terps football', 'Maryland Terrapins recruiting'];
+    var discoveryResults = await Promise.all(discoveryTerms.map(discoverEpisodes));
+
     var feeds = await Promise.all(feedFetches);
 
     var episodes = [];
     feeds.forEach(function(f) {
       if (!f || !f.xml) return;
       episodes = episodes.concat(parseFeed(f.xml, f.title, f.requireKeywords));
+    });
+    discoveryResults.forEach(function(list) {
+      list.forEach(function(ep) {
+        // Discovery results must actually mention Maryland/Terps to avoid noise
+        if (matchesKeywords(ep.title + ' ' + ep.description + ' ' + ep.podcast)) episodes.push(ep);
+      });
     });
 
     // Dedupe by title
