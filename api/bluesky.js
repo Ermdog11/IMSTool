@@ -24,9 +24,29 @@ module.exports = async function handler(req, res) {
 
   try {
     var debug = [];
+
+    // Bluesky blocks unauthenticated requests from datacenter IPs — authenticate with app password
+    var identifier = process.env.BSKY_IDENTIFIER;
+    var appPassword = process.env.BSKY_APP_PASSWORD;
+    if (!identifier || !appPassword) {
+      return res.status(200).json({ posts: [], error: 'Bluesky login not configured — add BSKY_IDENTIFIER and BSKY_APP_PASSWORD in Vercel' });
+    }
+
+    var sessionRes = await fetch('https://bsky.social/xrpc/com.atproto.server.createSession', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ identifier: identifier, password: appPassword })
+    });
+    if (!sessionRes.ok) {
+      var errText = await sessionRes.text();
+      return res.status(200).json({ posts: [], error: 'Bluesky login failed (' + sessionRes.status + '): ' + errText.substring(0, 150) });
+    }
+    var session = await sessionRes.json();
+    var token = session.accessJwt;
+
     var searches = queries.map(function(q) {
-      var url = 'https://public.api.bsky.app/xrpc/app.bsky.feed.searchPosts?sort=latest&limit=15&q=' + encodeURIComponent(q);
-      return fetch(url).then(function(r) {
+      var url = 'https://bsky.social/xrpc/app.bsky.feed.searchPosts?sort=latest&limit=15&q=' + encodeURIComponent(q);
+      return fetch(url, { headers: { 'Authorization': 'Bearer ' + token } }).then(function(r) {
         if (!r.ok) { return r.text().then(function(t) { debug.push({ q: q, status: r.status, body: t.substring(0, 120) }); return {}; }); }
         return r.json().then(function(d) { debug.push({ q: q, status: r.status, found: (d.posts || []).length }); return d; });
       }).catch(function(e) { debug.push({ q: q, error: e.message }); return {}; });
