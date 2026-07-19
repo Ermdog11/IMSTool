@@ -1,15 +1,23 @@
 module.exports = async function handler(req, res) {
   // Bluesky public search API — free, no auth required
-  var cutoff = Date.now() - 48 * 60 * 60 * 1000;
+  var cutoff = Date.now() - 72 * 60 * 60 * 1000;
 
   var queries = [
     '"Maryland Terrapins"',
     '"Terps football"',
     '"Terps basketball"',
-    '"Maryland football" recruiting',
+    '"Maryland football"',
     '"Maryland basketball"',
     '"Mike Locksley"',
-    '"Buzz Williams"'
+    '"Buzz Williams"',
+    '"Maryland recruiting"',
+    '"Maryland transfer portal"',
+    'Terps Maryland',
+    '"Derik Queen"',
+    '"Baba Oladotun"',
+    '"Malik Washington"',
+    '"Brenda Frese"',
+    '"Maryland lacrosse"'
   ];
 
   var excluded = ['insidemd', 'jeff ermann', 'ims radio', 'insidetheshell'];
