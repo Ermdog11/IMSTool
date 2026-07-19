@@ -48,7 +48,8 @@ module.exports = async function handler(req, res) {
       fetch('https://news.google.com/rss/search?q=%22Maryland+NIL%22+OR+%22Maryland+NIL+collective%22+OR+%22Maryland+Terrapin+Club%22+OR+%22Maryland+athletics+fundraising%22+OR+%22Maryland+athletics+revenue%22&hl=en-US&gl=US&ceid=US:en'),
       fetch('https://news.google.com/rss/search?q=%22Testudo+Times%22+OR+%22Terrapin+Sports+Report%22+OR+%22On3+Maryland%22+OR+%22Rivals+Maryland%22+OR+%22Fear+the+Turtle%22+OR+%22Fear+the+Podcast%22&hl=en-US&gl=US&ceid=US:en'),
       fetch('https://news.google.com/rss/search?q=%22Maryland+football+roster%22+OR+%22Maryland+basketball+schedule%22+OR+%22Maryland+spring+football%22+OR+%22Maryland+Big+Ten%22+OR+%22Maryland+coaching+search%22+OR+%22Maryland+stadium+renovation%22&hl=en-US&gl=US&ceid=US:en'),
-      fetch('https://news.google.com/rss/search?q=%22Aaron+Wiggins%22+OR+%22Jalen+Smith+NBA%22+OR+%22Alex+Len+NBA%22+OR+%22Bruno+Fernando+NBA%22+OR+%22DJ+Moore+NFL%22+OR+%22Darnell+Savage+NFL%22+OR+%22Torrey+Smith+NFL%22&hl=en-US&gl=US&ceid=US:en')
+      fetch('https://news.google.com/rss/search?q=%22Aaron+Wiggins%22+OR+%22Jalen+Smith+NBA%22+OR+%22Alex+Len+NBA%22+OR+%22Bruno+Fernando+NBA%22+OR+%22DJ+Moore+NFL%22+OR+%22Darnell+Savage+NFL%22+OR+%22Torrey+Smith+NFL%22&hl=en-US&gl=US&ceid=US:en'),
+      fetch('https://www.insidetheblackandgold.net/feed/')
     ];
 
     var results = await Promise.allSettled(fetches);
@@ -86,7 +87,7 @@ module.exports = async function handler(req, res) {
         items.forEach(function(item) {
           var title = (item.match(/<title><!\[CDATA\[(.*?)\]\]><\/title>/) || item.match(/<title>(.*?)<\/title>/) || [])[1] || '';
           var link = (item.match(/<link>(.*?)<\/link>/) || [])[1] || '';
-          var src = (item.match(/<source[^>]*>(.*?)<\/source>/) || [])[1] || 'Google News';
+          var src = (item.match(/<source[^>]*>(.*?)<\/source>/) || [])[1] || (gi === results.length - 1 ? 'Inside The Black And Gold' : 'Google News');
           var srcUrl = (item.match(/<source[^>]*url="([^"]*)"/) || [])[1] || '';
           var pubDate = (item.match(/<pubDate>(.*?)<\/pubDate>/) || [])[1] || '';
           // Extract real article URL from description (Google News embeds it there)
@@ -116,7 +117,7 @@ module.exports = async function handler(req, res) {
     var redditCount = stories.filter(function(s){return s.source.includes('Reddit');}).length;
     var googleCount = stories.filter(function(s){return !s.source.includes('Reddit');}).length;
     var fetchStatuses = results.map(function(r, i) {
-      var names = ['Reddit/MarylandTerrapins','Reddit/CFB','Reddit/CollegeBasketball','GNews/core','GNews/admin','GNews/fbstaff','GNews/fbplayers','GNews/fbrecruits','GNews/fblgd1','GNews/fblgd2','GNews/bbstaff','GNews/bbplayers','GNews/fmrbb1','GNews/fmrbb2','GNews/wbb','GNews/lacrosse','GNews/baseball','GNews/othersports','GNews/recruiting','GNews/nil','GNews/media','GNews/season','GNews/nflnba'];
+      var names = ['Reddit/MarylandTerrapins','Reddit/CFB','Reddit/CollegeBasketball','GNews/core','GNews/admin','GNews/fbstaff','GNews/fbplayers','GNews/fbrecruits','GNews/fblgd1','GNews/fblgd2','GNews/bbstaff','GNews/bbplayers','GNews/fmrbb1','GNews/fmrbb2','GNews/wbb','GNews/lacrosse','GNews/baseball','GNews/othersports','GNews/recruiting','GNews/nil','GNews/media','GNews/season','GNews/nflnba','ITBG/feed'];
       return names[i] + ':' + (r.status === 'fulfilled' ? r.value.status : 'FAILED');
     });
     console.log('Stories:', stories.length, '| Reddit:', redditCount, '| Google:', googleCount, '| Fetches:', fetchStatuses.join(', '));
