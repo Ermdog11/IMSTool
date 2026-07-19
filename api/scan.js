@@ -65,7 +65,13 @@ module.exports = async function handler(req, res) {
           if (!d || !d.title) return;
           var created = d.created_utc * 1000;
           if (created < cutoff) return;
+          // News only: skip text/discussion posts, keep posts linking to external sources
+          if (d.is_self) return;
           var url = d.url || ('https://reddit.com' + d.permalink);
+          // Skip reddit-hosted media and meme/image hosts
+          if (/i\.redd\.it|v\.redd\.it|reddit\.com\/gallery|imgur\.com|gfycat|redgifs/i.test(url)) return;
+          // Skip recurring discussion thread patterns
+          if (/game thread|post game|postgame thread|daily discussion|weekly|free talk|megathread|who do you|what are your|unpopular opinion|rank your/i.test(d.title)) return;
           var src = 'Reddit r/' + d.subreddit;
           if (excluded.some(function(ex) { return src.toLowerCase().includes(ex) || url.toLowerCase().includes(ex); })) return;
           stories.push({ title: d.title, source: src, url: url, age: Math.round((Date.now() - created) / 3600000) });
