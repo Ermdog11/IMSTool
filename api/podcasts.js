@@ -15,7 +15,9 @@ module.exports = async function handler(req, res) {
     '95 Connected Baltimore Maryland Sports',
     'Glenn Clark Radio',
     'BMitch & Finlay',
-    'District of Sports DC'
+    'District of Sports DC',
+    'The Solid Verbal College Football',
+    'Eye on College Basketball'
   ];
 
   var keywords = ['terps', 'terrapins', 'maryland football', 'maryland basketball', 'maryland lacrosse', 'maryland recruiting', 'mike locksley', 'buzz williams', 'kevin willard', 'brenda frese', 'university of maryland'];
