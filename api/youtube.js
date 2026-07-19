@@ -10,7 +10,7 @@ module.exports = async function handler(req, res) {
   // context wherever ambiguity is possible so unrelated content (including cannabis "terps") is avoided.
   var allTerms = [
     '"Maryland Terrapins" | "Terps football" | "Terps basketball" | "Maryland Terrapins recruiting"',
-    '"Maryland athletic director" | "SECU Stadium" | "Xfinity Center" | "Damon Evans Maryland" | "Jim Smith Maryland"',
+    '"Maryland athletic director" | "SECU Stadium" | "Xfinity Center" Terps | "Damon Evans Maryland" | "Jim Smith Maryland"',
     '"Mike Locksley" | "Pep Hamilton Maryland" | "Latrell Scott Maryland" | "Maryland football staff"',
     '"Malik Washington" Maryland | "Zahir Mathis" | "Dontay Joyner" | "Kyree Caldwell" | "Zeke Walkup"',
     '"Maryland football recruiting" | "Maryland football commits" | "Maryland official visit" | "James Branch" Maryland | "Dallas Pauldo"',
@@ -44,6 +44,13 @@ module.exports = async function handler(req, res) {
   function matchesKeywords(text) {
     var t = (text || '').toLowerCase();
     return keywords.some(function(k) { return t.includes(k); });
+  }
+  // Xfinity Center in Mansfield MA is a concert venue, not the UMD arena
+  var venueNoise = ['mansfield', 'concert', 'live at xfinity', 'at xfinity center, mansfield', 'tour', 'full show', 'en vevo', 'setlist'];
+  function isConcertVenue(text) {
+    var t = (text || '').toLowerCase();
+    if (!t.includes('xfinity')) return false;
+    return venueNoise.some(function(v) { return t.includes(v); });
   }
   // Cannabis content guard ("terps"/"terpenes" overlap)
   var cannabisTerms = ['terpene', 'cannabis', 'marijuana', 'weed', 'thc', 'cbd', 'dispensary', 'kush', 'stoner', 'dab rig', '710', 'hemp'];
@@ -85,6 +92,7 @@ module.exports = async function handler(req, res) {
         if (excluded.some(function(ex) { return text.toLowerCase().includes(ex); })) return;
         if (isGaming(text)) return;
         if (isCannabis(text)) return;
+        if (isConcertVenue(text)) return;
         var norm = title.toLowerCase().replace(/[^a-z0-9 ]/g, '').substring(0, 60);
         if (seen.includes(norm)) return;
         seen.push(norm);
