@@ -1,6 +1,11 @@
+// Module-level caches survive across warm invocations, cutting iTunes API calls
+var feedUrlCache = {};
+var discoveryRotation = 0;
+
 module.exports = async function handler(req, res) {
   // Free approach: resolve podcast RSS feeds via iTunes Search API (no key needed),
   // then parse each feed directly. No ListenNotes dependency.
+  // iTunes limits ~20 requests/min per IP, so we cache feed URLs and rotate discovery terms.
 
   // Shows that are entirely Terps-focused: include every recent episode.
   var terpsShows = [
@@ -38,14 +43,21 @@ module.exports = async function handler(req, res) {
     return keywords.some(function(k) { return t.includes(k); });
   }
 
+  var debug = { resolved: 0, cachedFeeds: 0, failedResolves: 0, feedsFetched: 0, discoveryCalls: 0, discoveryHits: 0 };
+
   async function resolveFeed(showName) {
+    if (feedUrlCache[showName]) { debug.cachedFeeds++; return feedUrlCache[showName]; }
     try {
       var r = await fetch('https://itunes.apple.com/search?term=' + encodeURIComponent(showName) + '&media=podcast&limit=1');
-      if (!r.ok) return null;
+      if (!r.ok) { debug.failedResolves++; return null; }
       var d = await r.json();
       var top = (d.results || [])[0];
-      return top ? { feedUrl: top.feedUrl, title: top.collectionName } : null;
-    } catch(e) { return null; }
+      if (!top || !top.feedUrl) { debug.failedResolves++; return null; }
+      var entry = { feedUrl: top.feedUrl, title: top.collectionName };
+      feedUrlCache[showName] = entry;
+      debug.resolved++;
+      return entry;
+    } catch(e) { debug.failedResolves++; return null; }
   }
 
   function parseFeed(xml, showTitle, requireKeywords) {
@@ -102,10 +114,20 @@ module.exports = async function handler(req, res) {
       }).catch(function() { return null; });
     });
 
-    var discoveryTerms = ['Maryland Terrapins', 'Terps basketball', 'Terps football', 'Maryland Terrapins recruiting', 'Buzz Williams Maryland', 'Mike Locksley', 'Malik Washington Maryland', 'Zahir Mathis', 'Pharrel Payne', 'Baba Oladotun', 'Kaden House', 'DJ Wagner Maryland', 'Andre Mills', 'Juan Dixon', 'Big Ten basketball', 'Derik Queen'];
+    // Rotate through discovery terms 4 at a time to stay under iTunes rate limits
+    var allDiscoveryTerms = ['Maryland Terrapins', 'Terps basketball', 'Terps football', 'Maryland Terrapins recruiting', 'Buzz Williams Maryland', 'Mike Locksley', 'Malik Washington Maryland', 'Zahir Mathis', 'Pharrel Payne', 'Baba Oladotun', 'Kaden House', 'DJ Wagner Maryland', 'Andre Mills', 'Juan Dixon', 'Big Ten basketball', 'Derik Queen'];
+    var batchSize = 4;
+    var startIdx = (discoveryRotation * batchSize) % allDiscoveryTerms.length;
+    discoveryRotation++;
+    var discoveryTerms = [];
+    for (var di = 0; di < batchSize; di++) {
+      discoveryTerms.push(allDiscoveryTerms[(startIdx + di) % allDiscoveryTerms.length]);
+    }
+    debug.discoveryCalls = discoveryTerms.length;
     var discoveryResults = await Promise.all(discoveryTerms.map(discoverEpisodes));
 
     var feeds = await Promise.all(feedFetches);
+    debug.feedsFetched = feeds.filter(function(f) { return f && f.xml; }).length;
 
     var episodes = [];
     feeds.forEach(function(f) {
@@ -120,6 +142,7 @@ module.exports = async function handler(req, res) {
         // Skip Miami Dolphins WR Malik Washington (different player, same name)
         var t = text.toLowerCase();
         if (t.includes('malik washington') && (t.includes('dolphins') || t.includes('miami'))) return;
+        debug.discoveryHits++;
         episodes.push(ep);
       });
     });
@@ -135,7 +158,7 @@ module.exports = async function handler(req, res) {
 
     episodes.sort(function(a, b) { return a.age - b.age; });
 
-    return res.status(200).json({ episodes: episodes });
+    return res.status(200).json({ episodes: episodes, debug: debug });
   } catch(e) {
     return res.status(500).json({ episodes: [], error: e.message });
   }
