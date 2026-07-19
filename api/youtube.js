@@ -6,23 +6,33 @@ module.exports = async function handler(req, res) {
 
   var cutoff = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
 
+  // 20 OR-groups mirroring the Google News queries. Names are paired with Maryland/Terps
+  // context wherever ambiguity is possible so unrelated content (including cannabis "terps") is avoided.
   var allTerms = [
-    'Maryland Terrapins football',
-    'Maryland Terrapins basketball',
-    'Maryland Terrapins recruiting',
-    'Terps football',
-    'Terps basketball',
-    'Mike Locksley',
-    'Buzz Williams Maryland',
-    'Malik Washington Maryland',
-    'Baba Oladotun',
-    'DJ Wagner Maryland',
-    'Derik Queen',
-    'Maryland Terrapins lacrosse'
+    '"Maryland Terrapins" | "Terps football" | "Terps basketball" | "Maryland Terrapins recruiting"',
+    '"Maryland athletic director" | "SECU Stadium" | "Xfinity Center" | "Damon Evans Maryland" | "Jim Smith Maryland"',
+    '"Mike Locksley" | "Pep Hamilton Maryland" | "Latrell Scott Maryland" | "Maryland football staff"',
+    '"Malik Washington" Maryland | "Zahir Mathis" | "Dontay Joyner" | "Kyree Caldwell" | "Zeke Walkup"',
+    '"Maryland football recruiting" | "Maryland football commits" | "Maryland official visit" | "James Branch" Maryland | "Dallas Pauldo"',
+    '"Boomer Esiason" | "Vernon Davis" Maryland | "Stefon Diggs" | "Darnell Savage" | "DJ Moore" Bears',
+    '"Shawne Merriman" | "LaMont Jordan" | "Jermaine Lewis" | "Torrey Smith" | "Randy Edsall"',
+    '"Buzz Williams" Maryland | "Kevin Willard" | "Maryland basketball recruiting" | "Maryland basketball staff"',
+    '"DJ Wagner" Maryland | "Baba Oladotun" | "Bishop Boswell" | "Kaden House" Maryland | "Adama Tambedou"',
+    '"Len Bias" | "Juan Dixon" | "Greivis Vasquez" | "Melo Trimble" | "Steve Francis" Maryland | "Walt Williams" Maryland',
+    '"Jalen Smith" Terps | "Kevin Huerter" | "Bruno Fernando" | "Jake Layman" | "Alex Len" | "Dez Wells"',
+    '"Brenda Frese" | "Alyssa Thomas" | "Kristi Toliver" | "Diamond Miller" | "Maryland womens basketball"',
+    '"John Tillman" Maryland | "Maryland mens lacrosse" | "Maryland womens lacrosse" | "Jared Bernhardt" | "Matt Rambo"',
+    '"Maryland baseball" Terrapins | "Matt Swope" | "Sasho Cirovski" | "Zack Steffen" | "Maryland soccer" Terrapins',
+    '"Maryland wrestling" Terrapins | "Maryland field hockey" | "Maryland volleyball" Terrapins | "Maryland gymnastics" | "Kyle Snyder" Maryland',
+    '"Maryland transfer portal" | "Maryland decommit" | "Maryland portal target" | "Terps transfer portal"',
+    '"Maryland NIL" Terrapins | "Maryland NIL collective" | "Terrapin Club" | "Maryland athletics fundraising"',
+    '"Testudo Times" | "Terrapin Sports Report" | "On3 Maryland" | "Rivals Maryland" | "Fear the Turtle" Terps',
+    '"Maryland football roster" | "Maryland basketball schedule" | "Maryland spring football" | "Maryland coaching search" Terrapins',
+    '"Aaron Wiggins" Maryland | "Derik Queen" | "Pharrel Payne" | "Big Ten basketball" Maryland'
   ];
 
-  // Rotate 4 terms per request to conserve quota (search costs 100 units each)
-  var batchSize = 4;
+  // Rotate 5 groups per request to conserve quota (search costs 100 units each; 10k/day free)
+  var batchSize = 5;
   var startIdx = (searchRotation * batchSize) % allTerms.length;
   searchRotation++;
   var terms = [];
@@ -30,10 +40,16 @@ module.exports = async function handler(req, res) {
     terms.push(allTerms[(startIdx + i) % allTerms.length]);
   }
 
-  var keywords = ['terps', 'terrapins', 'maryland', 'locksley', 'buzz williams', 'oladotun', 'derik queen', 'dj wagner'];
+  var keywords = ['terps', 'terrapins', 'maryland', 'locksley', 'buzz williams', 'oladotun', 'derik queen', 'dj wagner', 'kevin willard', 'brenda frese', 'stefon diggs', 'boomer esiason', 'shawne merriman', 'torrey smith', 'lamont jordan', 'jermaine lewis', 'darnell savage', 'dj moore', 'vernon davis', 'len bias', 'juan dixon', 'greivis vasquez', 'melo trimble', 'kevin huerter', 'bruno fernando', 'jake layman', 'alex len', 'dez wells', 'jalen smith', 'aaron wiggins', 'alyssa thomas', 'kristi toliver', 'diamond miller', 'jared bernhardt', 'matt rambo', 'zack steffen', 'kyle snyder', 'matt swope', 'sasho cirovski', 'john tillman', 'testudo', 'zahir mathis', 'malik washington', 'pharrel payne', 'kaden house', 'bishop boswell', 'adama tambedou', 'randy edsall', 'pep hamilton', 'secu stadium', 'xfinity center', 'big ten'];
   function matchesKeywords(text) {
     var t = (text || '').toLowerCase();
     return keywords.some(function(k) { return t.includes(k); });
+  }
+  // Cannabis content guard ("terps"/"terpenes" overlap)
+  var cannabisTerms = ['terpene', 'cannabis', 'marijuana', 'weed', 'thc', 'cbd', 'dispensary', 'kush', 'stoner', 'dab rig', '710', 'hemp'];
+  function isCannabis(text) {
+    var t = (text || '').toLowerCase();
+    return cannabisTerms.some(function(c) { return t.includes(c); });
   }
 
   var excluded = ['insidemd', 'jeff ermann', 'ims radio', 'insidetheshell'];
@@ -68,6 +84,7 @@ module.exports = async function handler(req, res) {
         if (!matchesKeywords(text)) return;
         if (excluded.some(function(ex) { return text.toLowerCase().includes(ex); })) return;
         if (isGaming(text)) return;
+        if (isCannabis(text)) return;
         var norm = title.toLowerCase().replace(/[^a-z0-9 ]/g, '').substring(0, 60);
         if (seen.includes(norm)) return;
         seen.push(norm);
