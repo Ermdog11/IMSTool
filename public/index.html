@@ -211,7 +211,7 @@ body { padding-bottom: 40px; }
   </div>
   <div class="topbar-right">
     <span class="pill pill-live"><span class="live-dot"></span>Live</span>
-    <button class="pill pill-email" onclick="switchTab(9)"><i class="ti ti-mail"></i> Email setup</button>
+    <button class="pill pill-email" onclick="switchTab(10)"><i class="ti ti-mail"></i> Email setup</button>
   </div>
 </div>
 
@@ -225,7 +225,8 @@ body { padding-bottom: 40px; }
   <button class="nav-tab" id="tab-btn-6" onclick="switchTab(6)">🔥 Trending</button>
   <button class="nav-tab" id="tab-btn-7" onclick="switchTab(7)">🎙️ Podcasts</button>
   <button class="nav-tab" id="tab-btn-8" onclick="switchTab(8)">📺 YouTube</button>
-  <button class="nav-tab" id="tab-btn-9" onclick="switchTab(9)">Settings</button>
+  <button class="nav-tab" id="tab-btn-9" onclick="switchTab(9)">🦋 Bluesky</button>
+  <button class="nav-tab" id="tab-btn-10" onclick="switchTab(10)">Settings</button>
 </div>
 
 <!-- ALERTS TAB -->
@@ -256,6 +257,7 @@ body { padding-bottom: 40px; }
     <button class="chip" onclick="switchTab(6)" style="border-color:#e8b923;">🔥 Trending</button>
     <button class="chip" onclick="switchTab(7)" style="border-color:#e8b923;">🎙️ Podcasts</button>
     <button class="chip" onclick="switchTab(8)" style="border-color:#e8b923;">📺 YouTube</button>
+    <button class="chip" onclick="switchTab(9)" style="border-color:#e8b923;">🦋 Bluesky</button>
   </div>
   <div class="alerts" id="alertsContainer">
     <div class="empty"><i class="ti ti-radar"></i>Hit "Scan now" to pull the latest Terps news from all external sources</div>
@@ -394,8 +396,17 @@ body { padding-bottom: 40px; }
   <div id="youtubeContainer"><div class="empty"><i class="ti ti-brand-youtube"></i> Click this tab again or refresh to load videos.</div></div>
 </div>
 
-<!-- SETTINGS TAB -->
+<!-- BLUESKY TAB -->
 <div class="page" id="page-9">
+  <div style="padding:16px 0 8px;display:flex;align-items:center;gap:12px;">
+    <button onclick="switchTab(0)" style="background:none;border:1px solid var(--border);border-radius:6px;padding:4px 12px;cursor:pointer;color:var(--fg);font-size:.85rem;">← Back to Alerts</button>
+    <div><h3 style="margin:0;font-size:1.1rem;">🦋 Bluesky</h3><p style="color:var(--muted);font-size:.85rem;margin:2px 0 0;">Terps chatter on Bluesky — last 48 hours, sorted by engagement.</p></div>
+  </div>
+  <div id="blueskyContainer"><div class="empty"><i class="ti ti-butterfly"></i> Loading...</div></div>
+</div>
+
+<!-- SETTINGS TAB -->
+<div class="page" id="page-10">
   <div class="notice"><i class="ti ti-user-check"></i> You are Jeff Ermann, publisher of InsideMDSports. Your content and IMS Radio are excluded from all alerts.</div>
 
   <div class="settings-card">
@@ -569,6 +580,7 @@ function switchTab(idx) {
   document.querySelectorAll('.nav-tab').forEach((t, i) => t.classList.toggle('active', i === idx));
   if (idx === 7) loadPodcasts();
   if (idx === 8) loadYouTube();
+  if (idx === 9) loadBluesky();
 }
 
 // ============================================================
@@ -740,6 +752,38 @@ async function loadYouTube() {
     c.innerHTML = cards.join('');
   } catch(e) {
     c.innerHTML = '<div class="empty">Error loading YouTube — ' + e.message + '</div>';
+  }
+}
+
+async function loadBluesky() {
+  const c = document.getElementById('blueskyContainer');
+  if (!c) return;
+  c.innerHTML = '<div class="empty"><i class="ti ti-loader spin"></i> Searching Bluesky...</div>';
+  try {
+    const res = await fetch('/api/bluesky', { cache: 'no-store' });
+    const data = await res.json();
+    const posts = data.posts || [];
+    if (!posts.length) {
+      c.innerHTML = '<div class="empty">🦋 ' + (data.error || 'No Terps posts found in the last 48 hours.') + '</div>';
+      return;
+    }
+    const cards = [];
+    for (let i = 0; i < posts.length; i++) {
+      const p = posts[i];
+      cards.push('<div class="acard" style="margin-bottom:10px;">' +
+        '<div style="font-size:.9rem;line-height:1.45;">' + p.text.replace(/</g,'&lt;') + '</div>' +
+        '<div class="acard-meta" style="margin-top:8px;">' +
+          '<span class="tag tag-soc">Bluesky</span>' +
+          '<span class="asrc">' + p.author + ' (@' + p.handle + ')</span>' +
+          '<span class="atime">' + p.age + 'h ago</span>' +
+          '<span style="font-size:.78rem;color:var(--muted);">❤️ ' + p.likes + ' · 🔁 ' + p.reposts + '</span>' +
+          '<a href="' + p.url + '" target="_blank" rel="noopener" style="font-size:.78rem;color:var(--red);">View →</a>' +
+        '</div>' +
+        '</div>');
+    }
+    c.innerHTML = cards.join('');
+  } catch(e) {
+    c.innerHTML = '<div class="empty">Error loading Bluesky — ' + e.message + '</div>';
   }
 }
 

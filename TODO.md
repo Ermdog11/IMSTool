@@ -1,6 +1,7 @@
 # IMS Tool — Running To-Do List
 
 ## Pending
+- [ ] **Twitter/X scan** — parked. API costs $200/mo minimum for meaningful read access; free workarounds (Nitter) are dead. Bluesky scan added as free alternative; big tweets get picked up via news sites anyway.
 - [ ] **Instagram scan** — parked. Requires Instagram Business/Creator account + Meta developer app; limited to 30 hashtag searches/week (#terps, #marylandterrapins). Revisit if Jeff sets up a Business account.
 - [ ] **Reddit fix** — Reddit blocks Vercel's servers (403). Needs free Reddit API credentials:
   - Jeff: create app at old.reddit.com/prefs/apps (type: script, redirect: http://localhost)
