@@ -211,7 +211,7 @@ body { padding-bottom: 40px; }
   </div>
   <div class="topbar-right">
     <span class="pill pill-live"><span class="live-dot"></span>Live</span>
-    <button class="pill pill-email" onclick="switchTab(8)"><i class="ti ti-mail"></i> Email setup</button>
+    <button class="pill pill-email" onclick="switchTab(9)"><i class="ti ti-mail"></i> Email setup</button>
   </div>
 </div>
 
@@ -224,7 +224,8 @@ body { padding-bottom: 40px; }
   <button class="nav-tab" id="tab-btn-5" onclick="switchTab(5)">Recruiting tracker</button>
   <button class="nav-tab" id="tab-btn-6" onclick="switchTab(6)">🔥 Trending</button>
   <button class="nav-tab" id="tab-btn-7" onclick="switchTab(7)">🎙️ Podcasts</button>
-  <button class="nav-tab" id="tab-btn-8" onclick="switchTab(8)">Settings</button>
+  <button class="nav-tab" id="tab-btn-8" onclick="switchTab(8)">📺 YouTube</button>
+  <button class="nav-tab" id="tab-btn-9" onclick="switchTab(9)">Settings</button>
 </div>
 
 <!-- ALERTS TAB -->
@@ -382,8 +383,17 @@ body { padding-bottom: 40px; }
   <div id="podcastsContainer"><div class="empty"><i class="ti ti-microphone"></i> Run a scan to load podcast episodes.</div></div>
 </div>
 
-<!-- SETTINGS TAB -->
+<!-- YOUTUBE TAB -->
 <div class="page" id="page-8">
+  <div style="padding:16px 0 8px;display:flex;align-items:center;gap:12px;">
+    <button onclick="switchTab(0)" style="background:none;border:1px solid var(--border);border-radius:6px;padding:4px 12px;cursor:pointer;color:var(--fg);font-size:.85rem;">← Back to Alerts</button>
+    <div><h3 style="margin:0;font-size:1.1rem;">📺 YouTube</h3><p style="color:var(--muted);font-size:.85rem;margin:2px 0 0;">Recent Terps videos from across YouTube — last 7 days.</p></div>
+  </div>
+  <div id="youtubeContainer"><div class="empty"><i class="ti ti-brand-youtube"></i> Click this tab again or refresh to load videos.</div></div>
+</div>
+
+<!-- SETTINGS TAB -->
+<div class="page" id="page-9">
   <div class="notice"><i class="ti ti-user-check"></i> You are Jeff Ermann, publisher of InsideMDSports. Your content and IMS Radio are excluded from all alerts.</div>
 
   <div class="settings-card">
@@ -556,6 +566,7 @@ function switchTab(idx) {
   document.querySelectorAll('.page').forEach((p, i) => p.classList.toggle('active', i === idx));
   document.querySelectorAll('.nav-tab').forEach((t, i) => t.classList.toggle('active', i === idx));
   if (idx === 7) loadPodcasts();
+  if (idx === 8) loadYouTube();
 }
 
 // ============================================================
@@ -695,6 +706,39 @@ async function loadPodcasts() {
 async function refreshPodcasts() {
   podcastCache = null;
   await loadPodcasts();
+}
+
+async function loadYouTube() {
+  const c = document.getElementById('youtubeContainer');
+  if (!c) return;
+  c.innerHTML = '<div class="empty"><i class="ti ti-loader spin"></i> Searching YouTube...</div>';
+  try {
+    const res = await fetch('/api/youtube', { cache: 'no-store' });
+    const data = await res.json();
+    const vids = data.videos || [];
+    if (!vids.length) {
+      c.innerHTML = '<div class="empty"><i class="ti ti-brand-youtube"></i> ' + (data.error || 'No Terps videos found in the last 7 days.') + '</div>';
+      return;
+    }
+    const cards = [];
+    for (let i = 0; i < vids.length; i++) {
+      const v = vids[i];
+      cards.push('<div class="acard" style="margin-bottom:10px;display:flex;gap:12px;align-items:flex-start;">' +
+        (v.thumbnail ? '<a href="' + v.url + '" target="_blank" rel="noopener"><img src="' + v.thumbnail + '" style="width:120px;border-radius:6px;flex-shrink:0;" alt=""></a>' : '') +
+        '<div style="flex:1;min-width:0;">' +
+        '<div class="acard-headline" style="font-size:.92rem;"><a href="' + v.url + '" target="_blank" rel="noopener" style="color:inherit;text-decoration:underline;">' + v.title + '</a></div>' +
+        '<div class="acard-meta" style="margin-top:4px;">' +
+          '<span class="tag tag-soc">YouTube</span>' +
+          '<span class="asrc">' + (v.channel || '') + '</span>' +
+          '<span class="atime">' + v.age + 'h ago</span>' +
+        '</div>' +
+        (v.description ? '<div class="asum" style="margin-top:6px;">' + v.description + '…</div>' : '') +
+        '</div></div>');
+    }
+    c.innerHTML = cards.join('');
+  } catch(e) {
+    c.innerHTML = '<div class="empty">Error loading YouTube — ' + e.message + '</div>';
+  }
 }
 
 function goToTrending(topic) {
