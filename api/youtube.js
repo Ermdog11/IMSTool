@@ -37,6 +37,12 @@ module.exports = async function handler(req, res) {
   }
 
   var excluded = ['insidemd', 'jeff ermann', 'ims radio', 'insidetheshell'];
+  // Video game / simulation content
+  var gamingTerms = ['college football 27', 'college football 26', 'cfb27', 'cfb 27', 'cfb26', 'dynasty', 'road to glory', 'simulation', 'sim ', 'ea sports', 'gameplay', 'gaming', 'franchise mode', 'restream', 'twitch', 'madden', 'nba 2k', '2k26', '2k27'];
+  function isGaming(text) {
+    var t = (text || '').toLowerCase();
+    return gamingTerms.some(function(g) { return t.includes(g); });
+  }
 
   try {
     var searches = terms.map(function(term) {
@@ -61,6 +67,7 @@ module.exports = async function handler(req, res) {
         var text = title + ' ' + desc + ' ' + channel;
         if (!matchesKeywords(text)) return;
         if (excluded.some(function(ex) { return text.toLowerCase().includes(ex); })) return;
+        if (isGaming(text)) return;
         var norm = title.toLowerCase().replace(/[^a-z0-9 ]/g, '').substring(0, 60);
         if (seen.includes(norm)) return;
         seen.push(norm);
