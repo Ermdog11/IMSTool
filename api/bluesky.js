@@ -23,9 +23,13 @@ module.exports = async function handler(req, res) {
   }
 
   try {
+    var debug = [];
     var searches = queries.map(function(q) {
       var url = 'https://public.api.bsky.app/xrpc/app.bsky.feed.searchPosts?sort=latest&limit=15&q=' + encodeURIComponent(q);
-      return fetch(url).then(function(r) { return r.ok ? r.json() : {}; }).catch(function() { return {}; });
+      return fetch(url).then(function(r) {
+        if (!r.ok) { return r.text().then(function(t) { debug.push({ q: q, status: r.status, body: t.substring(0, 120) }); return {}; }); }
+        return r.json().then(function(d) { debug.push({ q: q, status: r.status, found: (d.posts || []).length }); return d; });
+      }).catch(function(e) { debug.push({ q: q, error: e.message }); return {}; });
     });
 
     var results = await Promise.all(searches);
@@ -63,7 +67,7 @@ module.exports = async function handler(req, res) {
     // Sort by engagement then recency
     posts.sort(function(a, b) { return (b.likes + b.reposts * 2) - (a.likes + a.reposts * 2) || a.age - b.age; });
 
-    return res.status(200).json({ posts: posts });
+    return res.status(200).json({ posts: posts, debug: debug });
   } catch(e) {
     return res.status(500).json({ posts: [], error: e.message });
   }
