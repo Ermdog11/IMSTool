@@ -30,7 +30,7 @@ module.exports = async function handler(req, res) {
     'Sports Wave Baltimore'
   ];
 
-  var keywords = ['terps', 'terrapins', 'maryland football', 'maryland basketball', 'maryland lacrosse', 'maryland recruiting', 'mike locksley', 'buzz williams', 'kevin willard', 'brenda frese', 'university of maryland', 'malik washington', 'zahir mathis', 'pharrel payne', 'baba oladotun', 'kaden house', 'dj wagner', 'andre mills', 'juan dixon'];
+  var keywords = ['terps', 'terrapins', 'maryland football', 'maryland basketball', 'maryland lacrosse', 'maryland recruiting', 'mike locksley', 'buzz williams', 'kevin willard', 'brenda frese', 'university of maryland', 'malik washington', 'zahir mathis', 'pharrel payne', 'baba oladotun', 'kaden house', 'dj wagner', 'andre mills', 'juan dixon', 'big ten basketball', 'derik queen'];
   var cutoff = Date.now() - 14 * 24 * 60 * 60 * 1000; // 14 days
 
   function matchesKeywords(text) {
@@ -102,7 +102,7 @@ module.exports = async function handler(req, res) {
       }).catch(function() { return null; });
     });
 
-    var discoveryTerms = ['Maryland Terrapins', 'Terps basketball', 'Terps football', 'Maryland Terrapins recruiting', 'Buzz Williams Maryland', 'Mike Locksley', 'Malik Washington Maryland', 'Zahir Mathis', 'Pharrel Payne', 'Baba Oladotun', 'Kaden House', 'DJ Wagner Maryland', 'Andre Mills', 'Juan Dixon'];
+    var discoveryTerms = ['Maryland Terrapins', 'Terps basketball', 'Terps football', 'Maryland Terrapins recruiting', 'Buzz Williams Maryland', 'Mike Locksley', 'Malik Washington Maryland', 'Zahir Mathis', 'Pharrel Payne', 'Baba Oladotun', 'Kaden House', 'DJ Wagner Maryland', 'Andre Mills', 'Juan Dixon', 'Big Ten basketball', 'Derik Queen'];
     var discoveryResults = await Promise.all(discoveryTerms.map(discoverEpisodes));
 
     var feeds = await Promise.all(feedFetches);
