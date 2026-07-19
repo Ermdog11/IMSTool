@@ -198,7 +198,7 @@ module.exports = async function handler(req, res) {
       }
     });
 
-    return res.status(200).json({ content: [{ type: 'text', text: JSON.stringify(final) }], overflow: overflowStories });
+    return res.status(200).json({ content: [{ type: 'text', text: JSON.stringify(final) }], overflow: overflowStories, sources: fetchStatuses });
 
   } catch(e) {
     console.error('Scan error:', e.message);
