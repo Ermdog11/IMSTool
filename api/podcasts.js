@@ -4,7 +4,8 @@ module.exports = async function handler(req, res) {
 
   // Shows that are entirely Terps-focused: include every recent episode.
   var terpsShows = [
-    'Locked On Terps'
+    'Locked On Terps',
+    'Testudo Times Podcast'
   ];
 
   // Regional DC/Baltimore shows: include only episodes that mention Terps/Maryland.
@@ -17,7 +18,16 @@ module.exports = async function handler(req, res) {
     'BMitch & Finlay',
     'District of Sports DC',
     'The Solid Verbal College Football',
-    'Eye on College Basketball'
+    'Eye on College Basketball',
+    'Josh Pate College Football Show',
+    'Andy & Ari On3',
+    'Cover 3 College Football',
+    'The Field of 68 After Dark',
+    'Locked On Big Ten',
+    'The Next Round',
+    'Fear the Turtle Podcast',
+    'The Athletic College Football Show',
+    'Sports Wave Baltimore'
   ];
 
   var keywords = ['terps', 'terrapins', 'maryland football', 'maryland basketball', 'maryland lacrosse', 'maryland recruiting', 'mike locksley', 'buzz williams', 'kevin willard', 'brenda frese', 'university of maryland'];
