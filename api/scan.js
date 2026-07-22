@@ -55,8 +55,8 @@ module.exports = async function handler(req, res) {
       { url: 'https://www.bing.com/news/search?q=%22Maryland+football%22+OR+%22Maryland+basketball%22+recruiting&format=rss', name: 'Bing/recruiting' },
       // Niche site direct feeds — no dependence on search engine indexing
       { url: 'https://www.testudotimes.com/rss/index.xml', name: 'TestudoTimes', src: 'Testudo Times' },
-      { url: 'https://dbknews.com/feed/', name: 'Diamondback', src: 'The Diamondback' },
-      { url: 'https://pressboxonline.com/feed/', name: 'PressBox', src: 'PressBox' },
+      { url: 'https://dbknews.com/feed/', name: 'Diamondback', src: 'The Diamondback', requireTerps: true },
+      { url: 'https://pressboxonline.com/feed/', name: 'PressBox', src: 'PressBox', requireTerps: true },
       // UMD official — roster moves and schedule changes announced here first
       { url: 'https://umterps.com/rss.aspx', name: 'UMTerps', src: 'UMTerps.com' },
       // Regional outlets via Google News site queries (their own feeds are unreliable)
@@ -131,6 +131,12 @@ module.exports = async function handler(req, res) {
           var realUrl = (desc.match(/href="(https?:\/\/[^"]+)"/) || [])[1] || link;
           if (!title) return;
           title = title.trim();
+          // Some direct feeds carry the whole publication — require Terps relevance
+          if (cfg.requireTerps) {
+            var relevanceText = (title + ' ' + desc).toLowerCase();
+            var terpsWords = ['terps', 'terrapins', 'maryland athletic', 'maryland football', 'maryland basketball', 'maryland lacrosse', 'maryland soccer', 'maryland baseball', 'maryland wrestling', 'maryland volleyball', 'maryland gymnastics', 'field hockey', 'locksley', 'buzz williams', 'willard', 'frese', 'umterps', 'xfinity center', 'secu stadium', 'college park recruit'];
+            if (!terpsWords.some(function(w) { return relevanceText.includes(w); })) return;
+          }
           var age = pubDate ? Math.round((Date.now() - new Date(pubDate).getTime()) / 3600000) : 0;
           if (pubDate && new Date(pubDate).getTime() < googleCutoff) return;
           if (excluded.some(function(ex) { return src.toLowerCase().includes(ex) || srcUrl.toLowerCase().includes(ex) || title.toLowerCase().includes(ex) || realUrl.toLowerCase().includes(ex); })) return;
