@@ -11,10 +11,10 @@
       "maxDuration": 120
     },
     "api/digest.js": {
-      "maxDuration": 60
+      "maxDuration": 300
     },
     "api/morning-brief.js": {
-      "maxDuration": 60
+      "maxDuration": 300
     }
   },
   "headers": [
