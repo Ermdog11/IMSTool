@@ -65,7 +65,16 @@ module.exports = async function handler(req, res) {
       { url: 'https://news.google.com/rss/search?q=site%3Athebaltimorebanner.com+Terps+OR+%22Maryland+Terrapins%22&hl=en-US&gl=US&ceid=US:en', name: 'BaltBanner', src: 'Baltimore Banner' },
       // Rival team boards — recruiting battles often break on other schools' sites
       { url: 'https://news.google.com/rss/search?q=%22beats+out+Maryland%22+OR+%22over+Maryland%22+recruiting+OR+commit&hl=en-US&gl=US&ceid=US:en', name: 'GNews/rivalwins' },
-      { url: 'https://news.google.com/rss/search?q=Maryland+%22official+visit%22+OR+%22top+schools%22+OR+%22decision+date%22+recruit&hl=en-US&gl=US&ceid=US:en', name: 'GNews/rivalbattles' }
+      { url: 'https://news.google.com/rss/search?q=Maryland+%22official+visit%22+OR+%22top+schools%22+OR+%22decision+date%22+recruit&hl=en-US&gl=US&ceid=US:en', name: 'GNews/rivalbattles' },
+      // Local TV stations — occasionally break local angles first
+      { url: 'https://news.google.com/rss/search?q=site%3Awbaltv.com+Terps+OR+%22Maryland+Terrapins%22+OR+Locksley&hl=en-US&gl=US&ceid=US:en', name: 'WBAL', src: 'WBAL-TV' },
+      { url: 'https://news.google.com/rss/search?q=site%3Acbsnews.com+Terps+OR+%22Maryland+Terrapins%22&hl=en-US&gl=US&ceid=US:en', name: 'WJZ', src: 'WJZ/CBS Baltimore' },
+      { url: 'https://news.google.com/rss/search?q=site%3Awusa9.com+Terps+OR+%22Maryland+Terrapins%22&hl=en-US&gl=US&ceid=US:en', name: 'WUSA9', src: 'WUSA9' },
+      { url: 'https://news.google.com/rss/search?q=site%3Awtop.com+Terps+OR+%22Maryland+Terrapins%22&hl=en-US&gl=US&ceid=US:en', name: 'WTOP', src: 'WTOP' },
+      // High school sports — recruit performances before the national radar
+      { url: 'https://news.google.com/rss/search?q=%22committed+to+Maryland%22+OR+%22Maryland+commit%22+OR+%22Terps+commit%22+%22high+school%22&hl=en-US&gl=US&ceid=US:en', name: 'HS/commits' },
+      { url: 'https://news.google.com/rss/search?q=site%3Amaxpreps.com+Maryland+Terrapins+OR+%22committed+to+Maryland%22&hl=en-US&gl=US&ceid=US:en', name: 'HS/maxpreps', src: 'MaxPreps' },
+      { url: 'https://news.google.com/rss/search?q=%22Maryland+offer%22+OR+%22offered+by+Maryland%22+high+school+football+OR+basketball&hl=en-US&gl=US&ceid=US:en', name: 'HS/offers' }
     ];
 
     var redditFetches = [

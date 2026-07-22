@@ -385,6 +385,14 @@ body { padding-bottom: 40px; }
     <div><h3 style="margin:0;font-size:1.1rem;">🎙️ Podcasts</h3><p style="color:var(--muted);font-size:.85rem;margin:2px 0 0;">Most recent episodes mentioning Maryland Terrapins.</p></div>
   </div>
   <div id="podcastsContainer"><div class="empty"><i class="ti ti-microphone"></i> Run a scan to load podcast episodes.</div></div>
+  <div style="margin-top:24px;padding-top:16px;border-top:1px solid var(--border);">
+    <div style="display:flex;align-items:center;gap:12px;margin-bottom:10px;">
+      <h4 style="margin:0;font-size:1rem;">🎯 Deep Mentions</h4>
+      <button onclick="loadTranscripts()" style="background:var(--red);color:#fff;border:none;border-radius:6px;padding:5px 14px;cursor:pointer;font-size:.82rem;">Scan episode transcripts</button>
+    </div>
+    <p style="color:var(--muted);font-size:.82rem;margin:0 0 10px;">Searches inside recent episodes of national shows (Solid Verbal, Josh Pate, Cover 3, Field of 68...) for Maryland mentions buried in the audio.</p>
+    <div id="transcriptsContainer"></div>
+  </div>
 </div>
 
 <!-- YOUTUBE TAB -->
@@ -784,6 +792,33 @@ async function loadBluesky() {
     c.innerHTML = cards.join('');
   } catch(e) {
     c.innerHTML = '<div class="empty">Error loading Bluesky — ' + e.message + '</div>';
+  }
+}
+
+async function loadTranscripts() {
+  const c = document.getElementById('transcriptsContainer');
+  if (!c) return;
+  c.innerHTML = '<div class="empty"><i class="ti ti-loader spin"></i> Scanning transcripts of recent episodes (can take ~30s)...</div>';
+  try {
+    const res = await fetch('/api/transcripts', { cache: 'no-store' });
+    const data = await res.json();
+    const hits = data.hits || [];
+    if (!hits.length) {
+      c.innerHTML = '<div class="empty">🎯 ' + (data.error || 'No Maryland mentions found inside recent episodes.') + '</div>';
+      return;
+    }
+    c.innerHTML = hits.map(h => '<div class="acard" style="margin-bottom:10px;">' +
+      '<div class="acard-headline" style="font-size:.92rem;"><a href="' + h.url + '" target="_blank" rel="noopener" style="color:inherit;text-decoration:underline;">' + h.title + '</a></div>' +
+      '<div class="acard-meta" style="margin-top:4px;">' +
+        '<span class="tag tag-soc">Transcript hit</span>' +
+        '<span class="asrc">' + h.channel + '</span>' +
+        '<span class="atime">' + h.age + 'h ago</span>' +
+        '<span style="font-size:.75rem;color:var(--muted);">matched: ' + h.matched.join(', ') + '</span>' +
+      '</div>' +
+      '<div class="asum" style="margin-top:6px;font-style:italic;">"' + h.snippet.replace(/</g,'&lt;') + '"</div>' +
+      '</div>').join('');
+  } catch(e) {
+    c.innerHTML = '<div class="empty">Error scanning transcripts — ' + e.message + '</div>';
   }
 }
 

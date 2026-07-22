@@ -14,7 +14,7 @@
 
 - [ ] **Podcast transcript search** — scan YouTube auto-captions for shows that post there (catches Maryland mentions buried inside episodes)
 - [ ] **Wikipedia edit watch** — watch ~30 Terps pages for edits (free API, catches coaching changes/commitments fast)
-- [ ] **Message board activity spike detector** — Testudo Times comments, CSN boards
+- [ ] **Message board activity spike detector** — only free boards are Testudo Times comments (JS-heavy, not simply scrapeable) and Reddit (blocked until API credentials). Revisit after Reddit API is set up.
 - [ ] **Local TV RSS** — WBAL, WJZ, WUSA9 sports feeds
 - [ ] **MaxPreps/HS sports** — recruit performances before national radar
 

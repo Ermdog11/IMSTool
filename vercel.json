@@ -7,6 +7,9 @@
     "api/podcasts.js": {
       "maxDuration": 60
     },
+    "api/transcripts.js": {
+      "maxDuration": 120
+    },
     "api/digest.js": {
       "maxDuration": 60
     },
