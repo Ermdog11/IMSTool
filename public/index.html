@@ -652,6 +652,7 @@ function renderAlerts() {
         <button class="aaction" onclick="getSEO(${idx})"><i class="ti ti-search"></i> SEO</button>
         <button class="aaction" onclick="getSocial(${idx})"><i class="ti ti-brand-twitter"></i> Draft social</button>
         <button class="aaction" onclick="claimStory(${idx})"><i class="ti ti-hand-stop"></i> Claim</button>
+        <button class="aaction" onclick="flagStory(${idx})" title="Flag as junk — trains the scanner to exclude similar stories" style="color:#c00;"><i class="ti ti-flag"></i> Flag</button>
       </div>
       <div class="aaction-output" id="output-${idx}"></div>
     </div>`;
@@ -761,6 +762,24 @@ async function loadYouTube() {
   } catch(e) {
     c.innerHTML = '<div class="empty">Error loading YouTube — ' + e.message + '</div>';
   }
+}
+
+// ============================================================
+// FLAG / FEEDBACK
+// ============================================================
+function getFlagged() {
+  try { return JSON.parse(localStorage.getItem('flaggedStories') || '[]'); } catch(e) { return []; }
+}
+
+function flagStory(idx) {
+  const a = allAlerts[idx];
+  if (!a) return;
+  const flagged = getFlagged();
+  flagged.push({ headline: a.headline, source: a.source, summary: a.summary || '' });
+  // Keep the most recent 30 flags
+  localStorage.setItem('flaggedStories', JSON.stringify(flagged.slice(-30)));
+  allAlerts.splice(idx, 1);
+  renderAlerts();
 }
 
 async function loadBluesky() {
@@ -899,7 +918,7 @@ async function runScan() {
     const res = await fetch('/api/scan', {
       method: 'POST',
       headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({})
+      body: JSON.stringify({ flagged: getFlagged() })
     });
     const data = await res.json();
     if (data.error) throw new Error(typeof data.error === 'string' ? data.error : data.error.message || 'API error');
