@@ -48,7 +48,7 @@ module.exports = async function handler(req, res) {
       { url: 'https://news.google.com/rss/search?q=%22Aaron+Wiggins%22+OR+%22Jalen+Smith+NBA%22+OR+%22Alex+Len+NBA%22+OR+%22Bruno+Fernando+NBA%22+OR+%22DJ+Moore+NFL%22+OR+%22Darnell+Savage+NFL%22+OR+%22Torrey+Smith+NFL%22&hl=en-US&gl=US&ceid=US:en', name: 'GNews/nflnba' },
       { url: 'https://www.insidetheblackandgold.net/feed/', name: 'ITBG', src: 'Inside The Black And Gold' },
       { url: 'https://news.google.com/rss/search?q=site%3Anytimes.com+%22Maryland+Terrapins%22&hl=en-US&gl=US&ceid=US:en', name: 'Athletic/terrapins', src: 'The Athletic' },
-      { url: 'https://news.google.com/rss/search?q=site%3Anytimes.com+Terps+OR+Locksley+OR+%22Buzz+Williams%22&hl=en-US&gl=US&ceid=US:en', name: 'Athletic/names', src: 'The Athletic' },
+      { url: 'https://news.google.com/rss/search?q=site%3Anytimes.com+%22Terps%22+OR+site%3Anytimes.com+%22Locksley%22&hl=en-US&gl=US&ceid=US:en', name: 'Athletic/names', src: 'The Athletic' },
       // Bing News — independent index, catches stories Google misses
       { url: 'https://www.bing.com/news/search?q=%22Maryland+Terrapins%22&format=rss', name: 'Bing/terrapins' },
       { url: 'https://www.bing.com/news/search?q=%22Terps%22+football+OR+basketball&format=rss', name: 'Bing/terps' },
@@ -60,17 +60,17 @@ module.exports = async function handler(req, res) {
       // UMD official — roster moves and schedule changes announced here first
       { url: 'https://umterps.com/rss.aspx', name: 'UMTerps', src: 'UMTerps.com' },
       // Regional outlets via Google News site queries (their own feeds are unreliable)
-      { url: 'https://news.google.com/rss/search?q=site%3Abaltimoresun.com+Terps+OR+%22Maryland+Terrapins%22&hl=en-US&gl=US&ceid=US:en', name: 'BaltSun', src: 'Baltimore Sun' },
-      { url: 'https://news.google.com/rss/search?q=site%3Awashingtonpost.com+Terps+OR+%22Maryland+Terrapins%22&hl=en-US&gl=US&ceid=US:en', name: 'WaPo', src: 'Washington Post' },
-      { url: 'https://news.google.com/rss/search?q=site%3Athebaltimorebanner.com+Terps+OR+%22Maryland+Terrapins%22&hl=en-US&gl=US&ceid=US:en', name: 'BaltBanner', src: 'Baltimore Banner' },
+      { url: 'https://news.google.com/rss/search?q=site%3Abaltimoresun.com+%22Terps%22+OR+site%3Abaltimoresun.com+%22Maryland+Terrapins%22&hl=en-US&gl=US&ceid=US:en', name: 'BaltSun', src: 'Baltimore Sun' },
+      { url: 'https://news.google.com/rss/search?q=site%3Awashingtonpost.com+%22Terps%22+OR+site%3Awashingtonpost.com+%22Maryland+Terrapins%22&hl=en-US&gl=US&ceid=US:en', name: 'WaPo', src: 'Washington Post' },
+      { url: 'https://news.google.com/rss/search?q=site%3Athebaltimorebanner.com+%22Terps%22+OR+site%3Athebaltimorebanner.com+%22Maryland+Terrapins%22&hl=en-US&gl=US&ceid=US:en', name: 'BaltBanner', src: 'Baltimore Banner' },
       // Rival team boards — recruiting battles often break on other schools' sites
       { url: 'https://news.google.com/rss/search?q=%22beats+out+Maryland%22+OR+%22over+Maryland%22+recruiting+OR+commit&hl=en-US&gl=US&ceid=US:en', name: 'GNews/rivalwins' },
       { url: 'https://news.google.com/rss/search?q=Maryland+%22official+visit%22+OR+%22top+schools%22+OR+%22decision+date%22+recruit&hl=en-US&gl=US&ceid=US:en', name: 'GNews/rivalbattles' },
       // Local TV stations — occasionally break local angles first
-      { url: 'https://news.google.com/rss/search?q=site%3Awbaltv.com+Terps+OR+%22Maryland+Terrapins%22+OR+Locksley&hl=en-US&gl=US&ceid=US:en', name: 'WBAL', src: 'WBAL-TV' },
-      { url: 'https://news.google.com/rss/search?q=site%3Acbsnews.com+Terps+OR+%22Maryland+Terrapins%22&hl=en-US&gl=US&ceid=US:en', name: 'WJZ', src: 'WJZ/CBS Baltimore' },
-      { url: 'https://news.google.com/rss/search?q=site%3Awusa9.com+Terps+OR+%22Maryland+Terrapins%22&hl=en-US&gl=US&ceid=US:en', name: 'WUSA9', src: 'WUSA9' },
-      { url: 'https://news.google.com/rss/search?q=site%3Awtop.com+Terps+OR+%22Maryland+Terrapins%22&hl=en-US&gl=US&ceid=US:en', name: 'WTOP', src: 'WTOP' },
+      { url: 'https://news.google.com/rss/search?q=site%3Awbaltv.com+%22Terps%22+OR+site%3Awbaltv.com+%22Maryland+Terrapins%22&hl=en-US&gl=US&ceid=US:en', name: 'WBAL', src: 'WBAL-TV' },
+      { url: 'https://news.google.com/rss/search?q=site%3Acbsnews.com+%22Terps%22+OR+site%3Acbsnews.com+%22Maryland+Terrapins%22&hl=en-US&gl=US&ceid=US:en', name: 'WJZ', src: 'WJZ/CBS Baltimore' },
+      { url: 'https://news.google.com/rss/search?q=site%3Awusa9.com+%22Terps%22+OR+site%3Awusa9.com+%22Maryland+Terrapins%22&hl=en-US&gl=US&ceid=US:en', name: 'WUSA9', src: 'WUSA9' },
+      { url: 'https://news.google.com/rss/search?q=site%3Awtop.com+%22Terps%22+OR+site%3Awtop.com+%22Maryland+Terrapins%22&hl=en-US&gl=US&ceid=US:en', name: 'WTOP', src: 'WTOP' },
       // High school sports — recruit performances before the national radar
       { url: 'https://news.google.com/rss/search?q=%22committed+to+Maryland%22+OR+%22Maryland+commit%22+OR+%22Terps+commit%22+%22high+school%22&hl=en-US&gl=US&ceid=US:en', name: 'HS/commits' },
       { url: 'https://news.google.com/rss/search?q=site%3Amaxpreps.com+Maryland+Terrapins+OR+%22committed+to+Maryland%22&hl=en-US&gl=US&ceid=US:en', name: 'HS/maxpreps', src: 'MaxPreps' },
