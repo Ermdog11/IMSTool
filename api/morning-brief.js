@@ -11,29 +11,30 @@ module.exports = async function handler(req, res) {
   }
 
   try {
-    var claudeRes = await fetch('https://api.anthropic.com/v1/messages', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'x-api-key': ANTHROPIC_API_KEY,
-        'anthropic-version': '2023-06-01'
-      },
-      body: JSON.stringify({
-        model: 'claude-sonnet-4-6',
-        max_tokens: 1500,
-        tools: [{ type: 'web_search_20250305', name: 'web_search' }],
-        messages: [{
-          role: 'user',
-          content: 'You are a news monitor for InsideMDSports. Search for any Maryland Terrapins athletics news from the past 8 hours (overnight). This is a morning brief — focus on anything that broke overnight that Jeff Ermann needs to know before starting his day.\n\nEXCLUDE: InsideMDSports, Jeff Ermann, IMS Radio content.\n\nReturn ONLY a valid JSON array. Each item:\n{headline, summary, category, sport, source, time, rating(1-5)}\n\nReturn up to 8 items sorted by rating descending. If nothing significant happened overnight, return an empty array [].'
-        }]
-      })
+    // Reuse the working scan pipeline instead of the retired web_search approach
+    var scanHandler = require('./scan.js');
+    var scanResult = await new Promise(function(resolve, reject) {
+      var fakeRes = {
+        status: function() { return this; },
+        json: function(d) { resolve(d); return this; }
+      };
+      scanHandler({ body: {} }, fakeRes).catch(reject);
     });
 
-    var claudeData = await claudeRes.json();
-    var text = claudeData.content.map(function(b) { return b.type === 'text' ? b.text : ''; }).join('\n');
-    var match = text.replace(/```json|```/g, '').match(/\[[\s\S]*\]/);
-
-    var alerts = match ? JSON.parse(match[0]) : [];
+    var alerts = [];
+    if (!scanResult.error) {
+      var text = (scanResult.content || []).map(function(b) { return b.type === 'text' ? b.text : ''; }).join('\n');
+      var match = text.match(/\[[\s\S]*\]/);
+      if (match) {
+        // Morning brief: overnight window (12h), meaningful stories only
+        alerts = JSON.parse(match[0]).filter(function(a) {
+          if (a.republished) return false;
+          if ((a.rating || 0) < 3) return false;
+          var hours = parseInt((a.time || '').match(/\d+/) || '99', 10);
+          return hours <= 12;
+        }).slice(0, 8);
+      }
+    }
     var date = new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' });
     var recipients = ALERT_EMAIL.split(',').map(function(e) { return e.trim(); }).filter(Boolean);
 

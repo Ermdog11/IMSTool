@@ -63,27 +63,22 @@ module.exports = async function handler(req, res) {
   }
 
   try {
-    var claudeRes = await fetch('https://api.anthropic.com/v1/messages', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'x-api-key': ANTHROPIC_API_KEY,
-        'anthropic-version': '2023-06-01'
-      },
-      body: JSON.stringify({
-        model: 'claude-sonnet-4-6',
-        max_tokens: 3000,
-        tools: [{ type: 'web_search_20250305', name: 'web_search' }],
-        messages: [{ role: 'user', content: buildDigestPrompt() }]
-      })
+    // Reuse the working scan pipeline instead of the retired web_search approach
+    var scanHandler = require('./scan.js');
+    var scanResult = await new Promise(function(resolve, reject) {
+      var fakeRes = {
+        status: function() { return this; },
+        json: function(d) { resolve(d); return this; }
+      };
+      scanHandler({ body: {} }, fakeRes).catch(reject);
     });
 
-    var claudeData = await claudeRes.json();
-    var text = claudeData.content.map(function(b) { return b.type === 'text' ? b.text : ''; }).join('\n');
-    var match = text.replace(/```json|```/g, '').match(/\[[\s\S]*\]/);
-    if (!match) throw new Error('No JSON from Claude');
+    if (scanResult.error) throw new Error('Scan failed: ' + scanResult.error);
+    var text = (scanResult.content || []).map(function(b) { return b.type === 'text' ? b.text : ''; }).join('\n');
+    var match = text.match(/\[[\s\S]*\]/);
+    if (!match) throw new Error('No JSON from scan');
 
-    var alerts = JSON.parse(match[0]);
+    var alerts = JSON.parse(match[0]).filter(function(a) { return !a.republished; });
     var date = new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' });
 
     sgMail.setApiKey(SENDGRID_API_KEY);
