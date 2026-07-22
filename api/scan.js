@@ -51,6 +51,8 @@ module.exports = async function handler(req, res) {
       { url: 'https://news.google.com/rss/search?q=site%3Anytimes.com+%22Terps%22+OR+site%3Anytimes.com+%22Locksley%22&hl=en-US&gl=US&ceid=US:en', name: 'Athletic/names', src: 'The Athletic' },
       { url: 'https://news.google.com/rss/search?q=site%3Aespn.com+%22Maryland+Terrapins%22&hl=en-US&gl=US&ceid=US:en', name: 'ESPN/terrapins', src: 'ESPN' },
       { url: 'https://news.google.com/rss/search?q=site%3Aespn.com+%22Terps%22+OR+site%3Aespn.com+%22Locksley%22+OR+site%3Aespn.com+%22Buzz+Williams%22&hl=en-US&gl=US&ceid=US:en', name: 'ESPN/names', src: 'ESPN' },
+      { url: 'https://news.google.com/rss/search?q=site%3Afoxsports.com+%22Maryland+Terrapins%22&hl=en-US&gl=US&ceid=US:en', name: 'FoxSports/terrapins', src: 'FOX Sports' },
+      { url: 'https://news.google.com/rss/search?q=site%3Afoxsports.com+%22Terps%22+OR+site%3Afoxsports.com+%22Locksley%22+OR+site%3Afoxsports.com+%22Buzz+Williams%22&hl=en-US&gl=US&ceid=US:en', name: 'FoxSports/names', src: 'FOX Sports' },
       // Bing News — independent index, catches stories Google misses
       { url: 'https://www.bing.com/news/search?q=%22Maryland+Terrapins%22&format=rss', name: 'Bing/terrapins' },
       { url: 'https://www.bing.com/news/search?q=%22Terps%22+football+OR+basketball&format=rss', name: 'Bing/terps' },
