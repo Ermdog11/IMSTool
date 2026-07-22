@@ -24,41 +24,65 @@ module.exports = async function handler(req, res) {
   var excluded = ['insidemd', 'jeff ermann', 'ims radio', 'maryland.247sports', '247sports.com/college/maryland', 'insidetheshell'];
 
   try {
-    var fetches = [
-      fetch('https://www.reddit.com/r/MarylandTerrapins/new.json?limit=25', { headers: { 'User-Agent': 'IMSTool/1.0' } }),
-      fetch('https://www.reddit.com/r/CFB/search.json?q=Maryland+Terrapins&sort=new&restrict_sr=on&limit=20', { headers: { 'User-Agent': 'IMSTool/1.0' } }),
-      fetch('https://www.reddit.com/r/CollegeBasketball/search.json?q=Maryland+Terrapins&sort=new&restrict_sr=on&limit=20', { headers: { 'User-Agent': 'IMSTool/1.0' } }),
-      // Google News OR-grouped feeds (indices 3-22)
-      fetch('https://news.google.com/rss/search?q=%22Maryland+Terrapins%22+OR+%22Terps%22+OR+%22Maryland+Athletics%22+OR+%22Maryland+football%22+OR+%22Maryland+basketball%22+OR+%22Maryland+recruiting%22&hl=en-US&gl=US&ceid=US:en'),
-      fetch('https://news.google.com/rss/search?q=%22James+E.+Smith%22+OR+%22Damon+Evans%22+OR+%22SECU+Stadium%22+OR+%22Xfinity+Center%22+OR+%22Maryland+athletic+director%22+OR+%22Barry+Gossett%22&hl=en-US&gl=US&ceid=US:en'),
-      fetch('https://news.google.com/rss/search?q=%22Mike+Locksley%22+OR+%22Brian+Williams%22+OR+%22Clint+Trickett%22+OR+%22Andre+Powell%22+OR+%22Pep+Hamilton%22+OR+%22Latrell+Scott%22&hl=en-US&gl=US&ceid=US:en'),
-      fetch('https://news.google.com/rss/search?q=%22Malik+Washington%22+OR+%22Zahir+Mathis%22+OR+%22Sidney+Stewart%22+OR+%22Dontay+Joyner%22+OR+%22Amory+Hills%22+OR+%22Kyree+Caldwell%22+OR+%22Zeke+Walkup%22&hl=en-US&gl=US&ceid=US:en'),
-      fetch('https://news.google.com/rss/search?q=%22Maryland+football+recruiting%22+OR+%22Maryland+commits%22+OR+%22Maryland+official+visit%22+OR+%22Maryland+2027+recruiting%22+OR+%22Maryland+2028+recruiting%22+OR+%22James+Branch%22+OR+%22Dallas+Pauldo%22&hl=en-US&gl=US&ceid=US:en'),
-      fetch('https://news.google.com/rss/search?q=%22Boomer+Esiason%22+OR+%22Randy+White%22+OR+%22Vernon+Davis%22+OR+%22Stefon+Diggs%22+OR+%22Darnell+Savage%22+OR+%22DJ+Moore%22+OR+%22Torrey+Smith%22&hl=en-US&gl=US&ceid=US:en'),
-      fetch('https://news.google.com/rss/search?q=%22Shawne+Merriman%22+OR+%22E.J.+Henderson%22+OR+%22Josh+Wilson%22+OR+%22LaMont+Jordan%22+OR+%22Jermaine+Lewis%22+OR+%22Frank+Wycheck%22+OR+%22Randy+Edsall%22&hl=en-US&gl=US&ceid=US:en'),
-      fetch('https://news.google.com/rss/search?q=%22Buzz+Williams%22+OR+%22Kevin+Willard%22+OR+%22Danny+Manning%22+OR+%22David+Cox%22+OR+%22Maryland+basketball+recruiting%22+OR+%22Maryland+basketball+NIL%22&hl=en-US&gl=US&ceid=US:en'),
-      fetch('https://news.google.com/rss/search?q=%22DJ+Wagner%22+OR+%22Baba+Oladotun%22+OR+%22Mike+McNair%22+OR+%22Robert+Jennings%22+OR+%22Bishop+Boswell%22+OR+%22Kaden+House%22+OR+%22Adama+Tambedou%22&hl=en-US&gl=US&ceid=US:en'),
-      fetch('https://news.google.com/rss/search?q=%22Len+Bias%22+OR+%22Juan+Dixon%22+OR+%22Greivis+Vasquez%22+OR+%22Melo+Trimble%22+OR+%22Joe+Smith%22+OR+%22Steve+Francis%22+OR+%22Walt+Williams%22&hl=en-US&gl=US&ceid=US:en'),
-      fetch('https://news.google.com/rss/search?q=%22Jalen+Smith%22+OR+%22Kevin+Huerter%22+OR+%22Bruno+Fernando%22+OR+%22Jake+Layman%22+OR+%22Alex+Len%22+OR+%22Dez+Wells%22&hl=en-US&gl=US&ceid=US:en'),
-      fetch('https://news.google.com/rss/search?q=%22Brenda+Frese%22+OR+%22Alyssa+Thomas%22+OR+%22Kristi+Toliver%22+OR+%22Diamond+Miller%22+OR+%22Maryland+women%27s+basketball%22+OR+%22Crystal+Langhorne%22&hl=en-US&gl=US&ceid=US:en'),
-      fetch('https://news.google.com/rss/search?q=%22John+Tillman%22+OR+%22Logan+Wisnauskas%22+OR+%22Jared+Bernhardt%22+OR+%22Matt+Rambo%22+OR+%22Maryland+men%27s+lacrosse%22+OR+%22Maryland+women%27s+lacrosse%22+OR+%22Taylor+Cummings%22&hl=en-US&gl=US&ceid=US:en'),
-      fetch('https://news.google.com/rss/search?q=%22Rob+Vaughn%22+OR+%22Maryland+baseball%22+OR+%22Sasho+Cirovski%22+OR+%22Patrick+Mullins%22+OR+%22Taylor+Twellman%22+OR+%22Zack+Steffen%22+OR+%22Maryland+soccer%22&hl=en-US&gl=US&ceid=US:en'),
-      fetch('https://news.google.com/rss/search?q=%22Maryland+wrestling%22+OR+%22Missy+Meharg%22+OR+%22Maryland+field+hockey%22+OR+%22Maryland+volleyball%22+OR+%22Maryland+gymnastics%22+OR+%22Renaldo+Nehemiah%22+OR+%22Kyle+Snyder%22&hl=en-US&gl=US&ceid=US:en'),
-      fetch('https://news.google.com/rss/search?q=%22Maryland+Crystal+Ball%22+OR+%22Maryland+decommitment%22+OR+%22Maryland+portal+target%22+OR+%22Maryland+transfer+portal%22+OR+%22Maryland+scholarship+offer%22+OR+%22Maryland+visit+weekend%22&hl=en-US&gl=US&ceid=US:en'),
-      fetch('https://news.google.com/rss/search?q=%22Maryland+NIL%22+OR+%22Maryland+NIL+collective%22+OR+%22Maryland+Terrapin+Club%22+OR+%22Maryland+athletics+fundraising%22+OR+%22Maryland+athletics+revenue%22&hl=en-US&gl=US&ceid=US:en'),
-      fetch('https://news.google.com/rss/search?q=%22Testudo+Times%22+OR+%22Terrapin+Sports+Report%22+OR+%22On3+Maryland%22+OR+%22Rivals+Maryland%22+OR+%22Fear+the+Turtle%22+OR+%22Fear+the+Podcast%22&hl=en-US&gl=US&ceid=US:en'),
-      fetch('https://news.google.com/rss/search?q=%22Maryland+football+roster%22+OR+%22Maryland+basketball+schedule%22+OR+%22Maryland+spring+football%22+OR+%22Maryland+Big+Ten%22+OR+%22Maryland+coaching+search%22+OR+%22Maryland+stadium+renovation%22&hl=en-US&gl=US&ceid=US:en'),
-      fetch('https://news.google.com/rss/search?q=%22Aaron+Wiggins%22+OR+%22Jalen+Smith+NBA%22+OR+%22Alex+Len+NBA%22+OR+%22Bruno+Fernando+NBA%22+OR+%22DJ+Moore+NFL%22+OR+%22Darnell+Savage+NFL%22+OR+%22Torrey+Smith+NFL%22&hl=en-US&gl=US&ceid=US:en'),
-      fetch('https://www.insidetheblackandgold.net/feed/'),
-      fetch('https://news.google.com/rss/search?q=site%3Anytimes.com+%22Maryland+Terrapins%22&hl=en-US&gl=US&ceid=US:en'),
-      fetch('https://news.google.com/rss/search?q=site%3Anytimes.com+Terps+OR+Locksley+OR+%22Buzz+Williams%22&hl=en-US&gl=US&ceid=US:en')
+    // RSS/news feeds: name is for diagnostics, src is the fallback source label
+    var feedConfigs = [
+      { url: 'https://news.google.com/rss/search?q=%22Maryland+Terrapins%22+OR+%22Terps%22+OR+%22Maryland+Athletics%22+OR+%22Maryland+football%22+OR+%22Maryland+basketball%22+OR+%22Maryland+recruiting%22&hl=en-US&gl=US&ceid=US:en', name: 'GNews/core' },
+      { url: 'https://news.google.com/rss/search?q=%22James+E.+Smith%22+OR+%22Damon+Evans%22+OR+%22SECU+Stadium%22+OR+%22Xfinity+Center%22+OR+%22Maryland+athletic+director%22+OR+%22Barry+Gossett%22&hl=en-US&gl=US&ceid=US:en', name: 'GNews/admin' },
+      { url: 'https://news.google.com/rss/search?q=%22Mike+Locksley%22+OR+%22Brian+Williams%22+OR+%22Clint+Trickett%22+OR+%22Andre+Powell%22+OR+%22Pep+Hamilton%22+OR+%22Latrell+Scott%22&hl=en-US&gl=US&ceid=US:en', name: 'GNews/fbstaff' },
+      { url: 'https://news.google.com/rss/search?q=%22Malik+Washington%22+OR+%22Zahir+Mathis%22+OR+%22Sidney+Stewart%22+OR+%22Dontay+Joyner%22+OR+%22Amory+Hills%22+OR+%22Kyree+Caldwell%22+OR+%22Zeke+Walkup%22&hl=en-US&gl=US&ceid=US:en', name: 'GNews/fbplayers' },
+      { url: 'https://news.google.com/rss/search?q=%22Maryland+football+recruiting%22+OR+%22Maryland+commits%22+OR+%22Maryland+official+visit%22+OR+%22Maryland+2027+recruiting%22+OR+%22Maryland+2028+recruiting%22+OR+%22James+Branch%22+OR+%22Dallas+Pauldo%22&hl=en-US&gl=US&ceid=US:en', name: 'GNews/fbrecruits' },
+      { url: 'https://news.google.com/rss/search?q=%22Boomer+Esiason%22+OR+%22Randy+White%22+OR+%22Vernon+Davis%22+OR+%22Stefon+Diggs%22+OR+%22Darnell+Savage%22+OR+%22DJ+Moore%22+OR+%22Torrey+Smith%22&hl=en-US&gl=US&ceid=US:en', name: 'GNews/fblgd1' },
+      { url: 'https://news.google.com/rss/search?q=%22Shawne+Merriman%22+OR+%22E.J.+Henderson%22+OR+%22Josh+Wilson%22+OR+%22LaMont+Jordan%22+OR+%22Jermaine+Lewis%22+OR+%22Frank+Wycheck%22+OR+%22Randy+Edsall%22&hl=en-US&gl=US&ceid=US:en', name: 'GNews/fblgd2' },
+      { url: 'https://news.google.com/rss/search?q=%22Buzz+Williams%22+OR+%22Kevin+Willard%22+OR+%22Danny+Manning%22+OR+%22David+Cox%22+OR+%22Maryland+basketball+recruiting%22+OR+%22Maryland+basketball+NIL%22&hl=en-US&gl=US&ceid=US:en', name: 'GNews/bbstaff' },
+      { url: 'https://news.google.com/rss/search?q=%22DJ+Wagner%22+OR+%22Baba+Oladotun%22+OR+%22Mike+McNair%22+OR+%22Robert+Jennings%22+OR+%22Bishop+Boswell%22+OR+%22Kaden+House%22+OR+%22Adama+Tambedou%22&hl=en-US&gl=US&ceid=US:en', name: 'GNews/bbplayers' },
+      { url: 'https://news.google.com/rss/search?q=%22Len+Bias%22+OR+%22Juan+Dixon%22+OR+%22Greivis+Vasquez%22+OR+%22Melo+Trimble%22+OR+%22Joe+Smith%22+OR+%22Steve+Francis%22+OR+%22Walt+Williams%22&hl=en-US&gl=US&ceid=US:en', name: 'GNews/fmrbb1' },
+      { url: 'https://news.google.com/rss/search?q=%22Jalen+Smith%22+OR+%22Kevin+Huerter%22+OR+%22Bruno+Fernando%22+OR+%22Jake+Layman%22+OR+%22Alex+Len%22+OR+%22Dez+Wells%22&hl=en-US&gl=US&ceid=US:en', name: 'GNews/fmrbb2' },
+      { url: 'https://news.google.com/rss/search?q=%22Brenda+Frese%22+OR+%22Alyssa+Thomas%22+OR+%22Kristi+Toliver%22+OR+%22Diamond+Miller%22+OR+%22Maryland+women%27s+basketball%22+OR+%22Crystal+Langhorne%22&hl=en-US&gl=US&ceid=US:en', name: 'GNews/wbb' },
+      { url: 'https://news.google.com/rss/search?q=%22John+Tillman%22+OR+%22Logan+Wisnauskas%22+OR+%22Jared+Bernhardt%22+OR+%22Matt+Rambo%22+OR+%22Maryland+men%27s+lacrosse%22+OR+%22Maryland+women%27s+lacrosse%22+OR+%22Taylor+Cummings%22&hl=en-US&gl=US&ceid=US:en', name: 'GNews/lacrosse' },
+      { url: 'https://news.google.com/rss/search?q=%22Rob+Vaughn%22+OR+%22Maryland+baseball%22+OR+%22Sasho+Cirovski%22+OR+%22Patrick+Mullins%22+OR+%22Taylor+Twellman%22+OR+%22Zack+Steffen%22+OR+%22Maryland+soccer%22&hl=en-US&gl=US&ceid=US:en', name: 'GNews/baseball' },
+      { url: 'https://news.google.com/rss/search?q=%22Maryland+wrestling%22+OR+%22Missy+Meharg%22+OR+%22Maryland+field+hockey%22+OR+%22Maryland+volleyball%22+OR+%22Maryland+gymnastics%22+OR+%22Renaldo+Nehemiah%22+OR+%22Kyle+Snyder%22&hl=en-US&gl=US&ceid=US:en', name: 'GNews/othersports' },
+      { url: 'https://news.google.com/rss/search?q=%22Maryland+Crystal+Ball%22+OR+%22Maryland+decommitment%22+OR+%22Maryland+portal+target%22+OR+%22Maryland+transfer+portal%22+OR+%22Maryland+scholarship+offer%22+OR+%22Maryland+visit+weekend%22&hl=en-US&gl=US&ceid=US:en', name: 'GNews/recruiting' },
+      { url: 'https://news.google.com/rss/search?q=%22Maryland+NIL%22+OR+%22Maryland+NIL+collective%22+OR+%22Maryland+Terrapin+Club%22+OR+%22Maryland+athletics+fundraising%22+OR+%22Maryland+athletics+revenue%22&hl=en-US&gl=US&ceid=US:en', name: 'GNews/nil' },
+      { url: 'https://news.google.com/rss/search?q=%22Testudo+Times%22+OR+%22Terrapin+Sports+Report%22+OR+%22On3+Maryland%22+OR+%22Rivals+Maryland%22+OR+%22Fear+the+Turtle%22+OR+%22Fear+the+Podcast%22&hl=en-US&gl=US&ceid=US:en', name: 'GNews/media' },
+      { url: 'https://news.google.com/rss/search?q=%22Maryland+football+roster%22+OR+%22Maryland+basketball+schedule%22+OR+%22Maryland+spring+football%22+OR+%22Maryland+Big+Ten%22+OR+%22Maryland+coaching+search%22+OR+%22Maryland+stadium+renovation%22&hl=en-US&gl=US&ceid=US:en', name: 'GNews/season' },
+      { url: 'https://news.google.com/rss/search?q=%22Aaron+Wiggins%22+OR+%22Jalen+Smith+NBA%22+OR+%22Alex+Len+NBA%22+OR+%22Bruno+Fernando+NBA%22+OR+%22DJ+Moore+NFL%22+OR+%22Darnell+Savage+NFL%22+OR+%22Torrey+Smith+NFL%22&hl=en-US&gl=US&ceid=US:en', name: 'GNews/nflnba' },
+      { url: 'https://www.insidetheblackandgold.net/feed/', name: 'ITBG', src: 'Inside The Black And Gold' },
+      { url: 'https://news.google.com/rss/search?q=site%3Anytimes.com+%22Maryland+Terrapins%22&hl=en-US&gl=US&ceid=US:en', name: 'Athletic/terrapins', src: 'The Athletic' },
+      { url: 'https://news.google.com/rss/search?q=site%3Anytimes.com+Terps+OR+Locksley+OR+%22Buzz+Williams%22&hl=en-US&gl=US&ceid=US:en', name: 'Athletic/names', src: 'The Athletic' },
+      // Bing News — independent index, catches stories Google misses
+      { url: 'https://www.bing.com/news/search?q=%22Maryland+Terrapins%22&format=rss', name: 'Bing/terrapins' },
+      { url: 'https://www.bing.com/news/search?q=%22Terps%22+football+OR+basketball&format=rss', name: 'Bing/terps' },
+      { url: 'https://www.bing.com/news/search?q=%22Maryland+football%22+OR+%22Maryland+basketball%22+recruiting&format=rss', name: 'Bing/recruiting' },
+      // Niche site direct feeds — no dependence on search engine indexing
+      { url: 'https://www.testudotimes.com/rss/index.xml', name: 'TestudoTimes', src: 'Testudo Times' },
+      { url: 'https://dbknews.com/feed/', name: 'Diamondback', src: 'The Diamondback' },
+      { url: 'https://pressboxonline.com/feed/', name: 'PressBox', src: 'PressBox' },
+      // UMD official — roster moves and schedule changes announced here first
+      { url: 'https://umterps.com/rss.aspx', name: 'UMTerps', src: 'UMTerps.com' },
+      // Regional outlets via Google News site queries (their own feeds are unreliable)
+      { url: 'https://news.google.com/rss/search?q=site%3Abaltimoresun.com+Terps+OR+%22Maryland+Terrapins%22&hl=en-US&gl=US&ceid=US:en', name: 'BaltSun', src: 'Baltimore Sun' },
+      { url: 'https://news.google.com/rss/search?q=site%3Awashingtonpost.com+Terps+OR+%22Maryland+Terrapins%22&hl=en-US&gl=US&ceid=US:en', name: 'WaPo', src: 'Washington Post' },
+      { url: 'https://news.google.com/rss/search?q=site%3Athebaltimorebanner.com+Terps+OR+%22Maryland+Terrapins%22&hl=en-US&gl=US&ceid=US:en', name: 'BaltBanner', src: 'Baltimore Banner' },
+      // Rival team boards — recruiting battles often break on other schools' sites
+      { url: 'https://news.google.com/rss/search?q=%22beats+out+Maryland%22+OR+%22over+Maryland%22+recruiting+OR+commit&hl=en-US&gl=US&ceid=US:en', name: 'GNews/rivalwins' },
+      { url: 'https://news.google.com/rss/search?q=Maryland+%22official+visit%22+OR+%22top+schools%22+OR+%22decision+date%22+recruit&hl=en-US&gl=US&ceid=US:en', name: 'GNews/rivalbattles' }
     ];
+
+    var redditFetches = [
+      { url: 'https://www.reddit.com/r/MarylandTerrapins/new.json?limit=25', name: 'Reddit/MarylandTerrapins' },
+      { url: 'https://www.reddit.com/r/CFB/search.json?q=Maryland+Terrapins&sort=new&restrict_sr=on&limit=20', name: 'Reddit/CFB' },
+      { url: 'https://www.reddit.com/r/CollegeBasketball/search.json?q=Maryland+Terrapins&sort=new&restrict_sr=on&limit=20', name: 'Reddit/CollegeBasketball' }
+    ];
+
+    var fetches = redditFetches.map(function(f) {
+      return fetch(f.url, { headers: { 'User-Agent': 'IMSTool/1.0' } });
+    }).concat(feedConfigs.map(function(f) { return fetch(f.url); }));
 
     var results = await Promise.allSettled(fetches);
     var stories = [];
 
     // Reddit results (indices 0-2)
-    for (var ri = 0; ri < 3; ri++) {
+    for (var ri = 0; ri < redditFetches.length; ri++) {
       if (results[ri].status !== 'fulfilled') continue;
       try {
         var rj = await results[ri].value.json();
@@ -80,26 +104,28 @@ module.exports = async function handler(req, res) {
       } catch(e) { /* skip failed reddit */ }
     }
 
-    // Google News RSS (indices 3-22)
-    for (var gi = 3; gi < results.length; gi++) {
+    // RSS feeds (Google News, Bing, direct site feeds)
+    for (var gi = redditFetches.length; gi < results.length; gi++) {
       if (results[gi].status !== 'fulfilled') continue;
+      var cfg = feedConfigs[gi - redditFetches.length];
       try {
         var xml = await results[gi].value.text();
         var items = xml.match(/<item>[\s\S]*?<\/item>/g) || [];
         items.forEach(function(item) {
-          var title = (item.match(/<title><!\[CDATA\[(.*?)\]\]><\/title>/) || item.match(/<title>(.*?)<\/title>/) || [])[1] || '';
-          var link = (item.match(/<link>(.*?)<\/link>/) || [])[1] || '';
-          var src = (item.match(/<source[^>]*>(.*?)<\/source>/) || [])[1] || (gi === results.length - 3 ? 'Inside The Black And Gold' : 'Google News');
+          var title = (item.match(/<title><!\[CDATA\[([\s\S]*?)\]\]><\/title>/) || item.match(/<title>([\s\S]*?)<\/title>/) || [])[1] || '';
+          var link = (item.match(/<link>([\s\S]*?)<\/link>/) || [])[1] || '';
+          var src = (item.match(/<source[^>]*>(.*?)<\/source>/) || [])[1] || cfg.src || 'Google News';
           var srcUrl = (item.match(/<source[^>]*url="([^"]*)"/) || [])[1] || '';
           var pubDate = (item.match(/<pubDate>(.*?)<\/pubDate>/) || [])[1] || '';
           // Extract real article URL from description (Google News embeds it there)
           var desc = (item.match(/<description><!\[CDATA\[([\s\S]*?)\]\]><\/description>/) || [])[1] || '';
           var realUrl = (desc.match(/href="(https?:\/\/[^"]+)"/) || [])[1] || link;
           if (!title) return;
+          title = title.trim();
           var age = pubDate ? Math.round((Date.now() - new Date(pubDate).getTime()) / 3600000) : 0;
           if (pubDate && new Date(pubDate).getTime() < googleCutoff) return;
           if (excluded.some(function(ex) { return src.toLowerCase().includes(ex) || srcUrl.toLowerCase().includes(ex) || title.toLowerCase().includes(ex) || realUrl.toLowerCase().includes(ex); })) return;
-          stories.push({ title: title.replace(/&amp;/g,'&').replace(/&lt;/g,'<').replace(/&gt;/g,'>'), source: src, url: realUrl || link, age: age });
+          stories.push({ title: title.replace(/&amp;/g,'&').replace(/&lt;/g,'<').replace(/&gt;/g,'>'), source: src, url: (realUrl || link).trim(), age: age });
         });
       } catch(e) { /* skip failed feed */ }
     }
@@ -118,9 +144,9 @@ module.exports = async function handler(req, res) {
 
     var redditCount = stories.filter(function(s){return s.source.includes('Reddit');}).length;
     var googleCount = stories.filter(function(s){return !s.source.includes('Reddit');}).length;
+    var allNames = redditFetches.map(function(f) { return f.name; }).concat(feedConfigs.map(function(f) { return f.name; }));
     var fetchStatuses = results.map(function(r, i) {
-      var names = ['Reddit/MarylandTerrapins','Reddit/CFB','Reddit/CollegeBasketball','GNews/core','GNews/admin','GNews/fbstaff','GNews/fbplayers','GNews/fbrecruits','GNews/fblgd1','GNews/fblgd2','GNews/bbstaff','GNews/bbplayers','GNews/fmrbb1','GNews/fmrbb2','GNews/wbb','GNews/lacrosse','GNews/baseball','GNews/othersports','GNews/recruiting','GNews/nil','GNews/media','GNews/season','GNews/nflnba','ITBG/feed','Athletic/terrapins','Athletic/names'];
-      return names[i] + ':' + (r.status === 'fulfilled' ? r.value.status : 'FAILED');
+      return allNames[i] + ':' + (r.status === 'fulfilled' ? r.value.status : 'FAILED');
     });
     console.log('Stories:', stories.length, '| Reddit:', redditCount, '| Google:', googleCount, '| Fetches:', fetchStatuses.join(', '));
 
