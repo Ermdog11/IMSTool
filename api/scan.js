@@ -135,7 +135,7 @@ module.exports = async function handler(req, res) {
     }).join('\n');
 
     var today = new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
-    var prompt = 'You are a sports news editor for InsideMDSports covering University of Maryland Terrapins athletics. Today is ' + today + '.\n\nRate and categorize ALL of these stories. Return ONLY a JSON array, no other text. Include EVERY story.\n\nEach object must have:\n- idx: the story number (1-based)\n- headline: improved headline (keep original meaning)\n- source: the [Source] shown\n- time: e.g. "2h ago"\n- rating: 1-5 (5=breaking news, 4=major, 3=solid, 2=minor, 1=filler)\n- category: one of: recruiting, football, basketball, alumni, social, podcast, news\n- sport: football, basketball, lacrosse, soccer, or other\n- summary: one sentence\n- republished: true if this appears to be a recycled/republished article about events that clearly happened weeks or months ago (e.g. a recruiting visit scheduled in a prior month, an old signing, a past season result being re-reported, an old controversy or quote resurfacing). Use today\'s date AND your knowledge of when events actually happened to judge this — if you recognize the underlying event as occurring more than 2 weeks ago, set republished true even if the article timestamp is recent. Be especially suspicious of aggregators (MSN, Yahoo, Sports Illustrated syndication) which frequently republish old stories with fresh timestamps. Set false only for genuinely new stories.\n\nPRIORITY: If a story headline or summary contains "breaking", "commits", "committed", "commitment", or "decommit" and it relates to Maryland, rate it 4 or 5 — these are high-value stories.\n\nFor Reddit posts: if the post is fan discussion, opinion, or a question rather than actual news, give it rating 1. Only rate Reddit posts 3+ if they report genuine news (commitments, injuries, hires, transfers, reports).\n\nInclude ALL stories. Do not skip any.\n\nStories:\n' + storyList;
+    var prompt = 'You are a sports news editor for InsideMDSports covering University of Maryland Terrapins athletics. Today is ' + today + '.\n\nRate and categorize ALL of these stories. Return ONLY a JSON array, no other text. Include EVERY story.\n\nEach object must have:\n- idx: the story number (1-based)\n- headline: improved headline (keep original meaning)\n- source: the [Source] shown\n- time: e.g. "2h ago"\n- rating: 1-5 (5=breaking news, 4=major, 3=solid, 2=minor, 1=filler)\n- category: one of: recruiting, football, basketball, alumni, social, podcast, news\n- sport: football, basketball, lacrosse, soccer, or other\n- summary: one sentence\n- republished: true if this appears to be a recycled/republished article about events that clearly happened weeks or months ago (e.g. a recruiting visit scheduled in a prior month, an old signing, a past season result being re-reported, an old controversy or quote resurfacing). Use today\'s date AND your knowledge of when events actually happened to judge this — if you recognize the underlying event as occurring more than 2 weeks ago, set republished true even if the article timestamp is recent. Be especially suspicious of aggregators (MSN, Yahoo, Sports Illustrated syndication) which frequently republish old stories with fresh timestamps. Set false only for genuinely new stories.\n\nPRIORITY: If a story headline or summary contains "breaking", "commits", "committed", "commitment", or "decommit" and it relates to Maryland, rate it 4 or 5 — these are high-value stories.\n\nFor former Maryland players now in the NFL/NBA (Diggs, DJ Moore, Savage, Huerter, etc.): rate routine pro coverage (fantasy analysis, practice notes, game recaps, rankings) 1-2. Only rate 3+ for major news (trades, signings, serious injuries, milestones) or stories with a genuine Maryland/Terps angle.\n\nFor Reddit posts: if the post is fan discussion, opinion, or a question rather than actual news, give it rating 1. Only rate Reddit posts 3+ if they report genuine news (commitments, injuries, hires, transfers, reports).\n\nInclude ALL stories. Do not skip any.\n\nStories:\n' + storyList;
 
     var cr = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
@@ -163,7 +163,9 @@ module.exports = async function handler(req, res) {
       return Object.assign({}, item, { url: orig ? orig.url : '' });
     });
 
-    // Apply 3-per-topic cap POST-rating so the most newsworthy stories stay in main feed
+    // Apply per-topic caps POST-rating so the most newsworthy stories stay in main feed
+    // Pro-sport alumni get a tighter cap (1) than general Terps topics (3)
+    var alumniNames = ['stefon diggs', 'dj moore', 'darnell savage', 'kevin huerter', 'bruno fernando', 'alex len', 'jalen smith', 'aaron wiggins', 'torrey smith', 'vernon davis', 'boomer esiason', 'shawne merriman'];
     // Check original titles (not Claude's rewrites) for reliable name detection
     var topicRatingCount = {};
     var overflowStories = [];
@@ -177,7 +179,8 @@ module.exports = async function handler(req, res) {
       var overflowTopic = null;
       for (var n of names) {
         topicRatingCount[n] = (topicRatingCount[n] || 0) + 1;
-        if (topicRatingCount[n] > 3) overflowTopic = n;
+        var cap = alumniNames.includes(n.toLowerCase()) ? 1 : 3;
+        if (topicRatingCount[n] > cap) overflowTopic = n;
       }
       if (overflowTopic) {
         overflowStories.push({ title: item.headline, source: item.source, url: item.url, age: orig ? orig.age : 0, trendingTopic: overflowTopic });
