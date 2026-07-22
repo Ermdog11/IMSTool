@@ -53,6 +53,8 @@ module.exports = async function handler(req, res) {
       { url: 'https://news.google.com/rss/search?q=site%3Aespn.com+%22Terps%22+OR+site%3Aespn.com+%22Locksley%22+OR+site%3Aespn.com+%22Buzz+Williams%22&hl=en-US&gl=US&ceid=US:en', name: 'ESPN/names', src: 'ESPN' },
       { url: 'https://news.google.com/rss/search?q=site%3Afoxsports.com+%22Maryland+Terrapins%22&hl=en-US&gl=US&ceid=US:en', name: 'FoxSports/terrapins', src: 'FOX Sports' },
       { url: 'https://news.google.com/rss/search?q=site%3Afoxsports.com+%22Terps%22+OR+site%3Afoxsports.com+%22Locksley%22+OR+site%3Afoxsports.com+%22Buzz+Williams%22&hl=en-US&gl=US&ceid=US:en', name: 'FoxSports/names', src: 'FOX Sports' },
+      { url: 'https://collegehoopstoday.com/feed/', name: 'Rothstein', src: 'College Hoops Today (Rothstein)', requireTerps: true },
+      { url: 'https://news.google.com/rss/search?q=site%3Acollegehoopstoday.com+%22Maryland%22&hl=en-US&gl=US&ceid=US:en', name: 'Rothstein/gnews', src: 'College Hoops Today (Rothstein)' },
       // Bing News — independent index, catches stories Google misses
       { url: 'https://www.bing.com/news/search?q=%22Maryland+Terrapins%22&format=rss', name: 'Bing/terrapins' },
       { url: 'https://www.bing.com/news/search?q=%22Terps%22+football+OR+basketball&format=rss', name: 'Bing/terps' },
