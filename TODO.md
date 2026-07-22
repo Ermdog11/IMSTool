@@ -12,7 +12,18 @@
 - [ ] **Delete debug endpoints** — api/debug-rss.js, api/debug-podcasts.js, api/debug-reddit.js once everything is stable.
 - [ ] **ListenNotes (optional)** — free quota (300/mo) exhausted this month. Could re-add next month as supplement; currently replaced by free iTunes/RSS approach.
 
+- [ ] **Podcast transcript search** — scan YouTube auto-captions for shows that post there (catches Maryland mentions buried inside episodes)
+- [ ] **Wikipedia edit watch** — watch ~30 Terps pages for edits (free API, catches coaching changes/commitments fast)
+- [ ] **Message board activity spike detector** — Testudo Times comments, CSN boards
+- [ ] **Local TV RSS** — WBAL, WJZ, WUSA9 sports feeds
+- [ ] **MaxPreps/HS sports** — recruit performances before national radar
+
 ## Done
+- [x] Bing News RSS (3 queries — independent index from Google)
+- [x] Direct feeds: Testudo Times, The Diamondback, PressBox, UMTerps.com official
+- [x] Regional site queries: Baltimore Sun, Washington Post, Baltimore Banner
+- [x] Rival recruiting battle queries ("beats out Maryland", visit/decision news)
+- [x] The Athletic (nytimes.com) targeted queries
 - [x] 20 OR-grouped Google News feeds covering all 250 search terms
 - [x] 36-hour story window
 - [x] Trending topic cap (3 per name, rated by newsworthiness) + 🔥 Trending overflow tab with hotlinks
