@@ -97,9 +97,20 @@ module.exports = async function handler(req, res) {
       { url: 'https://www.reddit.com/r/CollegeBasketball/search.json?q=Maryland+Terrapins&sort=new&restrict_sr=on&limit=20', name: 'Reddit/CollegeBasketball' }
     ];
 
+    // Every external fetch gets its own timeout — without this, a single slow or
+    // hanging RSS/Reddit source can block Promise.allSettled indefinitely (fetch()
+    // has no default timeout), which drags the whole function past Vercel's
+    // execution limit and shows up to the user as a request that never finishes.
+    function fetchWithTimeout(url, options, timeoutMs) {
+      var controller = new AbortController();
+      var timer = setTimeout(function() { controller.abort(); }, timeoutMs || 8000);
+      return fetch(url, Object.assign({}, options, { signal: controller.signal }))
+        .finally(function() { clearTimeout(timer); });
+    }
+
     var fetches = redditFetches.map(function(f) {
-      return fetch(f.url, { headers: { 'User-Agent': 'IMSTool/1.0' } });
-    }).concat(feedConfigs.map(function(f) { return fetch(f.url); }));
+      return fetchWithTimeout(f.url, { headers: { 'User-Agent': 'IMSTool/1.0' } }, 8000);
+    }).concat(feedConfigs.map(function(f) { return fetchWithTimeout(f.url, {}, 8000); }));
 
     var results = await Promise.allSettled(fetches);
     var stories = [];
