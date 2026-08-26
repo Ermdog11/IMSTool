@@ -228,14 +228,16 @@ module.exports = async function handler(req, res) {
     });
 
     // Apply per-topic caps POST-rating so the most newsworthy stories stay in main feed
-    // Pro-sport alumni get a tighter cap (1) than general Terps topics (3)
-    var alumniNames = ['stefon diggs', 'dj moore', 'darnell savage', 'kevin huerter', 'bruno fernando', 'alex len', 'jalen smith', 'aaron wiggins', 'torrey smith', 'vernon davis', 'boomer esiason', 'shawne merriman'];
+    // Any story Claude classified as "alumni" gets a tight cap of 1 main-feed slot,
+    // regardless of which alumnus it's about (not just a hardcoded list of names) —
+    // general Terps topics still get 3.
     // Check original titles (not Claude's rewrites) for reliable name detection
     var topicRatingCount = {};
     var overflowStories = [];
     // Sort by rating desc so highest-rated stories claim their topic slots first
     var sortedByRating = withUrls.slice().sort(function(a, b) { return (b.rating || 0) - (a.rating || 0); });
     var mainIds = new Set();
+    var alumniTopics = {};
     sortedByRating.forEach(function(item) {
       var orig = stories[item.idx - 1];
       var originalTitle = orig ? orig.title : (item.headline || '');
@@ -243,7 +245,8 @@ module.exports = async function handler(req, res) {
       var overflowTopic = null;
       for (var n of names) {
         topicRatingCount[n] = (topicRatingCount[n] || 0) + 1;
-        var cap = alumniNames.includes(n.toLowerCase()) ? 1 : 3;
+        if (item.category === 'alumni') alumniTopics[n] = true;
+        var cap = (item.category === 'alumni' || alumniTopics[n]) ? 1 : 3;
         if (topicRatingCount[n] > cap) overflowTopic = n;
       }
       if (overflowTopic) {
@@ -255,15 +258,22 @@ module.exports = async function handler(req, res) {
 
     var final = withUrls.filter(function(item) { return mainIds.has(item.idx); });
 
-    // Tag main items that have overflow siblings
+    // Tag main items that have overflow siblings — only the single highest-rated
+    // main item per name gets the "+N more" link, so a name never shows it twice.
     var overflowCountByTopic = {};
     overflowStories.forEach(function(s) {
       overflowCountByTopic[s.trendingTopic] = (overflowCountByTopic[s.trendingTopic] || 0) + 1;
     });
+    var taggedNames = {};
     final.forEach(function(item) {
       var names = (item.headline || '').match(/\b[A-Z][a-z]+ [A-Z][a-z]+\b/g) || [];
       for (var n of names) {
-        if (overflowCountByTopic[n]) { item.trendingTopic = n; item.overflowCount = overflowCountByTopic[n]; break; }
+        if (overflowCountByTopic[n] && !taggedNames[n]) {
+          item.trendingTopic = n;
+          item.overflowCount = overflowCountByTopic[n];
+          taggedNames[n] = true;
+          break;
+        }
       }
     });
 
