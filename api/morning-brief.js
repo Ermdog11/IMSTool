@@ -1,4 +1,4 @@
-const sgMail = require('@sendgrid/mail');
+var mailer = require('./_mailer.js');
 
 module.exports = async function handler(req, res) {
   var ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY;
@@ -6,8 +6,8 @@ module.exports = async function handler(req, res) {
   var ALERT_EMAIL = process.env.ALERT_EMAIL;
   var FROM_EMAIL = process.env.FROM_EMAIL;
 
-  if (!ANTHROPIC_API_KEY || !SENDGRID_API_KEY || !ALERT_EMAIL || !FROM_EMAIL) {
-    return res.status(500).json({ error: 'Missing environment variables.' });
+  if (!ANTHROPIC_API_KEY) {
+    return res.status(500).json({ error: 'Missing ANTHROPIC_API_KEY.' });
   }
 
   try {
@@ -38,12 +38,9 @@ module.exports = async function handler(req, res) {
     var date = new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' });
     var recipients = ALERT_EMAIL.split(',').map(function(e) { return e.trim(); }).filter(Boolean);
 
-    sgMail.setApiKey(SENDGRID_API_KEY);
 
     if (alerts.length === 0) {
-      await sgMail.send({
-        to: recipients,
-        from: FROM_EMAIL,
+      await mailer.sendMail({
         subject: 'InsideMDSports morning brief — ' + date,
         html: '<div style="font-family:-apple-system,sans-serif;max-width:500px;margin:0 auto;padding:20px;"><div style="background:#cf0315;padding:12px 16px;border-radius:8px 8px 0 0;"><span style="color:white;font-weight:700;">InsideMDSports morning brief — ' + date + '</span></div><div style="background:white;padding:16px;border-radius:0 0 8px 8px;"><p style="color:#555;font-size:14px;">All quiet overnight. No significant Terps news since midnight.</p></div></div>'
       });
@@ -54,9 +51,7 @@ module.exports = async function handler(req, res) {
           '<div style="font-size:11px;color:#888;margin-top:3px;">' + a.source + ' &middot; ' + a.time + '</div></div>';
       }).join('');
 
-      await sgMail.send({
-        to: recipients,
-        from: FROM_EMAIL,
+      await mailer.sendMail({
         subject: 'InsideMDSports morning brief — ' + alerts.length + ' overnight stories',
         html: '<div style="font-family:-apple-system,sans-serif;max-width:500px;margin:0 auto;padding:20px;"><div style="background:#cf0315;padding:12px 16px;border-radius:8px 8px 0 0;"><span style="color:white;font-weight:700;">InsideMDSports morning brief — ' + date + '</span></div><div style="background:white;padding:16px;border-radius:0 0 8px 8px;"><p style="font-size:12px;color:#888;margin-bottom:12px;">Here\'s what happened overnight. ' + alerts.length + ' stories.</p>' + itemsHTML + '</div></div>'
       });

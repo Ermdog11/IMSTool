@@ -1,4 +1,4 @@
-const sgMail = require('@sendgrid/mail');
+var mailer = require('./_mailer.js');
 
 const buildDigestPrompt = () => `You are a news monitor for InsideMDSports, covering University of Maryland Terrapins athletics. Search for ALL Maryland Terrapins news from the past 24 hours across all sources.
 
@@ -58,8 +58,8 @@ module.exports = async function handler(req, res) {
   var ALERT_EMAIL = process.env.ALERT_EMAIL;
   var FROM_EMAIL = process.env.FROM_EMAIL;
 
-  if (!ANTHROPIC_API_KEY || !SENDGRID_API_KEY || !ALERT_EMAIL || !FROM_EMAIL) {
-    return res.status(500).json({ error: 'Missing environment variables.' });
+  if (!ANTHROPIC_API_KEY) {
+    return res.status(500).json({ error: 'Missing ANTHROPIC_API_KEY.' });
   }
 
   try {
@@ -81,11 +81,7 @@ module.exports = async function handler(req, res) {
     var alerts = JSON.parse(match[0]).filter(function(a) { return !a.republished; });
     var date = new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' });
 
-    sgMail.setApiKey(SENDGRID_API_KEY);
-    var recipients = ALERT_EMAIL.split(',').map(function(e) { return e.trim(); }).filter(Boolean);
-    await sgMail.send({
-      to: recipients,
-      from: FROM_EMAIL,
+    await mailer.sendMail({
       subject: 'InsideMDSports nightly digest — ' + date,
       html: buildDigestEmailHTML(alerts, date)
     });
