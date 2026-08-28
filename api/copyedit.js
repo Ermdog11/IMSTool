@@ -9,21 +9,23 @@ var BROWSER_UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (
 async function relatedArticleIndex() {
   try {
     var c = new AbortController();
-    var t = setTimeout(function () { c.abort(); }, 9000);
+    var t = setTimeout(function () { c.abort(); }, 12000);
     var html = await fetch('https://247sports.com/college/maryland/', {
-      headers: { 'User-Agent': BROWSER_UA, 'Accept': 'text/html,*/*', 'Accept-Language': 'en-US,en;q=0.9' },
+      headers: { 'User-Agent': BROWSER_UA },
       signal: c.signal
     }).then(function (r) { return r.text(); }).finally(function () { clearTimeout(t); });
 
     var seen = {};
     var out = [];
-    var re = /https:\/\/247sports\.com\/college\/maryland\/(?:article|longformarticle)\/([a-z0-9-]+)-(\d{6,})\/?/g;
+    // Matches relative or absolute: /college/maryland/article/<slug>-<id>/  (same as scan.js)
+    var re = /\/college\/maryland\/(?:article|longformarticle)\/([a-z0-9-]+)-(\d{6,})/g;
     var m;
     while ((m = re.exec(html)) !== null) {
-      var url = m[0].replace(/\/?$/, '/');
-      if (seen[url]) continue;
-      seen[url] = 1;
-      out.push({ url: url, headline: m[1].replace(/-/g, ' ').replace(/\b\w/g, function (x) { return x.toUpperCase(); }) });
+      var slug = m[1];
+      var url = 'https://247sports.com/college/maryland/article/' + slug + '-' + m[2] + '/';
+      if (seen[slug]) continue;
+      seen[slug] = 1;
+      out.push({ url: url, headline: slug.replace(/-/g, ' ').replace(/\b\w/g, function (x) { return x.toUpperCase(); }) });
       if (out.length >= 30) break;
     }
     return out;
