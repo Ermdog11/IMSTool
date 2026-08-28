@@ -2,9 +2,6 @@ var mailer = require('./_mailer.js');
 
 module.exports = async function handler(req, res) {
   var ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY;
-  var SENDGRID_API_KEY = process.env.SENDGRID_API_KEY;
-  var ALERT_EMAIL = process.env.ALERT_EMAIL;
-  var FROM_EMAIL = process.env.FROM_EMAIL;
 
   if (!ANTHROPIC_API_KEY) {
     return res.status(500).json({ error: 'Missing ANTHROPIC_API_KEY.' });
@@ -36,8 +33,6 @@ module.exports = async function handler(req, res) {
       }
     }
     var date = new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' });
-    var recipients = ALERT_EMAIL.split(',').map(function(e) { return e.trim(); }).filter(Boolean);
-
 
     if (alerts.length === 0) {
       await mailer.sendMail({

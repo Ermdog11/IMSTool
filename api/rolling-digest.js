@@ -1,10 +1,10 @@
-const sgMail = require('@sendgrid/mail');
+const mailer = require('./_mailer.js');
 
-// Which slot -> how many hours back to look (gap since the previous send in the 8am/12pm/7pm ET schedule)
+// Which slot -> how many hours back to look (gap since the previous send in the 8am/12pm/5pm ET schedule, plus buffer)
 var WINDOW_HOURS = {
-  morning: 13,  // since last night's 7pm send
-  midday: 4,    // since this morning's 8am send
-  evening: 7    // since today's noon send
+  morning: 16,  // since last night's 5pm send
+  midday: 5,    // since this morning's 8am send
+  evening: 6    // since today's noon send
 };
 
 var SLOT_LABEL = {
@@ -59,12 +59,9 @@ function buildEmailHTML(alerts, date, slot) {
 
 module.exports = async function handler(req, res) {
   var ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY;
-  var SENDGRID_API_KEY = process.env.SENDGRID_API_KEY;
-  var ALERT_EMAIL = process.env.ALERT_EMAIL;
-  var FROM_EMAIL = process.env.FROM_EMAIL;
 
-  if (!ANTHROPIC_API_KEY || !SENDGRID_API_KEY || !ALERT_EMAIL || !FROM_EMAIL) {
-    return res.status(500).json({ error: 'Missing environment variables.' });
+  if (!ANTHROPIC_API_KEY) {
+    return res.status(500).json({ error: 'Missing ANTHROPIC_API_KEY.' });
   }
 
   var slot = (req.query && req.query.slot) || 'morning';
@@ -95,19 +92,15 @@ module.exports = async function handler(req, res) {
     });
 
     var date = new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' });
-    var recipients = ALERT_EMAIL.split(',').map(function(e) { return e.trim(); }).filter(Boolean);
 
-    sgMail.setApiKey(SENDGRID_API_KEY);
-    await sgMail.send({
-      to: recipients,
-      from: FROM_EMAIL,
+    var mailResult = await mailer.sendMail({
       subject: alerts.length
         ? 'InsideMDSports ' + SLOT_LABEL[slot] + ' update — ' + alerts.length + ' new ' + (alerts.length === 1 ? 'story' : 'stories')
         : 'InsideMDSports ' + SLOT_LABEL[slot] + ' update — nothing new',
       html: buildEmailHTML(alerts, date, slot)
     });
 
-    return res.status(200).json({ success: true, slot: slot, count: alerts.length, date: date });
+    return res.status(200).json({ success: true, slot: slot, count: alerts.length, date: date, mail: mailResult });
   } catch (error) {
     console.error('Rolling digest error (' + slot + '):', error);
     return res.status(500).json({ success: false, error: error.message });

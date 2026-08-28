@@ -54,9 +54,6 @@ const buildDigestEmailHTML = (alerts, date) => {
 
 module.exports = async function handler(req, res) {
   var ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY;
-  var SENDGRID_API_KEY = process.env.SENDGRID_API_KEY;
-  var ALERT_EMAIL = process.env.ALERT_EMAIL;
-  var FROM_EMAIL = process.env.FROM_EMAIL;
 
   if (!ANTHROPIC_API_KEY) {
     return res.status(500).json({ error: 'Missing ANTHROPIC_API_KEY.' });

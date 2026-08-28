@@ -41,7 +41,7 @@
     },
     {
       "path": "/api/rolling-digest?slot=evening",
-      "schedule": "0 23 * * *"
+      "schedule": "0 21 * * *"
     }
   ]
 }
