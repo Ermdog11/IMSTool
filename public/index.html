@@ -438,6 +438,8 @@ body { padding-bottom: 40px; }
     <div class="src-row ex"><i class="ti ti-x"></i> IMS Radio podcast — your own show</div>
     <div class="src-row ex"><i class="ti ti-x"></i> Minor sports (tennis, track, golf, wrestling, field hockey, softball, baseball, lacrosse, soccer, gymnastics, swimming) unless major news</div>
     <div style="font-size:11px;color:var(--text3);margin-top:8px;line-height:1.5;">Note: if another outlet cites or reacts to your reporting, that reaction IS included.</div>
+    <div class="sdiv-label">Sites you blocked</div>
+    <div id="blockedSourcesList"></div>
   </div>
 
   <div class="settings-card">
@@ -589,6 +591,7 @@ function switchTab(idx) {
   if (idx === 7) loadPodcasts();
   if (idx === 8) loadYouTube();
   if (idx === 9) loadBluesky();
+  if (idx === 10) renderBlockedSources();
 }
 
 // ============================================================
@@ -653,6 +656,7 @@ function renderAlerts() {
         <button class="aaction" onclick="getSocial(${idx})"><i class="ti ti-brand-twitter"></i> Draft social</button>
         <button class="aaction" onclick="claimStory(${idx})"><i class="ti ti-hand-stop"></i> Claim</button>
         <button class="aaction" onclick="flagStory(${idx})" title="Flag as junk — trains the scanner to exclude similar stories" style="color:#c00;"><i class="ti ti-flag"></i> Flag</button>
+        <button class="aaction" onclick="blockSource(${idx})" title="Block ${(a.source||'').replace(/"/g,'&quot;')} — hide this site from all future results" style="color:#c00;"><i class="ti ti-ban"></i> Block source</button>
       </div>
       <div class="aaction-output" id="output-${idx}"></div>
     </div>`;
@@ -693,18 +697,21 @@ function renderPodcastCache() {
     c.innerHTML = '<div class="empty"><i class="ti ti-microphone"></i> No podcast episodes found. <button onclick="refreshPodcasts()" style="margin-left:8px;background:var(--red);color:#fff;border:none;border-radius:4px;padding:3px 10px;cursor:pointer;font-size:.8rem;">Refresh</button></div>';
     return;
   }
+  const visible = eps.filter(ep => !isBlockedSource(ep.podcast));
   const cards = [];
-  for (let i = 0; i < eps.length; i++) {
-    const ep = eps[i];
+  for (let i = 0; i < visible.length; i++) {
+    const ep = visible[i];
     const titleHtml = ep.url
       ? '<a href="' + ep.url + '" target="_blank" rel="noopener" style="color:inherit;text-decoration:underline;">' + ep.title + '</a>'
       : ep.title;
+    const show = (ep.podcast || '').replace(/'/g, "\\'");
     cards.push('<div class="acard" style="margin-bottom:10px;">' +
       '<div class="acard-headline" style="font-size:.92rem;">' + titleHtml + '</div>' +
       '<div class="acard-meta" style="margin-top:4px;">' +
         '<span class="tag tag-soc">Podcast</span>' +
         '<span class="asrc">' + (ep.podcast || '') + '</span>' +
         '<span class="atime">' + ep.age + 'h ago</span>' +
+        (ep.podcast ? '<button class="aaction" onclick="blockPodcast(\'' + show + '\')" title="Hide this show from all future results" style="color:#c00;padding:1px 8px;"><i class="ti ti-ban"></i> Block show</button>' : '') +
       '</div>' +
       (ep.description ? '<div class="asum" style="margin-top:6px;">' + ep.description + '…</div>' : '') +
       '</div>');
@@ -717,7 +724,8 @@ async function loadPodcasts() {
   if (!c) return;
   c.innerHTML = '<div class="empty"><i class="ti ti-loader spin"></i> Searching podcast episodes...</div>';
   try {
-    const res = await fetch('/api/podcasts', { cache: 'no-store' });
+    const blockedQ = getBlockedSources().length ? '?blocked=' + encodeURIComponent(getBlockedSources().join(',')) : '';
+    const res = await fetch('/api/podcasts' + blockedQ, { cache: 'no-store' });
     const data = await res.json();
     podcastCache = data.episodes || [];
     renderPodcastCache();
@@ -780,6 +788,73 @@ function flagStory(idx) {
   localStorage.setItem('flaggedStories', JSON.stringify(flagged.slice(-30)));
   allAlerts.splice(idx, 1);
   renderAlerts();
+}
+
+// ============================================================
+// BLOCKED SOURCES — hide a whole site from all future results
+// ============================================================
+function getBlockedSources() {
+  try { return JSON.parse(localStorage.getItem('blockedSources') || '[]'); } catch(e) { return []; }
+}
+
+function isBlockedSource(src) {
+  const s = (src || '').trim().toLowerCase();
+  if (!s) return false;
+  return getBlockedSources().some(b => {
+    const bl = String(b).trim().toLowerCase();
+    return bl && (s === bl || s.includes(bl) || bl.includes(s));
+  });
+}
+
+function blockSource(idx) {
+  const a = allAlerts[idx];
+  if (!a || !a.source) return;
+  const name = a.source.trim();
+  const blocked = getBlockedSources();
+  if (!blocked.some(b => String(b).trim().toLowerCase() === name.toLowerCase())) {
+    blocked.push(name);
+    localStorage.setItem('blockedSources', JSON.stringify(blocked.slice(-100)));
+  }
+  // Drop every story from this source in the current view
+  allAlerts = allAlerts.filter(x => !isBlockedSource(x.source));
+  overflowAlerts = overflowAlerts.filter(x => !isBlockedSource(x.source));
+  renderAlerts();
+  renderTrending();
+  renderBlockedSources();
+}
+
+function blockPodcast(name) {
+  if (!name) return;
+  const n = String(name).trim();
+  const blocked = getBlockedSources();
+  if (!blocked.some(b => String(b).trim().toLowerCase() === n.toLowerCase())) {
+    blocked.push(n);
+    localStorage.setItem('blockedSources', JSON.stringify(blocked.slice(-100)));
+  }
+  if (podcastCache) podcastCache = podcastCache.filter(ep => !isBlockedSource(ep.podcast));
+  renderPodcastCache();
+  renderBlockedSources();
+}
+
+function unblockSource(name) {
+  const blocked = getBlockedSources().filter(b => String(b).trim().toLowerCase() !== String(name).trim().toLowerCase());
+  localStorage.setItem('blockedSources', JSON.stringify(blocked));
+  renderBlockedSources();
+}
+
+function renderBlockedSources() {
+  const c = document.getElementById('blockedSourcesList');
+  if (!c) return;
+  const blocked = getBlockedSources();
+  if (!blocked.length) {
+    c.innerHTML = '<div style="font-size:11px;color:var(--text3);">None yet — use the “Block source” button on an alert to hide a site here.</div>';
+    return;
+  }
+  c.innerHTML = blocked.map(b =>
+    `<div class="src-row ex"><i class="ti ti-x"></i> ${b}` +
+    `<button onclick="unblockSource('${String(b).replace(/'/g,"\\'")}')" ` +
+    `style="margin-left:8px;background:none;border:1px solid var(--border);border-radius:4px;padding:1px 7px;cursor:pointer;color:var(--text3);font-size:10px;">unblock</button></div>`
+  ).join('');
 }
 
 async function loadBluesky() {
@@ -918,7 +993,7 @@ async function runScan() {
     const res = await fetch('/api/scan', {
       method: 'POST',
       headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({ flagged: getFlagged() })
+      body: JSON.stringify({ flagged: getFlagged(), blockedSources: getBlockedSources() })
     });
     const data = await res.json();
     if (data.error) throw new Error(typeof data.error === 'string' ? data.error : data.error.message || 'API error');
@@ -931,8 +1006,11 @@ async function runScan() {
     if (start === -1 || end === -1) throw new Error('No alerts found in scan response');
     let results = JSON.parse(cleaned.substring(start, end + 1));
     results = results.filter(a => !EXCLUDED.some(ex => (a.source||'').toLowerCase().includes(ex.toLowerCase())));
+    results = results.filter(a => !isBlockedSource(a.source));
     allAlerts = results;
-    overflowAlerts = (data.overflow || []).filter(s => !EXCLUDED.some(ex => (s.source||'').toLowerCase().includes(ex.toLowerCase())));
+    overflowAlerts = (data.overflow || [])
+      .filter(s => !EXCLUDED.some(ex => (s.source||'').toLowerCase().includes(ex.toLowerCase())))
+      .filter(s => !isBlockedSource(s.source));
     lastScanTime = Date.now();
 
     document.getElementById('m-total').textContent = allAlerts.length;

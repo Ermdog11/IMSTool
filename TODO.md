@@ -17,6 +17,7 @@
 - [ ] **Message board activity spike detector** — only free boards are Testudo Times comments (JS-heavy, not simply scrapeable) and Reddit (blocked until API credentials). Revisit after Reddit API is set up.
 - [ ] **Local TV RSS** — WBAL, WJZ, WUSA9 sports feeds
 - [ ] **MaxPreps/HS sports** — recruit performances before national radar
+- [ ] **Shared/server-side source blocklist** — source blocking is per-browser only right now (localStorage `blockedSources`). If the team wants a shared blocklist, move it to a stored config the scan/podcasts endpoints read.
 
 ## Done
 - [x] Bing News RSS (3 queries — independent index from Google)
@@ -36,3 +37,12 @@
 - [x] Republished article detection + ♻️ Republished tab
 - [x] Jeff's own content (InsideMDSports/247Sports Maryland) excluded everywhere
 - [x] HTML caching disabled so UI updates reach browsers immediately
+- [x] Blocked low-quality aggregator podcast shows by name ("Maryland Terrapins Football News Today", "Maryland Basketball Football News Today") — filtered out of both the curated feed parse and the iTunes discovery results in api/podcasts.js
+- [x] "Block this source" button added to article cards (public/index.html) — hides all current + future stories from that source, stored per-browser in localStorage (`blockedSources`), same pattern as the existing Flag button. Blocked sources are also sent to api/scan.js (folded into its `excluded` list) and api/podcasts.js (`?blocked=` query param) so filtering happens server-side too.
+- [x] "Block show" button on podcast cards + Settings → "Sites you blocked" list with per-entry unblock (public/index.html) — gives a way to view and undo blocks.
+
+## Context for future sessions
+- **Alumni story cap (no duplicate alumni coverage):** api/scan.js has a post-rating cap step — any story Claude categorizes as "alumni" gets a hard limit of 1 main-feed slot regardless of which alumnus it's about (general Terps topics get 3). This exists so the main feed doesn't fill up with 4-5 stories about the same former player's NFL/NBA game. Overflow stories aren't dropped — they go to the 🔥 Trending overflow tab. This is intentional, established behavior — don't "fix" it as a bug if it looks like stories are being hidden.
+- **Editorial voice/style rules** (for anything that touches article generation, not the news scanner itself): AP style, no bold/headers unless asked, no filler phrases or sports clichés, cite 247Sports ratings only (never Rivals/ESPN), research before writing.
+- **Jeff is non-technical** — walk through git/terminal steps explicitly when they come up, don't assume familiarity with command line basics.
+- **Source blocking is per-browser** (localStorage `blockedSources`) — there's no server-side/shared blocklist. There IS now a UI to view and unblock (Settings → "Sites you blocked"). A shared blocklist would need the endpoints to read from stored config instead of the request body — see Pending.

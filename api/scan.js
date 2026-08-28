@@ -22,6 +22,11 @@ module.exports = async function handler(req, res) {
   var cutoff = Date.now() - 36 * 60 * 60 * 1000;
   var googleCutoff = Date.now() - 36 * 60 * 60 * 1000;
   var excluded = ['insidemd', 'jeff ermann', 'ims radio', 'maryland.247sports', '247sports.com/college/maryland', 'insidetheshell'];
+  // Sources the editor has blocked via the "Block source" button — filtered out below and never shown again.
+  var userBlocked = ((req.body && req.body.blockedSources) || [])
+    .map(function(s) { return String(s || '').trim().toLowerCase(); })
+    .filter(Boolean);
+  if (userBlocked.length) excluded = excluded.concat(userBlocked);
 
   try {
     // RSS/news feeds: name is for diagnostics, src is the fallback source label

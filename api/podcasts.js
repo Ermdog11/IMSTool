@@ -35,6 +35,22 @@ module.exports = async function handler(req, res) {
     'Sports Wave Baltimore'
   ];
 
+  // Podcast shows / sources to always exclude from results. Auto-generated
+  // "news today" shows are low-quality text-to-speech spam.
+  var blockedPodcasts = [
+    'maryland terrapins football news today',
+    'maryland basketball football news today'
+  ];
+  try {
+    var extraBlocked = String((req.query && req.query.blocked) || '')
+      .split(',').map(function(s) { return s.trim().toLowerCase(); }).filter(Boolean);
+    blockedPodcasts = blockedPodcasts.concat(extraBlocked);
+  } catch (e) { /* ignore */ }
+  function isBlockedPodcast(name) {
+    var n = (name || '').toLowerCase();
+    return blockedPodcasts.some(function(b) { return b && n.includes(b); });
+  }
+
   var keywords = ['terps', 'terrapins', 'maryland football', 'maryland basketball', 'maryland lacrosse', 'maryland recruiting', 'mike locksley', 'buzz williams', 'kevin willard', 'brenda frese', 'university of maryland', 'malik washington', 'zahir mathis', 'pharrel payne', 'baba oladotun', 'kaden house', 'dj wagner', 'andre mills', 'juan dixon', 'big ten basketball', 'derik queen'];
   var cutoff = Date.now() - 14 * 24 * 60 * 60 * 1000; // 14 days
 
@@ -146,6 +162,9 @@ module.exports = async function handler(req, res) {
         episodes.push(ep);
       });
     });
+
+    // Drop episodes from blocked shows/sources
+    episodes = episodes.filter(function(ep) { return !isBlockedPodcast(ep.podcast); });
 
     // Dedupe by title
     var seen = [];
