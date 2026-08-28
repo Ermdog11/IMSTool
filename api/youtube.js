@@ -4,7 +4,7 @@ module.exports = async function handler(req, res) {
   var key = process.env.YOUTUBE_API_KEY;
   if (!key) return res.status(200).json({ videos: [], error: 'YOUTUBE_API_KEY not set — add it in Vercel environment variables' });
 
-  var cutoff = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
+  var cutoff = new Date(Date.now() - 10 * 24 * 60 * 60 * 1000).toISOString();
 
   // 20 OR-groups mirroring the Google News queries. Names are paired with Maryland/Terps
   // context wherever ambiguity is possible so unrelated content (including cannabis "terps") is avoided.
@@ -31,8 +31,8 @@ module.exports = async function handler(req, res) {
     '"Aaron Wiggins" Maryland | "Derik Queen" | "Pharrel Payne" | "Big Ten basketball" Maryland'
   ];
 
-  // Rotate 5 groups per request to conserve quota (search costs 100 units each; 10k/day free)
-  var batchSize = 5;
+  // Rotate groups per request to conserve quota (search costs 100 units each; 10k/day free)
+  var batchSize = 7;
   var startIdx = (searchRotation * batchSize) % allTerms.length;
   searchRotation++;
   var terms = [];
@@ -67,9 +67,26 @@ module.exports = async function handler(req, res) {
     return gamingTerms.some(function(g) { return t.includes(g); });
   }
 
+  // AI-narrated / text-to-speech / auto-generated spam. These channels churn out
+  // dozens of robotic recap videos a day.
+  var aiPhrases = [
+    'ai voice', 'ai-generated', 'ai generated', 'text to speech', 'text-to-speech',
+    'ai narrat', 'generated with ai', 'powered by ai', 'this video was created using',
+    'synthetic voice', 'automated news', 'auto-generated', 'tts '
+  ];
+  var aiChannelPatterns = /(news now|sports now|now sports|daily sports|sports daily|news today|today news|sports report|report sports|sports central|central sports|fan nation|hoops nation|gridiron nation|rumor|rumors|breaking sports|sports break|insider report|\bai\b|\bbot\b|robot)/i;
+  var clickbaitTitle = /(SHOCK(?:ING|ED|S)?|STUNNED|STUNNING|JUST IN|BREAKING NEWS|YOU WON'?T BELIEVE|BOMBSHELL|MASSIVE NEWS|HUGE NEWS)\b.*[!?]{2,}|[!?]{3,}|🚨\s*🚨/;
+  function isAiSpam(title, desc, channel) {
+    var t = ((title || '') + ' ' + (desc || '')).toLowerCase();
+    if (aiPhrases.some(function(p) { return t.includes(p); })) return true;
+    if (aiChannelPatterns.test(channel || '')) return true;
+    if (clickbaitTitle.test(title || '')) return true;
+    return false;
+  }
+
   try {
     var searches = terms.map(function(term) {
-      var url = 'https://www.googleapis.com/youtube/v3/search?part=snippet&type=video&order=date&maxResults=10&publishedAfter=' + encodeURIComponent(cutoff) + '&q=' + encodeURIComponent(term) + '&key=' + key;
+      var url = 'https://www.googleapis.com/youtube/v3/search?part=snippet&type=video&order=date&maxResults=15&publishedAfter=' + encodeURIComponent(cutoff) + '&q=' + encodeURIComponent(term) + '&key=' + key;
       return fetch(url).then(function(r) { return r.json(); }).catch(function() { return {}; });
     });
 
@@ -93,11 +110,13 @@ module.exports = async function handler(req, res) {
         if (isGaming(text)) return;
         if (isCannabis(text)) return;
         if (isConcertVenue(text)) return;
+        if (isAiSpam(title, desc, channel)) return;
         var norm = title.toLowerCase().replace(/[^a-z0-9 ]/g, '').substring(0, 60);
         if (seen.includes(norm)) return;
         seen.push(norm);
         var pubMs = sn.publishedAt ? new Date(sn.publishedAt).getTime() : 0;
         videos.push({
+          videoId: item.id.videoId,
           title: title,
           channel: channel,
           channelId: sn.channelId || '',
@@ -109,29 +128,72 @@ module.exports = async function handler(req, res) {
       });
     });
 
-    // Filter out channels with fewer than 150 subscribers (garbage/bot content)
+    // Enrich with full descriptions + view counts (videos.list is 1 unit / call, batched 50)
+    var vidStats = {};
+    var vidIds = videos.map(function(v) { return v.videoId; }).filter(Boolean);
+    for (var vi = 0; vi < vidIds.length; vi += 50) {
+      var vbatch = vidIds.slice(vi, vi + 50);
+      try {
+        var vRes = await fetch('https://www.googleapis.com/youtube/v3/videos?part=snippet,statistics&id=' + vbatch.join(',') + '&key=' + key);
+        if (vRes.ok) {
+          var vData = await vRes.json();
+          (vData.items || []).forEach(function(v) {
+            vidStats[v.id] = {
+              fullDesc: (v.snippet && v.snippet.description) || '',
+              views: parseInt((v.statistics && v.statistics.viewCount) || '0', 10)
+            };
+          });
+        }
+      } catch (e) { /* fall back to search-snippet data */ }
+    }
+    videos.forEach(function(v) {
+      var s = vidStats[v.videoId];
+      if (s) { v.fullDesc = s.fullDesc; v.views = s.views; }
+    });
+    // Re-check the AI/spam filter with the full description now that we have it
+    videos = videos.filter(function(v) { return !isAiSpam(v.title, v.fullDesc || '', v.channel); });
+
+    // Channel quality gate: subscriber floor + content-farm ratio (subs vs upload count)
     var channelIds = [];
-    videos.forEach(function(v) { if (v.channelId && !channelIds.includes(v.channelId)) channelIds.push(v.channelId); });
-    var subCounts = {};
+    videos.forEach(function(v) { if (v.channelId && channelIds.indexOf(v.channelId) === -1) channelIds.push(v.channelId); });
+    var chStats = {};
     for (var ci = 0; ci < channelIds.length; ci += 50) {
       var batch = channelIds.slice(ci, ci + 50);
       try {
-        var chUrl = 'https://www.googleapis.com/youtube/v3/channels?part=statistics&id=' + batch.join(',') + '&key=' + key;
-        var chRes = await fetch(chUrl);
+        var chRes = await fetch('https://www.googleapis.com/youtube/v3/channels?part=statistics&id=' + batch.join(',') + '&key=' + key);
         if (chRes.ok) {
           var chData = await chRes.json();
           (chData.items || []).forEach(function(ch) {
-            subCounts[ch.id] = parseInt((ch.statistics && ch.statistics.subscriberCount) || '0', 10);
+            chStats[ch.id] = {
+              subs: parseInt((ch.statistics && ch.statistics.subscriberCount) || '0', 10),
+              videos: parseInt((ch.statistics && ch.statistics.videoCount) || '0', 10)
+            };
           });
         }
-      } catch(e) { /* pass through on lookup failure */ }
+      } catch (e) { /* pass through on lookup failure */ }
     }
     videos = videos.filter(function(v) {
-      var count = subCounts[v.channelId];
-      return count === undefined || count >= 150;
+      var c = chStats[v.channelId];
+      if (!c) return true; // couldn't look up — keep
+      if (c.subs < 400) return false;
+      // content farm: thousands of uploads, comparatively few subscribers
+      if (c.videos > 1500 && c.subs < 15000) return false;
+      return true;
     });
 
-    videos.sort(function(a, b) { return a.age - b.age; });
+    // Sort: real engagement first, then recency
+    videos.sort(function(a, b) {
+      var av = a.views || 0, bv = b.views || 0;
+      if ((av >= 500) !== (bv >= 500)) return (bv >= 500 ? 1 : 0) - (av >= 500 ? 1 : 0);
+      return a.age - b.age;
+    });
+
+    // Surface a longer description now that we have the full text
+    videos.forEach(function(v) {
+      if (v.fullDesc) v.description = v.fullDesc.replace(/\s+/g, ' ').trim().substring(0, 400);
+      delete v.fullDesc;
+      delete v.videoId;
+    });
 
     if (!videos.length && apiError) return res.status(200).json({ videos: [], error: apiError });
     return res.status(200).json({ videos: videos, searched: terms });
