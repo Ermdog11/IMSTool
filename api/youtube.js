@@ -1,8 +1,16 @@
 var searchRotation = 0;
+// Module-level cache survives warm invocations — the dashboard tab and scan.js both hit
+// this endpoint, and each search costs 100 quota units (10k/day free).
+var ytCache = { at: 0, payload: null };
+var YT_CACHE_MS = 15 * 60 * 1000;
 
 module.exports = async function handler(req, res) {
   var key = process.env.YOUTUBE_API_KEY;
   if (!key) return res.status(200).json({ videos: [], error: 'YOUTUBE_API_KEY not set — add it in Vercel environment variables' });
+
+  if (ytCache.payload && (Date.now() - ytCache.at) < YT_CACHE_MS) {
+    return res.status(200).json(Object.assign({ cached: true }, ytCache.payload));
+  }
 
   var cutoff = new Date(Date.now() - 10 * 24 * 60 * 60 * 1000).toISOString();
 
@@ -33,6 +41,8 @@ module.exports = async function handler(req, res) {
 
   // Rotate groups per request to conserve quota (search costs 100 units each; 10k/day free)
   var batchSize = 7;
+  var bReq = parseInt((req.query && req.query.batch) || '', 10);
+  if (bReq >= 1 && bReq <= 12) batchSize = bReq;
   var startIdx = (searchRotation * batchSize) % allTerms.length;
   searchRotation++;
   var terms = [];
@@ -196,7 +206,9 @@ module.exports = async function handler(req, res) {
     });
 
     if (!videos.length && apiError) return res.status(200).json({ videos: [], error: apiError });
-    return res.status(200).json({ videos: videos, searched: terms });
+    var payload = { videos: videos, searched: terms };
+    ytCache = { at: Date.now(), payload: payload };
+    return res.status(200).json(payload);
   } catch(e) {
     return res.status(500).json({ videos: [], error: e.message });
   }

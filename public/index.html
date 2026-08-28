@@ -576,6 +576,7 @@ const WATCH_LIST = [];
 // ============================================================
 let allAlerts = [];
 let overflowAlerts = [];
+let allVideos = [];
 let podcastCache = null;
 let currentFilter = 'all';
 let savedEmail = '';
@@ -659,15 +660,17 @@ function renderAlerts() {
     const ratingLabel = a.rating === 5 ? '🔴 5 — Breaking' : a.rating === 4 ? '🟡 4 — High' : a.rating === 3 ? '🔵 3 — Solid' : `${a.rating} — Low`;
     const tagClass = isRec ? 'tag-rec' : a.sport === 'football' ? 'tag-fb' : isBball(a.sport) ? 'tag-bk' : a.category === 'alumni' ? 'tag-alum' : ['social','podcast'].includes(a.category) ? 'tag-soc' : 'tag-gen';
     const catLabel = isRec ? 'Recruiting' : a.category === 'alumni' ? 'Alumni' : a.category === 'social' ? 'Social' : a.category === 'podcast' ? 'Podcast' : 'News';
+    const isVideo = a.kind === 'video';
     return `<div class="acard ${cardClass}" id="card-${idx}">
       <div class="acard-top">
-             <div class="acard-headline">${a.url ? `<a href="${a.url}" target="_blank" rel="noopener" style="color:inherit;text-decoration:underline;">${a.headline}</a>` : a.headline}</div>
+             <div class="acard-headline">${isVideo ? '📺 ' : ''}${a.url ? `<a href="${a.url}" target="_blank" rel="noopener" style="color:inherit;text-decoration:underline;">${a.headline}</a>` : a.headline}</div>
         <span class="rating ${ratingClass}">${ratingLabel}</span>
       </div>
+      ${isVideo && a.thumbnail ? `<a href="${a.url}" target="_blank" rel="noopener"><img src="${a.thumbnail}" style="width:180px;max-width:45%;border-radius:6px;margin:4px 0;" alt=""></a>` : ''}
       <div class="acard-meta">
-        <span class="tag ${tagClass}">${catLabel}</span>
+        <span class="tag ${isVideo ? 'tag-soc' : tagClass}">${isVideo ? 'YouTube' : catLabel}</span>
         ${a.sport ? `<span class="tag tag-gen">${a.sport}</span>` : ''}
-        <span class="asrc">${a.source}</span>
+        <span class="asrc">${isVideo ? (a.channel || a.source) : a.source}</span>
         <span class="atime">${a.time}</span>
       </div>
       ${a.trendingTopic && a.overflowCount ? `<div style="margin:4px 0 2px;"><a href="#" onclick="toggleOverflow(${idx},'${a.trendingTopic.replace(/'/g,"\\'")}',this);return false;" style="font-size:.78rem;color:var(--red);font-weight:600;text-decoration:none;">🔥 +${a.overflowCount} more ${a.trendingTopic} stories</a><div class="ovf-inline" id="ovf-${idx}" style="display:none;margin-top:6px;padding-left:10px;border-left:2px solid var(--red);"></div></div>` : ''}
@@ -762,37 +765,29 @@ async function refreshPodcasts() {
   await loadPodcasts();
 }
 
-async function loadYouTube() {
+function loadYouTube() {
   const c = document.getElementById('youtubeContainer');
   if (!c) return;
-  c.innerHTML = '<div class="empty"><i class="ti ti-loader spin"></i> Searching YouTube...</div>';
-  try {
-    const res = await fetch('/api/youtube', { cache: 'no-store' });
-    const data = await res.json();
-    const vids = data.videos || [];
-    if (!vids.length) {
-      c.innerHTML = '<div class="empty"><i class="ti ti-brand-youtube"></i> ' + (data.error || 'No Terps videos found in the last 7 days.') + '</div>';
-      return;
-    }
-    const cards = [];
-    for (let i = 0; i < vids.length; i++) {
-      const v = vids[i];
-      cards.push('<div class="acard" style="margin-bottom:10px;display:flex;gap:12px;align-items:flex-start;">' +
-        (v.thumbnail ? '<a href="' + v.url + '" target="_blank" rel="noopener"><img src="' + v.thumbnail + '" style="width:120px;border-radius:6px;flex-shrink:0;" alt=""></a>' : '') +
-        '<div style="flex:1;min-width:0;">' +
-        '<div class="acard-headline" style="font-size:.92rem;"><a href="' + v.url + '" target="_blank" rel="noopener" style="color:inherit;text-decoration:underline;">' + v.title + '</a></div>' +
-        '<div class="acard-meta" style="margin-top:4px;">' +
-          '<span class="tag tag-soc">YouTube</span>' +
-          '<span class="asrc">' + (v.channel || '') + '</span>' +
-          '<span class="atime">' + v.age + 'h ago</span>' +
-        '</div>' +
-        (v.description ? '<div class="asum" style="margin-top:6px;">' + v.description + '…</div>' : '') +
-        '</div></div>');
-    }
-    c.innerHTML = cards.join('');
-  } catch(e) {
-    c.innerHTML = '<div class="empty">Error loading YouTube — ' + e.message + '</div>';
+  const vids = (allVideos || []).slice().sort((a, b) => (b.rating || 0) - (a.rating || 0));
+  if (!vids.length) {
+    c.innerHTML = '<div class="empty"><i class="ti ti-brand-youtube"></i> Run a scan to load videos. High-value ones also show in Alerts.</div>';
+    return;
   }
+  c.innerHTML = vids.map(v => {
+    const r = v.rating || 1;
+    const badge = r >= 4 ? '<span class="rating r4-badge">🟡 ' + r + '</span>' : r >= 3 ? '<span class="rating r3-badge">🔵 ' + r + '</span>' : '<span class="rating">' + r + '</span>';
+    return '<div class="acard" style="margin-bottom:10px;display:flex;gap:12px;align-items:flex-start;">' +
+      (v.thumbnail ? '<a href="' + v.url + '" target="_blank" rel="noopener"><img src="' + v.thumbnail + '" style="width:120px;border-radius:6px;flex-shrink:0;" alt=""></a>' : '') +
+      '<div style="flex:1;min-width:0;">' +
+      '<div class="acard-headline" style="font-size:.92rem;"><a href="' + v.url + '" target="_blank" rel="noopener" style="color:inherit;text-decoration:underline;">' + (v.headline || v.title) + '</a></div>' +
+      '<div class="acard-meta" style="margin-top:4px;">' + badge +
+        '<span class="tag tag-soc">YouTube</span>' +
+        '<span class="asrc">' + (v.channel || v.source || '') + '</span>' +
+        '<span class="atime">' + (v.time || (v.age ? v.age + 'h ago' : '')) + '</span>' +
+      '</div>' +
+      (v.summary || v.description ? '<div class="asum" style="margin-top:6px;">' + (v.summary || v.description) + '</div>' : '') +
+      '</div></div>';
+  }).join('');
 }
 
 // ============================================================
@@ -1055,6 +1050,7 @@ async function runScan() {
     overflowAlerts = (data.overflow || [])
       .filter(s => !EXCLUDED.some(ex => (s.source||'').toLowerCase().includes(ex.toLowerCase())))
       .filter(s => !isBlockedSource(s.source));
+    allVideos = (data.videos || []).filter(v => !isBlockedSource(v.source || v.channel));
     lastScanTime = Date.now();
 
     document.getElementById('m-total').textContent = allAlerts.length;
@@ -1068,6 +1064,7 @@ async function runScan() {
     startCountdown();
     renderAlerts();
     renderTrending();
+    loadYouTube();
 
     // Auto-drop rating 4+ alerts to team chat
     allAlerts.filter(a => a.rating >= 4).forEach(a => {

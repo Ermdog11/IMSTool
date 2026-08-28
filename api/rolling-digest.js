@@ -57,9 +57,10 @@ function ratingStars(r) {
 }
 
 function itemHTML(item, overflowByTopic) {
+  var label = (item.kind === 'video' ? '📺 ' : '') + item.headline;
   var headline = item.url
-    ? '<a href="' + item.url + '" style="color:#1a1a1a;text-decoration:none;">' + item.headline + '</a>'
-    : item.headline;
+    ? '<a href="' + item.url + '" style="color:#1a1a1a;text-decoration:none;">' + label + '</a>'
+    : label;
   var html = '<div style="padding:10px 0;border-bottom:1px solid #e8e6e1;">';
   html += '<div style="font-size:14px;font-weight:600;color:#1a1a1a;margin-bottom:4px;">' + headline + '</div>';
   if (item.summary) html += '<div style="font-size:12px;color:#555;line-height:1.5;">' + item.summary + '</div>';
