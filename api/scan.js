@@ -65,6 +65,11 @@ module.exports = async function handler(req, res) {
       { url: 'https://news.google.com/rss/search?q=site%3Aon3.com+%22Maryland%22+recruiting+OR+commit+OR+portal&hl=en-US&gl=US&ceid=US:en', name: 'On3/maryland' },
       { url: 'https://news.google.com/rss/search?q=site%3Arivals.com+%22Maryland%22+recruiting+OR+commit+OR+portal&hl=en-US&gl=US&ceid=US:en', name: 'Rivals/maryland' },
       { url: 'https://news.google.com/rss/search?q=site%3A247sports.com+%22Maryland+Terrapins%22+commit+OR+recruiting+OR+portal+-site%3Amaryland.247sports.com&hl=en-US&gl=US&ceid=US:en', name: '247national/maryland' },
+      // Our own outlet (maryland.247sports.com / InsideMDSports). Google News reports its
+      // source as plain "247Sports" and the article URL as a redirect, so neither the src
+      // label nor the URL can be matched against `excluded`. Instead we fetch everything
+      // from that subdomain here and use the headlines as a blocklist (see ownTitles below).
+      { url: 'https://news.google.com/rss/search?q=site%3Amaryland.247sports.com&hl=en-US&gl=US&ceid=US:en', name: 'own247/blocklist', blocklistOnly: true },
       { url: 'https://news.google.com/rss/search?q=site%3Abtn.com+%22Maryland%22&hl=en-US&gl=US&ceid=US:en', name: 'BTN', src: 'Big Ten Network' },
       { url: 'https://news.google.com/rss/search?q=site%3Asi.com+%22Maryland+Terrapins%22+OR+site%3Asi.com+%22Terps%22&hl=en-US&gl=US&ceid=US:en', name: 'SI/terps', src: 'Sports Illustrated' },
       { url: 'https://news.google.com/rss/search?q=%22Maryland+Terrapins%22+preview+OR+prediction+OR+%22scouting+report%22&hl=en-US&gl=US&ceid=US:en', name: 'GNews/opponents' },
@@ -119,6 +124,14 @@ module.exports = async function handler(req, res) {
 
     var results = await Promise.allSettled(fetches);
     var stories = [];
+    // Normalized headlines of articles that originated on our own outlet — used to drop
+    // the same stories when they resurface (unlabeled) in the general Google News feeds.
+    var ownTitles = {};
+    // Normalize for headline matching. Strip HTML entities first so "&amp;" (raw feed
+    // title) and "&" (decoded story title) normalize the same way.
+    function normTitle(t) {
+      return t.toLowerCase().replace(/&[a-z]+;|&#\d+;/g, ' ').replace(/[^a-z0-9 ]/g, '').substring(0, 60);
+    }
 
     // Reddit results (indices 0-2)
     for (var ri = 0; ri < redditFetches.length; ri++) {
@@ -161,6 +174,8 @@ module.exports = async function handler(req, res) {
           var realUrl = (desc.match(/href="(https?:\/\/[^"]+)"/) || [])[1] || link;
           if (!title) return;
           title = title.trim();
+          // Blocklist feed: just record the headline, never surface the item itself
+          if (cfg.blocklistOnly) { ownTitles[normTitle(title)] = true; return; }
           // Some direct feeds carry the whole publication — require Terps relevance
           if (cfg.requireTerps) {
             var relevanceText = (title + ' ' + desc).toLowerCase();
@@ -175,10 +190,17 @@ module.exports = async function handler(req, res) {
       } catch(e) { /* skip failed feed */ }
     }
 
+    // Drop stories that originated on our own outlet (matched by headline against the blocklist feed)
+    var ownFiltered = 0;
+    stories = stories.filter(function(s) {
+      if (ownTitles[normTitle(s.title)]) { ownFiltered++; return false; }
+      return true;
+    });
+
     // Deduplicate by title similarity
     var seen = [];
     stories = stories.filter(function(s) {
-      var norm = s.title.toLowerCase().replace(/[^a-z0-9 ]/g, '').substring(0, 60);
+      var norm = normTitle(s.title);
       if (seen.includes(norm)) return false;
       seen.push(norm);
       return true;
@@ -193,7 +215,7 @@ module.exports = async function handler(req, res) {
     var fetchStatuses = results.map(function(r, i) {
       return allNames[i] + ':' + (r.status === 'fulfilled' ? r.value.status : 'FAILED');
     });
-    console.log('Stories:', stories.length, '| Reddit:', redditCount, '| Google:', googleCount, '| Fetches:', fetchStatuses.join(', '));
+    console.log('Stories:', stories.length, '| Reddit:', redditCount, '| Google:', googleCount, '| Own-outlet filtered:', ownFiltered, '| Blocklist size:', Object.keys(ownTitles).length, '| Fetches:', fetchStatuses.join(', '));
 
     if (!stories.length) {
       var diagMsg = 'No stories found. Fetch results: ' + fetchStatuses.join(', ');
