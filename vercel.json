@@ -1,8 +1,15 @@
 {
   "version": 2,
+  "cleanUrls": true,
   "functions": {
     "api/scan.js": {
       "maxDuration": 300
+    },
+    "api/copyedit.js": {
+      "maxDuration": 120
+    },
+    "api/style-profile.js": {
+      "maxDuration": 120
     },
     "api/podcasts.js": {
       "maxDuration": 60

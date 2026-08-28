@@ -1,0 +1,278 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>InsideMDSports — Editorial Desk</title>
+<style>
+:root{--red:#cf0315;--red-dark:#a80210;--gold:#ffd520;--dark:#111;--border:#e8e6e1;--bg:#f7f6f3;--bg2:#fff;--text:#1a1a1a;--text2:#555;--muted:#888;--green:#3B6D11;--blue:#0c447c;--blue-light:#e8f4ff;--amber-bg:#fff8e1;--amber:#8a6d00;}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:var(--bg);color:var(--text);font-size:14px;line-height:1.5}
+a{color:var(--blue)}
+.topbar{background:var(--dark);padding:0 20px;display:flex;align-items:center;justify-content:space-between;height:52px;position:sticky;top:0;z-index:100}
+.topbar-left{display:flex;align-items:center;gap:12px}
+.ims-logo{width:34px;height:34px;background:var(--red);border-radius:5px;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:11px;color:#fff}
+.site-name{color:#fff;font-size:15px;font-weight:600}
+.site-sub{color:#888;font-size:11px;margin-top:1px}
+.topbar a{color:#ccc;font-size:12px;text-decoration:none;border:.5px solid #555;padding:4px 12px;border-radius:20px}
+.topbar a:hover{color:#fff;border-color:#999}
+.nav{background:var(--red);display:flex;flex-wrap:wrap;padding:0 20px}
+.nav button{font-size:12px;font-weight:600;padding:11px 16px;color:rgba(255,255,255,.7);border:none;background:transparent;cursor:pointer;border-bottom:2px solid transparent}
+.nav button.active{color:#fff;border-bottom-color:var(--gold)}
+.nav button:disabled{opacity:.5;cursor:default}
+.wrap{max-width:1100px;margin:0 auto;padding:20px}
+.page{display:none}.page.active{display:block}
+.card{background:var(--bg2);border:1px solid var(--border);border-radius:10px;padding:18px;margin-bottom:16px}
+.card h2{font-size:15px;margin-bottom:4px}
+.card .hint{color:var(--muted);font-size:12px;margin-bottom:12px}
+label{display:block;font-size:12px;font-weight:600;color:var(--text2);margin:10px 0 4px}
+textarea,input,select{width:100%;font-family:inherit;font-size:13px;border:1px solid var(--border);border-radius:6px;padding:9px;background:#fff;color:var(--text)}
+textarea{resize:vertical;line-height:1.55}
+button.btn{background:var(--red);color:#fff;border:none;border-radius:6px;padding:8px 16px;font-size:13px;font-weight:600;cursor:pointer}
+button.btn:hover{background:var(--red-dark)}
+button.btn.ghost{background:transparent;color:var(--text);border:1px solid var(--border)}
+button.btn:disabled{opacity:.6;cursor:default}
+.row{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-top:10px}
+.pill{display:inline-block;font-size:11px;font-weight:600;padding:2px 8px;border-radius:20px;background:var(--blue-light);color:var(--blue)}
+.writer-item{border:1px solid var(--border);border-radius:8px;padding:12px;margin-bottom:10px}
+.writer-item .whead{display:flex;justify-content:space-between;align-items:center;gap:8px}
+.profile-box{white-space:pre-wrap;background:#fbfaf7;border:1px solid var(--border);border-radius:6px;padding:10px;font-size:12.5px;margin-top:8px;max-height:280px;overflow:auto}
+.out-article{background:#fff;border:1px solid var(--border);border-radius:8px;padding:16px 18px;font-size:14.5px;line-height:1.65}
+.out-article h2{font-size:1.15rem;margin:.6em 0 .3em}
+.out-article p{margin:.6em 0}
+.notes li{margin:4px 0;font-size:13px;margin-left:18px}
+.ctx{background:var(--amber-bg);border:1px solid #f0e2a8;border-radius:6px;padding:10px 12px;font-size:12.5px;margin-top:8px}
+.ctx b{color:var(--amber)}
+.empty{color:var(--muted);font-size:13px;padding:16px;text-align:center}
+.spin{display:inline-block;width:14px;height:14px;border:2px solid rgba(255,255,255,.4);border-top-color:#fff;border-radius:50%;animation:sp .7s linear infinite;vertical-align:-2px;margin-right:6px}
+@keyframes sp{to{transform:rotate(360deg)}}
+.savedmsg{color:var(--green);font-size:12px;font-weight:600;margin-left:8px}
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="topbar-left">
+    <div class="ims-logo">IMS</div>
+    <div>
+      <div class="site-name">Editorial Desk</div>
+      <div class="site-sub">InsideMDSports — writing &amp; production tools</div>
+    </div>
+  </div>
+  <a href="/">&larr; News monitor</a>
+</div>
+
+<div class="nav">
+  <button class="active" id="nav-0" onclick="show(0)">Copydesk</button>
+  <button id="nav-1" onclick="show(1)">Writers &amp; style</button>
+  <button disabled title="Coming soon">Story ideas</button>
+  <button disabled title="Coming soon">Headline &amp; SEO</button>
+  <button disabled title="Coming soon">Fact check</button>
+</div>
+
+<div class="wrap">
+
+  <div class="page active" id="page-0">
+    <div class="card">
+      <h2>Copydesk</h2>
+      <div class="hint">Paste a draft. It comes back in house style, in the selected writer's voice, with context added (anything unverified is flagged <b>[VERIFY]</b>) and links to related InsideMDSports articles. Always review before publishing &mdash; the editor can be wrong on facts.</div>
+      <div class="row">
+        <div style="flex:1;min-width:200px">
+          <label>Writer</label>
+          <select id="ed-writer"><option value="">House style only</option></select>
+        </div>
+        <label style="font-weight:500;font-size:12px;margin-top:22px"><input type="checkbox" id="ed-headline" checked style="width:auto"> suggest headline</label>
+      </div>
+      <label>Draft</label>
+      <textarea id="ed-draft" rows="16" placeholder="Paste the writer's draft here…"></textarea>
+      <div class="row">
+        <button class="btn" id="ed-go" onclick="runEdit()">Edit draft</button>
+        <span id="ed-status" style="font-size:12px;color:var(--muted)"></span>
+      </div>
+    </div>
+    <div id="ed-result"></div>
+  </div>
+
+  <div class="page" id="page-1">
+    <div class="card">
+      <h2>House style guide</h2>
+      <div class="hint">The baseline every edit is measured against. Edit freely &mdash; this is your newsroom's rulebook.</div>
+      <textarea id="sg" rows="16"></textarea>
+      <div class="row">
+        <button class="btn" onclick="saveGuide()">Save style guide</button>
+        <span class="savedmsg" id="sg-saved" style="display:none">Saved</span>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>Writers</h2>
+      <div class="hint">Add each staff writer, then give the tool 8&ndash;15 of their published pieces so it can learn their voice. Paste the article text, and/or paste URLs (one per line) &mdash; URLs that need a login won't load, so paste those directly.</div>
+      <div class="row">
+        <input id="w-new" placeholder="Writer name" style="flex:1;min-width:180px">
+        <button class="btn" onclick="addWriter()">Add writer</button>
+      </div>
+      <div id="w-list" style="margin-top:14px"></div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+var LS_GUIDE = 'ims_editor_styleguide';
+var LS_WRITERS = 'ims_editor_writers';
+
+var DEFAULT_GUIDE = [
+  "INSIDEMDSPORTS HOUSE STYLE",
+  "",
+  "VOICE: Authoritative but conversational. We are the Maryland Terrapins beat — write like an insider talking to informed fans, not a wire service. Confident, not breathless. No homerism; no snark.",
+  "",
+  "STRUCTURE:",
+  "- Lead with the news or the sharpest angle in the first sentence. No throat-clearing.",
+  "- Nut graf by the 2nd or 3rd paragraph: why this matters for Maryland.",
+  "- Short paragraphs (1–3 sentences). One idea each.",
+  "- End on a forward-looking line or a telling detail, not a summary.",
+  "",
+  "STYLE RULES:",
+  "- AP style. Numbers under 10 spelled out; 10+ as numerals.",
+  "- First reference: full name + role ('Maryland coach Mike Locksley'). After that, last name only.",
+  "- Attribute every claim of fact that isn't obvious ('according to', 'told InsideMDSports', 'per').",
+  "- Active voice. Cut 'there is/there are'. Cut adverbs propping up weak verbs.",
+  "- No cliches: 'signal-caller', 'pass-catcher', 'inked', 'nabbed', 'squad', 'contest', 'the hardwood', 'the gridiron'.",
+  "- 'Terps' and 'Terrapins' both fine; 'Maryland' on first reference in a graf about the team.",
+  "- Recruiting: include the recruit's position, class year, hometown/school and rating on first reference.",
+  "",
+  "HEADLINES: Specific, active, no clickbait. Name the subject. Under ~90 characters.",
+  "",
+  "CONTEXT WE ALWAYS ADD: who a person is if not yet introduced; the stakes (bowl eligibility, ranking, roster need); the prior events that make this news.",
+  "",
+  "NEVER: invent quotes, stats, dates or scores. If a fact is missing, flag it — don't fill it in."
+].join("\n");
+
+function esc(s){var d=document.createElement('div');d.textContent=(s==null?'':String(s));return d.innerHTML;}
+
+function md(t){
+  t = esc(t);
+  t = t.replace(/^\s*#{1,3}\s*(.+)$/gm,'<h2>$1</h2>');
+  t = t.replace(/\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)/g,'<a href="$2" target="_blank" rel="noopener">$1</a>');
+  t = t.replace(/\*\*([^*]+)\*\*/g,'<b>$1</b>');
+  return t.split(/\n\s*\n/).map(function(p){return /^<h2>/.test(p) ? p : '<p>'+p.replace(/\n/g,'<br>')+'</p>';}).join('');
+}
+
+function getWriters(){try{return JSON.parse(localStorage.getItem(LS_WRITERS)||'[]');}catch(e){return [];}}
+function setWriters(w){localStorage.setItem(LS_WRITERS,JSON.stringify(w));}
+function getGuide(){return localStorage.getItem(LS_GUIDE)||DEFAULT_GUIDE;}
+
+function setActive(i){
+  document.querySelectorAll('.page').forEach(function(p,x){p.classList.toggle('active',x===i);});
+  document.querySelectorAll('.nav button').forEach(function(b){b.classList.remove('active');});
+  var n=document.getElementById('nav-'+i); if(n)n.classList.add('active');
+}
+function show(i){ setActive(i); try{history.pushState({t:i},'','#'+i);}catch(e){} }
+window.addEventListener('popstate',function(e){ setActive((e.state&&e.state.t)||0); });
+
+function saveGuide(){
+  localStorage.setItem(LS_GUIDE,document.getElementById('sg').value);
+  var m=document.getElementById('sg-saved');m.style.display='inline';setTimeout(function(){m.style.display='none';},1500);
+}
+
+function renderWriters(){
+  var w=getWriters();
+  var sel=document.getElementById('ed-writer');
+  sel.innerHTML='<option value="">House style only</option>'+w.map(function(x,i){return '<option value="'+i+'">'+esc(x.name)+(x.profile?'':' (no profile yet)')+'</option>';}).join('');
+  var c=document.getElementById('w-list');
+  if(!w.length){c.innerHTML='<div class="empty">No writers yet.</div>';return;}
+  c.innerHTML=w.map(function(x,i){
+    return '<div class="writer-item">'+
+      '<div class="whead"><b>'+esc(x.name)+'</b>'+
+        '<span>'+(x.profile?'<span class="pill">profile ready</span> ':'')+'<button class="btn ghost" onclick="delWriter('+i+')">Remove</button></span></div>'+
+      '<label>Sample article text (paste full pieces, any separators)</label>'+
+      '<textarea id="w-samp-'+i+'" rows="5" placeholder="Paste article text…">'+esc(x.samples||'')+'</textarea>'+
+      '<label>Sample URLs (one per line — public pages only)</label>'+
+      '<textarea id="w-urls-'+i+'" rows="3" placeholder="https://…">'+esc(x.urls||'')+'</textarea>'+
+      '<div class="row"><button class="btn" id="w-build-'+i+'" onclick="buildProfile('+i+')">Build / update style profile</button>'+
+        '<span id="w-msg-'+i+'" style="font-size:12px;color:var(--muted)"></span></div>'+
+      (x.profile?'<div class="profile-box">'+esc(x.profile)+'</div>':'')+
+    '</div>';
+  }).join('');
+}
+
+function addWriter(){
+  var n=document.getElementById('w-new').value.trim();if(!n)return;
+  var w=getWriters();w.push({name:n,samples:'',urls:'',profile:''});setWriters(w);
+  document.getElementById('w-new').value='';renderWriters();
+}
+function delWriter(i){var w=getWriters();w.splice(i,1);setWriters(w);renderWriters();}
+
+async function buildProfile(i){
+  var w=getWriters();
+  w[i].samples=document.getElementById('w-samp-'+i).value;
+  w[i].urls=document.getElementById('w-urls-'+i).value;
+  setWriters(w);
+  var btn=document.getElementById('w-build-'+i),msg=document.getElementById('w-msg-'+i);
+  btn.disabled=true;btn.innerHTML='<span class="spin"></span>Analyzing…';msg.textContent='';
+  try{
+    var r=await fetch('/api/style-profile',{method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({writer:w[i].name,samples:w[i].samples,urls:w[i].urls.split(/\s+/)})});
+    var d=await r.json();
+    if(d.error){msg.textContent=d.error;}
+    else{
+      w=getWriters();w[i].profile=d.profile;setWriters(w);
+      var fails=(d.failedUrls&&d.failedUrls.length)?' · couldn’t load '+d.failedUrls.length+' URL(s) — paste those directly':'';
+      msg.textContent='Built from '+(d.sampleChars||0).toLocaleString()+' chars'+fails;
+      renderWriters();
+    }
+  }catch(e){msg.textContent='Failed: '+e.message;}
+  btn.disabled=false;btn.innerHTML='Build / update style profile';
+}
+
+async function runEdit(){
+  var draft=document.getElementById('ed-draft').value.trim();
+  if(draft.length<40){document.getElementById('ed-status').textContent='Paste a longer draft.';return;}
+  var wi=document.getElementById('ed-writer').value;
+  var w=getWriters();
+  var prof=wi!==''?((w[wi]&&w[wi].profile)||''):'';
+  var wname=wi!==''?((w[wi]&&w[wi].name)||''):'';
+  var btn=document.getElementById('ed-go');btn.disabled=true;btn.innerHTML='<span class="spin"></span>Editing…';
+  document.getElementById('ed-status').textContent='';
+  document.getElementById('ed-result').innerHTML='';
+  try{
+    var r=await fetch('/api/copyedit',{method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({draft:draft,styleGuide:document.getElementById('sg').value,writerProfile:prof,writerName:wname,headline:document.getElementById('ed-headline').checked})});
+    var d=await r.json();
+    if(d.error){document.getElementById('ed-status').textContent=d.error;}
+    else renderEdit(d);
+  }catch(e){document.getElementById('ed-status').textContent='Failed: '+e.message;}
+  btn.disabled=false;btn.innerHTML='Edit draft';
+}
+
+function renderEdit(d){
+  var h='';
+  if(d.headline){
+    h+='<div class="card"><h2>Headline</h2><div style="font-size:16px;font-weight:600;margin:6px 0">'+esc(d.headline)+'</div>'+
+      (d.altHeadlines&&d.altHeadlines.length?'<div class="hint">Alternates: '+d.altHeadlines.map(esc).join(' &nbsp;&middot;&nbsp; ')+'</div>':'')+'</div>';
+  }
+  h+='<div class="card"><h2>Edited draft <span class="hint" style="font-weight:400"> &middot; '+(d.relatedCount||0)+' related articles available for links</span></h2>'+
+     '<div class="out-article">'+md(d.edited||'')+'</div>'+
+     '<div class="row"><button class="btn ghost" onclick="copyMd(this)">Copy Markdown</button></div>'+
+     '<textarea id="ed-md" style="position:absolute;left:-9999px;top:0">'+esc(d.edited||'')+'</textarea></div>';
+  if(d.notes&&d.notes.length)
+    h+='<div class="card"><h2>Editor’s notes</h2><ul class="notes">'+d.notes.map(function(n){return '<li>'+esc(n)+'</li>';}).join('')+'</ul></div>';
+  if(d.addedContext&&d.addedContext.length)
+    h+='<div class="card"><h2>Context added</h2>'+d.addedContext.map(function(c){return '<div class="ctx">'+esc(c).replace(/\[VERIFY\]/g,'<b>[VERIFY]</b>')+'</div>';}).join('')+'</div>';
+  if(d.factsToCheck&&d.factsToCheck.length)
+    h+='<div class="card"><h2>Facts to check / missing</h2><ul class="notes">'+d.factsToCheck.map(function(n){return '<li>'+esc(n)+'</li>';}).join('')+'</ul></div>';
+  document.getElementById('ed-result').innerHTML=h;
+}
+
+function copyMd(btn){
+  var t=document.getElementById('ed-md'); if(!t)return;
+  t.select(); t.setSelectionRange(0,t.value.length);
+  try{ document.execCommand('copy'); btn.textContent='Copied'; setTimeout(function(){btn.textContent='Copy Markdown';},1500); }catch(e){}
+}
+
+document.getElementById('sg').value=getGuide();
+renderWriters();
+(function(){var i=parseInt((location.hash||'').replace(/[^0-9]/g,''),10);if(i===1){setActive(1);}})();
+</script>
+</body>
+</html>
