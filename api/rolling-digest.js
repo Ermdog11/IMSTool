@@ -13,34 +13,97 @@ var SLOT_LABEL = {
   evening: 'evening'
 };
 
-function buildEmailHTML(alerts, date, slot) {
-  var groups = {
-    'Recruiting': alerts.filter(function(a) { return a.category === 'recruiting'; }),
-    'Football': alerts.filter(function(a) { return a.sport === 'football' && a.category !== 'recruiting'; }),
-    'Basketball': alerts.filter(function(a) { return ['basketball', 'mens-basketball', 'womens-basketball'].indexOf(a.sport || '') !== -1 && a.category !== 'recruiting'; }),
-    'Other sports': alerts.filter(function(a) { return ['football', 'basketball', 'mens-basketball', 'womens-basketball'].indexOf(a.sport || '') === -1 && ['recruiting', 'alumni', 'social', 'podcast'].indexOf(a.category) === -1; }),
-    'Alumni': alerts.filter(function(a) { return a.category === 'alumni'; }),
-    'Social & podcasts': alerts.filter(function(a) { return ['social', 'podcast'].indexOf(a.category) !== -1; })
-  };
+// Cap each digest at this many of the most recent items
+var MAX_ITEMS = 20;
 
-  var sectionsHTML = '';
-  for (var title in groups) {
-    var items = groups[title];
-    if (!items.length) continue;
-    sectionsHTML += '<div style="margin-bottom:20px;">';
-    sectionsHTML += '<div style="font-size:12px;font-weight:700;color:#888;text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px;border-bottom:2px solid #cf0315;padding-bottom:5px;">' + title + '</div>';
-    items.forEach(function(item) {
-      sectionsHTML += '<div style="padding:10px 0;border-bottom:1px solid #e8e6e1;">';
-      sectionsHTML += '<div style="font-size:14px;font-weight:600;color:#1a1a1a;margin-bottom:4px;">' + item.headline + '</div>';
-      if (item.summary) sectionsHTML += '<div style="font-size:12px;color:#555;line-height:1.5;">' + item.summary + '</div>';
-      sectionsHTML += '<div style="font-size:11px;color:#888;margin-top:4px;">' + item.source + ' &middot; ' + item.time + '</div>';
-      sectionsHTML += '</div>';
+// Sport sub-group order within each day
+var GROUP_ORDER = ['Recruiting', 'Football', 'Basketball', 'Other sports', 'Alumni', 'Social & podcasts'];
+
+// Parse a relative "time" string ("2h ago", "3 days ago", "just now") into hours-ago
+function hoursAgo(t) {
+  t = (t || '').toLowerCase();
+  var m = t.match(/(\d+)/);
+  var n = m ? parseInt(m[1], 10) : 0;
+  if (/month/.test(t)) return n * 720;
+  if (/week/.test(t)) return n * 168;
+  if (/day/.test(t)) return n * 24;
+  if (/(min|just now|moment)/.test(t)) return 0;
+  return n; // hours
+}
+
+// Calendar-day label for an item, derived from its relative time
+function dayKey(t) {
+  var d = new Date(Date.now() - hoursAgo(t) * 3600000);
+  return d.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' });
+}
+
+// Which sport sub-group an item belongs to (single group, no duplicates)
+function groupOf(a) {
+  if (a.category === 'recruiting') return 'Recruiting';
+  if (a.category === 'alumni') return 'Alumni';
+  if (['social', 'podcast'].indexOf(a.category) !== -1) return 'Social & podcasts';
+  if (a.sport === 'football') return 'Football';
+  if (['basketball', 'mens-basketball', 'womens-basketball'].indexOf(a.sport || '') !== -1) return 'Basketball';
+  return 'Other sports';
+}
+
+function ratingStars(r) {
+  r = r || 0;
+  var s = '';
+  for (var i = 0; i < 5; i++) s += (i < r) ? '★' : '☆';
+  return s;
+}
+
+function itemHTML(item) {
+  var headline = item.url
+    ? '<a href="' + item.url + '" style="color:#1a1a1a;text-decoration:none;">' + item.headline + '</a>'
+    : item.headline;
+  var html = '<div style="padding:10px 0;border-bottom:1px solid #e8e6e1;">';
+  html += '<div style="font-size:14px;font-weight:600;color:#1a1a1a;margin-bottom:4px;">' + headline + '</div>';
+  if (item.summary) html += '<div style="font-size:12px;color:#555;line-height:1.5;">' + item.summary + '</div>';
+  html += '<div style="font-size:11px;color:#888;margin-top:4px;">' +
+    '<span style="color:#e0a800;letter-spacing:1px;">' + ratingStars(item.rating) + '</span> &middot; ' +
+    item.source + ' &middot; ' + item.time + '</div>';
+  html += '</div>';
+  return html;
+}
+
+function buildEmailHTML(alerts, date, slot) {
+  // Group by calendar day
+  var days = {};
+  alerts.forEach(function(a) {
+    var k = dayKey(a.time);
+    if (!days[k]) days[k] = { hrs: 0, items: [] };
+    days[k].items.push(a);
+    if (hoursAgo(a.time) > days[k].hrs) days[k].hrs = hoursAgo(a.time);
+  });
+  // Days in chronological order (oldest first)
+  var dayKeys = Object.keys(days).sort(function(x, y) { return days[y].hrs - days[x].hrs; });
+
+  var body = '';
+  dayKeys.forEach(function(dk) {
+    var dayItems = days[dk].items;
+    var daySections = '';
+    GROUP_ORDER.forEach(function(title) {
+      var items = dayItems.filter(function(a) { return groupOf(a) === title; });
+      if (!items.length) return;
+      // Highest-rated first, then most recent
+      items.sort(function(a, b) {
+        return (b.rating || 0) - (a.rating || 0) || hoursAgo(a.time) - hoursAgo(b.time);
+      });
+      daySections += '<div style="margin-bottom:18px;">';
+      daySections += '<div style="font-size:12px;font-weight:700;color:#888;text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px;border-bottom:2px solid #cf0315;padding-bottom:5px;">' + title + '</div>';
+      items.forEach(function(item) { daySections += itemHTML(item); });
+      daySections += '</div>';
     });
-    sectionsHTML += '</div>';
-  }
+    body += '<div style="margin-bottom:26px;">';
+    body += '<div style="font-size:15px;font-weight:800;color:#1a1a1a;margin-bottom:12px;">' + dk + '</div>';
+    body += daySections;
+    body += '</div>';
+  });
 
   var bodyMsg = alerts.length
-    ? '<p style="font-size:13px;color:#555;margin-bottom:20px;">' + alerts.length + ' new ' + (alerts.length === 1 ? 'story' : 'stories') + ' since the last update.</p>' + sectionsHTML
+    ? '<p style="font-size:13px;color:#555;margin-bottom:20px;">' + alerts.length + ' new ' + (alerts.length === 1 ? 'story' : 'stories') + ' since the last update.</p>' + body
     : '<p style="font-size:13px;color:#555;margin-bottom:20px;">No new Terps stories since the last update.</p>';
 
   return '<!DOCTYPE html><html><head></head><body style="font-family:-apple-system,sans-serif;background:#f7f6f3;margin:0;padding:20px;">' +
@@ -85,11 +148,11 @@ module.exports = async function handler(req, res) {
     var allAlerts = JSON.parse(match[0]).filter(function(a) { return !a.republished; });
 
     // Only stories newer than this slot's window (rolling, since the previous send)
-    var alerts = allAlerts.filter(function(a) {
-      var hoursMatch = (a.time || '').match(/\d+/);
-      var hours = hoursMatch ? parseInt(hoursMatch[0], 10) : 99;
-      return hours <= windowHours;
-    });
+    var alerts = allAlerts.filter(function(a) { return hoursAgo(a.time) <= windowHours; });
+
+    // Cap at the most recent MAX_ITEMS
+    alerts.sort(function(a, b) { return hoursAgo(a.time) - hoursAgo(b.time); });
+    alerts = alerts.slice(0, MAX_ITEMS);
 
     var date = new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' });
 
