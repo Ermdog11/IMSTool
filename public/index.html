@@ -210,6 +210,7 @@ body { padding-bottom: 40px; }
     </div>
   </div>
   <div class="topbar-right">
+    <button class="pill" id="backBtn" onclick="history.back()" style="display:none;"><i class="ti ti-arrow-left"></i> Back</button>
     <span class="pill pill-live"><span class="live-dot"></span>Live</span>
     <button class="pill pill-email" onclick="switchTab(10)"><i class="ti ti-mail"></i> Email setup</button>
   </div>
@@ -585,14 +586,36 @@ const SCAN_MS = 30 * 60 * 1000;
 // ============================================================
 // TAB SWITCHING
 // ============================================================
-function switchTab(idx) {
+function switchTab(idx, fromPop) {
   document.querySelectorAll('.page').forEach((p, i) => p.classList.toggle('active', i === idx));
   document.querySelectorAll('.nav-tab').forEach((t, i) => t.classList.toggle('active', i === idx));
   if (idx === 7) loadPodcasts();
   if (idx === 8) loadYouTube();
   if (idx === 9) loadBluesky();
   if (idx === 10) renderBlockedSources();
+  window.scrollTo(0, 0);
+  if (!fromPop) {
+    try { history.pushState({ imsTab: idx }, '', '#' + idx); } catch (e) {}
+    var b = document.getElementById('backBtn');
+    if (b) b.style.display = 'inline-flex';
+  }
 }
+
+// Browser back/forward moves between tabs (and the on-screen Back button)
+window.addEventListener('popstate', function (e) {
+  var idx = (e.state && typeof e.state.imsTab === 'number') ? e.state.imsTab : 0;
+  switchTab(idx, true);
+});
+(function () {
+  var h = parseInt((location.hash || '').replace(/[^0-9]/g, ''), 10);
+  var start = (h >= 0 && h <= 10) ? h : 0;
+  try { history.replaceState({ imsTab: start }, '', '#' + start); } catch (e) {}
+  if (start !== 0) {
+    switchTab(start, true);
+    var b = document.getElementById('backBtn');
+    if (b) b.style.display = 'inline-flex';
+  }
+})();
 
 // ============================================================
 // FILTER

@@ -10,10 +10,16 @@ module.exports = async function handler(req, res) {
   // Shows that are entirely Terps-focused: include every recent episode.
   var terpsShows = [
     'Locked On Terps',
-    'Testudo Times Podcast'
+    'Testudo Times Podcast',
+    'Testudo Talk',
+    'Under The Shell Maryland',
+    'Fear the Turtle Podcast',
+    'Wall to Wall Terps',
+    'The Turtle Soup Podcast',
+    'Terrapin Sports Report'
   ];
 
-  // Regional DC/Baltimore shows: include only episodes that mention Terps/Maryland.
+  // Regional DC/Baltimore + national college shows: include only episodes that mention Terps/Maryland.
   var regionalShows = [
     'The Kevin Sheehan Show',
     'The Sports Junkies',
@@ -28,11 +34,20 @@ module.exports = async function handler(req, res) {
     'Andy & Ari On3',
     'Cover 3 College Football',
     'The Field of 68 After Dark',
+    'The Field of 68',
     'Locked On Big Ten',
+    'Locked On Big Ten Basketball',
     'The Next Round',
-    'Fear the Turtle Podcast',
     'The Athletic College Football Show',
-    'Sports Wave Baltimore'
+    'Sports Wave Baltimore',
+    'Split Zone Duo',
+    'The Audible with Feldman and Mandel',
+    'Shutdown Fullcast',
+    'CBB Today',
+    'The Bird Feed College Basketball',
+    'On3 Recruits',
+    'Inside Big Ten Basketball',
+    'The Paul Finebaum Show'
   ];
 
   // Podcast shows / sources to always exclude from results. Auto-generated
@@ -52,7 +67,7 @@ module.exports = async function handler(req, res) {
   }
 
   var keywords = ['terps', 'terrapins', 'maryland football', 'maryland basketball', 'maryland lacrosse', 'maryland recruiting', 'mike locksley', 'buzz williams', 'kevin willard', 'brenda frese', 'university of maryland', 'malik washington', 'zahir mathis', 'pharrel payne', 'baba oladotun', 'kaden house', 'dj wagner', 'andre mills', 'juan dixon', 'big ten basketball', 'derik queen'];
-  var cutoff = Date.now() - 14 * 24 * 60 * 60 * 1000; // 14 days
+  var cutoff = Date.now() - 21 * 24 * 60 * 60 * 1000; // 21 days (podcasts age slower than news)
 
   function matchesKeywords(text) {
     var t = (text || '').toLowerCase();
@@ -79,7 +94,7 @@ module.exports = async function handler(req, res) {
   function parseFeed(xml, showTitle, requireKeywords) {
     var out = [];
     var items = xml.match(/<item>[\s\S]*?<\/item>/g) || [];
-    items.slice(0, 15).forEach(function(item) {
+    items.slice(0, 25).forEach(function(item) {
       var title = (item.match(/<title><!\[CDATA\[([\s\S]*?)\]\]><\/title>/) || item.match(/<title>([\s\S]*?)<\/title>/) || [])[1] || '';
       var desc = (item.match(/<description><!\[CDATA\[([\s\S]*?)\]\]><\/description>/) || item.match(/<description>([\s\S]*?)<\/description>/) || [])[1] || '';
       var link = (item.match(/<link>([\s\S]*?)<\/link>/) || [])[1] || '';
@@ -99,7 +114,7 @@ module.exports = async function handler(req, res) {
   // Discovery: search iTunes for episodes across ALL podcasts (free, no key)
   async function discoverEpisodes(term) {
     try {
-      var r = await fetch('https://itunes.apple.com/search?term=' + encodeURIComponent(term) + '&media=podcast&entity=podcastEpisode&limit=15');
+      var r = await fetch('https://itunes.apple.com/search?term=' + encodeURIComponent(term) + '&media=podcast&entity=podcastEpisode&limit=25');
       if (!r.ok) return [];
       var d = await r.json();
       return (d.results || []).map(function(ep) {
@@ -131,8 +146,8 @@ module.exports = async function handler(req, res) {
     });
 
     // Rotate through discovery terms 4 at a time to stay under iTunes rate limits
-    var allDiscoveryTerms = ['Maryland Terrapins', 'Terps basketball', 'Terps football', 'Maryland Terrapins recruiting', 'Buzz Williams Maryland', 'Mike Locksley', 'Malik Washington Maryland', 'Zahir Mathis', 'Pharrel Payne', 'Baba Oladotun', 'Kaden House', 'DJ Wagner Maryland', 'Andre Mills', 'Juan Dixon', 'Big Ten basketball', 'Derik Queen'];
-    var batchSize = 4;
+    var allDiscoveryTerms = ['Maryland Terrapins', 'Terps basketball', 'Terps football', 'Maryland Terrapins recruiting', 'Buzz Williams Maryland', 'Mike Locksley', 'Malik Washington Maryland', 'Zahir Mathis', 'Pharrel Payne', 'Baba Oladotun', 'Kaden House', 'DJ Wagner Maryland', 'Andre Mills', 'Juan Dixon', 'Big Ten basketball', 'Derik Queen', 'Maryland football portal', 'Maryland basketball recruiting', 'Kevin Willard Maryland', 'Brenda Frese', 'Maryland Terrapins lacrosse', 'Terps commit', 'Xfinity Center', 'SECU Stadium', 'Zion Elee', 'Maryland Big Ten football'];
+    var batchSize = 6;
     var startIdx = (discoveryRotation * batchSize) % allDiscoveryTerms.length;
     discoveryRotation++;
     var discoveryTerms = [];
