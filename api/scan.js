@@ -189,6 +189,8 @@ module.exports = async function handler(req, res) {
           var realUrl = (desc.match(/href="(https?:\/\/[^"]+)"/) || [])[1] || link;
           if (!title) return;
           title = title.trim();
+          // Auto-generated stat / leaderboard stub pages (FOX Sports etc.) are never news — drop them
+          if (/\bstats?\s*(?:&|&amp;|and)\s*leaders?\b|\bstat leaders?\b/i.test(title)) return;
           // Some direct feeds carry the whole publication — require Terps relevance
           if (cfg.requireTerps) {
             var relevanceText = (title + ' ' + desc).toLowerCase();
