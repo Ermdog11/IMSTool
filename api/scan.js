@@ -296,53 +296,70 @@ module.exports = async function handler(req, res) {
       return Object.assign({}, item, { url: orig ? orig.url : '' });
     });
 
-    // Apply per-topic caps POST-rating so the most newsworthy stories stay in main feed
-    // Any story Claude classified as "alumni" gets a tight cap of 1 main-feed slot,
-    // regardless of which alumnus it's about (not just a hardcoded list of names) —
-    // general Terps topics still get 3.
-    // Check original titles (not Claude's rewrites) for reliable name detection
+    // Apply per-topic caps POST-rating so the most newsworthy stories stay in main feed.
+    // Alumni get a tight cap of 1 main-feed slot PER PERSON (identified from the watch
+    // lists so "DJ Moore" etc. match regardless of headline wording); the rest go to
+    // overflow with a "More on this" link. General Terps topics still get 3.
+    // Check original titles (not Claude's rewrites) for reliable name detection.
+    var alumniWatch = [].concat(WATCH.nflAlumni, WATCH.nbaAlumni, WATCH.wnba, WATCH.legends)
+      .map(function(name) { return { display: name, lc: name.toLowerCase() }; });
     var topicRatingCount = {};
     var overflowStories = [];
     // Sort by rating desc so highest-rated stories claim their topic slots first
     var sortedByRating = withUrls.slice().sort(function(a, b) { return (b.rating || 0) - (a.rating || 0); });
     var mainIds = new Set();
     var alumniTopics = {};
+    var claimedBy = {}; // topic -> idx of the main-feed item holding that slot (highest-rated, since pre-sorted)
     sortedByRating.forEach(function(item) {
       var orig = stories[item.idx - 1];
       var originalTitle = orig ? orig.title : (item.headline || '');
-      var names = originalTitle.match(/\b[A-Z][a-z]+ [A-Z][a-z]+\b/g) || [];
       var overflowTopic = null;
-      for (var n of names) {
-        topicRatingCount[n] = (topicRatingCount[n] || 0) + 1;
-        if (item.category === 'alumni') alumniTopics[n] = true;
-        var cap = (item.category === 'alumni' || alumniTopics[n]) ? 1 : 3;
-        if (topicRatingCount[n] > cap) overflowTopic = n;
+      var itemTopics = [];
+
+      if (item.category === 'alumni') {
+        // Identify which alum the story is about; cap that person at 1/scan.
+        var lc = (originalTitle + ' ' + (item.headline || '') + ' ' + (item.summary || '')).toLowerCase();
+        var who = null;
+        for (var ai = 0; ai < alumniWatch.length; ai++) {
+          if (lc.indexOf(alumniWatch[ai].lc) !== -1) { who = alumniWatch[ai].display; break; }
+        }
+        // Fall back to a two-word name if the alum isn't on a watch list
+        if (!who) { var m = originalTitle.match(/\b[A-Z][a-z]+ [A-Z][a-z]+\b/); who = m ? m[0] : 'alumni'; }
+        itemTopics = [who];
+        alumniTopics[who] = true;
+        topicRatingCount[who] = (topicRatingCount[who] || 0) + 1;
+        if (topicRatingCount[who] > 1) overflowTopic = who;
+      } else {
+        itemTopics = originalTitle.match(/\b[A-Z][a-z]+ [A-Z][a-z]+\b/g) || [];
+        for (var n of itemTopics) {
+          topicRatingCount[n] = (topicRatingCount[n] || 0) + 1;
+          var cap = alumniTopics[n] ? 1 : 3;
+          if (topicRatingCount[n] > cap) overflowTopic = n;
+        }
       }
+
       if (overflowTopic) {
         overflowStories.push({ title: item.headline, source: item.source, url: item.url, age: orig ? orig.age : 0, trendingTopic: overflowTopic });
       } else {
         mainIds.add(item.idx);
+        itemTopics.forEach(function(t) { if (!claimedBy[t]) claimedBy[t] = item.idx; });
       }
     });
 
     var final = withUrls.filter(function(item) { return mainIds.has(item.idx); });
 
-    // Tag main items that have overflow siblings — only the single highest-rated
-    // main item per name gets the "+N more" link, so a name never shows it twice.
+    // Tag the main-feed item that holds each overflowing topic's slot with a "+N more" count.
     var overflowCountByTopic = {};
     overflowStories.forEach(function(s) {
       overflowCountByTopic[s.trendingTopic] = (overflowCountByTopic[s.trendingTopic] || 0) + 1;
     });
-    var taggedNames = {};
-    final.forEach(function(item) {
-      var names = (item.headline || '').match(/\b[A-Z][a-z]+ [A-Z][a-z]+\b/g) || [];
-      for (var n of names) {
-        if (overflowCountByTopic[n] && !taggedNames[n]) {
-          item.trendingTopic = n;
-          item.overflowCount = overflowCountByTopic[n];
-          taggedNames[n] = true;
-          break;
-        }
+    Object.keys(overflowCountByTopic).forEach(function(topic) {
+      var holderIdx = claimedBy[topic];
+      if (!holderIdx) return;
+      var holder = final.filter(function(it) { return it.idx === holderIdx; })[0];
+      if (holder && !holder.trendingTopic) {
+        holder.trendingTopic = topic;
+        holder.overflowCount = overflowCountByTopic[topic];
       }
     });
 

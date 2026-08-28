@@ -54,7 +54,7 @@ function ratingStars(r) {
   return s;
 }
 
-function itemHTML(item) {
+function itemHTML(item, overflowByTopic) {
   var headline = item.url
     ? '<a href="' + item.url + '" style="color:#1a1a1a;text-decoration:none;">' + item.headline + '</a>'
     : item.headline;
@@ -64,11 +64,24 @@ function itemHTML(item) {
   html += '<div style="font-size:11px;color:#888;margin-top:4px;">' +
     '<span style="color:#e0a800;letter-spacing:1px;">' + ratingStars(item.rating) + '</span> &middot; ' +
     item.source + ' &middot; ' + item.time + '</div>';
+
+  // "More on this" — extra stories about the same person/topic that were held out of the feed
+  var extras = (item.trendingTopic && overflowByTopic && overflowByTopic[item.trendingTopic]) || [];
+  if (extras.length) {
+    html += '<div style="font-size:11px;color:#888;margin-top:5px;">More on ' + item.trendingTopic + ': ' +
+      extras.slice(0, 5).map(function(x) {
+        return x.url
+          ? '<a href="' + x.url + '" style="color:#888;text-decoration:underline;">' + x.title + '</a>'
+          : x.title;
+      }).join(' &nbsp;&middot;&nbsp; ') +
+      '</div>';
+  }
+
   html += '</div>';
   return html;
 }
 
-function buildEmailHTML(alerts, date, slot) {
+function buildEmailHTML(alerts, date, slot, overflowByTopic) {
   // Group by calendar day
   var days = {};
   alerts.forEach(function(a) {
@@ -93,7 +106,7 @@ function buildEmailHTML(alerts, date, slot) {
       });
       daySections += '<div style="margin-bottom:18px;">';
       daySections += '<div style="font-size:12px;font-weight:700;color:#888;text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px;border-bottom:2px solid #cf0315;padding-bottom:5px;">' + title + '</div>';
-      items.forEach(function(item) { daySections += itemHTML(item); });
+      items.forEach(function(item) { daySections += itemHTML(item, overflowByTopic); });
       daySections += '</div>';
     });
     body += '<div style="margin-bottom:26px;">';
@@ -154,13 +167,20 @@ module.exports = async function handler(req, res) {
     alerts.sort(function(a, b) { return hoursAgo(a.time) - hoursAgo(b.time); });
     alerts = alerts.slice(0, MAX_ITEMS);
 
+    // Held-out "More on this" stories (same person/topic), grouped by topic
+    var overflowByTopic = {};
+    (scanResult.overflow || []).forEach(function(s) {
+      if (!s.trendingTopic || (s.age || 0) > windowHours) return;
+      (overflowByTopic[s.trendingTopic] = overflowByTopic[s.trendingTopic] || []).push(s);
+    });
+
     var date = new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' });
 
     var mailResult = await mailer.sendMail({
       subject: alerts.length
         ? 'InsideMDSports ' + SLOT_LABEL[slot] + ' update — ' + alerts.length + ' new ' + (alerts.length === 1 ? 'story' : 'stories')
         : 'InsideMDSports ' + SLOT_LABEL[slot] + ' update — nothing new',
-      html: buildEmailHTML(alerts, date, slot)
+      html: buildEmailHTML(alerts, date, slot, overflowByTopic)
     });
 
     return res.status(200).json({ success: true, slot: slot, count: alerts.length, date: date, mail: mailResult });
