@@ -226,14 +226,24 @@ module.exports = async function handler(req, res) {
       return true;
     });
 
-    // Deduplicate by title similarity
-    var seen = [];
-    stories = stories.filter(function(s) {
+    // Deduplicate by title similarity. When the same story shows up from multiple feeds,
+    // keep the first but upgrade its URL/snippet from a later copy that has a real
+    // (fetchable, non-Google-redirect) link or a real article snippet — the deep-read
+    // pass needs those.
+    var seenIdx = {};
+    var deduped = [];
+    stories.forEach(function(s) {
       var norm = normTitle(s.title);
-      if (seen.includes(norm)) return false;
-      seen.push(norm);
-      return true;
+      if (seenIdx[norm] === undefined) {
+        seenIdx[norm] = deduped.length;
+        deduped.push(s);
+        return;
+      }
+      var kept = deduped[seenIdx[norm]];
+      if (/news\.google\.com/i.test(kept.url) && !/news\.google\.com/i.test(s.url)) kept.url = s.url;
+      if (!kept.snippet && s.snippet) kept.snippet = s.snippet;
     });
+    stories = deduped;
 
     // Cap at 40 most recent before sending to Claude
     stories = stories.sort(function(a, b) { return a.age - b.age; }).slice(0, 40);
