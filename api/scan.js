@@ -119,6 +119,32 @@ module.exports = async function handler(req, res) {
         .finally(function() { clearTimeout(timer); });
     }
 
+    var BROWSER_UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0 Safari/537.36';
+
+    // Resolve a news.google.com/rss/articles/<id> redirect to the real publisher URL.
+    // Google no longer embeds the URL in the id; it takes a page fetch (for the signature
+    // + timestamp) then a batchexecute POST. Best-effort — returns null on any failure.
+    async function resolveGoogleNewsUrl(gurl) {
+      try {
+        var m = String(gurl).match(/\/articles\/([^?/]+)/);
+        if (!m) return null;
+        var id = m[1];
+        var page = await fetchWithTimeout('https://news.google.com/rss/articles/' + id, { headers: { 'User-Agent': BROWSER_UA } }, 8000).then(function(r) { return r.text(); });
+        var ts = (page.match(/data-n-a-ts="([^"]+)"/) || [])[1];
+        var sg = (page.match(/data-n-a-sg="([^"]+)"/) || [])[1];
+        if (!ts || !sg) return null;
+        var inner = '["garturlreq",[["X","X",["X","X"],null,null,1,1,"US:en",null,1,null,null,null,null,null,0,1],"en-US","US",1,[2,3,4,8],1,0,"655000234",0,0,null,0],"' + id + '",' + ts + ',"' + sg + '"]';
+        var freq = JSON.stringify([[['Fbv4je', inner, null, 'generic']]]);
+        var resp = await fetchWithTimeout('https://news.google.com/_/DotsSplashUi/data/batchexecute', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8', 'User-Agent': BROWSER_UA },
+          body: 'f.req=' + encodeURIComponent(freq)
+        }, 8000).then(function(r) { return r.text(); });
+        var um = resp.match(/https?:\/\/[^\\"]+/);
+        return (um && !/news\.google\.com/.test(um[0])) ? um[0] : null;
+      } catch (e) { return null; }
+    }
+
     var fetches = redditFetches.map(function(f) {
       return fetchWithTimeout(f.url, { headers: { 'User-Agent': 'IMSTool/1.0' } }, 8000);
     }).concat(feedConfigs.map(function(f) {
@@ -331,19 +357,26 @@ module.exports = async function handler(req, res) {
     var parsed = JSON.parse(cleaned.substring(start, end + 1));
 
     // DEEP READ (digest runs only, body.deep === true): for stories the headline + snippet
-    // couldn't settle (needsContext), fetch the real article and re-rate from its text.
-    // Google-redirect URLs aren't fetchable, so those are skipped.
+    // couldn't settle (needsContext), resolve the Google News redirect if needed, fetch the
+    // real article, and re-rate from its text.
     if (body.deep === true) {
       var deepCandidates = parsed
         .map(function(item) { return { item: item, orig: stories[item.idx - 1] }; })
-        .filter(function(p) {
-          return p.item && p.item.needsContext && p.orig && p.orig.url && !/news\.google\.com/i.test(p.orig.url);
-        })
-        .slice(0, 8);
+        .filter(function(p) { return p.item && p.item.needsContext && p.orig && p.orig.url; })
+        .slice(0, 6);
 
       if (deepCandidates.length) {
+        // Resolve any Google News redirects to real publisher URLs (and keep them for output)
+        await Promise.allSettled(deepCandidates.map(function(p) {
+          if (!/news\.google\.com/i.test(p.orig.url)) return Promise.resolve();
+          return resolveGoogleNewsUrl(p.orig.url).then(function(real) {
+            if (real) { p.resolved = real; p.orig.url = real; }
+          }).catch(function() {});
+        }));
+
         var fetched = await Promise.allSettled(deepCandidates.map(function(p) {
-          return fetchWithTimeout(p.orig.url, { headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0 Safari/537.36' } }, 10000)
+          if (/news\.google\.com/i.test(p.orig.url)) return Promise.resolve('');
+          return fetchWithTimeout(p.orig.url, { headers: { 'User-Agent': BROWSER_UA } }, 10000)
             .then(function(r) { return r.text(); })
             .then(function(html) {
               return html.replace(/<script[\s\S]*?<\/script>/gi, ' ').replace(/<style[\s\S]*?<\/style>/gi, ' ')
