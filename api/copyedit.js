@@ -70,8 +70,9 @@ module.exports = async function handler(req, res) {
     '  "notes": ["<short bullet: what you changed and why>", ...],\n' +
     '  "addedContext": ["<each sentence/clause of context you added, with its [VERIFY] flag if applicable>", ...],\n' +
     '  "factsToCheck": ["<anything the draft needs but is missing or unclear>", ...]' +
-    (wantHeadline ? ',\n  "headline": "<a house-style headline>",\n  "altHeadlines": ["<2 alternates>", "..."]' : '') +
+    (wantHeadline ? ',\n  "headlines": [\n    {"label": "Straight news", "text": "<clear, factual, names the subject>"},\n    {"label": "Punchy", "text": "<sharper, more voice, still accurate — no clickbait>"},\n    {"label": "SEO", "text": "<leads with the key search terms: player/coach name + Maryland + the topic>"}\n  ]' : '') +
     '\n}\n\n' +
+    (wantHeadline ? 'All three headlines must be publishable, accurate, house-style, and under ~90 characters. Different angles, not reworded versions of each other.\n\n' : '') +
     'DRAFT:\n' + draft;
 
   try {

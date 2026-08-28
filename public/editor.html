@@ -247,9 +247,15 @@ async function runEdit(){
 
 function renderEdit(d){
   var h='';
-  if(d.headline){
-    h+='<div class="card"><h2>Headline</h2><div style="font-size:16px;font-weight:600;margin:6px 0">'+esc(d.headline)+'</div>'+
-      (d.altHeadlines&&d.altHeadlines.length?'<div class="hint">Alternates: '+d.altHeadlines.map(esc).join(' &nbsp;&middot;&nbsp; ')+'</div>':'')+'</div>';
+  var heds = d.headlines || (d.headline ? [{label:'',text:d.headline}].concat((d.altHeadlines||[]).map(function(x){return {label:'',text:x};})) : []);
+  if(heds.length){
+    h+='<div class="card"><h2>Headline options</h2>'+heds.map(function(x){
+      return '<div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--border)">'+
+        (x.label?'<span class="pill" style="flex-shrink:0">'+esc(x.label)+'</span>':'')+
+        '<span style="font-size:15px;font-weight:600;flex:1">'+esc(x.text)+'</span>'+
+        '<button class="btn ghost" style="flex-shrink:0" onclick="copyStr(this,'+JSON.stringify(x.text)+')">Copy</button>'+
+      '</div>';
+    }).join('')+'</div>';
   }
   h+='<div class="card"><h2>Edited draft <span class="hint" style="font-weight:400"> &middot; '+(d.relatedCount||0)+' related articles available for links</span></h2>'+
      '<div class="out-article">'+md(d.edited||'')+'</div>'+
@@ -268,6 +274,12 @@ function copyMd(btn){
   var t=document.getElementById('ed-md'); if(!t)return;
   t.select(); t.setSelectionRange(0,t.value.length);
   try{ document.execCommand('copy'); btn.textContent='Copied'; setTimeout(function(){btn.textContent='Copy Markdown';},1500); }catch(e){}
+}
+function copyStr(btn,s){
+  var ta=document.createElement('textarea'); ta.value=s; ta.style.position='fixed'; ta.style.left='-9999px';
+  document.body.appendChild(ta); ta.select();
+  try{ document.execCommand('copy'); btn.textContent='Copied'; setTimeout(function(){btn.textContent='Copy';},1500); }catch(e){}
+  document.body.removeChild(ta);
 }
 
 document.getElementById('sg').value=getGuide();
