@@ -8,7 +8,8 @@ module.exports = async function handler(req, res) {
   var key = process.env.YOUTUBE_API_KEY;
   if (!key) return res.status(200).json({ videos: [], error: 'YOUTUBE_API_KEY not set — add it in Vercel environment variables' });
 
-  if (ytCache.payload && (Date.now() - ytCache.at) < YT_CACHE_MS) {
+  var noCache = req.query && (req.query.nocache || req.query.fresh);
+  if (!noCache && ytCache.payload && (Date.now() - ytCache.at) < YT_CACHE_MS) {
     return res.status(200).json(Object.assign({ cached: true }, ytCache.payload));
   }
 

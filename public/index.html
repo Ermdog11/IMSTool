@@ -399,18 +399,20 @@ body { padding-bottom: 40px; }
 
 <!-- YOUTUBE TAB -->
 <div class="page" id="page-8">
-  <div style="padding:16px 0 8px;display:flex;align-items:center;gap:12px;">
+  <div style="padding:16px 0 8px;display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
     <button onclick="switchTab(0)" style="background:none;border:1px solid var(--border);border-radius:6px;padding:4px 12px;cursor:pointer;color:var(--fg);font-size:.85rem;">← Back to Alerts</button>
-    <div><h3 style="margin:0;font-size:1.1rem;">📺 YouTube</h3><p style="color:var(--muted);font-size:.85rem;margin:2px 0 0;">Recent Terps videos from across YouTube — last 7 days.</p></div>
+    <div style="flex:1;min-width:180px"><h3 style="margin:0;font-size:1.1rem;">📺 YouTube</h3><p style="color:var(--muted);font-size:.85rem;margin:2px 0 0;">Recent Terps videos — last 10 days. Rated 4+ also appear in Alerts.</p></div>
+    <button class="scan-btn" id="ytScanBtn" onclick="scanYouTube()"><i class="ti ti-refresh"></i> Scan YouTube</button>
   </div>
-  <div id="youtubeContainer"><div class="empty"><i class="ti ti-brand-youtube"></i> Click this tab again or refresh to load videos.</div></div>
+  <div id="youtubeContainer"><div class="empty"><i class="ti ti-brand-youtube"></i> Run a scan to load videos.</div></div>
 </div>
 
 <!-- BLUESKY TAB -->
 <div class="page" id="page-9">
-  <div style="padding:16px 0 8px;display:flex;align-items:center;gap:12px;">
+  <div style="padding:16px 0 8px;display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
     <button onclick="switchTab(0)" style="background:none;border:1px solid var(--border);border-radius:6px;padding:4px 12px;cursor:pointer;color:var(--fg);font-size:.85rem;">← Back to Alerts</button>
-    <div><h3 style="margin:0;font-size:1.1rem;">🦋 Bluesky</h3><p style="color:var(--muted);font-size:.85rem;margin:2px 0 0;">Terps chatter on Bluesky — last 48 hours, sorted by engagement.</p></div>
+    <div style="flex:1;min-width:180px"><h3 style="margin:0;font-size:1.1rem;">🦋 Bluesky</h3><p style="color:var(--muted);font-size:.85rem;margin:2px 0 0;">Terps chatter on Bluesky — last 48 hours, sorted by engagement.</p></div>
+    <button class="scan-btn" id="bskyScanBtn" onclick="loadBluesky()"><i class="ti ti-refresh"></i> Scan Bluesky</button>
   </div>
   <div id="blueskyContainer"><div class="empty"><i class="ti ti-butterfly"></i> Loading...</div></div>
 </div>
@@ -766,6 +768,23 @@ async function refreshPodcasts() {
   await loadPodcasts();
 }
 
+async function scanYouTube() {
+  const btn = document.getElementById('ytScanBtn');
+  const c = document.getElementById('youtubeContainer');
+  if (btn) { btn.disabled = true; btn.innerHTML = '<i class="ti ti-loader spin"></i> Scanning...'; }
+  c.innerHTML = '<div class="empty"><i class="ti ti-loader spin"></i> Searching YouTube...</div>';
+  try {
+    const res = await fetch('/api/youtube?batch=7&nocache=1', { cache: 'no-store' });
+    const data = await res.json();
+    if (data.error && !(data.videos || []).length) { c.innerHTML = '<div class="empty">' + data.error + '</div>'; }
+    else {
+      allVideos = (data.videos || []).filter(v => !isBlockedSource(v.source || v.channel));
+      loadYouTube();
+    }
+  } catch (e) { c.innerHTML = '<div class="empty">Error — ' + e.message + '</div>'; }
+  if (btn) { btn.disabled = false; btn.innerHTML = '<i class="ti ti-refresh"></i> Scan YouTube'; }
+}
+
 function loadYouTube() {
   const c = document.getElementById('youtubeContainer');
   if (!c) return;
@@ -879,6 +898,8 @@ function renderBlockedSources() {
 async function loadBluesky() {
   const c = document.getElementById('blueskyContainer');
   if (!c) return;
+  const btn = document.getElementById('bskyScanBtn');
+  if (btn) { btn.disabled = true; btn.innerHTML = '<i class="ti ti-loader spin"></i> Scanning...'; }
   c.innerHTML = '<div class="empty"><i class="ti ti-loader spin"></i> Searching Bluesky...</div>';
   try {
     const res = await fetch('/api/bluesky', { cache: 'no-store' });
@@ -906,6 +927,8 @@ async function loadBluesky() {
   } catch(e) {
     c.innerHTML = '<div class="empty">Error loading Bluesky — ' + e.message + '</div>';
   }
+  var bb = document.getElementById('bskyScanBtn');
+  if (bb) { bb.disabled = false; bb.innerHTML = '<i class="ti ti-refresh"></i> Scan Bluesky'; }
 }
 
 async function loadTranscripts() {
