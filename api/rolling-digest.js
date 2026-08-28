@@ -16,8 +16,9 @@ var SLOT_LABEL = {
 // Cap each digest at this many of the most recent items
 var MAX_ITEMS = 20;
 
-// Sport sub-group order within each day
-var GROUP_ORDER = ['Recruiting', 'Football', 'Basketball', 'Other sports', 'Alumni', 'Social & podcasts'];
+// Sport sub-group order within each day. "Minor sports" (volleyball, tennis, golf,
+// cross country, wrestling, softball, field hockey, swimming) always sits last.
+var GROUP_ORDER = ['Recruiting', 'Football', 'Basketball', 'Other sports', 'Alumni', 'Social & podcasts', 'Minor sports'];
 
 // Parse a relative "time" string ("2h ago", "3 days ago", "just now") into hours-ago
 function hoursAgo(t) {
@@ -39,6 +40,7 @@ function dayKey(t) {
 
 // Which sport sub-group an item belongs to (single group, no duplicates)
 function groupOf(a) {
+  if (a.lowPriority) return 'Minor sports';
   if (a.category === 'recruiting') return 'Recruiting';
   if (a.category === 'alumni') return 'Alumni';
   if (['social', 'podcast'].indexOf(a.category) !== -1) return 'Social & podcasts';

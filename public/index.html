@@ -1050,7 +1050,8 @@ async function runScan() {
     let results = JSON.parse(cleaned.substring(start, end + 1));
     results = results.filter(a => !EXCLUDED.some(ex => (a.source||'').toLowerCase().includes(ex.toLowerCase())));
     results = results.filter(a => !isBlockedSource(a.source));
-    allAlerts = results;
+    // Low-priority sports (volleyball, tennis, golf, etc.) always sink to the bottom
+    allAlerts = results.slice().sort((a, b) => (a.lowPriority ? 1 : 0) - (b.lowPriority ? 1 : 0));
     overflowAlerts = (data.overflow || [])
       .filter(s => !EXCLUDED.some(ex => (s.source||'').toLowerCase().includes(ex.toLowerCase())))
       .filter(s => !isBlockedSource(s.source));

@@ -395,7 +395,7 @@ module.exports = async function handler(req, res) {
     var LOW_PRIORITY_SPORTS = /\b(volleyball|tennis|golf|cross[ -]country|wrestling|softball|field hockey|swimming|swim (?:and|&) dive)\b/i;
     parsed.forEach(function(item) {
       var t = ((item.headline || '') + ' ' + (item.summary || '')).toLowerCase();
-      if (LOW_PRIORITY_SPORTS.test(t)) item.rating = 1;
+      if (LOW_PRIORITY_SPORTS.test(t)) { item.rating = 1; item.lowPriority = true; }
     });
 
     // Re-attach URLs by idx
