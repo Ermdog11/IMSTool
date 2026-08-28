@@ -65,11 +65,12 @@ module.exports = async function handler(req, res) {
       { url: 'https://news.google.com/rss/search?q=site%3Aon3.com+%22Maryland%22+recruiting+OR+commit+OR+portal&hl=en-US&gl=US&ceid=US:en', name: 'On3/maryland' },
       { url: 'https://news.google.com/rss/search?q=site%3Arivals.com+%22Maryland%22+recruiting+OR+commit+OR+portal&hl=en-US&gl=US&ceid=US:en', name: 'Rivals/maryland' },
       { url: 'https://news.google.com/rss/search?q=site%3A247sports.com+%22Maryland+Terrapins%22+commit+OR+recruiting+OR+portal+-site%3Amaryland.247sports.com&hl=en-US&gl=US&ceid=US:en', name: '247national/maryland' },
-      // Our own outlet (maryland.247sports.com / InsideMDSports). Google News reports its
-      // source as plain "247Sports" and the article URL as a redirect, so neither the src
-      // label nor the URL can be matched against `excluded`. Instead we fetch everything
-      // from that subdomain here and use the headlines as a blocklist (see ownTitles below).
-      { url: 'https://news.google.com/rss/search?q=site%3Amaryland.247sports.com&hl=en-US&gl=US&ceid=US:en', name: 'own247/blocklist', blocklistOnly: true },
+      // Our own outlet (247Sports Maryland / InsideMDSports). Google News reports its source
+      // as plain "247Sports" and gives a redirect URL, and it doesn't index the site anyway,
+      // so neither the src label nor the URL can be matched against `excluded`. Instead we
+      // scrape the Maryland landing page — its article URLs carry the headline as a slug —
+      // and use those headlines as a blocklist (see ownTitles / scrapeSlugs below).
+      { url: 'https://247sports.com/college/maryland/', name: 'own247/blocklist', scrapeSlugs: true },
       { url: 'https://news.google.com/rss/search?q=site%3Abtn.com+%22Maryland%22&hl=en-US&gl=US&ceid=US:en', name: 'BTN', src: 'Big Ten Network' },
       { url: 'https://news.google.com/rss/search?q=site%3Asi.com+%22Maryland+Terrapins%22+OR+site%3Asi.com+%22Terps%22&hl=en-US&gl=US&ceid=US:en', name: 'SI/terps', src: 'Sports Illustrated' },
       { url: 'https://news.google.com/rss/search?q=%22Maryland+Terrapins%22+preview+OR+prediction+OR+%22scouting+report%22&hl=en-US&gl=US&ceid=US:en', name: 'GNews/opponents' },
@@ -120,7 +121,11 @@ module.exports = async function handler(req, res) {
 
     var fetches = redditFetches.map(function(f) {
       return fetchWithTimeout(f.url, { headers: { 'User-Agent': 'IMSTool/1.0' } }, 8000);
-    }).concat(feedConfigs.map(function(f) { return fetchWithTimeout(f.url, {}, 8000); }));
+    }).concat(feedConfigs.map(function(f) {
+      // Scraped HTML pages 403 without a browser UA; RSS endpoints don't care either way.
+      var opts = f.scrapeSlugs ? { headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0 Safari/537.36' } } : {};
+      return fetchWithTimeout(f.url, opts, 8000);
+    }));
 
     var results = await Promise.allSettled(fetches);
     var stories = [];
@@ -162,6 +167,16 @@ module.exports = async function handler(req, res) {
       var cfg = feedConfigs[gi - redditFetches.length];
       try {
         var xml = await results[gi].value.text();
+        // Our-outlet blocklist: pull headline slugs out of the Maryland landing page's
+        // article URLs (…/article/some-headline-slug-289225568/) and record them.
+        if (cfg.scrapeSlugs) {
+          var slugMatches = xml.match(/\/college\/maryland\/(?:article|longformarticle)\/[a-z0-9-]+-\d{6,}/g) || [];
+          slugMatches.forEach(function(m) {
+            var slug = m.replace(/.*\/(?:article|longformarticle)\//, '').replace(/-\d{6,}$/, '').replace(/-/g, ' ');
+            if (slug) ownTitles[normTitle(slug)] = true;
+          });
+          continue;
+        }
         var items = xml.match(/<item>[\s\S]*?<\/item>/g) || [];
         items.forEach(function(item) {
           var title = (item.match(/<title><!\[CDATA\[([\s\S]*?)\]\]><\/title>/) || item.match(/<title>([\s\S]*?)<\/title>/) || [])[1] || '';
@@ -174,8 +189,6 @@ module.exports = async function handler(req, res) {
           var realUrl = (desc.match(/href="(https?:\/\/[^"]+)"/) || [])[1] || link;
           if (!title) return;
           title = title.trim();
-          // Blocklist feed: just record the headline, never surface the item itself
-          if (cfg.blocklistOnly) { ownTitles[normTitle(title)] = true; return; }
           // Some direct feeds carry the whole publication — require Terps relevance
           if (cfg.requireTerps) {
             var relevanceText = (title + ' ' + desc).toLowerCase();
