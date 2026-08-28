@@ -185,8 +185,22 @@ module.exports = async function handler(req, res) {
           var srcUrl = (item.match(/<source[^>]*url="([^"]*)"/) || [])[1] || '';
           var pubDate = (item.match(/<pubDate>(.*?)<\/pubDate>/) || [])[1] || '';
           // Extract real article URL from description (Google News embeds it there)
-          var desc = (item.match(/<description><!\[CDATA\[([\s\S]*?)\]\]><\/description>/) || [])[1] || '';
+          var desc = (item.match(/<description><!\[CDATA\[([\s\S]*?)\]\]><\/description>/) || item.match(/<description>([\s\S]*?)<\/description>/) || [])[1] || '';
           var realUrl = (desc.match(/href="(https?:\/\/[^"]+)"/) || [])[1] || link;
+          // Bing wraps the real publisher URL in an apiclick redirect: ...&url=<encoded>&...
+          var bingUrl = (link + ' ' + realUrl).replace(/&amp;/g, '&').match(/[?&]url=(https?%3[Aa][^&"\s<]+)/);
+          if (bingUrl) { try { realUrl = decodeURIComponent(bingUrl[1]); } catch (e) {} }
+          // Plain-text snippet from the feed (Bing + direct site feeds carry a real one;
+          // Google News descriptions are just "<a>Title</a> Publisher" and get skipped)
+          var snippet = '';
+          var rawSnip = desc;
+          var ce = (item.match(/<content:encoded><!\[CDATA\[([\s\S]*?)\]\]><\/content:encoded>/) || [])[1];
+          if (ce && ce.length > desc.length) rawSnip = ce;
+          if (rawSnip && !/^\s*<a\s+href/i.test(rawSnip)) {
+            snippet = rawSnip.replace(/<[^>]+>/g, ' ').replace(/&nbsp;/g, ' ')
+              .replace(/&amp;/g, '&').replace(/&#?[a-z0-9]+;/gi, ' ')
+              .replace(/\s+/g, ' ').trim().slice(0, 320);
+          }
           if (!title) return;
           title = title.trim();
           // Auto-generated stat / leaderboard stub pages (FOX Sports etc.) are never news — drop them
@@ -200,7 +214,7 @@ module.exports = async function handler(req, res) {
           var age = pubDate ? Math.round((Date.now() - new Date(pubDate).getTime()) / 3600000) : 0;
           if (pubDate && new Date(pubDate).getTime() < googleCutoff) return;
           if (excluded.some(function(ex) { return src.toLowerCase().includes(ex) || srcUrl.toLowerCase().includes(ex) || title.toLowerCase().includes(ex) || realUrl.toLowerCase().includes(ex); })) return;
-          stories.push({ title: title.replace(/&amp;/g,'&').replace(/&lt;/g,'<').replace(/&gt;/g,'>'), source: src, url: (realUrl || link).trim(), age: age });
+          stories.push({ title: title.replace(/&amp;/g,'&').replace(/&lt;/g,'<').replace(/&gt;/g,'>'), source: src, url: (realUrl || link).trim(), age: age, snippet: snippet });
         });
       } catch(e) { /* skip failed feed */ }
     }
@@ -237,9 +251,11 @@ module.exports = async function handler(req, res) {
       return res.status(200).json({ error: diagMsg });
     }
 
-    // Build numbered list for Claude
+    // Build numbered list for Claude — include the feed snippet where we have one
     var storyList = stories.map(function(s, i) {
-      return (i + 1) + '. [' + s.source + '] ' + s.title + ' (' + s.age + 'h ago)';
+      var line = (i + 1) + '. [' + s.source + '] ' + s.title + ' (' + s.age + 'h ago)';
+      if (s.snippet) line += '\n   snippet: ' + s.snippet;
+      return line;
     }).join('\n');
 
     var flaggedNote = '';
@@ -267,7 +283,7 @@ module.exports = async function handler(req, res) {
     var watchListText = 'PEOPLE TO WATCH — current/recent Maryland roster, commits, targets, staff, and alumni. Use this to confirm identity (see NAME COLLISIONS above) and to recognize names you might otherwise miss:\nCoaches: ' + WATCH.coaches.join(', ') + '\nFB commits 2026: ' + WATCH.fbCommits26.join(', ') + '\nFB commits 2027: ' + WATCH.fbCommits27.join(', ') + '\nFB targets: ' + WATCH.fbTargets.join(', ') + '\nFB roster: ' + WATCH.fbRoster.join(', ') + '\nBK roster: ' + WATCH.bkRoster.join(', ') + '\nBK targets: ' + WATCH.bkTargets.join(', ') + '\nNFL alumni: ' + WATCH.nflAlumni.join(', ') + '\nNBA alumni: ' + WATCH.nbaAlumni.join(', ') + '\nWNBA alumni: ' + WATCH.wnba.join(', ') + '\nLegends: ' + WATCH.legends.join(', ') + '\nAdmin: ' + WATCH.admin.join(', ') + '\nReporters/outlets to recognize as legitimate Terps coverage: ' + WATCH.reporters.join(', ') + '\nPodcasts: ' + WATCH.podcasts.join(', ');
 
     var today = new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
-    var prompt = 'You are a sports news editor for InsideMDSports covering University of Maryland Terrapins athletics. Today is ' + today + '.\n\nRate and categorize ALL of these stories. Return ONLY a JSON array, no other text. Include EVERY story.\n\nEach object must have:\n- idx: the story number (1-based)\n- headline: a cleaned-up version of the ORIGINAL headline — fix grammar, clarity, length, and clickbait only. DO NOT add or change any factual detail that is not already in the original: player positions (WR, QB, DE, guard...), jersey numbers, class year, height/weight, star ratings, team or school names, coaches, scores, stats, or dates. If the original does not state a player\'s position or role, do not put one in. When unsure, keep the original wording.\n- source: the [Source] shown\n- time: e.g. "2h ago"\n- rating: 1-5 (5=breaking news, 4=major, 3=solid, 2=minor, 1=filler)\n- category: one of: recruiting, football, basketball, alumni, social, podcast, news\n- sport: football, basketball, lacrosse, soccer, or other\n- summary: one factual sentence based only on what the headline/source actually says — do not invent positions, numbers, quotes, or outcomes\n- irrelevant: true if the story has NO genuine connection to Maryland Terrapins athletics, its coaches, players, recruits, or notable alumni (e.g. a random local charity story, general weather/campus news). These will be discarded.\n\nNAME COLLISIONS: many alumni share their name with unrelated athletes in other sports (e.g. Joe Smith the Chicago Cubs pitcher is NOT Maryland alum Joe Smith the former NBA player; Malik Washington the Miami Dolphins receiver is NOT the Maryland alum of the same name — Maryland\'s Malik Washington is the current QB). Before tagging any story category:"alumni", use your own knowledge to confirm the person in the story is actually the former Maryland athlete — check that their sport, team history, or position matches the real Maryland alum, not just the name. If the story is clearly about a different person who merely shares the name, set irrelevant:true.\n\n' + watchListText + '\n- republished: true if this appears to be a recycled/republished article about events that clearly happened weeks or months ago (e.g. a recruiting visit scheduled in a prior month, an old signing, a past season result being re-reported, an old controversy or quote resurfacing). Use today\'s date AND your knowledge of when events actually happened to judge this — if you recognize the underlying event as occurring more than 2 weeks ago, set republished true even if the article timestamp is recent. Be especially suspicious of aggregators (MSN, Yahoo, Sports Illustrated syndication) which frequently republish old stories with fresh timestamps. Set false only for genuinely new stories.\n\nPRIORITY: If a story headline or summary contains "breaking", "commits", "committed", "commitment", or "decommit" and it relates to Maryland, rate it 4 or 5 — these are high-value stories.\n\nFor former Maryland players now in the NFL/NBA (see NFL/NBA alumni lists above): rate routine pro coverage (fantasy analysis, practice notes, game recaps, rankings) 1-2. Only rate 3+ for major news (trades, signings, serious injuries, milestones) or stories with a genuine Maryland/Terps angle.\n\nFor Reddit posts: if the post is fan discussion, opinion, or a question rather than actual news, give it rating 1. Only rate Reddit posts 3+ if they report genuine news (commitments, injuries, hires, transfers, reports).\n\nLOW-PRIORITY SPORTS: We almost never cover these. ALWAYS rate a story that is primarily about one of them as rating 1, no matter how newsworthy it seems: volleyball, tennis, golf, cross country, wrestling, softball, field hockey, swimming & diving. Our core beats are football, men\'s and women\'s basketball, and men\'s and women\'s lacrosse.\n\nInclude ALL stories. Do not skip any.' + flaggedNote + '\n\nStories:\n' + storyList;
+    var prompt = 'You are a sports news editor for InsideMDSports covering University of Maryland Terrapins athletics. Today is ' + today + '.\n\nRate and categorize ALL of these stories. Return ONLY a JSON array, no other text. Include EVERY story.\n\nEach object must have:\n- idx: the story number (1-based)\n- headline: a cleaned-up version of the ORIGINAL headline — fix grammar, clarity, length, and clickbait only. DO NOT add or change any factual detail that is not already in the original: player positions (WR, QB, DE, guard...), jersey numbers, class year, height/weight, star ratings, team or school names, coaches, scores, stats, or dates. If the original does not state a player\'s position or role, do not put one in. When unsure, keep the original wording.\n- source: the [Source] shown\n- time: e.g. "2h ago"\n- rating: 1-5 (5=breaking news, 4=major, 3=solid, 2=minor, 1=filler)\n- category: one of: recruiting, football, basketball, alumni, social, podcast, news\n- sport: football, basketball, lacrosse, soccer, or other\n- summary: one factual sentence based only on what the headline/source actually says — do not invent positions, numbers, quotes, or outcomes\n- irrelevant: true if the story has NO genuine connection to Maryland Terrapins athletics, its coaches, players, recruits, or notable alumni (e.g. a random local charity story, general weather/campus news). These will be discarded.\n- needsContext: true if the headline and snippet do NOT give you enough to confidently judge the Maryland relevance or the rating — e.g. a national roundup/ranking/preview that might bury a Maryland player or angle, a vague headline, or a story where you suspect a stronger Terps angle exists in the body. We will pull the full article for these and re-rate.\n\nSome stories include a "snippet:" line — the opening of the article. Use it. If a snippet is present and still not enough, set needsContext:true.\n\nNAME COLLISIONS: many alumni share their name with unrelated athletes in other sports (e.g. Joe Smith the Chicago Cubs pitcher is NOT Maryland alum Joe Smith the former NBA player; Malik Washington the Miami Dolphins receiver is NOT the Maryland alum of the same name — Maryland\'s Malik Washington is the current QB). Before tagging any story category:"alumni", use your own knowledge to confirm the person in the story is actually the former Maryland athlete — check that their sport, team history, or position matches the real Maryland alum, not just the name. If the story is clearly about a different person who merely shares the name, set irrelevant:true.\n\n' + watchListText + '\n- republished: true if this appears to be a recycled/republished article about events that clearly happened weeks or months ago (e.g. a recruiting visit scheduled in a prior month, an old signing, a past season result being re-reported, an old controversy or quote resurfacing). Use today\'s date AND your knowledge of when events actually happened to judge this — if you recognize the underlying event as occurring more than 2 weeks ago, set republished true even if the article timestamp is recent. Be especially suspicious of aggregators (MSN, Yahoo, Sports Illustrated syndication) which frequently republish old stories with fresh timestamps. Set false only for genuinely new stories.\n\nPRIORITY: If a story headline or summary contains "breaking", "commits", "committed", "commitment", or "decommit" and it relates to Maryland, rate it 4 or 5 — these are high-value stories.\n\nFor former Maryland players now in the NFL/NBA (see NFL/NBA alumni lists above): rate routine pro coverage (fantasy analysis, practice notes, game recaps, rankings) 1-2. Only rate 3+ for major news (trades, signings, serious injuries, milestones) or stories with a genuine Maryland/Terps angle.\n\nFor Reddit posts: if the post is fan discussion, opinion, or a question rather than actual news, give it rating 1. Only rate Reddit posts 3+ if they report genuine news (commitments, injuries, hires, transfers, reports).\n\nLOW-PRIORITY SPORTS: We almost never cover these. ALWAYS rate a story that is primarily about one of them as rating 1, no matter how newsworthy it seems: volleyball, tennis, golf, cross country, wrestling, softball, field hockey, swimming & diving. Our core beats are football, men\'s and women\'s basketball, and men\'s and women\'s lacrosse.\n\nInclude ALL stories. Do not skip any.' + flaggedNote + '\n\nStories:\n' + storyList;
 
     var cr = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
@@ -288,6 +304,63 @@ module.exports = async function handler(req, res) {
     if (start === -1 || end === -1) return res.status(200).json({ error: 'Claude did not return JSON. Response: ' + cleaned.substring(0, 300) });
 
     var parsed = JSON.parse(cleaned.substring(start, end + 1));
+
+    // DEEP READ (digest runs only, body.deep === true): for stories the headline + snippet
+    // couldn't settle (needsContext), fetch the real article and re-rate from its text.
+    // Google-redirect URLs aren't fetchable, so those are skipped.
+    if (body.deep === true) {
+      var deepCandidates = parsed
+        .map(function(item) { return { item: item, orig: stories[item.idx - 1] }; })
+        .filter(function(p) {
+          return p.item && p.item.needsContext && p.orig && p.orig.url && !/news\.google\.com/i.test(p.orig.url);
+        })
+        .slice(0, 8);
+
+      if (deepCandidates.length) {
+        var fetched = await Promise.allSettled(deepCandidates.map(function(p) {
+          return fetchWithTimeout(p.orig.url, { headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0 Safari/537.36' } }, 10000)
+            .then(function(r) { return r.text(); })
+            .then(function(html) {
+              return html.replace(/<script[\s\S]*?<\/script>/gi, ' ').replace(/<style[\s\S]*?<\/style>/gi, ' ')
+                .replace(/<[^>]+>/g, ' ').replace(/&nbsp;/g, ' ').replace(/&amp;/g, '&')
+                .replace(/&#?[a-z0-9]+;/gi, ' ').replace(/\s+/g, ' ').trim().slice(0, 2800);
+            })
+            .catch(function() { return ''; });
+        }));
+
+        var deepList = deepCandidates.map(function(p, k) {
+          var art = fetched[k].status === 'fulfilled' ? fetched[k].value : '';
+          return p.item.idx + '. [' + p.item.source + '] ' + p.item.headline + '\nARTICLE TEXT: ' + (art || '(could not fetch — judge from headline)');
+        }).join('\n\n');
+
+        var deepPrompt = 'You are the same InsideMDSports editor covering University of Maryland Terrapins athletics. Each item below is a story re-checked with its full article text. Return the CORRECTED rating now that you can see the body. Return ONLY a JSON array; each object: {"idx": <number, matching the number shown>, "rating": 1-5, "irrelevant": <bool>, "summary": "<one factual sentence, no invented facts>", "category": "recruiting|football|basketball|alumni|social|podcast|news", "sport": "football|basketball|lacrosse|soccer|other"}. Scale: 5=breaking, 4=major, 3=solid, 2=minor, 1=filler. irrelevant:true ONLY if the article has no real Maryland Terrapins connection. If a national piece meaningfully covers a Maryland player/recruit/coach/alum, rate that Maryland angle (usually 2-4). Stories primarily about volleyball, tennis, golf, cross country, wrestling, softball, field hockey, or swimming stay rating 1.\n\n' + deepList;
+
+        try {
+          var dr = await fetch('https://api.anthropic.com/v1/messages', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'x-api-key': key, 'anthropic-version': '2023-06-01' },
+            body: JSON.stringify({ model: 'claude-sonnet-4-6', max_tokens: 4000, messages: [{ role: 'user', content: deepPrompt }] })
+          });
+          var dd = await dr.json();
+          var dtext = (dd.content || []).map(function(i) { return i.type === 'text' ? i.text : ''; }).join('\n');
+          var dmatch = dtext.match(/\[[\s\S]*\]/);
+          if (dmatch) {
+            var byIdx = {};
+            JSON.parse(dmatch[0]).forEach(function(d) { byIdx[d.idx] = d; });
+            parsed.forEach(function(item) {
+              var d = byIdx[item.idx];
+              if (!d) return;
+              if (typeof d.rating === 'number') item.rating = d.rating;
+              if (typeof d.irrelevant === 'boolean') item.irrelevant = d.irrelevant;
+              if (d.summary) item.summary = d.summary;
+              if (d.category) item.category = d.category;
+              if (d.sport) item.sport = d.sport;
+              item.deepened = true;
+            });
+          }
+        } catch (e) { /* deep pass is best-effort — keep the headline ratings */ }
+      }
+    }
 
     // Drop stories Claude marked as having no Maryland connection
     parsed = parsed.filter(function(item) { return !item.irrelevant; });
