@@ -132,10 +132,17 @@ module.exports = async function handler(req, res) {
     // Normalized headlines of articles that originated on our own outlet — used to drop
     // the same stories when they resurface (unlabeled) in the general Google News feeds.
     var ownTitles = {};
-    // Normalize for headline matching. Strip HTML entities first so "&amp;" (raw feed
-    // title) and "&" (decoded story title) normalize the same way.
+    // Normalize for headline matching. Strip HTML entities and the trailing
+    // " - Publisher" / " | Publisher" suffix Google News appends, so the Google copy
+    // and a direct-feed copy of the same story normalize to the same key.
     function normTitle(t) {
-      return t.toLowerCase().replace(/&[a-z]+;|&#\d+;/g, ' ').replace(/[^a-z0-9 ]/g, '').substring(0, 60);
+      return String(t).toLowerCase()
+        .replace(/&[a-z]+;|&#\d+;/g, ' ')
+        .replace(/\s+[-|–—]\s+[^-|–—]{1,40}$/, '')
+        .replace(/[^a-z0-9 ]/g, '')
+        .replace(/\s+/g, ' ')
+        .trim()
+        .substring(0, 55);
     }
 
     // Reddit results (indices 0-2)
@@ -226,6 +233,13 @@ module.exports = async function handler(req, res) {
       return true;
     });
 
+    // Prefer a real (fetchable) publisher URL over a Google News redirect when the same
+    // story appears from multiple feeds. Stable sort keeps age order within each group;
+    // the "keep first" dedup below then keeps the real-URL copy.
+    stories.sort(function(a, b) {
+      return (/news\.google\.com/i.test(a.url) ? 1 : 0) - (/news\.google\.com/i.test(b.url) ? 1 : 0);
+    });
+
     // Deduplicate by title similarity. When the same story shows up from multiple feeds,
     // keep the first but upgrade its URL/snippet from a later copy that has a real
     // (fetchable, non-Google-redirect) link or a real article snippet — the deep-read
@@ -245,8 +259,8 @@ module.exports = async function handler(req, res) {
     });
     stories = deduped;
 
-    // Cap at 40 most recent before sending to Claude
-    stories = stories.sort(function(a, b) { return a.age - b.age; }).slice(0, 40);
+    // Cap at the most recent N before sending to Claude
+    stories = stories.sort(function(a, b) { return a.age - b.age; }).slice(0, 55);
 
     var redditCount = stories.filter(function(s){return s.source.includes('Reddit');}).length;
     var googleCount = stories.filter(function(s){return !s.source.includes('Reddit');}).length;
@@ -298,7 +312,7 @@ module.exports = async function handler(req, res) {
     var cr = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'x-api-key': key, 'anthropic-version': '2023-06-01' },
-      body: JSON.stringify({ model: 'claude-sonnet-4-6', max_tokens: 8000, messages: [{ role: 'user', content: prompt }] })
+      body: JSON.stringify({ model: 'claude-sonnet-4-6', max_tokens: 12000, messages: [{ role: 'user', content: prompt }] })
     });
     var cd = await cr.json();
 
