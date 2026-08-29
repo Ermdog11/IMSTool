@@ -66,18 +66,20 @@ function absArticle(u) { return /^https?:/i.test(u) ? u.replace(/\/?$/, '/') : (
 // the article links it contains (via the reader, since 247 blocks direct scrapes).
 async function expandListPage(url) {
   var html = '';
-  // 247 section/author pages usually load directly from a server (the news monitor
-  // scrapes the same way). Reader service only as a fallback.
+  var diag = { direct: null, jina: null };
   try {
     var r = await withTimeout(url, { headers: { 'User-Agent': BROWSER_UA, 'Accept': 'text/html,*/*', 'Accept-Language': 'en-US,en;q=0.9' } }, 12000);
+    diag.direct = r.status;
     if (r.ok) html = await r.text();
-  } catch (e) { /* try reader */ }
+  } catch (e) { diag.direct = 'err:' + e.message; }
   if ((html.match(ARTICLE_RE) || []).length < 3) {
     try {
       var jr = await withTimeout('https://r.jina.ai/' + url, { headers: jinaHeaders() }, 25000);
-      if (jr.ok) html = await jr.text();
-    } catch (e) { /* keep whatever we have */ }
+      diag.jina = jr.status;
+      if (jr.ok) { var jhtml = await jr.text(); if ((jhtml.match(ARTICLE_RE) || []).length >= (html.match(ARTICLE_RE) || []).length) html = jhtml; }
+    } catch (e) { diag.jina = 'err:' + e.message; }
   }
+  console.log('expandListPage', url, JSON.stringify(diag), 'matches=' + (html.match(ARTICLE_RE) || []).length);
   var found = html.match(ARTICLE_RE) || [];
   var seen = {}, out = [];
   found.forEach(function (u) {
