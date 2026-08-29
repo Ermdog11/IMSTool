@@ -58,21 +58,31 @@ async function readPage(url) {
   return await readViaReader(url);
 }
 
-var ARTICLE_RE = /https?:\/\/[a-z0-9.]*247sports\.com\/college\/[a-z-]+\/(?:article|longformarticle)\/[a-z0-9-]+-\d{5,}\/?/gi;
+// Matches relative or absolute 247 article links (same shape scan.js uses).
+var ARTICLE_RE = /(?:https?:\/\/[a-z0-9.]*247sports\.com)?\/college\/[a-z-]+\/(?:article|longformarticle)\/[a-z0-9-]+-\d{5,}/gi;
+function absArticle(u) { return /^https?:/i.test(u) ? u.replace(/\/?$/, '/') : ('https://247sports.com' + u.replace(/\/?$/, '/')); }
 
 // If a URL is an author/section/list page rather than an article, expand it into
 // the article links it contains (via the reader, since 247 blocks direct scrapes).
 async function expandListPage(url) {
   var html = '';
+  // 247 section/author pages usually load directly from a server (the news monitor
+  // scrapes the same way). Reader service only as a fallback.
   try {
-    var jr = await withTimeout('https://r.jina.ai/' + url, { headers: jinaHeaders() }, 25000);
-    if (jr.ok) html = await jr.text();
-  } catch (e) { return []; }
+    var r = await withTimeout(url, { headers: { 'User-Agent': BROWSER_UA, 'Accept': 'text/html,*/*', 'Accept-Language': 'en-US,en;q=0.9' } }, 12000);
+    if (r.ok) html = await r.text();
+  } catch (e) { /* try reader */ }
+  if ((html.match(ARTICLE_RE) || []).length < 3) {
+    try {
+      var jr = await withTimeout('https://r.jina.ai/' + url, { headers: jinaHeaders() }, 25000);
+      if (jr.ok) html = await jr.text();
+    } catch (e) { /* keep whatever we have */ }
+  }
   var found = html.match(ARTICLE_RE) || [];
   var seen = {}, out = [];
   found.forEach(function (u) {
-    u = u.replace(/\/?$/, '/');
-    if (!seen[u]) { seen[u] = 1; out.push(u); }
+    var a = absArticle(u);
+    if (!seen[a]) { seen[a] = 1; out.push(a); }
   });
   return out.slice(0, 25);
 }
