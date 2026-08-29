@@ -106,7 +106,7 @@ button.btn:disabled{opacity:.6;cursor:default}
 
     <div class="card">
       <h2>Writers</h2>
-      <div class="hint">Add each staff writer, then give the tool 8&ndash;15 of their published pieces so it can learn their voice. Paste the article text, and/or paste URLs (one per line) &mdash; URLs that need a login won't load, so paste those directly.</div>
+      <div class="hint">Add each staff writer, then give the tool ~15 of their published pieces so it can learn their voice. Paste article text, paste article URLs, or paste the writer's 247 author-page URL and it pulls the links itself. Fully paywalled pieces may come back partial &mdash; paste those directly. ~15 is plenty; more gets trimmed.</div>
       <div class="row">
         <input id="w-new" placeholder="Writer name" style="flex:1;min-width:180px">
         <button class="btn" onclick="addWriter()">Add writer</button>
@@ -187,8 +187,8 @@ function renderWriters(){
         '<span>'+(x.profile?'<span class="pill">profile ready</span> ':'')+'<button class="btn ghost" onclick="delWriter('+i+')">Remove</button></span></div>'+
       '<label>Sample article text (paste full pieces, any separators)</label>'+
       '<textarea id="w-samp-'+i+'" rows="5" placeholder="Paste article text…">'+esc(x.samples||'')+'</textarea>'+
-      '<label>Sample URLs (one per line — public pages only)</label>'+
-      '<textarea id="w-urls-'+i+'" rows="3" placeholder="https://…">'+esc(x.urls||'')+'</textarea>'+
+      '<label>Sample URLs (article links, or a 247 author page — one per line)</label>'+
+      '<textarea id="w-urls-'+i+'" rows="3" placeholder="https://247sports.com/college/maryland/article/…  — or your author page, and it pulls the links itself">'+esc(x.urls||'')+'</textarea>'+
       '<div class="row"><button class="btn" id="w-build-'+i+'" onclick="buildProfile('+i+')">Build / update style profile</button>'+
         '<span id="w-msg-'+i+'" style="font-size:12px;color:var(--muted)"></span></div>'+
       (x.profile?'<div class="profile-box">'+esc(x.profile)+'</div>':'')+
@@ -217,8 +217,9 @@ async function buildProfile(i){
     if(d.error){msg.textContent=d.error;}
     else{
       w=getWriters();w[i].profile=d.profile;setWriters(w);
-      var fails=(d.failedUrls&&d.failedUrls.length)?' · couldn’t load '+d.failedUrls.length+' URL(s) — paste those directly':'';
-      msg.textContent='Built from '+(d.sampleChars||0).toLocaleString()+' chars'+fails;
+      var fails=(d.failedUrls&&d.failedUrls.length)?' · '+d.failedUrls.length+' URL(s) failed — paste those directly':'';
+      var read=(d.articlesRead?d.articlesRead+' article(s) read'+(d.expandedFromPages?' (found via author page)':'')+' · ':'');
+      msg.textContent='Built from '+read+(d.sampleChars||0).toLocaleString()+' chars'+fails;
       renderWriters();
     }
   }catch(e){msg.textContent='Failed: '+e.message;}

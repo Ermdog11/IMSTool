@@ -15,6 +15,53 @@ function stripHtml(html) {
     .trim();
 }
 
+function withTimeout(url, opts, ms) {
+  var c = new AbortController();
+  var t = setTimeout(function () { c.abort(); }, ms || 12000);
+  return fetch(url, Object.assign({ headers: { 'User-Agent': BROWSER_UA } }, opts || {}, { signal: c.signal }))
+    .finally(function () { clearTimeout(t); });
+}
+
+// Fetch a page's readable text. Try direct first; if it's blocked/paywalled/thin,
+// retry through r.jina.ai (a free, keyless page reader — not a paid API, but an
+// external dependency). Returns '' on total failure.
+async function readPage(url) {
+  try {
+    var r = await withTimeout(url, { headers: { 'User-Agent': BROWSER_UA, 'Accept': 'text/html,*/*', 'Accept-Language': 'en-US,en;q=0.9' } }, 12000);
+    if (r.ok) {
+      var txt = stripHtml(await r.text());
+      if (txt.length > 1200) return txt;
+    }
+  } catch (e) { /* fall through to reader */ }
+  try {
+    var jr = await withTimeout('https://r.jina.ai/' + url, { headers: { 'User-Agent': BROWSER_UA, 'X-Return-Format': 'text' } }, 25000);
+    if (jr.ok) {
+      var jt = (await jr.text()).replace(/\s+/g, ' ').trim();
+      if (jt.length > 400) return jt;
+    }
+  } catch (e) { /* give up */ }
+  return '';
+}
+
+var ARTICLE_RE = /https?:\/\/[a-z0-9.]*247sports\.com\/college\/[a-z-]+\/(?:article|longformarticle)\/[a-z0-9-]+-\d{5,}\/?/gi;
+
+// If a URL is an author/section/list page rather than an article, expand it into
+// the article links it contains (via the reader, since 247 blocks direct scrapes).
+async function expandListPage(url) {
+  var html = '';
+  try {
+    var jr = await withTimeout('https://r.jina.ai/' + url, { headers: { 'User-Agent': BROWSER_UA } }, 25000);
+    if (jr.ok) html = await jr.text();
+  } catch (e) { return []; }
+  var found = html.match(ARTICLE_RE) || [];
+  var seen = {}, out = [];
+  found.forEach(function (u) {
+    u = u.replace(/\/?$/, '/');
+    if (!seen[u]) { seen[u] = 1; out.push(u); }
+  });
+  return out.slice(0, 25);
+}
+
 module.exports = async function handler(req, res) {
   var key = process.env.ANTHROPIC_API_KEY;
   if (!key) return res.status(500).json({ error: 'Missing ANTHROPIC_API_KEY.' });
@@ -22,38 +69,47 @@ module.exports = async function handler(req, res) {
   var body = req.body || {};
   var writer = (body.writer || 'the writer').toString().slice(0, 80);
   var pasted = (body.samples || '').toString();
-  var urls = (Array.isArray(body.urls) ? body.urls : String(body.urls || '').split(/\s+/))
+  var inputUrls = (Array.isArray(body.urls) ? body.urls : String(body.urls || '').split(/\s+/))
     .map(function (u) { return (u || '').trim(); })
     .filter(function (u) { return /^https?:\/\//i.test(u); })
-    .slice(0, 25);
+    .slice(0, 30);
+
+  // Separate direct article URLs from author/section pages that need expanding.
+  var articleUrls = [];
+  var listPages = [];
+  inputUrls.forEach(function (u) {
+    if (/\/(?:article|longformarticle)\/[a-z0-9-]+-\d{5,}/i.test(u) || !/247sports\.com/i.test(u)) articleUrls.push(u);
+    else listPages.push(u);
+  });
+
+  var expandedFrom = 0;
+  for (var li = 0; li < listPages.length && articleUrls.length < 20; li++) {
+    var more = await expandListPage(listPages[li]);
+    expandedFrom += more.length;
+    more.forEach(function (m) { if (articleUrls.indexOf(m) === -1) articleUrls.push(m); });
+  }
+  articleUrls = articleUrls.slice(0, 20); // ~15-20 pieces is plenty; keeps us under the function time limit
 
   var fetchedUrls = [];
   var failedUrls = [];
   var fetchedText = '';
 
-  if (urls.length) {
-    var controller;
-    var results = await Promise.allSettled(urls.map(function (u) {
-      var c = new AbortController();
-      var t = setTimeout(function () { c.abort(); }, 12000);
-      return fetch(u, { headers: { 'User-Agent': BROWSER_UA, 'Accept': 'text/html,*/*', 'Accept-Language': 'en-US,en;q=0.9' }, signal: c.signal })
-        .then(function (r) { if (!r.ok) throw new Error('HTTP ' + r.status); return r.text(); })
-        .finally(function () { clearTimeout(t); });
-    }));
-    results.forEach(function (r, i) {
-      if (r.status === 'fulfilled') {
-        var text = stripHtml(r.value);
-        if (text.length > 400) { fetchedUrls.push(urls[i]); fetchedText += '\n\n--- ' + urls[i] + ' ---\n' + text.slice(0, 8000); }
-        else { failedUrls.push(urls[i]); }
+  if (articleUrls.length) {
+    var texts = await Promise.allSettled(articleUrls.map(function (u) { return readPage(u); }));
+    texts.forEach(function (r, i) {
+      var text = r.status === 'fulfilled' ? r.value : '';
+      if (text && text.length > 400) {
+        fetchedUrls.push(articleUrls[i]);
+        fetchedText += '\n\n--- ' + articleUrls[i] + ' ---\n' + text.slice(0, 7000);
       } else {
-        failedUrls.push(urls[i]);
+        failedUrls.push(articleUrls[i]);
       }
     });
   }
 
-  var corpus = (pasted + '\n\n' + fetchedText).trim().slice(0, 90000);
+  var corpus = (pasted + '\n\n' + fetchedText).trim().slice(0, 120000);
   if (corpus.length < 500) {
-    return res.status(200).json({ error: 'Not enough sample text. Paste a few full articles, or add URLs that load without a login.', failedUrls: failedUrls });
+    return res.status(200).json({ error: 'Couldn\'t gather enough sample text. Paste a few full articles directly, or check the URLs.', failedUrls: failedUrls });
   }
 
   var prompt =
@@ -83,6 +139,8 @@ module.exports = async function handler(req, res) {
       writer: writer,
       profile: profile,
       sampleChars: corpus.length,
+      articlesRead: fetchedUrls.length,
+      expandedFromPages: expandedFrom,
       fetchedUrls: fetchedUrls,
       failedUrls: failedUrls
     });
