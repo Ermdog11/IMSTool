@@ -25,6 +25,28 @@ function withTimeout(url, opts, ms) {
 // Fetch a page's readable text. Try direct first; if it's blocked/paywalled/thin,
 // retry through r.jina.ai (a free, keyless page reader — not a paid API, but an
 // external dependency). Returns '' on total failure.
+function jinaHeaders() {
+  var h = { 'User-Agent': BROWSER_UA, 'X-Return-Format': 'text' };
+  if (process.env.JINA_API_KEY) h['Authorization'] = 'Bearer ' + process.env.JINA_API_KEY; // optional free key -> higher rate limit
+  return h;
+}
+
+async function readViaReader(url) {
+  // r.jina.ai is keyless-free but rate-limited; retry once on 429.
+  for (var attempt = 0; attempt < 2; attempt++) {
+    try {
+      var jr = await withTimeout('https://r.jina.ai/' + url, { headers: jinaHeaders() }, 25000);
+      if (jr.status === 429) { await new Promise(function (r) { setTimeout(r, 3000); }); continue; }
+      if (jr.ok) {
+        var jt = (await jr.text()).replace(/\s+/g, ' ').trim();
+        if (jt.length > 400) return jt;
+      }
+      return '';
+    } catch (e) { return ''; }
+  }
+  return '';
+}
+
 async function readPage(url) {
   try {
     var r = await withTimeout(url, { headers: { 'User-Agent': BROWSER_UA, 'Accept': 'text/html,*/*', 'Accept-Language': 'en-US,en;q=0.9' } }, 12000);
@@ -33,14 +55,7 @@ async function readPage(url) {
       if (txt.length > 1200) return txt;
     }
   } catch (e) { /* fall through to reader */ }
-  try {
-    var jr = await withTimeout('https://r.jina.ai/' + url, { headers: { 'User-Agent': BROWSER_UA, 'X-Return-Format': 'text' } }, 25000);
-    if (jr.ok) {
-      var jt = (await jr.text()).replace(/\s+/g, ' ').trim();
-      if (jt.length > 400) return jt;
-    }
-  } catch (e) { /* give up */ }
-  return '';
+  return await readViaReader(url);
 }
 
 var ARTICLE_RE = /https?:\/\/[a-z0-9.]*247sports\.com\/college\/[a-z-]+\/(?:article|longformarticle)\/[a-z0-9-]+-\d{5,}\/?/gi;
@@ -50,7 +65,7 @@ var ARTICLE_RE = /https?:\/\/[a-z0-9.]*247sports\.com\/college\/[a-z-]+\/(?:arti
 async function expandListPage(url) {
   var html = '';
   try {
-    var jr = await withTimeout('https://r.jina.ai/' + url, { headers: { 'User-Agent': BROWSER_UA } }, 25000);
+    var jr = await withTimeout('https://r.jina.ai/' + url, { headers: jinaHeaders() }, 25000);
     if (jr.ok) html = await jr.text();
   } catch (e) { return []; }
   var found = html.match(ARTICLE_RE) || [];
