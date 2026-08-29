@@ -212,7 +212,7 @@ async function buildProfile(i){
   btn.disabled=true;btn.innerHTML='<span class="spin"></span>Analyzing…';msg.textContent='';
   try{
     var r=await fetch('/api/style-profile',{method:'POST',headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({writer:w[i].name,samples:w[i].samples,urls:w[i].urls.split(/\s+/)})});
+      body:JSON.stringify({writer:w[i].name,samples:w[i].samples,urls:w[i].urls.split(/[\r\n]+/).map(function(s){return s.trim();}).filter(Boolean)})});
     var d=await r.json();
     if(d.error){msg.textContent=d.error;}
     else{

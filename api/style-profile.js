@@ -94,9 +94,9 @@ module.exports = async function handler(req, res) {
   var body = req.body || {};
   var writer = (body.writer || 'the writer').toString().slice(0, 80);
   var pasted = (body.samples || '').toString();
-  var inputUrls = (Array.isArray(body.urls) ? body.urls : String(body.urls || '').split(/\s+/))
-    .map(function (u) { return (u || '').trim(); })
-    .filter(function (u) { return /^https?:\/\//i.test(u); })
+  var inputUrls = (Array.isArray(body.urls) ? body.urls : String(body.urls || '').split(/\n+/))
+    .map(function (u) { return (u || '').trim().replace(/ /g, '%20'); })
+    .filter(function (u) { return /^https?:\/\/\S+$/i.test(u); })
     .slice(0, 30);
 
   // Separate direct article URLs from author/section pages that need expanding.
