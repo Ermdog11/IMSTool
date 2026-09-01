@@ -18,8 +18,15 @@ module.exports = async function handler(req, res) {
     '"Baba Oladotun"',
     '"Malik Washington"',
     '"Brenda Frese"',
-    '"Maryland lacrosse"'
+    '"Maryland lacrosse"',
+    '"Kevin Willard" Maryland',
+    '"Terps" commit OR portal OR injury',
+    '"Maryland" "official visit"'
   ];
+
+  // Beat reporters / outlets — their latest is pulled via `from:<handle>` regardless of
+  // whether the post contains a search phrase. Add verified Bluesky handles here.
+  var beatHandles = [];
 
   var excluded = ['insidemd', 'jeff ermann', 'ims radio', 'insidetheshell'];
   var cannabisTerms = ['terpene', 'cannabis', 'marijuana', 'weed', 'thc', 'cbd', 'dispensary', 'kush'];
@@ -64,10 +71,14 @@ module.exports = async function handler(req, res) {
     var session = await sessionRes.json();
     var token = session.accessJwt;
 
-    var searches = queries.map(function(entry) {
+    var allQueries = queries.concat(beatHandles.map(function(h) {
+      return { q: 'from:' + h + ' Maryland OR Terps OR Terrapins', requireContext: false };
+    }));
+
+    var searches = allQueries.map(function(entry) {
       var q = typeof entry === 'string' ? entry : entry.q;
       var requireContext = typeof entry === 'object' && entry.requireContext;
-      var url = 'https://bsky.social/xrpc/app.bsky.feed.searchPosts?sort=latest&limit=15&q=' + encodeURIComponent(q);
+      var url = 'https://bsky.social/xrpc/app.bsky.feed.searchPosts?sort=latest&limit=40&q=' + encodeURIComponent(q);
       return fetch(url, { headers: { 'Authorization': 'Bearer ' + token } }).then(function(r) {
         if (!r.ok) { return r.text().then(function(t) { debug.push({ q: q, status: r.status, body: t.substring(0, 120) }); return {}; }); }
         return r.json().then(function(d) { debug.push({ q: q, status: r.status, found: (d.posts || []).length }); d.requireContext = requireContext; return d; });
@@ -96,19 +107,36 @@ module.exports = async function handler(req, res) {
         if (seen.includes(norm)) return;
         seen.push(norm);
         var rkey = (p.uri || '').split('/').pop();
+
+        // Does the post carry an outbound link? (external embed, richtext link facet,
+        // or a bare URL in the text.) Link posts get sorted to the top.
+        var embedType = (record.embed && record.embed['$type']) || (p.embed && p.embed['$type']) || '';
+        var hasEmbedLink = /embed\.external/.test(embedType);
+        var hasFacetLink = Array.isArray(record.facets) && record.facets.some(function(f) {
+          return (f.features || []).some(function(ft) { return /facet#link/.test(ft['$type'] || ''); });
+        });
+        var linkInText = /https?:\/\/\S+/i.test(text);
+        var externalUrl = '';
+        if (record.embed && record.embed.external && record.embed.external.uri) externalUrl = record.embed.external.uri;
+        var hasLink = hasEmbedLink || hasFacetLink || linkInText;
+
         posts.push({
           text: text.substring(0, 280),
           author: displayName,
           handle: handle,
           url: 'https://bsky.app/profile/' + handle + '/post/' + rkey,
+          linkUrl: externalUrl,
+          hasLink: hasLink,
           age: createdMs ? Math.round((Date.now() - createdMs) / 3600000) : 0,
+          ageMin: createdMs ? Math.round((Date.now() - createdMs) / 60000) : 999999,
           likes: p.likeCount || 0,
           reposts: p.repostCount || 0
         });
       });
     });
 
-    // Filter out low-follower accounts (min 150 followers)
+    // Filter out low-follower accounts (min 75 followers — lowered from 150; the
+    // link-first sort now keeps the signal near the top without the tighter gate)
     var uniqueHandles = [];
     posts.forEach(function(p) { if (!uniqueHandles.includes(p.handle)) uniqueHandles.push(p.handle); });
     var followerCounts = {};
@@ -128,11 +156,17 @@ module.exports = async function handler(req, res) {
     }
     posts = posts.filter(function(p) {
       var count = followerCounts[p.handle];
-      return count === undefined || count >= 150;
+      return count === undefined || count >= 75;
     });
 
-    // Sort by engagement then recency
-    posts.sort(function(a, b) { return (b.likes + b.reposts * 2) - (a.likes + a.reposts * 2) || a.age - b.age; });
+    // Sort: link posts first (news usually links out), then most recent, with
+    // engagement only as a final tiebreak. Previously this was engagement-first,
+    // which buried every fresh post under older popular ones — the tab looked stale.
+    posts.sort(function(a, b) {
+      if (a.hasLink !== b.hasLink) return a.hasLink ? -1 : 1;
+      if (a.ageMin !== b.ageMin) return a.ageMin - b.ageMin;
+      return (b.likes + b.reposts * 2) - (a.likes + a.reposts * 2);
+    });
 
     return res.status(200).json({ posts: posts, debug: debug });
   } catch(e) {

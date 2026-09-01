@@ -411,7 +411,7 @@ body { padding-bottom: 40px; }
 <div class="page" id="page-9">
   <div style="padding:16px 0 8px;display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
     <button onclick="switchTab(0)" style="background:none;border:1px solid var(--border);border-radius:6px;padding:4px 12px;cursor:pointer;color:var(--fg);font-size:.85rem;">← Back to Alerts</button>
-    <div style="flex:1;min-width:180px"><h3 style="margin:0;font-size:1.1rem;">🦋 Bluesky</h3><p style="color:var(--muted);font-size:.85rem;margin:2px 0 0;">Terps chatter on Bluesky — last 48 hours, sorted by engagement.</p></div>
+    <div style="flex:1;min-width:180px"><h3 style="margin:0;font-size:1.1rem;">🦋 Bluesky</h3><p style="color:var(--muted);font-size:.85rem;margin:2px 0 0;">Terps chatter on Bluesky — last 72 hours. Posts with a link show first, then newest.</p></div>
     <button class="scan-btn" id="bskyScanBtn" onclick="loadBluesky()"><i class="ti ti-refresh"></i> Scan Bluesky</button>
   </div>
   <div id="blueskyContainer"><div class="empty"><i class="ti ti-butterfly"></i> Loading...</div></div>
@@ -686,6 +686,7 @@ function renderAlerts() {
         <button class="aaction" onclick="claimStory(${idx})"><i class="ti ti-hand-stop"></i> Claim</button>
         <button class="aaction" onclick="flagStory(${idx})" title="Flag as junk — trains the scanner to exclude similar stories" style="color:#c00;"><i class="ti ti-flag"></i> Flag</button>
         <button class="aaction" onclick="blockSource(${idx})" title="Block ${(a.source||'').replace(/"/g,'&quot;')} — hide this site from all future results" style="color:#c00;"><i class="ti ti-ban"></i> Block source</button>
+        <button class="aaction" onclick="hideItem('${(a.url||'').replace(/'/g,"\\'")}')" title="Hide just this story (keeps the source)" style="color:#c00;"><i class="ti ti-eye-off"></i> Hide story</button>
       </div>
       <div class="aaction-output" id="output-${idx}"></div>
     </div>`;
@@ -774,11 +775,13 @@ async function scanYouTube() {
   if (btn) { btn.disabled = true; btn.innerHTML = '<i class="ti ti-loader spin"></i> Scanning...'; }
   c.innerHTML = '<div class="empty"><i class="ti ti-loader spin"></i> Searching YouTube...</div>';
   try {
-    const res = await fetch('/api/youtube?batch=7&nocache=1', { cache: 'no-store' });
+    const bq = getBlockedSources().length ? '&blocked=' + encodeURIComponent(getBlockedSources().join(',')) : '';
+    const hq = getHiddenVideos().length ? '&hidden=' + encodeURIComponent(getHiddenVideos().join(',')) : '';
+    const res = await fetch('/api/youtube?batch=7&nocache=1' + bq + hq, { cache: 'no-store' });
     const data = await res.json();
     if (data.error && !(data.videos || []).length) { c.innerHTML = '<div class="empty">' + data.error + '</div>'; }
     else {
-      allVideos = (data.videos || []).filter(v => !isBlockedSource(v.source || v.channel));
+      allVideos = (data.videos || []).filter(v => !isBlockedSource(v.source || v.channel) && !isHidden(v.url));
       loadYouTube();
     }
   } catch (e) { c.innerHTML = '<div class="empty">Error — ' + e.message + '</div>'; }
@@ -788,7 +791,9 @@ async function scanYouTube() {
 function loadYouTube() {
   const c = document.getElementById('youtubeContainer');
   if (!c) return;
-  const vids = (allVideos || []).slice().sort((a, b) => (b.rating || 0) - (a.rating || 0));
+  const vids = (allVideos || [])
+    .filter(v => !isBlockedSource(v.channel || v.source) && !isHidden(v.url))
+    .slice().sort((a, b) => (b.rating || 0) - (a.rating || 0));
   if (!vids.length) {
     c.innerHTML = '<div class="empty"><i class="ti ti-brand-youtube"></i> Run a scan to load videos. High-value ones also show in Alerts.</div>';
     return;
@@ -796,6 +801,8 @@ function loadYouTube() {
   c.innerHTML = vids.map(v => {
     const r = v.rating || 1;
     const badge = r >= 4 ? '<span class="rating r4-badge">🟡 ' + r + '</span>' : r >= 3 ? '<span class="rating r3-badge">🔵 ' + r + '</span>' : '<span class="rating">' + r + '</span>';
+    const ch = (v.channel || v.source || '').replace(/'/g, "\\'");
+    const vurl = (v.url || '').replace(/'/g, "\\'");
     return '<div class="acard" style="margin-bottom:10px;display:flex;gap:12px;align-items:flex-start;">' +
       (v.thumbnail ? '<a href="' + v.url + '" target="_blank" rel="noopener"><img src="' + v.thumbnail + '" style="width:120px;border-radius:6px;flex-shrink:0;" alt=""></a>' : '') +
       '<div style="flex:1;min-width:0;">' +
@@ -806,6 +813,10 @@ function loadYouTube() {
         '<span class="atime">' + (v.time || (v.age ? v.age + 'h ago' : '')) + '</span>' +
       '</div>' +
       (v.summary || v.description ? '<div class="asum" style="margin-top:6px;">' + (v.summary || v.description) + '</div>' : '') +
+      '<div class="acard-meta" style="margin-top:6px;">' +
+        '<button class="aaction" onclick="hideItem(\'' + vurl + '\')" title="Hide just this video" style="color:#c00;padding:1px 8px;"><i class="ti ti-eye-off"></i> Hide video</button>' +
+        (ch ? '<button class="aaction" onclick="blockChannel(\'' + ch + '\')" title="Hide this channel from all future results" style="color:#c00;padding:1px 8px;"><i class="ti ti-ban"></i> Block channel</button>' : '') +
+      '</div>' +
       '</div></div>';
   }).join('');
 }
@@ -874,6 +885,40 @@ function blockPodcast(name) {
   renderBlockedSources();
 }
 
+// Block a whole YouTube channel — same store as sources/podcasts, also sent to
+// /api/youtube so blocked channels stop costing a fetch + rating server-side.
+function blockChannel(name) {
+  if (!name) return;
+  const n = String(name).trim();
+  const blocked = getBlockedSources();
+  if (!blocked.some(b => String(b).trim().toLowerCase() === n.toLowerCase())) {
+    blocked.push(n);
+    localStorage.setItem('blockedSources', JSON.stringify(blocked.slice(-100)));
+  }
+  allVideos = (allVideos || []).filter(v => !isBlockedSource(v.channel || v.source));
+  loadYouTube();
+  renderBlockedSources();
+}
+
+// Hide a single video/story by URL — doesn't block the whole source.
+function getHiddenVideos() {
+  try { return JSON.parse(localStorage.getItem('hiddenVideos') || '[]'); } catch(e) { return []; }
+}
+function isHidden(url) {
+  return !!url && getHiddenVideos().indexOf(url) !== -1;
+}
+function hideItem(url) {
+  if (!url) return;
+  const h = getHiddenVideos();
+  if (h.indexOf(url) === -1) { h.push(url); localStorage.setItem('hiddenVideos', JSON.stringify(h.slice(-300))); }
+  allVideos = (allVideos || []).filter(v => !isHidden(v.url));
+  allAlerts = allAlerts.filter(a => !isHidden(a.url));
+  overflowAlerts = overflowAlerts.filter(a => !isHidden(a.url));
+  loadYouTube();
+  renderAlerts();
+  renderTrending();
+}
+
 function unblockSource(name) {
   const blocked = getBlockedSources().filter(b => String(b).trim().toLowerCase() !== String(name).trim().toLowerCase());
   localStorage.setItem('blockedSources', JSON.stringify(blocked));
@@ -906,7 +951,7 @@ async function loadBluesky() {
     const data = await res.json();
     const posts = data.posts || [];
     if (!posts.length) {
-      c.innerHTML = '<div class="empty">🦋 ' + (data.error || 'No Terps posts found in the last 48 hours.') + '</div>';
+      c.innerHTML = '<div class="empty">🦋 ' + (data.error || 'No Terps posts found in the last 72 hours.') + '</div>';
       return;
     }
     const cards = [];
@@ -914,8 +959,10 @@ async function loadBluesky() {
       const p = posts[i];
       cards.push('<div class="acard" style="margin-bottom:10px;">' +
         '<div style="font-size:.9rem;line-height:1.45;">' + p.text.replace(/</g,'&lt;') + '</div>' +
+        (p.linkUrl ? '<div style="margin-top:6px;font-size:.8rem;"><a href="' + p.linkUrl + '" target="_blank" rel="noopener" style="color:var(--red);">🔗 ' + p.linkUrl.replace(/^https?:\/\/(www\.)?/,'').slice(0,60) + '</a></div>' : '') +
         '<div class="acard-meta" style="margin-top:8px;">' +
           '<span class="tag tag-soc">Bluesky</span>' +
+          (p.hasLink ? '<span class="tag" style="background:#1d9bf0;color:#fff;">has link</span>' : '') +
           '<span class="asrc">' + p.author + ' (@' + p.handle + ')</span>' +
           '<span class="atime">' + p.age + 'h ago</span>' +
           '<span style="font-size:.78rem;color:var(--muted);">❤️ ' + p.likes + ' · 🔁 ' + p.reposts + '</span>' +
@@ -1068,13 +1115,13 @@ async function runScan() {
     if (start === -1 || end === -1) throw new Error('No alerts found in scan response');
     let results = JSON.parse(cleaned.substring(start, end + 1));
     results = results.filter(a => !EXCLUDED.some(ex => (a.source||'').toLowerCase().includes(ex.toLowerCase())));
-    results = results.filter(a => !isBlockedSource(a.source));
+    results = results.filter(a => !isBlockedSource(a.source) && !isHidden(a.url));
     // Low-priority sports (volleyball, tennis, golf, etc.) always sink to the bottom
     allAlerts = results.slice().sort((a, b) => (a.lowPriority ? 1 : 0) - (b.lowPriority ? 1 : 0));
     overflowAlerts = (data.overflow || [])
       .filter(s => !EXCLUDED.some(ex => (s.source||'').toLowerCase().includes(ex.toLowerCase())))
-      .filter(s => !isBlockedSource(s.source));
-    allVideos = (data.videos || []).filter(v => !isBlockedSource(v.source || v.channel));
+      .filter(s => !isBlockedSource(s.source) && !isHidden(s.url));
+    allVideos = (data.videos || []).filter(v => !isBlockedSource(v.source || v.channel) && !isHidden(v.url));
     lastScanTime = Date.now();
 
     document.getElementById('m-total').textContent = allAlerts.length;

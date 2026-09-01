@@ -8,9 +8,27 @@ module.exports = async function handler(req, res) {
   var key = process.env.YOUTUBE_API_KEY;
   if (!key) return res.status(200).json({ videos: [], error: 'YOUTUBE_API_KEY not set — add it in Vercel environment variables' });
 
+  // Channels / videos the editor has blocked via the buttons in the YouTube tab.
+  // Passed as ?blocked=a,b,c (channel names) and ?hidden=url1,url2 (single videos).
+  var blockedChannels = String((req.query && req.query.blocked) || '')
+    .split(',').map(function(s) { return s.trim().toLowerCase(); }).filter(Boolean);
+  var hiddenVideos = String((req.query && req.query.hidden) || '')
+    .split(',').map(function(s) { return s.trim(); }).filter(Boolean);
+  function applyBlocks(payload) {
+    if (!payload || !payload.videos) return payload;
+    if (!blockedChannels.length && !hiddenVideos.length) return payload;
+    var filtered = payload.videos.filter(function(v) {
+      var ch = (v.channel || '').toLowerCase();
+      if (blockedChannels.some(function(b) { return ch.includes(b) || b.includes(ch); })) return false;
+      if (hiddenVideos.indexOf(v.url) !== -1) return false;
+      return true;
+    });
+    return Object.assign({}, payload, { videos: filtered });
+  }
+
   var noCache = req.query && (req.query.nocache || req.query.fresh);
   if (!noCache && ytCache.payload && (Date.now() - ytCache.at) < YT_CACHE_MS) {
-    return res.status(200).json(Object.assign({ cached: true }, ytCache.payload));
+    return res.status(200).json(applyBlocks(Object.assign({ cached: true }, ytCache.payload)));
   }
 
   var cutoff = new Date(Date.now() - 10 * 24 * 60 * 60 * 1000).toISOString();
@@ -209,7 +227,7 @@ module.exports = async function handler(req, res) {
     if (!videos.length && apiError) return res.status(200).json({ videos: [], error: apiError });
     var payload = { videos: videos, searched: terms };
     ytCache = { at: Date.now(), payload: payload };
-    return res.status(200).json(payload);
+    return res.status(200).json(applyBlocks(payload));
   } catch(e) {
     return res.status(500).json({ videos: [], error: e.message });
   }

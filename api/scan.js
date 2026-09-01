@@ -19,8 +19,10 @@ module.exports = async function handler(req, res) {
   }
 
   // Full scan: fetch Reddit + Google News RSS, then ask Claude to rate them
-  var cutoff = Date.now() - 36 * 60 * 60 * 1000;
-  var googleCutoff = Date.now() - 36 * 60 * 60 * 1000;
+  // Window widened from 36h → 66h so a Friday-night story is still in the pool
+  // Monday morning. News older than this is dropped before rating.
+  var cutoff = Date.now() - 66 * 60 * 60 * 1000;
+  var googleCutoff = Date.now() - 66 * 60 * 60 * 1000;
   var excluded = ['insidemd', 'jeff ermann', 'ims radio', 'maryland.247sports', '247sports.com/college/maryland', 'insidetheshell', 'mshale', 'times of india'];
   // Sources the editor has blocked via the "Block source" button — filtered out below and never shown again.
   var userBlocked = ((req.body && req.body.blockedSources) || [])
@@ -99,13 +101,27 @@ module.exports = async function handler(req, res) {
       // High school sports — recruit performances before the national radar
       { url: 'https://news.google.com/rss/search?q=%22committed+to+Maryland%22+OR+%22Maryland+commit%22+OR+%22Terps+commit%22+%22high+school%22&hl=en-US&gl=US&ceid=US:en', name: 'HS/commits' },
       { url: 'https://news.google.com/rss/search?q=site%3Amaxpreps.com+Maryland+Terrapins+OR+%22committed+to+Maryland%22&hl=en-US&gl=US&ceid=US:en', name: 'HS/maxpreps', src: 'MaxPreps' },
-      { url: 'https://news.google.com/rss/search?q=%22Maryland+offer%22+OR+%22offered+by+Maryland%22+high+school+football+OR+basketball&hl=en-US&gl=US&ceid=US:en', name: 'HS/offers' }
+      { url: 'https://news.google.com/rss/search?q=%22Maryland+offer%22+OR+%22offered+by+Maryland%22+high+school+football+OR+basketball&hl=en-US&gl=US&ceid=US:en', name: 'HS/offers' },
+      // Angle feeds — coverage areas the queries above don't reach on their own.
+      { url: 'https://news.google.com/rss/search?q=%22Maryland+Terrapins%22+injury+OR+%22ruled+out%22+OR+%22day-to-day%22+OR+suspension+OR+%22out+for+the+season%22&hl=en-US&gl=US&ceid=US:en', name: 'GNews/injuries' },
+      { url: 'https://news.google.com/rss/search?q=%22Maryland+Terrapins%22+%22depth+chart%22+OR+%22position+battle%22+OR+%22starting+lineup%22+OR+%22two-deep%22&hl=en-US&gl=US&ceid=US:en', name: 'GNews/depthchart' },
+      { url: 'https://news.google.com/rss/search?q=%22Maryland%22+%22transfer+portal%22+%22entered%22+OR+%22commits+to%22+OR+%22announces%22+football+OR+basketball&hl=en-US&gl=US&ceid=US:en', name: 'GNews/portalmoves' },
+      { url: 'https://news.google.com/rss/search?q=%22Big+Ten%22+%22Maryland%22+television+OR+%22TV+schedule%22+OR+kickoff+OR+%22tip+time%22+OR+%22revenue+distribution%22+OR+expansion&hl=en-US&gl=US&ceid=US:en', name: 'GNews/bigten' },
+      { url: 'https://news.google.com/rss/search?q=%22Maryland%22+opponent+%22injury+report%22+OR+%22will+not+play%22+OR+%22game+preview%22+Terrapins&hl=en-US&gl=US&ceid=US:en', name: 'GNews/oppnews' },
+      { url: 'https://news.google.com/rss/search?q=%22Maryland+Terrapins%22+ranking+OR+%22AP+poll%22+OR+%22bracketology%22+OR+%22bowl+projection%22+OR+%22power+rankings%22&hl=en-US&gl=US&ceid=US:en', name: 'GNews/rankings' },
+      { url: 'https://news.google.com/rss/search?q=%22Maryland+Terrapins%22+%22College+GameDay%22+OR+%22Big+Ten+Network%22+OR+announced+OR+%22game+time%22+OR+%22kickoff+time%22&hl=en-US&gl=US&ceid=US:en', name: 'GNews/scheduling' },
+      { url: 'https://www.bing.com/news/search?q=%22Maryland+Terrapins%22+transfer+OR+injury+OR+commit&format=rss', name: 'Bing/moves' },
+      { url: 'https://www.bing.com/news/search?q=%22Terps%22+%22Big+Ten%22+OR+recruiting+OR+portal&format=rss', name: 'Bing/bigten' },
+      { url: 'https://www.bing.com/news/search?q=%22Kevin+Willard%22+OR+%22Mike+Locksley%22+OR+%22Buzz+Williams%22+OR+%22Brenda+Frese%22&format=rss', name: 'Bing/coaches' }
     ];
 
     var redditFetches = [
-      { url: 'https://www.reddit.com/r/MarylandTerrapins/new.json?limit=25', name: 'Reddit/MarylandTerrapins' },
+      { url: 'https://www.reddit.com/r/MarylandTerrapins/new.json?limit=40', name: 'Reddit/MarylandTerrapins' },
       { url: 'https://www.reddit.com/r/CFB/search.json?q=Maryland+Terrapins&sort=new&restrict_sr=on&limit=20', name: 'Reddit/CFB' },
-      { url: 'https://www.reddit.com/r/CollegeBasketball/search.json?q=Maryland+Terrapins&sort=new&restrict_sr=on&limit=20', name: 'Reddit/CollegeBasketball' }
+      { url: 'https://www.reddit.com/r/CollegeBasketball/search.json?q=Maryland+Terrapins&sort=new&restrict_sr=on&limit=20', name: 'Reddit/CollegeBasketball' },
+      { url: 'https://www.reddit.com/r/CFBRecruiting/search.json?q=Maryland&sort=new&restrict_sr=on&limit=20', name: 'Reddit/CFBRecruiting' },
+      { url: 'https://www.reddit.com/r/bigten/search.json?q=Maryland+Terrapins&sort=new&restrict_sr=on&limit=15', name: 'Reddit/bigten' },
+      { url: 'https://www.reddit.com/search.json?q=%22Maryland+Terrapins%22&sort=new&limit=25', name: 'Reddit/sitewide' }
     ];
 
     // Every external fetch gets its own timeout — without this, a single slow or
@@ -168,10 +184,13 @@ module.exports = async function handler(req, res) {
         .replace(/[^a-z0-9 ]/g, '')
         .replace(/\s+/g, ' ')
         .trim()
-        .substring(0, 55);
+        // 80 chars (was 55): distinct stories on this beat often share their first
+        // 8-10 words ("Maryland lands commitment from four-star..."), and a 55-char
+        // key collapsed them into one. Longer key = fewer real stories lost to dedup.
+        .substring(0, 80);
     }
 
-    // Reddit results (indices 0-2)
+    // Reddit results (first redditFetches.length entries of `results`)
     for (var ri = 0; ri < redditFetches.length; ri++) {
       if (results[ri].status !== 'fulfilled') continue;
       try {
@@ -286,8 +305,10 @@ module.exports = async function handler(req, res) {
     });
     stories = deduped;
 
-    // Cap at the most recent N before sending to Claude
-    stories = stories.sort(function(a, b) { return a.age - b.age; }).slice(0, 55);
+    // Cap at the most recent N before sending to Claude. Raised 55 → 110: with
+    // ~120 feeds the old cap discarded a lot of legitimate but slightly-older
+    // stories purely on recency before they were ever rated.
+    stories = stories.sort(function(a, b) { return a.age - b.age; }).slice(0, 110);
 
     // Pull in YouTube videos (already quality-filtered by youtube.js — subs, AI-spam,
     // content-farm) and let the same Claude pass rate them for news value. High-rated
@@ -295,10 +316,12 @@ module.exports = async function handler(req, res) {
     var videoCount = 0;
     try {
       var ytHandler = require('./youtube.js');
+      var ytQuery = { batch: '4' };
+      if (userBlocked.length) ytQuery.blocked = userBlocked.join(',');
       var ytData = await new Promise(function(resolve) {
-        ytHandler({ query: { batch: '4' } }, { status: function() { return this; }, json: function(d) { resolve(d); return this; } }).catch(function() { resolve({}); });
+        ytHandler({ query: ytQuery }, { status: function() { return this; }, json: function(d) { resolve(d); return this; } }).catch(function() { resolve({}); });
       });
-      (ytData.videos || []).slice(0, 14).forEach(function(v) {
+      (ytData.videos || []).slice(0, 25).forEach(function(v) {
         stories.push({
           title: v.title, source: v.channel || 'YouTube', url: v.url,
           age: v.age || 0, snippet: (v.description || '').slice(0, 320),
@@ -358,7 +381,7 @@ module.exports = async function handler(req, res) {
     var cr = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'x-api-key': key, 'anthropic-version': '2023-06-01' },
-      body: JSON.stringify({ model: 'claude-sonnet-4-6', max_tokens: 12000, messages: [{ role: 'user', content: prompt }] })
+      body: JSON.stringify({ model: 'claude-sonnet-4-6', max_tokens: 20000, messages: [{ role: 'user', content: prompt }] })
     });
     var cd = await cr.json();
 
