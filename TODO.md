@@ -15,6 +15,7 @@
 - [ ] **Local TV RSS** — WBAL, WJZ, WUSA9 sports feeds
 - [ ] **MaxPreps/HS sports** — recruit performances before national radar
 - [ ] **Shared/server-side source blocklist** — source blocking is per-browser only right now (localStorage `blockedSources`). If the team wants a shared blocklist, move it to a stored config the scan/podcasts endpoints read.
+- [ ] **SEO tool on Editorial Desk (Jeff, 2026-09-05)** — a dedicated SEO feature on `/editor` that inserts related-article links for InsideMDSports into a draft. Note: Copydesk already does internal-link insertion as part of its rewrite (scrapes the 247 Maryland landing page for slugs — see `api/copyedit.js`); confirm with Jeff whether he wants this as its own standalone tool (nav already has a disabled "Headline/SEO" stub slot in `public/editor.html`) or just wants Copydesk's existing linking made more prominent/thorough, before building a separate feature that duplicates it.
 
 ## Done
 - [x] Bing News RSS (3 queries — independent index from Google)
