@@ -1,4 +1,5 @@
 const mailer = require('./_mailer.js');
+const push = require('./_push.js');
 
 // Which slot -> how many hours back to look (gap since the previous send in the 8am/12pm/5pm ET schedule, plus buffer)
 var WINDOW_HOURS = {
@@ -186,7 +187,22 @@ module.exports = async function handler(req, res) {
       html: buildEmailHTML(alerts, date, slot, overflowByTopic)
     });
 
-    return res.status(200).json({ success: true, slot: slot, count: alerts.length, date: date, mail: mailResult });
+    // Desktop push for the highest-priority items only — a digest email already
+    // covers everything else, this is just for "drop what you're doing" news.
+    var breaking = alerts.filter(function(a) { return (a.rating || 0) >= 5; });
+    var pushResult = null;
+    if (breaking.length) {
+      try {
+        pushResult = await push.sendPush({
+          title: breaking.length === 1 ? '🚨 Breaking Terps News' : '🚨 ' + breaking.length + ' Breaking Terps Stories',
+          body: breaking.slice(0, 3).map(function(a) { return a.headline; }).join(' \n '),
+          url: 'https://ims-tool.vercel.app/',
+          tag: 'breaking-news'
+        });
+      } catch (e) { pushResult = { error: e.message }; }
+    }
+
+    return res.status(200).json({ success: true, slot: slot, count: alerts.length, date: date, mail: mailResult, push: pushResult });
   } catch (error) {
     console.error('Rolling digest error (' + slot + '):', error);
     return res.status(500).json({ success: false, error: error.message });

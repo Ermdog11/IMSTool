@@ -436,6 +436,13 @@ body { padding-bottom: 40px; }
   </div>
 
   <div class="settings-card">
+    <h3><i class="ti ti-bell"></i> Desktop alerts</h3>
+    <div style="font-size:12px;color:var(--text3);margin-bottom:10px;line-height:1.5;">Get a desktop notification for breaking (rating 5) news and roster changes — even if this tab isn't open.</div>
+    <button class="pill" id="pushToggleBtn" onclick="togglePush()">Enable desktop alerts</button>
+    <div id="pushStatus" style="font-size:11px;color:var(--text3);margin-top:8px;"></div>
+  </div>
+
+  <div class="settings-card">
     <h3><i class="ti ti-ban"></i> Excluded sources</h3>
     <div class="src-row ex"><i class="ti ti-x"></i> InsideMDSports / 247sports.com/college/maryland</div>
     <div class="src-row ex"><i class="ti ti-x"></i> Jeff Ermann — any story authored by or attributed to you</div>
@@ -596,7 +603,7 @@ function switchTab(idx, fromPop) {
   if (idx === 7) loadPodcasts();
   if (idx === 8) loadYouTube();
   if (idx === 9) loadBluesky();
-  if (idx === 10) renderBlockedSources();
+  if (idx === 10) { renderBlockedSources(); refreshPushStatus(); }
   window.scrollTo(0, 0);
   if (!fromPop) {
     try { history.pushState({ imsTab: idx }, '', '#' + idx); } catch (e) {}
@@ -917,6 +924,85 @@ function hideItem(url) {
   loadYouTube();
   renderAlerts();
   renderTrending();
+}
+
+// ============================================================
+// DESKTOP PUSH ALERTS — breaking news + roster changes, works even with
+// this tab closed (real Web Push via a service worker + server subscription).
+// ============================================================
+const PUSH_VAPID_PUBLIC_KEY = 'BFAeNMNBNIzkdKbqRJto2tHK9xavAbzvkwS6V90ppsg8t_YqkAgZZ-RijKSVlMqr8eq1aW6T0TYagONG6mbYN7k';
+
+function urlBase64ToUint8Array(base64String) {
+  const padding = '='.repeat((4 - (base64String.length % 4)) % 4);
+  const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
+  const rawData = atob(base64);
+  const out = new Uint8Array(rawData.length);
+  for (let i = 0; i < rawData.length; i++) out[i] = rawData.charCodeAt(i);
+  return out;
+}
+
+async function getPushSubscription() {
+  if (!('serviceWorker' in navigator) || !('PushManager' in window)) return null;
+  try {
+    // getRegistration() resolves immediately (undefined if none) — unlike
+    // .ready, which hangs forever if a service worker has never been registered.
+    const reg = await navigator.serviceWorker.getRegistration();
+    if (!reg) return null;
+    return await reg.pushManager.getSubscription();
+  } catch (e) { return null; }
+}
+
+async function refreshPushStatus() {
+  const btn = document.getElementById('pushToggleBtn');
+  const status = document.getElementById('pushStatus');
+  if (!btn || !status) return;
+  if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
+    btn.disabled = true;
+    status.textContent = 'Not supported in this browser.';
+    return;
+  }
+  if (Notification.permission === 'denied') {
+    btn.disabled = true;
+    status.textContent = 'Blocked — re-enable notifications for this site in your browser settings.';
+    return;
+  }
+  const sub = await getPushSubscription();
+  btn.disabled = false;
+  btn.textContent = sub ? 'Disable desktop alerts' : 'Enable desktop alerts';
+  status.textContent = sub ? 'Enabled on this device.' : '';
+}
+
+async function togglePush() {
+  const status = document.getElementById('pushStatus');
+  try {
+    const existing = await getPushSubscription();
+    if (existing) {
+      await fetch('/api/push-subscribe', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'unsubscribe', endpoint: existing.endpoint })
+      });
+      await existing.unsubscribe();
+      await refreshPushStatus();
+      return;
+    }
+    const reg = await navigator.serviceWorker.register('/sw.js');
+    const perm = await Notification.requestPermission();
+    if (perm !== 'granted') {
+      if (status) status.textContent = 'Permission not granted.';
+      return;
+    }
+    const sub = await reg.pushManager.subscribe({
+      userVisibleOnly: true,
+      applicationServerKey: urlBase64ToUint8Array(PUSH_VAPID_PUBLIC_KEY)
+    });
+    await fetch('/api/push-subscribe', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ subscription: sub.toJSON() })
+    });
+    await refreshPushStatus();
+  } catch (e) {
+    if (status) status.textContent = 'Error: ' + e.message;
+  }
 }
 
 function unblockSource(name) {
