@@ -343,7 +343,7 @@ async function runEdit(){
       body:JSON.stringify({draft:draft,styleGuide:document.getElementById('sg').value,writerProfile:prof,writerName:wname,headline:document.getElementById('ed-headline').checked})});
     var d=await r.json();
     if(d.error){document.getElementById('ed-status').textContent=d.error;}
-    else { lastEdit={d:d,writerName:wname}; renderEdit(d); }
+    else { lastEdit={d:d,writerName:wname,draftId:null}; renderEdit(d); }
   }catch(e){document.getElementById('ed-status').textContent='Failed: '+e.message;}
   btn.disabled=false;btn.innerHTML='Edit draft';
 }
@@ -363,9 +363,11 @@ function renderEdit(d){
   h+='<div class="card"><h2>Edited draft <span class="hint" style="font-weight:400"> &middot; '+(d.relatedCount||0)+' related articles available for links</span></h2>'+
      '<div class="out-article">'+md(d.edited||'')+'</div>'+
      '<div class="row"><button class="btn ghost" onclick="copyMd(this)">Copy Markdown</button>'+
-     '<button class="btn" id="ed-submit" onclick="submitArticle(this)">Submit to publisher</button>'+
+     '<button class="btn ghost" id="ed-save" onclick="submitArticle(this,\'save\')">Save draft</button>'+
+     '<button class="btn" id="ed-submit" onclick="submitArticle(this,\'submit\')">Send to publisher</button>'+
      '<span id="ed-submit-status" style="font-size:12px;color:var(--muted)"></span></div>'+
-     '<textarea id="ed-md" style="position:absolute;left:-9999px;top:0">'+esc(d.edited||'')+'</textarea></div>';
+     '<textarea id="ed-md" style="position:absolute;left:-9999px;top:0">'+esc(d.edited||'')+'</textarea></div>'+
+     '<div id="ed-final" style="display:none"></div>';
   if(d.notes&&d.notes.length)
     h+='<div class="card"><h2>Editor’s notes</h2><ul class="notes">'+d.notes.map(function(n){return '<li>'+esc(n)+'</li>';}).join('')+'</ul></div>';
   if(d.addedContext&&d.addedContext.length)
@@ -375,21 +377,40 @@ function renderEdit(d){
   document.getElementById('ed-result').innerHTML=h;
 }
 
-async function submitArticle(btn){
+async function submitArticle(btn,action){
   if(!lastEdit){return;}
   var d=lastEdit.d;
   var tier=document.getElementById('ed-tier').value;
   var promos=getPromos().filter(function(p){return p.tier===tier||p.tier==='both';})
     .map(function(p){return {placement:p.placement,html:p.html};});
-  btn.disabled=true;btn.textContent='Submitting…';
+  var label=btn.textContent;
+  btn.disabled=true;btn.textContent=action==='save'?'Saving…':'Sending…';
   var status=document.getElementById('ed-submit-status');
   try{
-    var r=await fetch('/api/submit-article',{method:'POST',headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({writerName:lastEdit.writerName||'',edited:d.edited||'',headlines:d.headlines||[],notes:d.notes||[],factsToCheck:d.factsToCheck||[],tier:tier,promos:promos})});
-    var res=await r.json();
-    if(res.error){status.textContent='Failed: '+res.error;btn.disabled=false;btn.textContent='Submit to publisher';}
-    else{btn.textContent='Submitted';status.textContent='Saved to Drafts and publisher notified by email.';}
-  }catch(e){status.textContent='Failed: '+e.message;btn.disabled=false;btn.textContent='Submit to publisher';}
+    var res;
+    if(lastEdit.draftId){
+      // Already saved once this session — update the same draft instead of creating a new one.
+      var r=await fetch('/api/drafts',{method:'POST',headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({id:lastEdit.draftId,status:action==='save'?'draft':'submitted',notify:action==='submit'})});
+      res=await r.json();
+      if(!res.error) res.id=lastEdit.draftId;
+    }else{
+      var r2=await fetch('/api/submit-article',{method:'POST',headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({writerName:lastEdit.writerName||'',edited:d.edited||'',headlines:d.headlines||[],notes:d.notes||[],factsToCheck:d.factsToCheck||[],tier:tier,promos:promos,action:action})});
+      res=await r2.json();
+    }
+    if(res.error){status.textContent='Failed: '+res.error;btn.disabled=false;btn.textContent=label;}
+    else{
+      lastEdit.draftId=res.id;
+      btn.disabled=false;btn.textContent=label;
+      status.textContent=action==='save'?'Saved as a draft — not sent to the publisher yet.':'Sent — saved to Drafts and publisher notified by email.';
+      if(res.html){
+        var box=document.getElementById('ed-final');
+        box.style.display='block';
+        box.innerHTML='<div class="card"><h2>Final version (promo copy included)</h2><div class="out-article">'+res.html+'</div></div>';
+      }
+    }
+  }catch(e){status.textContent='Failed: '+e.message;btn.disabled=false;btn.textContent=label;}
 }
 
 var TIER_LABELS={vip:'VIP',free:'Free'};
@@ -428,11 +449,12 @@ async function openDraft(id){
       '<h2>'+esc(d.headline||'(no headline)')+'</h2>'+
       '<div class="hint">'+esc(d.writerName||'')+' &middot; '+esc(TIER_LABELS[d.tier]||d.tier)+' &middot; last updated '+new Date(d.updatedAt).toLocaleString()+'</div>'+
       '<label>Status</label>'+
-      '<select id="draft-status">'+['submitted','in review','ready to publish','published'].map(function(s){return '<option value="'+s+'"'+(d.status===s?' selected':'')+'>'+s+'</option>';}).join('')+'</select>'+
-      '<label>Article HTML (edit freely, then Save)</label>'+
+      '<select id="draft-status">'+['draft','submitted','in review','ready to publish','published'].map(function(s){return '<option value="'+s+'"'+(d.status===s?' selected':'')+'>'+s+'</option>';}).join('')+'</select>'+
+      '<label>Article HTML (edit freely, then Save or Send)</label>'+
       '<textarea id="draft-html" rows="18">'+esc(d.html||'')+'</textarea>'+
       '<div class="row">'+
-        '<button class="btn" onclick="saveDraftEdit(\''+d.id+'\')">Save changes</button>'+
+        '<button class="btn ghost" onclick="saveDraftEdit(\''+d.id+'\',false)">Save changes</button>'+
+        '<button class="btn" onclick="saveDraftEdit(\''+d.id+'\',true)">Send to publisher</button>'+
         '<button class="btn ghost" onclick="copyDraftHtml()">Copy HTML</button>'+
         '<span id="draft-save-status" style="font-size:12px;color:var(--muted)"></span>'+
       '</div>'+
@@ -440,15 +462,15 @@ async function openDraft(id){
   }catch(e){c.innerHTML='<div class="card"><div class="empty">Failed: '+esc(e.message)+'</div></div>';}
 }
 
-async function saveDraftEdit(id){
+async function saveDraftEdit(id,send){
   var status=document.getElementById('draft-save-status');
-  status.textContent='Saving…';
+  status.textContent=send?'Sending…':'Saving…';
   try{
     var r=await fetch('/api/drafts',{method:'POST',headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({id:id,html:document.getElementById('draft-html').value,status:document.getElementById('draft-status').value})});
+      body:JSON.stringify({id:id,html:document.getElementById('draft-html').value,status:send?'submitted':document.getElementById('draft-status').value,notify:!!send})});
     var res=await r.json();
     if(res.error){status.textContent='Failed: '+res.error;}
-    else{status.textContent='Saved.';loadDrafts();}
+    else{status.textContent=send?'Sent — publisher notified by email.':'Saved.';loadDrafts();}
   }catch(e){status.textContent='Failed: '+e.message;}
 }
 

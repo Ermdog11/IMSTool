@@ -1,16 +1,16 @@
-// Editorial Desk -> Publisher: a writer's finished draft becomes a saved,
-// editable draft (Vercel Blob via _drafts.js) plus an email to the publisher.
-// Nothing here publishes anything — it only stages it for review.
+// Editorial Desk -> Draft store. First save of a Copydesk result — either
+// "Save draft" (status: draft, no email, so a writer can keep working on it
+// later) or "Send to publisher" (status: submitted, emails the publisher
+// immediately). Subsequent saves of the SAME draft go through api/drafts.js
+// instead, once the client has an id to update.
 //
 // Tier-based promotional copy: the writer picks "VIP" or "Free" for the
 // piece, and the publisher's own promo HTML (configured in the Editorial
-// Desk, not hardcoded — see editor.html's "Promotional copy" section) is
-// auto-inserted: VIP gets its full block appended at the end; Free gets
-// just its CTA paragraph woven into the first few paragraphs instead.
-// This whole mechanism is generic — any publisher can define their own
-// VIP/Free copy blocks, not just InsideMDSports'.
-var { sendMail } = require('./_mailer');
+// Desk, not hardcoded — see editor.html's "Promos" tab) is auto-inserted
+// by placement (top/early/middle/end). This mechanism is generic — any
+// publisher can define their own promo blocks, not just InsideMDSports'.
 var { saveDraft } = require('./_drafts');
+var { notifyPublisherOfSubmission } = require('./_notify');
 
 function esc(s) {
   return String(s == null ? '' : s)
@@ -65,6 +65,7 @@ module.exports = async function handler(req, res) {
   var edited = (body.edited || '').toString().trim();
   if (!edited) return res.status(400).json({ error: 'No article content' });
 
+  var action = body.action === 'save' ? 'save' : 'submit';
   var writerName = (body.writerName || 'Unknown writer').toString().slice(0, 80);
   var tier = body.tier === 'vip' ? 'vip' : 'free';
   var headlines = Array.isArray(body.headlines) ? body.headlines.slice(0, 5) : [];
@@ -79,47 +80,25 @@ module.exports = async function handler(req, res) {
 
   var id = Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
   var now = new Date().toISOString();
+  var doc = {
+    id: id, writerName: writerName, tier: tier, headline: headline, headlines: headlines,
+    html: finalHtml, notes: notes, factsToCheck: factsToCheck,
+    status: action === 'save' ? 'draft' : 'submitted',
+    createdAt: now, updatedAt: now
+  };
   try {
-    await saveDraft({
-      id: id, writerName: writerName, tier: tier, headline: headline, headlines: headlines,
-      html: finalHtml, notes: notes, factsToCheck: factsToCheck, status: 'submitted',
-      createdAt: now, updatedAt: now
-    });
+    await saveDraft(doc);
   } catch (e) {
     return res.status(500).json({ error: 'Failed to save draft: ' + e.message });
   }
 
-  var emailHtml = '<div style="font-family:Arial,sans-serif;max-width:640px">';
-  emailHtml += '<p style="color:#555">A new article was submitted from the Editorial Desk, ready for your review:</p>';
-  emailHtml += '<p><b>Writer:</b> ' + esc(writerName) + ' &middot; <b>Tier:</b> ' + esc(tier === 'vip' ? 'VIP' : 'Free') + '</p>';
-  if (headlines.length) {
-    emailHtml += '<h3 style="margin:16px 0 6px">Headline options</h3><ul>';
-    headlines.forEach(function(h) { emailHtml += '<li>' + (h.label ? '<b>' + esc(h.label) + ':</b> ' : '') + esc(h.text) + '</li>'; });
-    emailHtml += '</ul>';
-  }
-  emailHtml += '<h3 style="margin:16px 0 6px">Article (promo copy already inserted)</h3>';
-  emailHtml += '<div style="border:1px solid #ddd;border-radius:8px;padding:16px;background:#fafafa">' + finalHtml + '</div>';
-  if (factsToCheck.length) {
-    emailHtml += '<h3 style="margin:16px 0 6px;color:#b91c1c">Facts to check / missing</h3><ul>';
-    factsToCheck.forEach(function(f) { emailHtml += '<li>' + esc(f) + '</li>'; });
-    emailHtml += '</ul>';
-  }
-  if (notes.length) {
-    emailHtml += '<h3 style="margin:16px 0 6px">Editor\'s notes</h3><ul>';
-    notes.forEach(function(n) { emailHtml += '<li>' + esc(n) + '</li>'; });
-    emailHtml += '</ul>';
-  }
-  emailHtml += '<p style="margin-top:16px"><a href="https://ims-tool.vercel.app/editor.html#3">Open in Editorial Desk drafts &rarr;</a></p>';
-  emailHtml += '</div>';
+  if (action === 'save') return res.status(200).json({ ok: true, id: id, html: finalHtml, status: 'draft' });
 
   try {
-    await sendMail({
-      subject: '📝 Article submitted (' + (tier === 'vip' ? 'VIP' : 'Free') + ') — ' + writerName + (headline ? ': ' + headline : ''),
-      html: emailHtml
-    });
+    await notifyPublisherOfSubmission(doc);
   } catch (e) {
     // Draft is already saved even if the email fails — don't lose the work over a mail hiccup.
-    return res.status(200).json({ ok: true, id: id, mailError: e.message });
+    return res.status(200).json({ ok: true, id: id, html: finalHtml, status: 'submitted', mailError: e.message });
   }
-  return res.status(200).json({ ok: true, id: id });
+  return res.status(200).json({ ok: true, id: id, html: finalHtml, status: 'submitted' });
 };

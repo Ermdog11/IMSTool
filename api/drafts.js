@@ -1,6 +1,7 @@
 // Editorial Desk drafts list/detail/update. Submitted articles land here via
 // api/submit-article.js; this endpoint lets the publisher reopen and edit one.
 var { loadIndex, loadDraft, saveDraft } = require('./_drafts');
+var { notifyPublisherOfSubmission } = require('./_notify');
 
 module.exports = async function handler(req, res) {
   try {
@@ -26,6 +27,11 @@ module.exports = async function handler(req, res) {
         updatedAt: new Date().toISOString()
       });
       await saveDraft(updated);
+      // Explicit "send to publisher" from the Drafts tab (or re-sending after edits).
+      if (body.notify) {
+        try { await notifyPublisherOfSubmission(updated); }
+        catch (e) { return res.status(200).json({ ok: true, mailError: e.message }); }
+      }
       return res.status(200).json({ ok: true });
     }
 
