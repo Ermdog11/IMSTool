@@ -226,6 +226,8 @@ async function buildProfile(i){
   btn.disabled=false;btn.innerHTML='Build / update style profile';
 }
 
+var lastEdit=null;
+
 async function runEdit(){
   var draft=document.getElementById('ed-draft').value.trim();
   if(draft.length<40){document.getElementById('ed-status').textContent='Paste a longer draft.';return;}
@@ -241,7 +243,7 @@ async function runEdit(){
       body:JSON.stringify({draft:draft,styleGuide:document.getElementById('sg').value,writerProfile:prof,writerName:wname,headline:document.getElementById('ed-headline').checked})});
     var d=await r.json();
     if(d.error){document.getElementById('ed-status').textContent=d.error;}
-    else renderEdit(d);
+    else { lastEdit={d:d,writerName:wname}; renderEdit(d); }
   }catch(e){document.getElementById('ed-status').textContent='Failed: '+e.message;}
   btn.disabled=false;btn.innerHTML='Edit draft';
 }
@@ -260,7 +262,9 @@ function renderEdit(d){
   }
   h+='<div class="card"><h2>Edited draft <span class="hint" style="font-weight:400"> &middot; '+(d.relatedCount||0)+' related articles available for links</span></h2>'+
      '<div class="out-article">'+md(d.edited||'')+'</div>'+
-     '<div class="row"><button class="btn ghost" onclick="copyMd(this)">Copy Markdown</button></div>'+
+     '<div class="row"><button class="btn ghost" onclick="copyMd(this)">Copy Markdown</button>'+
+     '<button class="btn" id="ed-submit" onclick="submitArticle(this)">Submit to publisher</button>'+
+     '<span id="ed-submit-status" style="font-size:12px;color:var(--muted)"></span></div>'+
      '<textarea id="ed-md" style="position:absolute;left:-9999px;top:0">'+esc(d.edited||'')+'</textarea></div>';
   if(d.notes&&d.notes.length)
     h+='<div class="card"><h2>Editor’s notes</h2><ul class="notes">'+d.notes.map(function(n){return '<li>'+esc(n)+'</li>';}).join('')+'</ul></div>';
@@ -269,6 +273,20 @@ function renderEdit(d){
   if(d.factsToCheck&&d.factsToCheck.length)
     h+='<div class="card"><h2>Facts to check / missing</h2><ul class="notes">'+d.factsToCheck.map(function(n){return '<li>'+esc(n)+'</li>';}).join('')+'</ul></div>';
   document.getElementById('ed-result').innerHTML=h;
+}
+
+async function submitArticle(btn){
+  if(!lastEdit){return;}
+  var d=lastEdit.d;
+  btn.disabled=true;btn.textContent='Submitting…';
+  var status=document.getElementById('ed-submit-status');
+  try{
+    var r=await fetch('/api/submit-article',{method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({writerName:lastEdit.writerName||'',edited:d.edited||'',headlines:d.headlines||[],notes:d.notes||[],factsToCheck:d.factsToCheck||[]})});
+    var res=await r.json();
+    if(res.error){status.textContent='Failed: '+res.error;btn.disabled=false;btn.textContent='Submit to publisher';}
+    else{btn.textContent='Submitted';status.textContent='Publisher notified by email.';}
+  }catch(e){status.textContent='Failed: '+e.message;btn.disabled=false;btn.textContent='Submit to publisher';}
 }
 
 function copyMd(btn){
