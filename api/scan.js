@@ -112,7 +112,12 @@ module.exports = async function handler(req, res) {
       { url: 'https://news.google.com/rss/search?q=%22Maryland+Terrapins%22+%22College+GameDay%22+OR+%22Big+Ten+Network%22+OR+announced+OR+%22game+time%22+OR+%22kickoff+time%22&hl=en-US&gl=US&ceid=US:en', name: 'GNews/scheduling' },
       { url: 'https://www.bing.com/news/search?q=%22Maryland+Terrapins%22+transfer+OR+injury+OR+commit&format=rss', name: 'Bing/moves' },
       { url: 'https://www.bing.com/news/search?q=%22Terps%22+%22Big+Ten%22+OR+recruiting+OR+portal&format=rss', name: 'Bing/bigten' },
-      { url: 'https://www.bing.com/news/search?q=%22Kevin+Willard%22+OR+%22Mike+Locksley%22+OR+%22Buzz+Williams%22+OR+%22Brenda+Frese%22&format=rss', name: 'Bing/coaches' }
+      { url: 'https://www.bing.com/news/search?q=%22Kevin+Willard%22+OR+%22Mike+Locksley%22+OR+%22Buzz+Williams%22+OR+%22Brenda+Frese%22&format=rss', name: 'Bing/coaches' },
+      // Google Alerts (Atom feed, not RSS) — indexes Google's general web crawl
+      // (blogs, forums, fan sites) rather than only News-classified outlets, so it
+      // catches things GNews/Bing structurally can't. Noisier index — requireTerps
+      // filters it down.
+      { url: 'https://www.google.com/alerts/feeds/11342504336305895606/17303326929615026985', name: 'GAlerts/terps', src: 'Google Alerts', isAtom: true, requireTerps: true }
     ];
 
     var redditFetches = [
@@ -229,22 +234,52 @@ module.exports = async function handler(req, res) {
           });
           continue;
         }
-        var items = xml.match(/<item>[\s\S]*?<\/item>/g) || [];
+        // Google Alerts delivers Atom (<entry>), not RSS 2.0 (<item>) — different tags.
+        var items = cfg.isAtom
+          ? (xml.match(/<entry>[\s\S]*?<\/entry>/g) || [])
+          : (xml.match(/<item>[\s\S]*?<\/item>/g) || []);
         items.forEach(function(item) {
-          var title = (item.match(/<title><!\[CDATA\[([\s\S]*?)\]\]><\/title>/) || item.match(/<title>([\s\S]*?)<\/title>/) || [])[1] || '';
-          var link = (item.match(/<link>([\s\S]*?)<\/link>/) || [])[1] || '';
-          var src = (item.match(/<source[^>]*>(.*?)<\/source>/) || [])[1] || cfg.src || 'Google News';
-          var srcUrl = (item.match(/<source[^>]*url="([^"]*)"/) || [])[1] || '';
-          var pubDate = (item.match(/<pubDate>(.*?)<\/pubDate>/) || [])[1] || '';
+          var title, link, src, srcUrl, pubDate, desc, realUrl, snippet;
+          if (cfg.isAtom) {
+            title = (item.match(/<title[^>]*>([\s\S]*?)<\/title>/) || [])[1] || '';
+            link = (item.match(/<link[^>]*href="([^"]*)"/) || [])[1] || '';
+            src = cfg.src || 'Google Alerts';
+            srcUrl = '';
+            pubDate = (item.match(/<published>(.*?)<\/published>/) || item.match(/<updated>(.*?)<\/updated>/) || [])[1] || '';
+            desc = (item.match(/<content[^>]*>([\s\S]*?)<\/content>/) || [])[1] || '';
+            // Google Alerts wraps the real URL: .../url?...&url=<encoded>&...
+            var gaUrl = link.replace(/&amp;/g, '&').match(/[?&]url=([^&]+)/);
+            realUrl = gaUrl ? decodeURIComponent(gaUrl[1]) : link;
+            snippet = desc.replace(/<[^>]+>/g, ' ').replace(/&nbsp;/g, ' ')
+              .replace(/&amp;/g, '&').replace(/&#?[a-z0-9]+;/gi, ' ')
+              .replace(/\s+/g, ' ').trim().slice(0, 320);
+            if (!title) return;
+            title = title.trim();
+            if (cfg.requireTerps) {
+              var gaRelevance = (title + ' ' + snippet).toLowerCase();
+              var gaTerpsWords = ['terps', 'terrapins', 'maryland athletic', 'maryland football', 'maryland basketball', 'maryland lacrosse', 'maryland soccer', 'maryland baseball', 'locksley', 'buzz williams', 'willard', 'frese', 'umterps', 'xfinity center', 'secu stadium'];
+              if (!gaTerpsWords.some(function(w) { return gaRelevance.includes(w); })) return;
+            }
+            var gaAge = pubDate ? Math.round((Date.now() - new Date(pubDate).getTime()) / 3600000) : 0;
+            if (pubDate && new Date(pubDate).getTime() < googleCutoff) return;
+            if (excluded.some(function(ex) { return src.toLowerCase().includes(ex) || title.toLowerCase().includes(ex) || realUrl.toLowerCase().includes(ex); })) return;
+            stories.push({ title: title.replace(/&amp;/g,'&').replace(/&lt;/g,'<').replace(/&gt;/g,'>'), source: src, url: (realUrl || link).trim(), age: gaAge, snippet: snippet });
+            return;
+          }
+          title = (item.match(/<title><!\[CDATA\[([\s\S]*?)\]\]><\/title>/) || item.match(/<title>([\s\S]*?)<\/title>/) || [])[1] || '';
+          link = (item.match(/<link>([\s\S]*?)<\/link>/) || [])[1] || '';
+          src = (item.match(/<source[^>]*>(.*?)<\/source>/) || [])[1] || cfg.src || 'Google News';
+          srcUrl = (item.match(/<source[^>]*url="([^"]*)"/) || [])[1] || '';
+          pubDate = (item.match(/<pubDate>(.*?)<\/pubDate>/) || [])[1] || '';
           // Extract real article URL from description (Google News embeds it there)
-          var desc = (item.match(/<description><!\[CDATA\[([\s\S]*?)\]\]><\/description>/) || item.match(/<description>([\s\S]*?)<\/description>/) || [])[1] || '';
-          var realUrl = (desc.match(/href="(https?:\/\/[^"]+)"/) || [])[1] || link;
+          desc = (item.match(/<description><!\[CDATA\[([\s\S]*?)\]\]><\/description>/) || item.match(/<description>([\s\S]*?)<\/description>/) || [])[1] || '';
+          realUrl = (desc.match(/href="(https?:\/\/[^"]+)"/) || [])[1] || link;
           // Bing wraps the real publisher URL in an apiclick redirect: ...&url=<encoded>&...
           var bingUrl = (link + ' ' + realUrl).replace(/&amp;/g, '&').match(/[?&]url=(https?%3[Aa][^&"\s<]+)/);
           if (bingUrl) { try { realUrl = decodeURIComponent(bingUrl[1]); } catch (e) {} }
           // Plain-text snippet from the feed (Bing + direct site feeds carry a real one;
           // Google News descriptions are just "<a>Title</a> Publisher" and get skipped)
-          var snippet = '';
+          snippet = '';
           var rawSnip = desc;
           var ce = (item.match(/<content:encoded><!\[CDATA\[([\s\S]*?)\]\]><\/content:encoded>/) || [])[1];
           if (ce && ce.length > desc.length) rawSnip = ce;

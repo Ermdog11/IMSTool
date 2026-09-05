@@ -87,6 +87,15 @@ module.exports = async function handler(req, res) {
     var t = (text || '').toLowerCase();
     return cannabisTerms.some(function(c) { return t.includes(c); });
   }
+  // Maryland-the-state noise guard: bare "maryland" keyword matches food/tourism/local-news
+  // content that has nothing to do with Terps sports (e.g. Maryland blue crab videos).
+  var marylandNoiseTerms = ['crab', 'seafood', 'old bay', 'crab cake', 'crab feast', 'crab house', 'blue crab', 'ocean city', 'national aquarium', 'chesapeake bay', 'recipe', 'cooking', 'weather forecast', 'lottery', 'real estate', 'zoning', 'city council'];
+  function isMarylandNoise(text) {
+    var t = (text || '').toLowerCase();
+    if (!t.includes('maryland')) return false;
+    if (t.includes('terps') || t.includes('terrapin')) return false;
+    return marylandNoiseTerms.some(function(n) { return t.includes(n); });
+  }
 
   var excluded = ['insidemd', 'jeff ermann', 'ims radio', 'insidetheshell'];
   // Video game / simulation content
@@ -138,6 +147,7 @@ module.exports = async function handler(req, res) {
         if (excluded.some(function(ex) { return text.toLowerCase().includes(ex); })) return;
         if (isGaming(text)) return;
         if (isCannabis(text)) return;
+        if (isMarylandNoise(text)) return;
         if (isConcertVenue(text)) return;
         if (isAiSpam(title, desc, channel)) return;
         var norm = title.toLowerCase().replace(/[^a-z0-9 ]/g, '').substring(0, 60);

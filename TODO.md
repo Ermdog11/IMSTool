@@ -3,10 +3,7 @@
 ## Pending
 - [ ] **Twitter/X scan** — parked. API costs $200/mo minimum for meaningful read access; free workarounds (Nitter) are dead. Bluesky scan added as free alternative; big tweets get picked up via news sites anyway.
 - [ ] **Instagram scan** — parked. Requires Instagram Business/Creator account + Meta developer app; limited to 30 hashtag searches/week (#terps, #marylandterrapins). Revisit if Jeff sets up a Business account.
-- [ ] **Reddit fix** — Reddit blocks Vercel's servers (403). Needs free Reddit API credentials:
-  - Jeff: create app at old.reddit.com/prefs/apps (type: script, redirect: http://localhost)
-  - Add `REDDIT_CLIENT_ID` and `REDDIT_SECRET` to Vercel env vars
-  - Claude: rewrite Reddit integration with OAuth + site-wide search (all subreddits, not just r/MarylandTerrapins, r/CFB, r/CollegeBasketball)
+- [x] **Reddit fix — dead end, dropped (2026-09-05).** Reddit blocks Vercel's servers (403) for anonymous JSON access, and as of 2026 Reddit has also locked self-serve API app creation for new developers — old.reddit.com/prefs/apps "create app" no longer works (shows a broken "read our full policies here" message with no way to accept). Getting API access now requires a manual developer-request form to Reddit with a high solo-developer rejection rate. Jeff has no pre-existing (grandfathered) Reddit app/key, so there's no workaround. Not revisiting unless Reddit changes this policy or Jeff acquires a grandfathered app later.
 - [ ] **YouTube integration** — search YouTube for Terps content. Needs `YOUTUBE_API_KEY` in Vercel (free Google Cloud key).
 - [ ] **Fix morning-brief.js and digest.js** — still use the old broken web_search approach; need same RSS rewrite as scan.js.
 - [ ] **Delete debug endpoints** — api/debug-rss.js, api/debug-podcasts.js, api/debug-reddit.js once everything is stable.
