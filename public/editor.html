@@ -65,6 +65,8 @@ button.btn:disabled{opacity:.6;cursor:default}
 <div class="nav">
   <button class="active" id="nav-0" onclick="show(0)">Copydesk</button>
   <button id="nav-1" onclick="show(1)">Writers &amp; style</button>
+  <button id="nav-2" onclick="show(2)">Promos</button>
+  <button id="nav-3" onclick="show(3)">Drafts</button>
   <button disabled title="Coming soon">Story ideas</button>
   <button disabled title="Coming soon">Headline &amp; SEO</button>
   <button disabled title="Coming soon">Fact check</button>
@@ -80,6 +82,10 @@ button.btn:disabled{opacity:.6;cursor:default}
         <div style="flex:1;min-width:200px">
           <label>Writer</label>
           <select id="ed-writer"><option value="">House style only</option></select>
+        </div>
+        <div style="flex:1;min-width:160px">
+          <label>Tier</label>
+          <select id="ed-tier"><option value="free">Free</option><option value="vip">VIP</option></select>
         </div>
         <label style="font-weight:500;font-size:12px;margin-top:22px"><input type="checkbox" id="ed-headline" checked style="width:auto"> suggest headline</label>
       </div>
@@ -113,6 +119,25 @@ button.btn:disabled{opacity:.6;cursor:default}
       </div>
       <div id="w-list" style="margin-top:14px"></div>
     </div>
+
+  </div>
+
+  <div class="page" id="page-2">
+    <div class="card">
+      <h2>Promos</h2>
+      <div class="hint">Define promo blocks once here; Copydesk auto-inserts the ones that match an article's Tier when it's submitted. Each promo has its own text/hotlinks (raw HTML, paste straight from your CMS) and its own placement &mdash; nothing is hardcoded, any publisher sets their own.</div>
+      <div id="promo-list"></div>
+      <div class="row"><button class="btn ghost" onclick="addPromo()">+ Add promo</button></div>
+    </div>
+  </div>
+
+  <div class="page" id="page-3">
+    <div class="card">
+      <h2>Drafts</h2>
+      <div class="hint">Articles submitted from Copydesk land here, staged for your review &mdash; nothing here is published. Click one to view, edit, and copy the final HTML.</div>
+      <div id="drafts-list"><div class="empty">Loading&hellip;</div></div>
+    </div>
+    <div id="draft-detail"></div>
   </div>
 
 </div>
@@ -120,6 +145,81 @@ button.btn:disabled{opacity:.6;cursor:default}
 <script>
 var LS_GUIDE = 'ims_editor_styleguide';
 var LS_WRITERS = 'ims_editor_writers';
+var LS_PROMOS = 'ims_editor_promos';
+
+// placement: 'top' | 'early' (first 3-5 paragraphs) | 'middle' | 'end'
+var DEFAULT_PROMOS = [
+  {
+    id: 'p1', name: 'VIP full footer', tier: 'vip', placement: 'end',
+    html: '<p><b><i>STOP! Before you read the rest, take 10 seconds to sign up for our free&nbsp;</i></b><a href="https://247sports.com/college/maryland/newsletter/signup/"><b><i>Terps email newsletter here</i></b></a><b><i>&nbsp;so you don\'t miss the next news. Or if you\'re not a VIP member,</i></b><a href="https://secure.247sports.com/college/maryland/join/?promo=JOIN"><b><i>&nbsp;join here now</i></b></a><b><i>&nbsp;and get the scoop!</i></b></p>\n\n<p>Don\'t miss any news - check out more of our&nbsp;<a href="https://247sports.com/college/maryland/news/" target="_blank">recent coverage</a>, subscribe to for our FREE&nbsp;<a href="https://247sports.com/college/maryland/newsletter/signup/">Terps email newsletter&nbsp;</a>and sign up for&nbsp;<a href="https://247sports.com/college/maryland/my/settings/alerts/" target="_blank">text alerts here</a>&nbsp;(VIP only).</p>\n\n<h2>BEFORE YOU&nbsp;FINISH READING ...</h2>\n<p><iframe width="100%" height="482" frameborder="0" src="https://playlist.megaphone.fm?p=CBS2663957323"></iframe></p>\n<p>--&nbsp;<strong>Get the latest Terps news delivered to your inbox FREE</strong>.&nbsp;&nbsp;<a href="https://247sports.com/college/maryland/distribution/signup/" target="_blank">Sign up for our email newsletter here&nbsp;</a>and stay informed on&nbsp;<b><a href="https://247sports.com/college/maryland/" target="_blank">Maryland</a></b>&nbsp;basketball, football, recruiting and every other Terps storyline.&nbsp;</p>\n<p>-- Use checkout code "IMS" to <strong><a href="http://seatgeek.com/" target="_blank">save $20 on tickets at SeatGeek!</a></strong></p>\n<p>-- Or&nbsp;buy and sell Maryland tickets on the <a href="https://247sports.com/college/maryland/board/maryland-tickets-forum-57/" target="_blank">new ticket marketplace!</a></p>\n<p>-- Follow IMS on&nbsp;<a href="https://www.facebook.com/maryland247" target="_blank">Facebook</a>, Twitter,&nbsp;<a href="https://www.tiktok.com/@insidemdsports" target="_blank">Tiktok</a>&nbsp;and&nbsp;<a href="https://www.instagram.com/insidemdsports/" target="_blank">Instagram</a>.</p>\n<p>-- Don\'t miss any of our new video Terps content: Subscribe to InsideMDSports on&nbsp;<a href="https://www.youtube.com/channel/UCjhMnA9-Ul9MXioJ8Pd9DIQ" target="_blank">YouTube and hit the notification bell&nbsp;</a>so you know when new videos drop.</p>'
+  },
+  {
+    id: 'p2', name: 'Free-tier newsletter CTA', tier: 'free', placement: 'early',
+    html: '<p><b><i>STOP! Before you read the rest, take 10 seconds to sign up for our free&nbsp;</i></b><a href="https://247sports.com/college/maryland/newsletter/signup/"><b><i>Terps email newsletter here</i></b></a><b><i>&nbsp;so you don\'t miss the next news. Or if you\'re not a VIP member,</i></b><a href="https://secure.247sports.com/college/maryland/join/?promo=JOIN"><b><i>&nbsp;join here now</i></b></a><b><i>&nbsp;and get the scoop!</i></b></p>'
+  }
+];
+
+function getPromos(){try{var v=JSON.parse(localStorage.getItem(LS_PROMOS)||'null');return Array.isArray(v)?v:DEFAULT_PROMOS.slice();}catch(e){return DEFAULT_PROMOS.slice();}}
+function setPromos(list){localStorage.setItem(LS_PROMOS,JSON.stringify(list));}
+
+var PLACEMENT_LABELS={top:'Top of article',early:'Early (paragraph 3-5)',middle:'Middle of article',end:'End of article'};
+
+function renderPromos(){
+  var promos=getPromos();
+  var c=document.getElementById('promo-list');
+  if(!promos.length){c.innerHTML='<div class="empty">No promos yet.</div>';return;}
+  c.innerHTML=promos.map(function(p,i){
+    return '<div class="writer-item" data-promo-idx="'+i+'">'+
+      '<div class="row" style="margin-top:0">'+
+        '<div style="flex:2;min-width:180px"><label>Name</label><input class="promo-name" value="'+esc(p.name||'')+'"></div>'+
+        '<div style="flex:1;min-width:120px"><label>Applies to</label><select class="promo-tier">'+
+          '<option value="vip"'+(p.tier==='vip'?' selected':'')+'>VIP only</option>'+
+          '<option value="free"'+(p.tier==='free'?' selected':'')+'>Free only</option>'+
+          '<option value="both"'+(p.tier==='both'?' selected':'')+'>Both tiers</option>'+
+        '</select></div>'+
+        '<div style="flex:1;min-width:150px"><label>Placement</label><select class="promo-placement">'+
+          Object.keys(PLACEMENT_LABELS).map(function(k){return '<option value="'+k+'"'+(p.placement===k?' selected':'')+'>'+PLACEMENT_LABELS[k]+'</option>';}).join('')+
+        '</select></div>'+
+      '</div>'+
+      '<label>HTML (text + hotlinks)</label>'+
+      '<textarea class="promo-html" rows="6">'+esc(p.html||'')+'</textarea>'+
+      '<div class="row"><button class="btn" onclick="savePromos()">Save all promos</button><button class="btn ghost" onclick="deletePromo('+i+')">Remove this promo</button><span class="savedmsg" id="promo-saved-'+i+'" style="display:none">Saved</span></div>'+
+    '</div>';
+  }).join('');
+}
+
+function savePromos(){
+  var items=document.querySelectorAll('#promo-list [data-promo-idx]');
+  var list=[];
+  items.forEach(function(el,i){
+    var old=getPromos()[i]||{};
+    list.push({
+      id: old.id || ('p'+Date.now()+i),
+      name: el.querySelector('.promo-name').value,
+      tier: el.querySelector('.promo-tier').value,
+      placement: el.querySelector('.promo-placement').value,
+      html: el.querySelector('.promo-html').value
+    });
+  });
+  setPromos(list);
+  var msgs=document.querySelectorAll('[id^="promo-saved-"]');
+  msgs.forEach(function(m){m.style.display='inline';});
+  setTimeout(function(){msgs.forEach(function(m){m.style.display='none';});},1500);
+}
+
+function addPromo(){
+  var list=getPromos();
+  list.push({id:'p'+Date.now(),name:'New promo',tier:'both',placement:'end',html:''});
+  setPromos(list);
+  renderPromos();
+}
+
+function deletePromo(i){
+  var list=getPromos();
+  list.splice(i,1);
+  setPromos(list);
+  renderPromos();
+}
 
 var DEFAULT_GUIDE = [
   "INSIDEMDSPORTS HOUSE STYLE",
@@ -167,7 +267,7 @@ function setActive(i){
   document.querySelectorAll('.nav button').forEach(function(b){b.classList.remove('active');});
   var n=document.getElementById('nav-'+i); if(n)n.classList.add('active');
 }
-function show(i){ setActive(i); try{history.pushState({t:i},'','#'+i);}catch(e){} }
+function show(i){ setActive(i); if(i===2)renderPromos(); if(i===3)loadDrafts(); try{history.pushState({t:i},'','#'+i);}catch(e){} }
 window.addEventListener('popstate',function(e){ setActive((e.state&&e.state.t)||0); });
 
 function saveGuide(){
@@ -278,15 +378,84 @@ function renderEdit(d){
 async function submitArticle(btn){
   if(!lastEdit){return;}
   var d=lastEdit.d;
+  var tier=document.getElementById('ed-tier').value;
+  var promos=getPromos().filter(function(p){return p.tier===tier||p.tier==='both';})
+    .map(function(p){return {placement:p.placement,html:p.html};});
   btn.disabled=true;btn.textContent='Submitting…';
   var status=document.getElementById('ed-submit-status');
   try{
     var r=await fetch('/api/submit-article',{method:'POST',headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({writerName:lastEdit.writerName||'',edited:d.edited||'',headlines:d.headlines||[],notes:d.notes||[],factsToCheck:d.factsToCheck||[]})});
+      body:JSON.stringify({writerName:lastEdit.writerName||'',edited:d.edited||'',headlines:d.headlines||[],notes:d.notes||[],factsToCheck:d.factsToCheck||[],tier:tier,promos:promos})});
     var res=await r.json();
     if(res.error){status.textContent='Failed: '+res.error;btn.disabled=false;btn.textContent='Submit to publisher';}
-    else{btn.textContent='Submitted';status.textContent='Publisher notified by email.';}
+    else{btn.textContent='Submitted';status.textContent='Saved to Drafts and publisher notified by email.';}
   }catch(e){status.textContent='Failed: '+e.message;btn.disabled=false;btn.textContent='Submit to publisher';}
+}
+
+var TIER_LABELS={vip:'VIP',free:'Free'};
+
+async function loadDrafts(){
+  var c=document.getElementById('drafts-list');
+  c.innerHTML='<div class="empty">Loading&hellip;</div>';
+  document.getElementById('draft-detail').innerHTML='';
+  try{
+    var r=await fetch('/api/drafts');
+    var d=await r.json();
+    renderDraftsList(d.drafts||[]);
+  }catch(e){c.innerHTML='<div class="empty">Failed to load: '+esc(e.message)+'</div>';}
+}
+
+function renderDraftsList(drafts){
+  var c=document.getElementById('drafts-list');
+  if(!drafts.length){c.innerHTML='<div class="empty">No drafts yet &mdash; submit one from Copydesk.</div>';return;}
+  c.innerHTML=drafts.map(function(d){
+    return '<div class="writer-item" style="cursor:pointer" onclick="openDraft(\''+d.id+'\')">'+
+      '<div class="whead"><b>'+esc(d.headline||'(no headline)')+'</b>'+
+        '<span><span class="pill">'+esc(TIER_LABELS[d.tier]||d.tier)+'</span> <span class="pill">'+esc(d.status||'submitted')+'</span></span></div>'+
+      '<div class="hint" style="margin:4px 0 0">'+esc(d.writerName||'')+' &middot; '+new Date(d.updatedAt).toLocaleString()+'</div>'+
+    '</div>';
+  }).join('');
+}
+
+async function openDraft(id){
+  var c=document.getElementById('draft-detail');
+  c.innerHTML='<div class="card"><div class="empty">Loading&hellip;</div></div>';
+  try{
+    var r=await fetch('/api/drafts?id='+encodeURIComponent(id));
+    var d=await r.json();
+    if(d.error){c.innerHTML='<div class="card"><div class="empty">'+esc(d.error)+'</div></div>';return;}
+    c.innerHTML='<div class="card">'+
+      '<h2>'+esc(d.headline||'(no headline)')+'</h2>'+
+      '<div class="hint">'+esc(d.writerName||'')+' &middot; '+esc(TIER_LABELS[d.tier]||d.tier)+' &middot; last updated '+new Date(d.updatedAt).toLocaleString()+'</div>'+
+      '<label>Status</label>'+
+      '<select id="draft-status">'+['submitted','in review','ready to publish','published'].map(function(s){return '<option value="'+s+'"'+(d.status===s?' selected':'')+'>'+s+'</option>';}).join('')+'</select>'+
+      '<label>Article HTML (edit freely, then Save)</label>'+
+      '<textarea id="draft-html" rows="18">'+esc(d.html||'')+'</textarea>'+
+      '<div class="row">'+
+        '<button class="btn" onclick="saveDraftEdit(\''+d.id+'\')">Save changes</button>'+
+        '<button class="btn ghost" onclick="copyDraftHtml()">Copy HTML</button>'+
+        '<span id="draft-save-status" style="font-size:12px;color:var(--muted)"></span>'+
+      '</div>'+
+    '</div>';
+  }catch(e){c.innerHTML='<div class="card"><div class="empty">Failed: '+esc(e.message)+'</div></div>';}
+}
+
+async function saveDraftEdit(id){
+  var status=document.getElementById('draft-save-status');
+  status.textContent='Saving…';
+  try{
+    var r=await fetch('/api/drafts',{method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({id:id,html:document.getElementById('draft-html').value,status:document.getElementById('draft-status').value})});
+    var res=await r.json();
+    if(res.error){status.textContent='Failed: '+res.error;}
+    else{status.textContent='Saved.';loadDrafts();}
+  }catch(e){status.textContent='Failed: '+e.message;}
+}
+
+function copyDraftHtml(){
+  var t=document.getElementById('draft-html'); if(!t)return;
+  t.select(); t.setSelectionRange(0,t.value.length);
+  try{ document.execCommand('copy'); }catch(e){}
 }
 
 function copyMd(btn){
@@ -303,7 +472,8 @@ function copyStr(btn,s){
 
 document.getElementById('sg').value=getGuide();
 renderWriters();
-(function(){var i=parseInt((location.hash||'').replace(/[^0-9]/g,''),10);if(i===1){setActive(1);}})();
+renderPromos();
+(function(){var i=parseInt((location.hash||'').replace(/[^0-9]/g,''),10);if(i>=1&&i<=3){setActive(i);if(i===3)loadDrafts();}})();
 </script>
 </body>
 </html>

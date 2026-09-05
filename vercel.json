@@ -28,6 +28,12 @@
     },
     "api/roster-check.js": {
       "maxDuration": 60
+    },
+    "api/submit-article.js": {
+      "maxDuration": 60
+    },
+    "api/drafts.js": {
+      "maxDuration": 30
     }
   },
   "headers": [
