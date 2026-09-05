@@ -53,7 +53,8 @@ async function getPreviousSnapshot(slug) {
   var blob = (found.blobs || [])[0];
   if (!blob) return null;
   try {
-    var r = await fetch(blob.url);
+    // Private store — the blob URL requires the same token used to write it.
+    var r = await fetch(blob.url, { headers: { Authorization: 'Bearer ' + process.env.BLOB_READ_WRITE_TOKEN } });
     if (!r.ok) return null;
     return await r.json();
   } catch (e) { return null; }
@@ -61,7 +62,7 @@ async function getPreviousSnapshot(slug) {
 
 async function saveSnapshot(slug, snapshot) {
   await put('roster-snapshots/' + slug + '.json', JSON.stringify(snapshot), {
-    access: 'public', addRandomSuffix: false, allowOverwrite: true, contentType: 'application/json'
+    access: 'private', addRandomSuffix: false, allowOverwrite: true, contentType: 'application/json'
   });
 }
 

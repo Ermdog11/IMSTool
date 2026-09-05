@@ -24,7 +24,8 @@ async function loadSubscriptions() {
   var blob = (found.blobs || [])[0];
   if (!blob) return [];
   try {
-    var r = await fetch(blob.url);
+    // Private store — the blob URL requires the same token used to write it.
+    var r = await fetch(blob.url, { headers: { Authorization: 'Bearer ' + process.env.BLOB_READ_WRITE_TOKEN } });
     if (!r.ok) return [];
     var data = await r.json();
     return Array.isArray(data) ? data : [];
@@ -33,7 +34,7 @@ async function loadSubscriptions() {
 
 async function saveSubscriptions(subs) {
   await put(SUBS_PATH, JSON.stringify(subs), {
-    access: 'public', addRandomSuffix: false, allowOverwrite: true, contentType: 'application/json'
+    access: 'private', addRandomSuffix: false, allowOverwrite: true, contentType: 'application/json'
   });
 }
 
