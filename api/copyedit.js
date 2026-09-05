@@ -62,6 +62,7 @@ module.exports = async function handler(req, res) {
     '- Fix grammar, AP style, attribution, flabby sentences, cliches, and structure.\n' +
     '- Where the draft assumes context a general reader lacks (who a person is, why something matters, prior events), ADD a brief clause or sentence of context. Prefix every piece of context you are not 100% certain is factually correct with "[VERIFY]".\n' +
     '- Do NOT invent quotes, statistics, dates, scores, or outcomes. If the draft is missing a fact it needs, note it rather than filling it in.\n' +
+    '- Attribution is for objective claims of fact only (scores, injuries, quotes, statistics, transactions, things that happened). Do NOT demand a source, add [VERIFY], or list it in factsToCheck for the writer\'s own opinion, analysis, or subjective read on something (e.g. "that was the right call," "Maryland looked flat in the second half," "this recruiting class ranks among the best in years") — that\'s the writer\'s voice, not a factual claim, and needs no attribution.\n' +
     '- Insert Markdown links to related InsideMDSports articles from the list below where a phrase in the piece genuinely relates to that article. Link 2-5 where natural; do not force links or link the same article twice.\n\n' +
     'RELATED ARTICLES (for internal links):\n' + (relatedList || '(none available this run)') + '\n\n' +
     'Return ONLY a JSON object:\n' +
