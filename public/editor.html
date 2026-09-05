@@ -430,12 +430,21 @@ function renderDraftsList(drafts){
   var c=document.getElementById('drafts-list');
   if(!drafts.length){c.innerHTML='<div class="empty">No drafts yet &mdash; submit one from Copydesk.</div>';return;}
   c.innerHTML=drafts.map(function(d){
-    return '<div class="writer-item" style="cursor:pointer" onclick="openDraft(\''+d.id+'\')">'+
-      '<div class="whead"><b>'+esc(d.headline||'(no headline)')+'</b>'+
-        '<span><span class="pill">'+esc(TIER_LABELS[d.tier]||d.tier)+'</span> <span class="pill">'+esc(d.status||'submitted')+'</span></span></div>'+
-      '<div class="hint" style="margin:4px 0 0">'+esc(d.writerName||'')+' &middot; '+new Date(d.updatedAt).toLocaleString()+'</div>'+
+    return '<div class="writer-item">'+
+      '<div class="whead" style="cursor:pointer" onclick="openDraft(\''+d.id+'\')"><b>'+esc(d.headline||'(no headline)')+'</b>'+
+        '<span><span class="pill">'+esc(TIER_LABELS[d.tier]||d.tier)+'</span> <span class="pill">'+esc(d.status||'submitted')+'</span> '+
+        '<button class="btn ghost" onclick="event.stopPropagation();deleteDraftItem(\''+d.id+'\')">Delete</button></span></div>'+
+      '<div class="hint" style="margin:4px 0 0;cursor:pointer" onclick="openDraft(\''+d.id+'\')">'+esc(d.writerName||'')+' &middot; '+new Date(d.updatedAt).toLocaleString()+'</div>'+
     '</div>';
   }).join('');
+}
+
+async function deleteDraftItem(id){
+  if(!confirm('Delete this draft? This cannot be undone.'))return;
+  try{
+    await fetch('/api/drafts?id='+encodeURIComponent(id),{method:'DELETE'});
+    loadDrafts();
+  }catch(e){}
 }
 
 async function openDraft(id){

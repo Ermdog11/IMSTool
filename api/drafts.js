@@ -1,6 +1,6 @@
 // Editorial Desk drafts list/detail/update. Submitted articles land here via
 // api/submit-article.js; this endpoint lets the publisher reopen and edit one.
-var { loadIndex, loadDraft, saveDraft } = require('./_drafts');
+var { loadIndex, loadDraft, saveDraft, deleteDraft } = require('./_drafts');
 var { notifyPublisherOfSubmission } = require('./_notify');
 
 module.exports = async function handler(req, res) {
@@ -35,7 +35,14 @@ module.exports = async function handler(req, res) {
       return res.status(200).json({ ok: true });
     }
 
-    return res.status(405).json({ error: 'GET or POST only' });
+    if (req.method === 'DELETE') {
+      var delId = req.query && req.query.id;
+      if (!delId) return res.status(400).json({ error: 'id required' });
+      await deleteDraft(delId);
+      return res.status(200).json({ ok: true });
+    }
+
+    return res.status(405).json({ error: 'GET, POST, or DELETE only' });
   } catch (e) {
     return res.status(500).json({ error: e.message });
   }

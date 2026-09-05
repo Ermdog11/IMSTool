@@ -2,7 +2,7 @@
 // small index doc (so listing drafts doesn't depend on Blob's list() API,
 // which showed CDN read-after-write lag in the push-subscription work —
 // see _push.js). Every read uses useCache:false for the same reason.
-var { get, put } = require('@vercel/blob');
+var { get, put, del } = require('@vercel/blob');
 
 var INDEX_PATH = 'drafts/index.json';
 
@@ -40,4 +40,10 @@ async function saveDraft(doc) {
   await saveIndex(index);
 }
 
-module.exports = { loadIndex: loadIndex, loadDraft: loadDraft, saveDraft: saveDraft };
+async function deleteDraft(id) {
+  try { await del('drafts/' + id + '.json'); } catch (e) { /* already gone is fine */ }
+  var index = await loadIndex();
+  await saveIndex(index.filter(function(e) { return e.id !== id; }));
+}
+
+module.exports = { loadIndex: loadIndex, loadDraft: loadDraft, saveDraft: saveDraft, deleteDraft: deleteDraft };
