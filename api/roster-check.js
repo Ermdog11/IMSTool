@@ -9,7 +9,7 @@
 // majority of college athletics sites — a team's roster URL is normally
 // just https://<site>/sports/<sport-slug>/roster. Adding a school/sport is
 // a one-line config addition, not new code, so this generalizes past Maryland.
-var { list, put } = require('@vercel/blob');
+var { get, put } = require('@vercel/blob');
 var { sendMail } = require('./_mailer');
 var { sendPush } = require('./_push');
 
@@ -49,14 +49,10 @@ function extractPlayers(html) {
 }
 
 async function getPreviousSnapshot(slug) {
-  var found = await list({ prefix: 'roster-snapshots/' + slug + '.json' });
-  var blob = (found.blobs || [])[0];
-  if (!blob) return null;
   try {
-    // Private store — the blob URL requires the same token used to write it.
-    var r = await fetch(blob.url, { headers: { Authorization: 'Bearer ' + process.env.BLOB_READ_WRITE_TOKEN } });
-    if (!r.ok) return null;
-    return await r.json();
+    var result = await get('roster-snapshots/' + slug + '.json', { access: 'private', useCache: false });
+    if (!result || result.statusCode !== 200) return null;
+    return await new Response(result.stream).json();
   } catch (e) { return null; }
 }
 

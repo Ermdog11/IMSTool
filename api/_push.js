@@ -4,7 +4,7 @@
 // detects something worth an immediate desktop alert (breaking news, a
 // roster change) calls sendPush() here.
 var webpush = require('web-push');
-var { list, put } = require('@vercel/blob');
+var { get, put } = require('@vercel/blob');
 
 var SUBS_PATH = 'push-subscriptions.json';
 var configured = false;
@@ -20,14 +20,12 @@ function ensureConfigured() {
 }
 
 async function loadSubscriptions() {
-  var found = await list({ prefix: SUBS_PATH });
-  var blob = (found.blobs || [])[0];
-  if (!blob) return [];
   try {
-    // Private store — the blob URL requires the same token used to write it.
-    var r = await fetch(blob.url, { headers: { Authorization: 'Bearer ' + process.env.BLOB_READ_WRITE_TOKEN } });
-    if (!r.ok) return [];
-    var data = await r.json();
+    // get() reads by pathname directly (no list()-then-fetch indirection,
+    // which showed read-after-write lag right after a save).
+    var result = await get(SUBS_PATH, { access: 'private', useCache: false });
+    if (!result || result.statusCode !== 200) return [];
+    var data = await new Response(result.stream).json();
     return Array.isArray(data) ? data : [];
   } catch (e) { return []; }
 }
