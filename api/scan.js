@@ -182,6 +182,7 @@ module.exports = async function handler(req, res) {
     // itself will sometimes reword a headline slightly ("heading" -> "headed"), which
     // silently defeated the old exact-match check for months.
     var ownTitleWordSets = [];
+    var blocklistSource = 'not run';
     function titleWords(t) {
       return (String(t).toLowerCase().match(/[a-z0-9]+/g) || []).filter(function(w) { return w.length > 2; });
     }
@@ -242,14 +243,42 @@ module.exports = async function handler(req, res) {
       try {
         var xml = await results[gi].value.text();
         // Our-outlet blocklist: pull headline slugs out of the Maryland landing page's
-        // article URLs (…/article/some-headline-slug-289225568/) and record them.
+        // article URLs (…/article/some-headline-slug-289225568/) and record them. This
+        // scrape intermittently 406s (bot detection) — when that happens the page body
+        // is a block page with zero article links, which used to silently zero out the
+        // whole blocklist for that scan cycle (own-outlet stories then sailed straight
+        // through with nothing to match against). Persist the last good scrape to Blob
+        // and fall back to it whenever the live one fails or looks too thin to be real.
         if (cfg.scrapeSlugs) {
           var slugMatches = xml.match(/\/college\/maryland\/(?:article|longformarticle)\/[a-z0-9-]+-\d{6,}/g) || [];
+          var freshSlugWords = {};
           slugMatches.forEach(function(m) {
             var slug = m.replace(/.*\/(?:article|longformarticle)\//, '').replace(/-\d{6,}$/, '').replace(/-/g, ' ');
             var words = titleWords(slug);
-            if (words.length >= 3) ownTitleWordSets.push(new Set(words));
+            if (words.length >= 3) freshSlugWords[words.join(' ')] = words;
           });
+          var freshCount = Object.keys(freshSlugWords).length;
+          var scrapeOk = results[gi].value.status === 200 && freshCount >= 10;
+          try {
+            var blobMod = require('@vercel/blob');
+            if (scrapeOk) {
+              Object.keys(freshSlugWords).forEach(function(k) { ownTitleWordSets.push(new Set(freshSlugWords[k])); });
+              blocklistSource = 'live (' + freshCount + ')';
+              // Best-effort persist; don't let a Blob hiccup affect the scan itself.
+              blobMod.put('own-outlet-blocklist.json', JSON.stringify(Object.keys(freshSlugWords).map(function(k) { return freshSlugWords[k]; })), {
+                access: 'private', addRandomSuffix: false, allowOverwrite: true, contentType: 'application/json'
+              }).catch(function() {});
+            } else {
+              var cached = await blobMod.get('own-outlet-blocklist.json', { access: 'private', useCache: false }).catch(function() { return null; });
+              if (cached && cached.statusCode === 200) {
+                var cachedWords = await new Response(cached.stream).json();
+                (cachedWords || []).forEach(function(words) { ownTitleWordSets.push(new Set(words)); });
+                blocklistSource = 'cached fallback (' + (cachedWords || []).length + ') — live scrape returned status ' + results[gi].value.status + ' with ' + freshCount + ' links';
+              } else {
+                blocklistSource = 'UNAVAILABLE — live scrape status ' + results[gi].value.status + ', no cached fallback';
+              }
+            }
+          } catch (e) { blocklistSource = 'error: ' + e.message; }
           continue;
         }
         // Google Alerts delivers Atom (<entry>), not RSS 2.0 (<item>) — different tags.
@@ -390,7 +419,7 @@ module.exports = async function handler(req, res) {
     var fetchStatuses = results.map(function(r, i) {
       return allNames[i] + ':' + (r.status === 'fulfilled' ? r.value.status : 'FAILED');
     });
-    console.log('Stories:', stories.length, '| Reddit:', redditCount, '| Google:', googleCount, '| YouTube:', videoCount, '| Own-outlet filtered:', ownFiltered, '| Blocklist size:', ownTitleWordSets.length, '| Fetches:', fetchStatuses.join(', '));
+    console.log('Stories:', stories.length, '| Reddit:', redditCount, '| Google:', googleCount, '| YouTube:', videoCount, '| Own-outlet filtered:', ownFiltered, '| Blocklist size:', ownTitleWordSets.length, '| Blocklist source:', blocklistSource, '| Fetches:', fetchStatuses.join(', '));
 
     if (!stories.length) {
       var diagMsg = 'No stories found. Fetch results: ' + fetchStatuses.join(', ');
