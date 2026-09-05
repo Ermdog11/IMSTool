@@ -62,14 +62,17 @@ async function sendPush(payload) {
   var body = JSON.stringify(payload);
   var dead = [];
   var sent = 0;
+  var errors = [];
   await Promise.all(subs.map(async function(sub) {
     try {
       await webpush.sendNotification(sub, body);
       sent++;
     } catch (e) {
       if (e.statusCode === 404 || e.statusCode === 410) dead.push(sub.endpoint);
+      errors.push({ statusCode: e.statusCode, message: e.message, body: e.body });
     }
   }));
+  if (errors.length) return { sent: sent, total: subs.length, errors: errors };
   if (dead.length) {
     var remaining = subs.filter(function(s) { return dead.indexOf(s.endpoint) === -1; });
     await saveSubscriptions(remaining);
