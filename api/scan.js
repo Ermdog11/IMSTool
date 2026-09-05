@@ -71,7 +71,7 @@ module.exports = async function handler(req, res) {
       // as plain "247Sports" and gives a redirect URL, and it doesn't index the site anyway,
       // so neither the src label nor the URL can be matched against `excluded`. Instead we
       // scrape the Maryland landing page — its article URLs carry the headline as a slug —
-      // and use those headlines as a blocklist (see ownTitles / scrapeSlugs below).
+      // and use those headlines as a fuzzy-matched blocklist (see ownTitleWordSets / scrapeSlugs below).
       { url: 'https://247sports.com/college/maryland/', name: 'own247/blocklist', scrapeSlugs: true },
       { url: 'https://news.google.com/rss/search?q=site%3Abtn.com+%22Maryland%22&hl=en-US&gl=US&ceid=US:en', name: 'BTN', src: 'Big Ten Network' },
       { url: 'https://news.google.com/rss/search?q=site%3Asi.com+%22Maryland+Terrapins%22+OR+site%3Asi.com+%22Terps%22&hl=en-US&gl=US&ceid=US:en', name: 'SI/terps', src: 'Sports Illustrated' },
@@ -176,9 +176,26 @@ module.exports = async function handler(req, res) {
 
     var results = await Promise.allSettled(fetches);
     var stories = [];
-    // Normalized headlines of articles that originated on our own outlet — used to drop
-    // the same stories when they resurface (unlabeled) in the general Google News feeds.
-    var ownTitles = {};
+    // Word-sets of headlines that originated on our own outlet — used to drop the same
+    // stories when they resurface (unlabeled) in the general Google News feeds. Fuzzy
+    // (word-overlap) matching, not exact-string: a syndication partner or Google News
+    // itself will sometimes reword a headline slightly ("heading" -> "headed"), which
+    // silently defeated the old exact-match check for months.
+    var ownTitleWordSets = [];
+    function titleWords(t) {
+      return (String(t).toLowerCase().match(/[a-z0-9]+/g) || []).filter(function(w) { return w.length > 2; });
+    }
+    function wordOverlap(aWords, bSet) {
+      if (!aWords.length) return 0;
+      var hits = 0;
+      aWords.forEach(function(w) { if (bSet.has(w)) hits++; });
+      return hits / aWords.length;
+    }
+    function isOwnOutletTitle(title) {
+      var words = titleWords(title);
+      if (words.length < 3) return false;
+      return ownTitleWordSets.some(function(set) { return wordOverlap(words, set) >= 0.75; });
+    }
     // Normalize for headline matching. Strip HTML entities and the trailing
     // " - Publisher" / " | Publisher" suffix Google News appends, so the Google copy
     // and a direct-feed copy of the same story normalize to the same key.
@@ -230,7 +247,8 @@ module.exports = async function handler(req, res) {
           var slugMatches = xml.match(/\/college\/maryland\/(?:article|longformarticle)\/[a-z0-9-]+-\d{6,}/g) || [];
           slugMatches.forEach(function(m) {
             var slug = m.replace(/.*\/(?:article|longformarticle)\//, '').replace(/-\d{6,}$/, '').replace(/-/g, ' ');
-            if (slug) ownTitles[normTitle(slug)] = true;
+            var words = titleWords(slug);
+            if (words.length >= 3) ownTitleWordSets.push(new Set(words));
           });
           continue;
         }
@@ -310,7 +328,7 @@ module.exports = async function handler(req, res) {
     // Drop stories that originated on our own outlet (matched by headline against the blocklist feed)
     var ownFiltered = 0;
     stories = stories.filter(function(s) {
-      if (ownTitles[normTitle(s.title)]) { ownFiltered++; return false; }
+      if (isOwnOutletTitle(s.title)) { ownFiltered++; return false; }
       return true;
     });
 
@@ -372,7 +390,7 @@ module.exports = async function handler(req, res) {
     var fetchStatuses = results.map(function(r, i) {
       return allNames[i] + ':' + (r.status === 'fulfilled' ? r.value.status : 'FAILED');
     });
-    console.log('Stories:', stories.length, '| Reddit:', redditCount, '| Google:', googleCount, '| YouTube:', videoCount, '| Own-outlet filtered:', ownFiltered, '| Blocklist size:', Object.keys(ownTitles).length, '| Fetches:', fetchStatuses.join(', '));
+    console.log('Stories:', stories.length, '| Reddit:', redditCount, '| Google:', googleCount, '| YouTube:', videoCount, '| Own-outlet filtered:', ownFiltered, '| Blocklist size:', ownTitleWordSets.length, '| Fetches:', fetchStatuses.join(', '));
 
     if (!stories.length) {
       var diagMsg = 'No stories found. Fetch results: ' + fetchStatuses.join(', ');
