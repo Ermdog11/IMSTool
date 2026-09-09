@@ -2,7 +2,7 @@ var mailer = require('./_mailer.js');
 
 const buildDigestPrompt = () => `You are a news monitor for InsideMDSports, covering University of Maryland Terrapins athletics. Search for ALL Maryland Terrapins news from the past 24 hours across all sources.
 
-EXCLUDE: InsideMDSports, Jeff Ermann, IMS Radio content.
+EXCLUDE — never include any story from these, no matter how relevant: InsideMDSports, 247Sports (the whole 247sports.com domain, including the Maryland team site), Jeff Ermann, IMS Radio.
 
 Gather news across: football, basketball (men's and women's), recruiting, transfer portal, alumni (NFL, NBA, WNBA), social media buzz, podcasts.
 

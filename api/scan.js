@@ -23,7 +23,12 @@ module.exports = async function handler(req, res) {
   // Monday morning. News older than this is dropped before rating.
   var cutoff = Date.now() - 66 * 60 * 60 * 1000;
   var googleCutoff = Date.now() - 66 * 60 * 60 * 1000;
-  var excluded = ['insidemd', 'jeff ermann', 'ims radio', 'maryland.247sports', '247sports.com/college/maryland', 'insidetheshell', 'mshale', 'times of india'];
+  // Our own outlet is the 247Sports Maryland team site (InsideMDSports). Google News
+  // labels it "247Sports" with a redirect URL, so the only reliable signal is the
+  // source name / any 247sports.com URL — block the whole domain unconditionally.
+  // This also drops 247Sports *national* recruiting items about Maryland; that beat
+  // is InsideMDSports' own and the same news reaches us via On3/Rivals/GNews anyway.
+  var excluded = ['insidemd', 'inside md sports', 'inside maryland sports', 'jeff ermann', 'ims radio', '247sports', '247 sports', 'insidetheshell', 'mshale', 'times of india'];
   // Sources the editor has blocked via the "Block source" button — filtered out below and never shown again.
   var userBlocked = ((req.body && req.body.blockedSources) || [])
     .map(function(s) { return String(s || '').trim().toLowerCase(); })
@@ -66,7 +71,8 @@ module.exports = async function handler(req, res) {
       { url: 'https://news.google.com/rss/search?q=site%3Asports.yahoo.com+%22Maryland+Terrapins%22+OR+site%3Asports.yahoo.com+%22Terps%22&hl=en-US&gl=US&ceid=US:en', name: 'Yahoo/terps', src: 'Yahoo Sports' },
       { url: 'https://news.google.com/rss/search?q=site%3Aon3.com+%22Maryland%22+recruiting+OR+commit+OR+portal&hl=en-US&gl=US&ceid=US:en', name: 'On3/maryland' },
       { url: 'https://news.google.com/rss/search?q=site%3Arivals.com+%22Maryland%22+recruiting+OR+commit+OR+portal&hl=en-US&gl=US&ceid=US:en', name: 'Rivals/maryland' },
-      { url: 'https://news.google.com/rss/search?q=site%3A247sports.com+%22Maryland+Terrapins%22+commit+OR+recruiting+OR+portal+-site%3Amaryland.247sports.com&hl=en-US&gl=US&ceid=US:en', name: '247national/maryland' },
+      // (Removed the site:247sports.com recruiting feed — everything on that domain is
+      // our own outlet or 247 national, both of which we now block outright below.)
       // Our own outlet (247Sports Maryland / InsideMDSports). Google News reports its source
       // as plain "247Sports" and gives a redirect URL, and it doesn't index the site anyway,
       // so neither the src label nor the URL can be matched against `excluded`. Instead we
@@ -546,6 +552,16 @@ module.exports = async function handler(req, res) {
 
     // Drop stories Claude marked as having no Maryland connection
     parsed = parsed.filter(function(item) { return !item.irrelevant; });
+
+    // Final backstop for our own outlet: the deep-read pass resolves Google News
+    // redirects to real publisher URLs, so a 247sports.com / insidemdsports.com link
+    // that slipped past the source-label filter (mislabeled feed, reworded headline)
+    // is catchable here by its now-resolved URL.
+    parsed = parsed.filter(function(item) {
+      var orig = stories[item.idx - 1];
+      var u = (orig && orig.url ? orig.url : '').toLowerCase();
+      return !/247sports\.com|insidemdsports\.com/.test(u);
+    });
 
     // Editorial rule: sports we almost never write about are always filler (rating 1),
     // regardless of how Claude rated them.
