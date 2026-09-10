@@ -22,6 +22,7 @@
 - [ ] **Delete debug endpoints** — api/debug-rss.js, api/debug-podcasts.js, api/debug-reddit.js once everything is stable.
 - [ ] **ListenNotes (optional)** — free quota (300/mo) exhausted this month. Could re-add next month as supplement; currently replaced by free iTunes/RSS approach.
 
+- [ ] **Deeper podcast transcript search (Jeff, 2026-09-10)** — current `api/transcripts.js` scans YouTube auto-captions of a fixed set of national shows for buried Maryland mentions, triggered manually from the Podcasts tab. Jeff wants it deeper / more automatic: more shows, run it on every scan (not on-demand), and go past YouTube captions where possible (Podscribe / Listen Notes transcripts, Apple transcripts, Whisper on the audio for shows without captions). Watch cost/time — Whisper transcription and more shows add real latency; likely a separate cron like roster-check rather than inline with the news scan.
 - [ ] **Podcast transcript search** — scan YouTube auto-captions for shows that post there (catches Maryland mentions buried inside episodes)
 - [ ] **Wikipedia edit watch** — watch ~30 Terps pages for edits (free API, catches coaching changes/commitments fast)
 - [ ] **Message board activity spike detector** — only free boards are Testudo Times comments (JS-heavy, not simply scrapeable) and Reddit (blocked until API credentials). Revisit after Reddit API is set up.
