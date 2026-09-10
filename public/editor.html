@@ -77,7 +77,7 @@ button.btn:disabled{opacity:.6;cursor:default}
   <div class="page active" id="page-0">
     <div class="card">
       <h2>Copydesk</h2>
-      <div class="hint">Paste a draft. It comes back in house style, in the selected writer's voice, with context added (anything unverified is flagged <b>[VERIFY]</b>) and links to related InsideMDSports articles. Always review before publishing &mdash; the editor can be wrong on facts.</div>
+      <div class="hint">Paste a draft. Pick a mode below. Always review before publishing &mdash; the editor can be wrong on facts.</div>
       <div class="row">
         <div style="flex:1;min-width:200px">
           <label>Writer</label>
@@ -87,8 +87,16 @@ button.btn:disabled{opacity:.6;cursor:default}
           <label>Tier</label>
           <select id="ed-tier"><option value="free">Free</option><option value="vip">VIP</option></select>
         </div>
+        <div style="flex:1;min-width:160px">
+          <label>Mode</label>
+          <select id="ed-mode" onchange="updateModeHint()">
+            <option value="edit">Full edit — rewrite in house style</option>
+            <option value="keep">Keep my words — review only</option>
+          </select>
+        </div>
         <label style="font-weight:500;font-size:12px;margin-top:22px"><input type="checkbox" id="ed-headline" checked style="width:auto"> suggest headline</label>
       </div>
+      <div class="hint" id="ed-mode-hint" style="margin-top:2px"></div>
       <label>Draft</label>
       <textarea id="ed-draft" rows="16" placeholder="Paste the writer's draft here…"></textarea>
       <div class="row">
@@ -350,24 +358,38 @@ async function buildProfile(i){
 
 var lastEdit=null;
 
+function updateModeHint(){
+  var m=document.getElementById('ed-mode').value;
+  var el=document.getElementById('ed-mode-hint');
+  var btn=document.getElementById('ed-go');
+  if(m==='keep'){
+    el.innerHTML='The writer’s words are returned <b>unchanged</b> (only obvious typos fixed). You still get headline options, questions to resolve, suggested context, and related links to add — as suggestions, nothing is inserted.';
+    if(btn) btn.textContent='Review draft';
+  } else {
+    el.innerHTML='The draft comes back rewritten in house style and the selected writer’s voice, with context added ([VERIFY]-flagged) and related links inserted.';
+    if(btn) btn.textContent='Edit draft';
+  }
+}
+
 async function runEdit(){
+  var mode=document.getElementById('ed-mode').value;
   var draft=document.getElementById('ed-draft').value.trim();
   if(draft.length<40){document.getElementById('ed-status').textContent='Paste a longer draft.';return;}
   var wi=document.getElementById('ed-writer').value;
   var w=getWriters();
   var prof=wi!==''?((w[wi]&&w[wi].profile)||''):'';
   var wname=wi!==''?((w[wi]&&w[wi].name)||''):'';
-  var btn=document.getElementById('ed-go');btn.disabled=true;btn.innerHTML='<span class="spin"></span>Editing…';
+  var btn=document.getElementById('ed-go');btn.disabled=true;btn.innerHTML='<span class="spin"></span>'+(mode==='keep'?'Reviewing…':'Editing…');
   document.getElementById('ed-status').textContent='';
   document.getElementById('ed-result').innerHTML='';
   try{
     var r=await fetch('/api/copyedit',{method:'POST',headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({draft:draft,styleGuide:document.getElementById('sg').value,writerProfile:prof,writerName:wname,headline:document.getElementById('ed-headline').checked})});
+      body:JSON.stringify({draft:draft,styleGuide:document.getElementById('sg').value,writerProfile:prof,writerName:wname,headline:document.getElementById('ed-headline').checked,mode:document.getElementById('ed-mode').value})});
     var d=await r.json();
     if(d.error){document.getElementById('ed-status').textContent=d.error;}
     else { lastEdit={d:d,writerName:wname,draftId:null}; renderEdit(d); }
   }catch(e){document.getElementById('ed-status').textContent='Failed: '+e.message;}
-  btn.disabled=false;btn.innerHTML='Edit draft';
+  btn.disabled=false;btn.textContent=mode==='keep'?'Review draft':'Edit draft';
 }
 
 function renderEdit(d){
@@ -382,7 +404,11 @@ function renderEdit(d){
       '</div>';
     }).join('')+'</div>';
   }
-  h+='<div class="card"><h2>Edited draft <span class="hint" style="font-weight:400"> &middot; '+(d.relatedCount||0)+' related articles available for links</span></h2>'+
+  var kept = d.mode==='keep';
+  var draftHead = kept
+    ? 'Your draft &mdash; <span class="hint" style="font-weight:400">unchanged, only obvious typos fixed</span>'
+    : 'Edited draft <span class="hint" style="font-weight:400"> &middot; '+(d.relatedCount||0)+' related articles available for links</span>';
+  h+='<div class="card"><h2>'+draftHead+'</h2>'+
      '<div class="out-article">'+md(d.edited||'')+'</div>'+
      '<div class="row"><button class="btn ghost" onclick="copyMd(this)">Copy Markdown</button>'+
      '<button class="btn ghost" id="ed-save" onclick="submitArticle(this,\'save\')">Save draft</button>'+
@@ -391,11 +417,21 @@ function renderEdit(d){
      '<textarea id="ed-md" style="position:absolute;left:-9999px;top:0">'+esc(d.edited||'')+'</textarea></div>'+
      '<div id="ed-final" style="display:none"></div>';
   if(d.notes&&d.notes.length)
-    h+='<div class="card"><h2>Editor’s notes</h2><ul class="notes">'+d.notes.map(function(n){return '<li>'+esc(n)+'</li>';}).join('')+'</ul></div>';
+    h+='<div class="card"><h2>'+(kept?'What a full edit would change':'Editor’s notes')+'</h2><ul class="notes">'+d.notes.map(function(n){return '<li>'+esc(n)+'</li>';}).join('')+'</ul></div>';
   if(d.addedContext&&d.addedContext.length)
-    h+='<div class="card"><h2>Context added</h2>'+d.addedContext.map(function(c){return '<div class="ctx">'+esc(c).replace(/\[VERIFY\]/g,'<b>[VERIFY]</b>')+'</div>';}).join('')+'</div>';
+    h+='<div class="card"><h2>'+(kept?'Context you could add':'Context added')+'</h2>'+d.addedContext.map(function(c){return '<div class="ctx">'+esc(c).replace(/\[VERIFY\]/g,'<b>[VERIFY]</b>')+'</div>';}).join('')+'</div>';
   if(d.factsToCheck&&d.factsToCheck.length)
     h+='<div class="card"><h2>Questions to resolve</h2><ul class="notes">'+d.factsToCheck.map(function(n){return '<li>'+esc(n)+'</li>';}).join('')+'</ul></div>';
+  if(kept && d.relatedSuggestions && d.relatedSuggestions.length)
+    h+='<div class="card"><h2>Related links you could add</h2><div class="hint">Nothing was inserted &mdash; drop these in where they fit.</div>'+
+      d.relatedSuggestions.map(function(s){
+        var link='['+(s.phrase||s.headline||'link')+']('+(s.url||'')+')';
+        return '<div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--border)">'+
+          '<div style="flex:1"><div style="font-size:13px">near &ldquo;'+esc(s.phrase||'')+'&rdquo;</div>'+
+          '<div style="font-size:12px;color:var(--muted)">&rarr; '+esc(s.headline||s.url||'')+'</div></div>'+
+          '<button class="btn ghost" style="flex-shrink:0" onclick="copyStr(this,'+JSON.stringify(link)+')">Copy link</button>'+
+        '</div>';
+      }).join('')+'</div>';
   document.getElementById('ed-result').innerHTML=h;
 }
 
@@ -526,6 +562,7 @@ function copyStr(btn,s){
 document.getElementById('sg').value=getGuide();
 renderWriters();
 renderPromos();
+updateModeHint();
 (function(){var i=parseInt((location.hash||'').replace(/[^0-9]/g,''),10);if(i>=1&&i<=3){setActive(i);if(i===3)loadDrafts();}})();
 </script>
 </body>
