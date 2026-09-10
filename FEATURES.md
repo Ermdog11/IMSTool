@@ -33,7 +33,7 @@ Last updated: 2026-09-10
 | Breaking-news email | Rating-5 stories email immediately, 24/7. |
 | Roster-change watch | Checks official team rosters 3×/week and emails when a player is added or drops off — often before the transfer/injury is reported anywhere. (Dedicated in-app view coming.) |
 | Noise controls | Per-topic caps with an overflow view (demote, don't drop), low-priority-sport suppression, stat-page filtering, "block this source" list. |
-| Own-outlet exclusion | Never shows the customer their own site's stories back to them. |
+| Own-outlet exclusion | Never shows the customer their own site's stories back to them — publisher lists their own domain(s), plus an "Exclude sources" control to add any other site or URL to filter out. |
 | Team chat | High-rated alerts auto-drop into a shared channel for the newsroom to claim and discuss. |
 | Story backlog | Auto-generates story angles from the current news. |
 | Desktop notifications | Optional browser push for breaking news. |

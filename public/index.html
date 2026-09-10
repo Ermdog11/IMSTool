@@ -245,7 +245,10 @@ body { padding-bottom: 40px; }
       <div class="scan-dot" id="scanDot"></div>
       <div class="scan-text" id="scanText"><strong>Ready</strong> — every 30 min, 24/7 · all stories rated 1-5 · your content excluded</div>
     </div>
-    <button class="scan-btn" id="scanBtn" onclick="runScan()"><i class="ti ti-refresh"></i> Scan now</button>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;">
+      <button class="scan-btn" style="background:#fff;color:var(--fg);border:1px solid var(--border);" onclick="openExcludeSettings()"><i class="ti ti-ban"></i> Exclude sources</button>
+      <button class="scan-btn" id="scanBtn" onclick="runScan()"><i class="ti ti-refresh"></i> Scan now</button>
+    </div>
   </div>
   <div class="filters">
     <button class="chip active" onclick="setFilter('all',this)">All</button>
@@ -448,15 +451,30 @@ body { padding-bottom: 40px; }
     <div id="teamContainer"><div class="empty" style="padding:12px;">Loading team…</div></div>
   </div>
 
-  <div class="settings-card">
+  <div class="settings-card" id="excludeCard">
     <h3><i class="ti ti-ban"></i> Excluded sources</h3>
-    <div class="src-row ex"><i class="ti ti-x"></i> InsideMDSports / 247sports.com/college/maryland</div>
+
+    <div class="sdiv-label">Your own outlet — never shown</div>
+    <div style="font-size:11px;color:var(--text3);margin-bottom:6px;line-height:1.5;">Stories from these are always filtered out of every scan. Add every domain your site publishes under.</div>
+    <div id="ownSiteList"></div>
+    <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:8px;">
+      <input id="ownSiteInput" placeholder="yoursite.com" style="flex:1;min-width:160px;font-size:13px;padding:7px 9px;border:1px solid var(--border);border-radius:6px;" onkeydown="if(event.key==='Enter')addOwnSite()">
+      <button class="pill" onclick="addOwnSite()">Exclude my site</button>
+    </div>
+
+    <div class="sdiv-label" style="margin-top:16px;">Other sites to exclude</div>
+    <div style="font-size:11px;color:var(--text3);margin-bottom:6px;line-height:1.5;">Any other site or URL you don't want in results — competitors, aggregators, noise.</div>
+    <div id="blockedSourcesList"></div>
+    <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:8px;">
+      <input id="blockSourceInput" placeholder="example.com  (or a URL)" style="flex:1;min-width:160px;font-size:13px;padding:7px 9px;border:1px solid var(--border);border-radius:6px;" onkeydown="if(event.key==='Enter')addBlockedSource()">
+      <button class="pill" onclick="addBlockedSource()">Add to exclude list</button>
+    </div>
+
+    <div class="sdiv-label" style="margin-top:16px;">Always excluded</div>
     <div class="src-row ex"><i class="ti ti-x"></i> Jeff Ermann — any story authored by or attributed to you</div>
     <div class="src-row ex"><i class="ti ti-x"></i> IMS Radio podcast — your own show</div>
     <div class="src-row ex"><i class="ti ti-x"></i> Minor sports (tennis, track, golf, wrestling, field hockey, softball, baseball, lacrosse, soccer, gymnastics, swimming) unless major news</div>
     <div style="font-size:11px;color:var(--text3);margin-top:8px;line-height:1.5;">Note: if another outlet cites or reacts to your reporting, that reaction IS included.</div>
-    <div class="sdiv-label">Sites you blocked</div>
-    <div id="blockedSourcesList"></div>
   </div>
 
   <div class="settings-card">
@@ -641,7 +659,7 @@ function switchTab(idx, fromPop) {
   if (idx === 7) loadPodcasts();
   if (idx === 8) loadYouTube();
   if (idx === 9) loadBluesky();
-  if (idx === 10) { renderBlockedSources(); refreshPushStatus(); loadTeam(); }
+  if (idx === 10) { renderBlockedSources(); renderOwnSites(); refreshPushStatus(); loadTeam(); }
   window.scrollTo(0, 0);
   if (!fromPop) {
     try { history.pushState({ imsTab: idx }, '', TAB_PATHS[idx]); } catch (e) {}
@@ -804,7 +822,7 @@ async function loadPodcasts() {
   if (!c) return;
   c.innerHTML = '<div class="empty"><i class="ti ti-loader spin"></i> Searching podcast episodes...</div>';
   try {
-    const blockedQ = getBlockedSources().length ? '?blocked=' + encodeURIComponent(getBlockedSources().join(',')) : '';
+    const blockedQ = allExcludedTerms().length ? '?blocked=' + encodeURIComponent(allExcludedTerms().join(',')) : '';
     const res = await fetch('/api/podcasts' + blockedQ, { cache: 'no-store' });
     const data = await res.json();
     podcastCache = data.episodes || [];
@@ -825,7 +843,7 @@ async function scanYouTube() {
   if (btn) { btn.disabled = true; btn.innerHTML = '<i class="ti ti-loader spin"></i> Scanning...'; }
   c.innerHTML = '<div class="empty"><i class="ti ti-loader spin"></i> Searching YouTube...</div>';
   try {
-    const bq = getBlockedSources().length ? '&blocked=' + encodeURIComponent(getBlockedSources().join(',')) : '';
+    const bq = allExcludedTerms().length ? '&blocked=' + encodeURIComponent(allExcludedTerms().join(',')) : '';
     const hq = getHiddenVideos().length ? '&hidden=' + encodeURIComponent(getHiddenVideos().join(',')) : '';
     const res = await fetch('/api/youtube?batch=7&nocache=1' + bq + hq, { cache: 'no-store' });
     const data = await res.json();
@@ -896,10 +914,76 @@ function getBlockedSources() {
   try { return JSON.parse(localStorage.getItem('blockedSources') || '[]'); } catch(e) { return []; }
 }
 
+// Your own outlet(s) — always filtered out. Pre-seeded, editable.
+const OWN_SITE_DEFAULT = ['247sports.com/college/maryland', 'insidemdsports.com', '247sports'];
+function getOwnSites() {
+  try {
+    const v = localStorage.getItem('ownSiteExclude');
+    if (v === null) return OWN_SITE_DEFAULT.slice();
+    const a = JSON.parse(v);
+    return Array.isArray(a) ? a : OWN_SITE_DEFAULT.slice();
+  } catch(e) { return OWN_SITE_DEFAULT.slice(); }
+}
+function setOwnSites(a) { localStorage.setItem('ownSiteExclude', JSON.stringify(a.slice(0, 50))); }
+function addOwnSite() {
+  const el = document.getElementById('ownSiteInput');
+  const v = (el.value || '').trim().toLowerCase().replace(/^https?:\/\//,'').replace(/\/+$/,'');
+  if (!v) return;
+  const list = getOwnSites();
+  if (!list.some(x => x.toLowerCase() === v)) { list.push(v); setOwnSites(list); }
+  el.value = '';
+  applyExclusions(); renderOwnSites();
+}
+function removeOwnSite(v) {
+  setOwnSites(getOwnSites().filter(x => String(x).toLowerCase() !== String(v).toLowerCase()));
+  applyExclusions(); renderOwnSites();
+}
+function renderOwnSites() {
+  const c = document.getElementById('ownSiteList');
+  if (!c) return;
+  const list = getOwnSites();
+  c.innerHTML = list.length ? list.map(b =>
+    `<div class="src-row ex"><i class="ti ti-x"></i> ${b}` +
+    `<button onclick="removeOwnSite('${String(b).replace(/'/g,"\\'")}')" style="margin-left:8px;background:none;border:1px solid var(--border);border-radius:4px;padding:1px 7px;cursor:pointer;color:var(--text3);font-size:10px;">remove</button></div>`
+  ).join('') : '<div style="font-size:11px;color:var(--text3);">Add the domain(s) your site publishes under.</div>';
+}
+function addBlockedSource() {
+  const el = document.getElementById('blockSourceInput');
+  const v = (el.value || '').trim().replace(/^https?:\/\//,'').replace(/\/+$/,'');
+  if (!v) return;
+  const blocked = getBlockedSources();
+  if (!blocked.some(b => String(b).trim().toLowerCase() === v.toLowerCase())) {
+    blocked.push(v);
+    localStorage.setItem('blockedSources', JSON.stringify(blocked.slice(-100)));
+  }
+  el.value = '';
+  applyExclusions(); renderBlockedSources();
+}
+// All exclusion terms the scan + client filters use (blocked + own outlet).
+function allExcludedTerms() { return getBlockedSources().concat(getOwnSites()); }
+function openExcludeSettings() {
+  switchTab(10);
+  setTimeout(function(){
+    var el = document.getElementById('excludeCard');
+    if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    var i = document.getElementById('ownSiteInput'); if (i) i.focus();
+  }, 60);
+}
+// Re-filter the current results after an exclusion changes.
+function applyExclusions() {
+  if (typeof allAlerts !== 'undefined' && allAlerts) {
+    allAlerts = allAlerts.filter(x => !isBlockedSource(x.source) && !isBlockedSource(x.url));
+    overflowAlerts = (overflowAlerts||[]).filter(x => !isBlockedSource(x.source) && !isBlockedSource(x.url));
+    allVideos = (allVideos||[]).filter(v => !isBlockedSource(v.channel || v.source) && !isBlockedSource(v.url));
+    if (typeof renderAlerts === 'function') renderAlerts();
+    if (typeof renderTrending === 'function') renderTrending();
+  }
+}
+
 function isBlockedSource(src) {
   const s = (src || '').trim().toLowerCase();
   if (!s) return false;
-  return getBlockedSources().some(b => {
+  return allExcludedTerms().some(b => {
     const bl = String(b).trim().toLowerCase();
     return bl && (s === bl || s.includes(bl) || bl.includes(s));
   });
@@ -1059,7 +1143,7 @@ function renderBlockedSources() {
   if (!c) return;
   const blocked = getBlockedSources();
   if (!blocked.length) {
-    c.innerHTML = '<div style="font-size:11px;color:var(--text3);">None yet — use the “Block source” button on an alert to hide a site here.</div>';
+    c.innerHTML = '<div style="font-size:11px;color:var(--text3);">None yet — add a site above, or use “Block source” on any alert.</div>';
     return;
   }
   c.innerHTML = blocked.map(b =>
@@ -1231,7 +1315,7 @@ async function runScan() {
     const res = await fetch('/api/scan', {
       method: 'POST',
       headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({ flagged: getFlagged(), blockedSources: getBlockedSources() })
+      body: JSON.stringify({ flagged: getFlagged(), blockedSources: allExcludedTerms() })
     });
     const data = await res.json();
     if (data.error) throw new Error(typeof data.error === 'string' ? data.error : data.error.message || 'API error');
