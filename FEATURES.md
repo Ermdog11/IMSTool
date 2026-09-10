@@ -47,7 +47,7 @@ Last updated: 2026-09-10
 | Per-writer style profiles | Learns each writer's voice from ~15 samples so edits polish rather than flatten them. |
 | House style guide | The editable rulebook every edit is measured against — per publication. |
 | Related-article links | Automatically hotlinks relevant phrases in the copy to the publication's own recent articles. |
-| Promo blocks | Publisher defines promo/subscription blocks once; the right ones auto-insert by article tier and placement. |
+| Inserts | Publisher defines reusable blocks once (newsletter sign-up, VIP pitch, related-coverage boxes, ad units) with a tier and placement; on the editing page the writer or editor clicks to drop them into a piece. |
 | Draft workflow | Save-as-draft vs. send-to-publisher; publisher gets an email on submission; drafts list with view/edit/delete. |
 
 ---

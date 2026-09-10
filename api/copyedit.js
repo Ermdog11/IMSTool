@@ -127,7 +127,7 @@ module.exports = async function handler(req, res) {
 
   var linkRule = mode === 'keep'
     ? '- Do NOT change the text or insert links. Put internal-link ideas in relatedSuggestions: 2-5 of the related articles below that genuinely relate, each with the phrase in the draft it would sit near. Do not force it.\n'
-    : '- Insert Markdown links to related InsideMDSports articles from the list below where a phrase genuinely relates to that article. Link 2-5 where natural; do not force links or link the same article twice. Leave relatedSuggestions empty.\n';
+    : '- Insert Markdown links to related InsideMDSports articles from the list below. Aim for 2-4 links unless the list genuinely has nothing connected to this story (a recruiting story links to other recruiting coverage; a game story to the preview or a player feature; a coaching story to earlier staff news). Attach each link to a real phrase, do not link the same article twice, and do not invent URLs — use only the list. Leave relatedSuggestions empty.\n';
 
   var user;
   if (mode === 'keep') {

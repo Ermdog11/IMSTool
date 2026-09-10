@@ -65,7 +65,7 @@ button.btn:disabled{opacity:.6;cursor:default}
 <div class="nav">
   <button class="active" id="nav-0" onclick="show(0)">Copydesk</button>
   <button id="nav-1" onclick="show(1)">Writers &amp; style</button>
-  <button id="nav-2" onclick="show(2)">Promos</button>
+  <button id="nav-2" onclick="show(2)">Inserts</button>
   <button id="nav-3" onclick="show(3)">Drafts</button>
   <button disabled title="Coming soon">Story ideas</button>
   <button disabled title="Coming soon">Headline &amp; SEO</button>
@@ -143,10 +143,10 @@ button.btn:disabled{opacity:.6;cursor:default}
 
   <div class="page" id="page-2">
     <div class="card">
-      <h2>Promos</h2>
-      <div class="hint">Define promo blocks once here; Copydesk auto-inserts the ones that match an article's Tier when it's submitted. Each promo has its own text/hotlinks (raw HTML, paste straight from your CMS) and its own placement &mdash; nothing is hardcoded, any publisher sets their own.</div>
+      <h2>Inserts</h2>
+      <div class="hint">Reusable blocks &mdash; newsletter sign-up, VIP pitch, related-coverage boxes, ad units. Define each once (raw HTML, paste straight from your CMS) with the tier it applies to and where it lands. On the editing page the writer or editor clicks to drop them into a piece.</div>
       <div id="promo-list"></div>
-      <div class="row"><button class="btn ghost" onclick="addPromo()">+ Add promo</button></div>
+      <div class="row"><button class="btn ghost" onclick="addPromo()">+ Add insert</button></div>
     </div>
   </div>
 
@@ -208,7 +208,7 @@ var PLACEMENT_LABELS={top:'Top of article',early:'Early (paragraph 3-5)',middle:
 function renderPromos(){
   var promos=getPromos();
   var c=document.getElementById('promo-list');
-  if(!promos.length){c.innerHTML='<div class="empty">No promos yet.</div>';return;}
+  if(!promos.length){c.innerHTML='<div class="empty">No inserts yet.</div>';return;}
   c.innerHTML=promos.map(function(p,i){
     return '<div class="writer-item" data-promo-idx="'+i+'">'+
       '<div class="row" style="margin-top:0">'+
@@ -224,7 +224,7 @@ function renderPromos(){
       '</div>'+
       '<label>HTML (text + hotlinks)</label>'+
       '<textarea class="promo-html" rows="6">'+esc(p.html||'')+'</textarea>'+
-      '<div class="row"><button class="btn" onclick="savePromos()">Save all promos</button><button class="btn ghost" onclick="deletePromo('+i+')">Remove this promo</button><span class="savedmsg" id="promo-saved-'+i+'" style="display:none">Saved</span></div>'+
+      '<div class="row"><button class="btn" onclick="savePromos()">Save all inserts</button><button class="btn ghost" onclick="deletePromo('+i+')">Remove this insert</button><span class="savedmsg" id="promo-saved-'+i+'" style="display:none">Saved</span></div>'+
     '</div>';
   }).join('');
 }
@@ -250,7 +250,7 @@ function savePromos(){
 
 function addPromo(){
   var list=getPromos();
-  list.push({id:'p'+Date.now(),name:'New promo',tier:'both',placement:'end',html:''});
+  list.push({id:'p'+Date.now(),name:'New insert',tier:'both',placement:'end',html:''});
   setPromos(list);
   renderPromos();
 }
@@ -468,15 +468,46 @@ function renderEdit(d){
           '<button class="btn ghost" style="flex-shrink:0" onclick="copyStr(this,'+JSON.stringify(v.embed||v.url)+')">Copy embed</button>'+
         '</div>';
       }).join('')+'</div>';
+
+  var tier=document.getElementById('ed-tier').value;
+  var inserts=getPromos().filter(function(p){return (p.tier===tier||p.tier==='both') && (p.html||'').trim();});
+  if(inserts.length){
+    addedInserts=[];
+    h+='<div class="card"><h2>Inserts</h2><div class="hint">Click to drop a block into the article. It lands at its set position; added blocks show at the bottom of the draft above and go in on save.</div><div id="insert-btns">'+
+      inserts.map(function(p,i){
+        return '<button class="btn ghost" style="margin:4px 6px 4px 0" data-ins="'+i+'" onclick="toggleInsert('+i+')">+ '+esc(p.name||('Insert '+(i+1)))+'</button>';
+      }).join('')+'</div><div id="insert-added" style="margin-top:8px;font-size:12px;color:var(--muted)"></div></div>';
+  }
+
   document.getElementById('ed-result').innerHTML=h;
+  window._availableInserts=inserts;
+}
+
+var addedInserts=[];
+function toggleInsert(i){
+  var pos=addedInserts.indexOf(i);
+  if(pos===-1) addedInserts.push(i); else addedInserts.splice(pos,1);
+  var btn=document.querySelector('#insert-btns [data-ins="'+i+'"]');
+  if(btn){ var on=addedInserts.indexOf(i)!==-1; btn.textContent=(on?'✓ ':'+ ')+(window._availableInserts[i].name||('Insert '+(i+1))); btn.classList.toggle('btn',!on); btn.style.background=on?'var(--red)':''; btn.style.color=on?'#fff':''; }
+  var out=document.getElementById('insert-added');
+  var names=addedInserts.map(function(x){return (window._availableInserts[x].name||('Insert '+(x+1)));});
+  out.textContent=names.length?('Will be added: '+names.join(', ')):'';
+  // Live-preview the added blocks under the article
+  var art=document.querySelector('#ed-result .out-article');
+  if(art){
+    var mark=document.getElementById('ed-insert-preview');
+    if(!mark){ mark=document.createElement('div'); mark.id='ed-insert-preview'; art.appendChild(mark); }
+    mark.innerHTML=addedInserts.map(function(x){return '<div style="border-left:3px solid var(--red);padding-left:10px;margin:12px 0;opacity:.85">'+window._availableInserts[x].html+'</div>';}).join('');
+  }
 }
 
 async function submitArticle(btn,action){
   if(!lastEdit){return;}
   var d=lastEdit.d;
   var tier=document.getElementById('ed-tier').value;
-  var promos=getPromos().filter(function(p){return p.tier===tier||p.tier==='both';})
-    .map(function(p){return {placement:p.placement,html:p.html};});
+  // Only the inserts the writer/editor actually clicked on the editing page.
+  var chosen=(window._availableInserts||[]).filter(function(p,i){return addedInserts.indexOf(i)!==-1;});
+  var promos=chosen.map(function(p){return {placement:p.placement,html:p.html};});
   var label=btn.textContent;
   btn.disabled=true;btn.textContent=action==='save'?'Saving…':'Sending…';
   var status=document.getElementById('ed-submit-status');
@@ -501,7 +532,7 @@ async function submitArticle(btn,action){
       if(res.html){
         var box=document.getElementById('ed-final');
         box.style.display='block';
-        box.innerHTML='<div class="card"><h2>Final version (promo copy included)</h2><div class="out-article">'+res.html+'</div></div>';
+        box.innerHTML='<div class="card"><h2>Final version (inserts included)</h2><div class="out-article">'+res.html+'</div></div>';
       }
     }
   }catch(e){status.textContent='Failed: '+e.message;btn.disabled=false;btn.textContent=label;}
