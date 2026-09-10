@@ -94,7 +94,18 @@ button.btn:disabled{opacity:.6;cursor:default}
             <option value="keep">Keep my words — review only</option>
           </select>
         </div>
-        <label style="font-weight:500;font-size:12px;margin-top:22px"><input type="checkbox" id="ed-headline" checked style="width:auto"> suggest headline</label>
+        <div style="flex:1;min-width:160px">
+          <label>Headlines</label>
+          <select id="ed-headline-style">
+            <option value="mixed">3 styles (straight · punchy · SEO)</option>
+            <option value="straight">3 straight-news</option>
+            <option value="punchy">3 punchy</option>
+            <option value="curiosity">3 curiosity / mystery</option>
+            <option value="fun">3 fun / playful</option>
+            <option value="seo">3 SEO-first</option>
+            <option value="none">Don't suggest headlines</option>
+          </select>
+        </div>
       </div>
       <div class="hint" id="ed-mode-hint" style="margin-top:2px"></div>
       <label>Draft</label>
@@ -384,7 +395,7 @@ async function runEdit(){
   document.getElementById('ed-result').innerHTML='';
   try{
     var r=await fetch('/api/copyedit',{method:'POST',headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({draft:draft,styleGuide:document.getElementById('sg').value,writerProfile:prof,writerName:wname,headline:document.getElementById('ed-headline').checked,mode:document.getElementById('ed-mode').value})});
+      body:JSON.stringify({draft:draft,styleGuide:document.getElementById('sg').value,writerProfile:prof,writerName:wname,headlineStyle:document.getElementById('ed-headline-style').value,mode:document.getElementById('ed-mode').value})});
     var d=await r.json();
     if(d.error){document.getElementById('ed-status').textContent=d.error;}
     else { lastEdit={d:d,writerName:wname,draftId:null}; renderEdit(d); }

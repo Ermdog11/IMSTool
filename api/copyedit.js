@@ -96,7 +96,21 @@ module.exports = async function handler(req, res) {
   var styleGuide = (body.styleGuide || '').toString().slice(0, 12000);
   var writerProfile = (body.writerProfile || '').toString().slice(0, 6000);
   var writerName = (body.writerName || 'the writer').toString().slice(0, 80);
-  var wantHeadline = body.headline !== false;
+  var HL_STYLES = {
+    mixed:     'THREE options, one of each voice: (1) Straight news — clear, factual, names the subject; (2) Punchy — sharper, more voice, still accurate, no clickbait; (3) SEO-first — leads with the terms a reader would search (name + Maryland + topic).',
+    straight:  'THREE straight-news headlines — clear, factual, each names the subject. Vary the angle and what leads.',
+    punchy:    'THREE punchy headlines — sharper, more voice and rhythm, still fully accurate. No clickbait, no fake stakes.',
+    curiosity: 'THREE curiosity / mystery headlines — open a genuine information gap that makes a reader want to click. The gap MUST be real and the article MUST pay it off; never imply something the piece does not deliver, never mislead.',
+    fun:       'THREE fun / playful headlines — wordplay, lightness, a wink. Still clear about who and what the story is about.',
+    seo:       'THREE SEO-first headlines — lead with the key search terms (player/coach name + Maryland + the topic). Aim under 60 characters.'
+  };
+  var headlineStyle = (body.headline === false || body.headlineStyle === 'none') ? 'none'
+    : (HL_STYLES[body.headlineStyle] ? body.headlineStyle
+      : (body.headlineStyle == null && body.headline === false ? 'none' : 'mixed'));
+  var wantHeadline = headlineStyle !== 'none';
+  var headlineInstruction = wantHeadline
+    ? '- "headlines": ' + HL_STYLES[headlineStyle] + ' Every one publishable, accurate, in house style, and under ~90 characters. They must be genuinely different from each other, not the same headline reworded. Set each item\'s "label" to a 1-3 word tag for that option.\n'
+    : '- Leave "headlines" empty.\n';
   var mode = body.mode === 'keep' ? 'keep' : 'edit';
 
   var related = await relatedArticleIndex();
@@ -125,7 +139,7 @@ module.exports = async function handler(req, res) {
       factsRule + linkRule +
       '- "notes": briefly, what a full house-style edit WOULD change (a few bullets), so they can decide.\n' +
       '- "addedContext": context a general reader might need that the draft assumes, as standalone suggested sentences — NOT inserted. Prefix "[VERIFY]" on any you are unsure of.\n' +
-      (wantHeadline ? '- "headlines": three publishable options (Straight news / Punchy / SEO), each accurate, house-style, under ~90 chars, different angles.\n' : '- Leave "headlines" empty.\n') +
+      headlineInstruction +
       '\nRELATED ARTICLES:\n' + (relatedList || '(none available this run)') + '\n\nDRAFT:\n' + draft;
   } else {
     user =
@@ -139,7 +153,7 @@ module.exports = async function handler(req, res) {
       '- "edited": the full edited article as Markdown, with the internal links in place.\n' +
       '- "notes": short bullets on what you changed and why.\n' +
       '- "addedContext": each clause/sentence of context you added, with its [VERIFY] flag if applicable.\n' +
-      (wantHeadline ? '- "headlines": three publishable options (Straight news / Punchy / SEO), each accurate, house-style, under ~90 chars, different angles.\n' : '- Leave "headlines" empty.\n') +
+      headlineInstruction +
       '\nRELATED ARTICLES (for internal links):\n' + (relatedList || '(none available this run)') + '\n\nDRAFT:\n' + draft;
   }
 
