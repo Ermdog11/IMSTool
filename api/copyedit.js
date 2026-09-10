@@ -40,6 +40,32 @@ async function relatedArticleIndex() {
   }
 }
 
+// 3 related YouTube videos for a search query. Best-effort — returns [] on any
+// failure (no key, quota, network) so the edit result is unaffected.
+async function suggestVideos(query) {
+  var ytKey = process.env.YOUTUBE_API_KEY;
+  query = (query || '').toString().trim();
+  if (!ytKey || query.length < 3) return [];
+  try {
+    var c = new AbortController();
+    var t = setTimeout(function () { c.abort(); }, 8000);
+    var u = 'https://www.googleapis.com/youtube/v3/search?part=snippet&type=video&maxResults=3&order=relevance&safeSearch=none' +
+      '&q=' + encodeURIComponent(query) + '&key=' + ytKey;
+    var data = await fetch(u, { signal: c.signal }).then(function (r) { return r.json(); }).finally(function () { clearTimeout(t); });
+    if (data.error || !data.items) return [];
+    return data.items.filter(function (i) { return i.id && i.id.videoId; }).map(function (i) {
+      var sn = i.snippet || {};
+      return {
+        title: (sn.title || '').replace(/&amp;/g, '&').replace(/&#39;/g, "'").replace(/&quot;/g, '"'),
+        channel: sn.channelTitle || '',
+        url: 'https://www.youtube.com/watch?v=' + i.id.videoId,
+        embed: '<iframe width="560" height="315" src="https://www.youtube.com/embed/' + i.id.videoId + '" frameborder="0" allowfullscreen></iframe>',
+        thumbnail: (sn.thumbnails && sn.thumbnails.medium && sn.thumbnails.medium.url) || ''
+      };
+    });
+  } catch (e) { return []; }
+}
+
 module.exports = async function handler(req, res) {
   var key = process.env.ANTHROPIC_API_KEY;
   if (!key) return res.status(500).json({ error: 'Missing ANTHROPIC_API_KEY.' });
@@ -123,9 +149,13 @@ module.exports = async function handler(req, res) {
             properties: { phrase: { type: 'string' }, headline: { type: 'string' }, url: { type: 'string' } },
             required: ['phrase', 'url']
           }
+        },
+        videoQuery: {
+          type: 'string',
+          description: 'A short YouTube search query (3-6 words) for the core subject of this article — the player/coach/topic plus "Maryland" or "Terps" for context. Used to suggest videos the writer could embed.'
         }
       },
-      required: ['edited', 'notes', 'addedContext', 'factsToCheck']
+      required: ['edited', 'notes', 'addedContext', 'factsToCheck', 'videoQuery']
     }
   };
 
@@ -164,6 +194,12 @@ module.exports = async function handler(req, res) {
     if (!wantHeadline) delete parsed.headlines;
     parsed.relatedCount = related.length;
     parsed.mode = mode;
+
+    // Suggest 3 related YouTube videos the writer could embed. (v1: a general
+    // Terps-scoped search. Future: restrict to the publisher's own video library.)
+    parsed.videoSuggestions = await suggestVideos(parsed.videoQuery);
+    delete parsed.videoQuery;
+
     return res.status(200).json(parsed);
   } catch (err) {
     return res.status(500).json({ error: err.message });

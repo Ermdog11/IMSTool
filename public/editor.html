@@ -432,6 +432,16 @@ function renderEdit(d){
           '<button class="btn ghost" style="flex-shrink:0" onclick="copyStr(this,'+JSON.stringify(link)+')">Copy link</button>'+
         '</div>';
       }).join('')+'</div>';
+  if(d.videoSuggestions && d.videoSuggestions.length)
+    h+='<div class="card"><h2>Videos you could embed</h2><div class="hint">Related YouTube videos &mdash; review before embedding.</div>'+
+      d.videoSuggestions.map(function(v){
+        return '<div style="display:flex;align-items:center;gap:12px;padding:10px 0;border-bottom:1px solid var(--border)">'+
+          (v.thumbnail?'<img src="'+esc(v.thumbnail)+'" alt="" style="width:120px;height:68px;object-fit:cover;border-radius:4px;flex-shrink:0">':'')+
+          '<div style="flex:1;min-width:0"><a href="'+esc(v.url)+'" target="_blank" rel="noopener" style="font-size:14px;font-weight:600">'+esc(v.title||'video')+'</a>'+
+          '<div style="font-size:12px;color:var(--muted)">'+esc(v.channel||'')+'</div></div>'+
+          '<button class="btn ghost" style="flex-shrink:0" onclick="copyStr(this,'+JSON.stringify(v.embed||v.url)+')">Copy embed</button>'+
+        '</div>';
+      }).join('')+'</div>';
   document.getElementById('ed-result').innerHTML=h;
 }
 
