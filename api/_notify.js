@@ -30,7 +30,7 @@ async function notifyPublisherOfSubmission(doc) {
     doc.notes.forEach(function(n) { html += '<li>' + esc(n) + '</li>'; });
     html += '</ul>';
   }
-  html += '<p style="margin-top:16px"><a href="https://ims-tool.vercel.app/editor.html#3">Open in Editorial Desk drafts &rarr;</a></p>';
+  html += '<p style="margin-top:16px"><a href="https://ims-tool.vercel.app/editor#3">Open in Content Editor drafts &rarr;</a></p>';
   html += '</div>';
 
   return sendMail({
