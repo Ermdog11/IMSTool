@@ -82,10 +82,35 @@ async function requireRole(req, minRole, opts) {
   return ctx;
 }
 
+// Which email addresses should receive a given alert type, from the per-user
+// alert_prefs (absence of a row falls back to the type's default). Returns []
+// when Supabase isn't configured — callers then keep their existing hardcoded
+// recipient.
+async function recipientsFor(alertType, siteSlug) {
+  if (!isConfigured()) return [];
+  try {
+    var prefsMod = require('./alert-prefs');
+    var sb = admin();
+    var site = await sb.from('sites').select('id').eq('slug', siteSlug || 'insidemdsports').single();
+    if (site.error || !site.data) return [];
+    var mem = await sb.from('memberships').select('user_id, role, profiles(email)').eq('site_id', site.data.id);
+    var prefs = await sb.from('alert_prefs').select('user_id, enabled').eq('site_id', site.data.id).eq('alert_type', alertType);
+    var explicit = {};
+    (prefs.data || []).forEach(function (p) { explicit[p.user_id] = p.enabled; });
+    var out = [];
+    (mem.data || []).forEach(function (m) {
+      var on = (explicit[m.user_id] !== undefined) ? explicit[m.user_id] : prefsMod.defaultFor(alertType, m.role);
+      if (on && m.profiles && m.profiles.email) out.push(m.profiles.email);
+    });
+    return out;
+  } catch (e) { return []; }
+}
+
 module.exports = {
   admin: admin,
   isConfigured: isConfigured,
   bearerToken: bearerToken,
   requireUser: requireUser,
-  requireRole: requireRole
+  requireRole: requireRole,
+  recipientsFor: recipientsFor
 };

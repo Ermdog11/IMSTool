@@ -142,6 +142,28 @@ button.btn:disabled{opacity:.6;cursor:default}
 
 </div>
 
+<script src="/supabase-config.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="/_auth.js"></script>
+<script>
+// Sign-in gate — inert until the backend is configured, fails open on error.
+(function () {
+  if (!window.IMSAuth) return;
+  IMSAuth.guard().then(function (s) {
+    if (s && s.user) {
+      var bar = document.querySelector('.topbar');
+      if (bar) {
+        var slot = document.createElement('div');
+        slot.style.cssText = 'display:flex;align-items:center;gap:10px';
+        var back = bar.querySelector('a');
+        if (back) slot.appendChild(back);
+        IMSAuth.mountMenu(slot);
+        bar.appendChild(slot);
+      }
+    }
+  });
+})();
+</script>
 <script>
 var LS_GUIDE = 'ims_editor_styleguide';
 var LS_WRITERS = 'ims_editor_writers';

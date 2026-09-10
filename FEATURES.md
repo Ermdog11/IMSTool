@@ -56,10 +56,10 @@ Last updated: 2026-09-10
 
 | Feature | Status |
 |---|---|
-| **Login system** | Approved — built first. Real accounts + roles (publisher / editor / writer) for the newsroom, built to generalize to multiple publishers later. Magic-link + Google sign-in. Unlocks per-person permissions and everything below. |
+| **Login system** | Code built (behind a config switch). Magic-link sign-in, roles (publisher / editor / writer), a publisher-only **Team & alerts** panel to invite people and set who gets which alerts. First person to sign in becomes the publisher. Waiting on the Supabase keys to switch on. |
 | **Newsroom knowledge base** | The Content Editor keeps and indexes every article that passes through it — plus the imported back catalog — as a private, growing memory for each newsroom. Every new piece makes the writer's voice model, the internal-linking, and the added context sharper. Built on the same foundation as login. |
-| **Publisher-controlled alerts** | Publisher decides exactly who receives which alerts (breaking news, article-saved, digests). Depends on login. |
-| **"Article started" alert** | Publisher is notified the first time a writer saves a new article. Depends on login. |
+| **Publisher-controlled alerts** | Publisher decides exactly who receives which alerts (breaking news, article-started, digests) from the Team panel. UI built; wiring the mailers to it is next. |
+| **"Article started" alert** | Publisher is notified the first time a writer saves a new article. Wiring pending. |
 
 ---
 

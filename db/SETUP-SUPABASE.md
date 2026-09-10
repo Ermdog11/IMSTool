@@ -42,3 +42,22 @@ In Supabase → **Authentication** → **URL Configuration**:
 
 In **Authentication → Providers**: **Email** is on by default (magic links). Google
 sign-in is optional and can be added later.
+
+## 5. First sign-in
+
+Once the env vars are in Vercel and it's redeployed:
+
+1. Go to `https://ims-tool.vercel.app/login`
+2. Enter your email → click the link in the email.
+3. **The first person to sign in is automatically made the publisher** of InsideMDSports.
+4. From then on: **Settings → Team & alerts** (only you see it) — invite your writers by
+   email, set roles, and tick who gets which alerts. They get access the first time they
+   sign in with the invited email.
+
+Until step 5 is done, the tool stays exactly as it is now — open, no sign-in — so nothing
+breaks while the keys aren't set.
+
+### Email note
+Supabase's built-in email sender is rate-limited (a few per hour) — fine for setting up a
+small team. If we hit the limit, we point Supabase at the same Gmail SMTP the digests
+already use (Authentication → Emails → SMTP Settings).

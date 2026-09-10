@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>InsideMDSports — Sign in</title>
+<style>
+  :root{--red:#cf0315;--red-dark:#a80210;--gold:#ffd520;--dark:#111;--border:#e8e6e1;--bg:#f7f6f3;--bg2:#fff;--text:#1a1a1a;--text2:#555;--muted:#888;--green:#2f6b3c}
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:var(--bg);color:var(--text);font-size:14px;line-height:1.5;min-height:100vh;display:flex;flex-direction:column}
+  .topbar{background:var(--dark);height:52px;display:flex;align-items:center;padding:0 20px;gap:12px}
+  .ims-logo{width:34px;height:34px;background:var(--red);border-radius:5px;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:11px;color:#fff}
+  .site-name{color:#fff;font-size:15px;font-weight:600}
+  .wrap{flex:1;display:flex;align-items:flex-start;justify-content:center;padding:min(12vh,90px) 20px 40px}
+  .card{background:var(--bg2);border:1px solid var(--border);border-radius:12px;padding:28px;max-width:400px;width:100%}
+  h1{font-size:20px;margin-bottom:6px}
+  p.sub{color:var(--muted);font-size:13px;margin-bottom:20px}
+  label{display:block;font-size:12px;font-weight:600;color:var(--text2);margin-bottom:5px}
+  input[type=email]{width:100%;font-family:inherit;font-size:14px;border:1px solid var(--border);border-radius:7px;padding:11px;background:#fff;color:var(--text)}
+  input[type=email]:focus{outline:2px solid var(--red);outline-offset:1px;border-color:var(--red)}
+  button.btn{margin-top:14px;width:100%;background:var(--red);color:#fff;border:none;border-radius:7px;padding:11px 16px;font-size:14px;font-weight:600;cursor:pointer}
+  button.btn:hover{background:var(--red-dark)}
+  button.btn:disabled{opacity:.6;cursor:default}
+  .msg{margin-top:16px;font-size:13px;padding:11px 13px;border-radius:7px;display:none}
+  .msg.show{display:block}
+  .msg.ok{background:#eef7ee;color:var(--green);border:1px solid #cfe6cf}
+  .msg.err{background:#fdecec;color:var(--red-dark);border:1px solid #f5c9c9}
+  .msg.info{background:#fff8e1;color:#8a6d00;border:1px solid #f0e2a8}
+  .foot{margin-top:18px;font-size:12px;color:var(--muted);text-align:center}
+  .foot a{color:var(--red);text-decoration:none}
+  .spin{display:inline-block;width:13px;height:13px;border:2px solid rgba(255,255,255,.4);border-top-color:#fff;border-radius:50%;animation:sp .7s linear infinite;vertical-align:-2px;margin-right:6px}
+  @keyframes sp{to{transform:rotate(360deg)}}
+</style>
+</head>
+<body>
+<div class="topbar">
+  <div class="ims-logo">IMS</div>
+  <div class="site-name">InsideMDSports</div>
+</div>
+
+<div class="wrap">
+  <div class="card">
+    <h1>Sign in</h1>
+    <p class="sub" id="sub">Enter your work email and we&rsquo;ll send you a sign-in link &mdash; no password.</p>
+
+    <form id="form">
+      <label for="email">Email</label>
+      <input type="email" id="email" name="email" autocomplete="email" required placeholder="you@insidemdsports.com">
+      <button class="btn" id="go" type="submit">Send sign-in link</button>
+    </form>
+
+    <div class="msg" id="msg"></div>
+
+    <div class="foot" id="foot"></div>
+  </div>
+</div>
+
+<script src="/supabase-config.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script>
+(function () {
+  var form = document.getElementById('form');
+  var emailEl = document.getElementById('email');
+  var goBtn = document.getElementById('go');
+  var msg = document.getElementById('msg');
+  var sub = document.getElementById('sub');
+  var foot = document.getElementById('foot');
+
+  function show(kind, text) { msg.className = 'msg show ' + kind; msg.textContent = text; }
+  function nextTarget() {
+    var q = new URLSearchParams(location.search).get('next');
+    if (q && /^\/[A-Za-z0-9/_-]*$/.test(q)) return q;
+    return '/';
+  }
+  function setBusy(b) {
+    goBtn.disabled = b;
+    goBtn.innerHTML = b ? '<span class="spin"></span>Sending&hellip;' : 'Send sign-in link';
+  }
+
+  var client = (window.supabase && window.SUPABASE_URL && window.SUPABASE_PUBLISHABLE_KEY)
+    ? window.supabase.createClient(window.SUPABASE_URL, window.SUPABASE_PUBLISHABLE_KEY,
+        { auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true } })
+    : null;
+
+  async function init() {
+    // Is login actually switched on server-side?
+    var configured = true;
+    try {
+      var r = await fetch('/api/me');
+      var me = await r.json();
+      configured = !!me.configured;
+    } catch (e) { /* assume configured; the form will surface real errors */ }
+
+    if (!configured || !client) {
+      form.style.display = 'none';
+      sub.textContent = 'Sign-in isn’t switched on yet.';
+      show('info', 'The login system is built but not yet connected. Until then the tool is open — head straight in.');
+      foot.innerHTML = '<a href="/">Open the News Monitor &rarr;</a>';
+      return;
+    }
+
+    // Coming back from the email link? supabase-js parses the URL; give it a tick.
+    try {
+      var s = await client.auth.getSession();
+      if (s.data && s.data.session) {
+        show('ok', 'Signed in. Taking you in…');
+        location.replace(nextTarget());
+        return;
+      }
+    } catch (e) {}
+
+    // If the callback carried an error
+    var hash = new URLSearchParams((location.hash || '').replace(/^#/, ''));
+    if (hash.get('error_description')) {
+      show('err', decodeURIComponent(hash.get('error_description')).replace(/\+/g, ' '));
+    }
+
+    foot.innerHTML = '<a href="/">&larr; Back to the tool</a>';
+  }
+
+  form.addEventListener('submit', async function (e) {
+    e.preventDefault();
+    if (!client) return;
+    var email = emailEl.value.trim();
+    if (!email) return;
+    setBusy(true);
+    msg.className = 'msg';
+    try {
+      var redirectTo = location.origin + '/login?next=' + encodeURIComponent(nextTarget());
+      var out = await client.auth.signInWithOtp({ email: email, options: { emailRedirectTo: redirectTo } });
+      if (out.error) { show('err', out.error.message); setBusy(false); return; }
+      form.style.display = 'none';
+      show('ok', 'Check ' + email + ' for a sign-in link. You can close this tab — the link opens the tool.');
+    } catch (err) {
+      show('err', err.message || 'Something went wrong. Try again.');
+      setBusy(false);
+    }
+  });
+
+  init();
+})();
+</script>
+</body>
+</html>
