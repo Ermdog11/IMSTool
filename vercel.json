@@ -37,7 +37,7 @@
     }
   },
   "rewrites": [
-    { "source": "/:section(alerts|digest|social|chat|backlog|recruiting|trending|podcasts|youtube|bluesky|settings)", "destination": "/index.html" }
+    { "source": "/:section(alerts|digest|social|chat|backlog|recruiting|trending|podcasts|youtube|bluesky|settings)", "destination": "/" }
   ],
   "headers": [
     {
