@@ -75,7 +75,7 @@ button.btn:disabled{opacity:.6;cursor:default}
 <div class="wrap">
 
   <div class="page active" id="page-0">
-    <div class="card">
+    <div class="card" id="copydesk-card">
       <h2>Copydesk</h2>
       <div class="hint">Paste a draft. Pick a mode below. Always review before publishing &mdash; the editor can be wrong on facts.</div>
       <div class="row">
@@ -398,13 +398,29 @@ async function runEdit(){
       body:JSON.stringify({draft:draft,styleGuide:document.getElementById('sg').value,writerProfile:prof,writerName:wname,headlineStyle:document.getElementById('ed-headline-style').value,mode:document.getElementById('ed-mode').value})});
     var d=await r.json();
     if(d.error){document.getElementById('ed-status').textContent=d.error;}
-    else { lastEdit={d:d,writerName:wname,draftId:null}; renderEdit(d); }
+    else {
+      lastEdit={d:d,writerName:wname,draftId:null,sourceDraft:draft};
+      document.getElementById('copydesk-card').style.display='none';   // result goes to the top
+      renderEdit(d);
+      window.scrollTo(0,0);
+    }
   }catch(e){document.getElementById('ed-status').textContent='Failed: '+e.message;}
   btn.disabled=false;btn.textContent=mode==='keep'?'Review draft':'Edit draft';
 }
 
+function editAgain(){
+  var c=document.getElementById('copydesk-card');
+  c.style.display='';
+  document.getElementById('ed-result').innerHTML='';
+  document.getElementById('ed-final').innerHTML='';
+  document.getElementById('ed-final').style.display='none';
+  c.scrollIntoView({behavior:'smooth',block:'start'});
+}
+
 function renderEdit(d){
-  var h='';
+  var h='<div style="display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:10px;flex-wrap:wrap;">'+
+    '<div style="font-size:13px;color:var(--muted)">'+(d.mode==='keep'?'Reviewed':'Edited')+' &mdash; result below, original draft at the bottom</div>'+
+    '<button class="btn ghost" onclick="editAgain()">&larr; Edit the draft again</button></div>';
   var heds = d.headlines || (d.headline ? [{label:'',text:d.headline}].concat((d.altHeadlines||[]).map(function(x){return {label:'',text:x};})) : []);
   if(heds.length){
     h+='<div class="card"><h2>Headline options</h2>'+heds.map(function(x){
@@ -473,41 +489,86 @@ function renderEdit(d){
   var inserts=getPromos().filter(function(p){return (p.tier===tier||p.tier==='both') && (p.html||'').trim();});
   if(inserts.length){
     addedInserts=[];
-    h+='<div class="card"><h2>Inserts</h2><div class="hint">Click to drop a block into the article. It lands at its set position; added blocks show at the bottom of the draft above and go in on save.</div><div id="insert-btns">'+
+    h+='<div class="card"><h2>Inserts</h2><div class="hint">Click a block to add it. It drops in at its default spot &mdash; change where per article with the menu. The draft above previews it live.</div><div id="insert-btns">'+
       inserts.map(function(p,i){
         return '<button class="btn ghost" style="margin:4px 6px 4px 0" data-ins="'+i+'" onclick="toggleInsert('+i+')">+ '+esc(p.name||('Insert '+(i+1)))+'</button>';
-      }).join('')+'</div><div id="insert-added" style="margin-top:8px;font-size:12px;color:var(--muted)"></div></div>';
+      }).join('')+'</div><div id="insert-added" style="margin-top:10px;"></div></div>';
+  }
+
+  var src=(lastEdit&&lastEdit.sourceDraft)||'';
+  if(src){
+    h+='<div class="card" style="opacity:.85"><h2 style="font-size:13px;color:var(--muted)">Original draft <button class="btn ghost" style="padding:2px 8px;font-size:11px;margin-left:6px" onclick="editAgain()">edit</button></h2>'+
+      '<div style="white-space:pre-wrap;font-size:13px;line-height:1.55;max-height:260px;overflow:auto;background:#fbfaf7;border:1px solid var(--border);border-radius:6px;padding:10px;">'+esc(src)+'</div></div>';
   }
 
   document.getElementById('ed-result').innerHTML=h;
   window._availableInserts=inserts;
+  var artEl=document.querySelector('#ed-result .out-article');
+  window._articleBaseHtml=artEl?artEl.innerHTML:'';
 }
 
+// Each entry: { idx, placement }  (placement: top | early | middle | end)
 var addedInserts=[];
+var PLACEMENTS=['top','early','middle','end'];
+var PLACE_LABEL={top:'Very top',early:'Near the top',middle:'Middle',end:'End'};
+
 function toggleInsert(i){
-  var pos=addedInserts.indexOf(i);
-  if(pos===-1) addedInserts.push(i); else addedInserts.splice(pos,1);
+  var at=addedInserts.map(function(x){return x.idx;}).indexOf(i);
+  if(at===-1){
+    var def=(window._availableInserts[i].placement||'end');
+    if(PLACEMENTS.indexOf(def)===-1) def='end';
+    addedInserts.push({idx:i,placement:def});
+  } else addedInserts.splice(at,1);
+  var on=addedInserts.some(function(x){return x.idx===i;});
   var btn=document.querySelector('#insert-btns [data-ins="'+i+'"]');
-  if(btn){ var on=addedInserts.indexOf(i)!==-1; btn.textContent=(on?'✓ ':'+ ')+(window._availableInserts[i].name||('Insert '+(i+1))); btn.classList.toggle('btn',!on); btn.style.background=on?'var(--red)':''; btn.style.color=on?'#fff':''; }
+  if(btn){ btn.textContent=(on?'✓ ':'+ ')+(window._availableInserts[i].name||('Insert '+(i+1))); btn.style.background=on?'var(--red)':''; btn.style.color=on?'#fff':''; }
+  renderInsertControls();
+  renderInsertPreview();
+}
+function setInsertPos(i,val){
+  var e=addedInserts.filter(function(x){return x.idx===i;})[0];
+  if(e){ e.placement=val; renderInsertPreview(); }
+}
+function renderInsertControls(){
   var out=document.getElementById('insert-added');
-  var names=addedInserts.map(function(x){return (window._availableInserts[x].name||('Insert '+(x+1)));});
-  out.textContent=names.length?('Will be added: '+names.join(', ')):'';
-  // Live-preview the added blocks under the article
+  if(!out) return;
+  if(!addedInserts.length){ out.innerHTML=''; return; }
+  out.innerHTML='<div style="font-size:12px;font-weight:600;color:var(--text2);margin-bottom:4px">Added to this article</div>'+
+    addedInserts.map(function(e){
+      var name=window._availableInserts[e.idx].name||('Insert '+(e.idx+1));
+      return '<div style="display:flex;align-items:center;gap:8px;padding:4px 0;font-size:13px">'+
+        '<span style="flex:1">'+esc(name)+'</span>'+
+        '<select onchange="setInsertPos('+e.idx+',this.value)" style="font-size:12px;padding:3px 6px;border:1px solid var(--border);border-radius:5px">'+
+          PLACEMENTS.map(function(pl){return '<option value="'+pl+'"'+(pl===e.placement?' selected':'')+'>'+PLACE_LABEL[pl]+'</option>';}).join('')+
+        '</select>'+
+        '<button class="btn ghost" style="padding:2px 8px;font-size:11px" onclick="toggleInsert('+e.idx+')">remove</button>'+
+      '</div>';
+    }).join('');
+}
+function renderInsertPreview(){
   var art=document.querySelector('#ed-result .out-article');
-  if(art){
-    var mark=document.getElementById('ed-insert-preview');
-    if(!mark){ mark=document.createElement('div'); mark.id='ed-insert-preview'; art.appendChild(mark); }
-    mark.innerHTML=addedInserts.map(function(x){return '<div style="border-left:3px solid var(--red);padding-left:10px;margin:12px 0;opacity:.85">'+window._availableInserts[x].html+'</div>';}).join('');
-  }
+  if(!art) return;
+  art.innerHTML=window._articleBaseHtml||art.innerHTML;
+  var blocks=Array.prototype.filter.call(art.children,function(n){return n.id!=='ed-insert-preview';});
+  var n=blocks.length;
+  var idxFor=function(pl){ return pl==='top'?0 : pl==='early'?Math.min(3,n) : pl==='middle'?Math.floor(n/2) : n; };
+  // Insert from the end backwards so earlier indices stay valid.
+  addedInserts.slice().sort(function(a,b){return idxFor(b.placement)-idxFor(a.placement);}).forEach(function(e){
+    var wrap=document.createElement('div');
+    wrap.style.cssText='border-left:3px solid var(--red);padding-left:10px;margin:14px 0;opacity:.9';
+    wrap.innerHTML=window._availableInserts[e.idx].html;
+    var k=idxFor(e.placement);
+    if(k>=blocks.length) art.appendChild(wrap); else art.insertBefore(wrap,blocks[k]);
+  });
 }
 
 async function submitArticle(btn,action){
   if(!lastEdit){return;}
   var d=lastEdit.d;
   var tier=document.getElementById('ed-tier').value;
-  // Only the inserts the writer/editor actually clicked on the editing page.
-  var chosen=(window._availableInserts||[]).filter(function(p,i){return addedInserts.indexOf(i)!==-1;});
-  var promos=chosen.map(function(p){return {placement:p.placement,html:p.html};});
+  // Only the inserts the writer/editor clicked, each at the position they chose for this article.
+  var promos=addedInserts.map(function(e){return {placement:e.placement,html:(window._availableInserts[e.idx]||{}).html||''};})
+    .filter(function(p){return p.html;});
   var label=btn.textContent;
   btn.disabled=true;btn.textContent=action==='save'?'Saving…':'Sending…';
   var status=document.getElementById('ed-submit-status');
