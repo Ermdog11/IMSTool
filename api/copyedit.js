@@ -85,11 +85,69 @@ async function suggestVideos(query) {
   } catch (e) { return []; }
 }
 
+// Conversational follow-up on an already-edited article. The editor asks for a
+// change ("make the second graf punchier", "cut the last line") or a question
+// ("what's the source for the visit date?"); we return the updated article and a
+// one-line reply. Same idea as talking to Claude about a draft.
+async function handleRefine(res, key, body) {
+  var current = (body.refine.current || '').toString().slice(0, 24000);
+  var instruction = (body.refine.instruction || '').toString().slice(0, 2000).trim();
+  var styleGuide = (body.styleGuide || '').toString().slice(0, 12000);
+  var writerName = (body.writerName || 'the writer').toString().slice(0, 80);
+  var history = Array.isArray(body.refine.history) ? body.refine.history.slice(-6) : [];
+  if (!instruction) return res.status(200).json({ error: 'Say what you want changed or ask a question.' });
+
+  var sys = 'You are the copy chief for InsideMDSports, a Maryland Terrapins sports site, working with an editor on a piece that has already been through a first edit.' +
+    (styleGuide ? ('\n\nHOUSE STYLE:\n' + styleGuide) : '');
+
+  var convo = history.map(function (h) { return (h.role === 'user' ? 'EDITOR: ' : 'YOU: ') + h.text; }).join('\n');
+  var user =
+    'CURRENT ARTICLE (Markdown):\n' + current + '\n\n' +
+    (convo ? 'EARLIER IN THIS CONVERSATION:\n' + convo + '\n\n' : '') +
+    'THE EDITOR NOW SAYS:\n' + instruction + '\n\n' +
+    'If that is a change request: make ONLY that change (plus anything it directly requires), keeping ' + writerName + '\'s voice and the house style, and return the FULL updated article in "edited" with a one-line "reply" saying what you changed. ' +
+    'If it is a question: leave "edited" byte-for-byte identical to the current article and answer in "reply". ' +
+    'Never invent quotes, stats, or facts. If a change would require a fact you do not have, say so in "reply" and leave the article unchanged.';
+
+  var tool = {
+    name: 'respond',
+    description: 'Return the (possibly updated) article and a short reply to the editor.',
+    input_schema: {
+      type: 'object',
+      properties: {
+        edited: { type: 'string', description: 'The full article as Markdown — updated if a change was made, otherwise unchanged.' },
+        reply: { type: 'string', description: 'One or two sentences: what you changed, or the answer to their question.' },
+        changed: { type: 'boolean', description: 'true if you modified the article.' }
+      },
+      required: ['edited', 'reply', 'changed']
+    }
+  };
+
+  try {
+    var cr = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'x-api-key': key, 'anthropic-version': '2023-06-01' },
+      body: JSON.stringify({ model: 'claude-sonnet-4-6', max_tokens: 8000, system: sys, tools: [tool], tool_choice: { type: 'tool', name: 'respond' }, messages: [{ role: 'user', content: user }] })
+    });
+    var cd = await cr.json();
+    if (cd.error) return res.status(200).json({ error: 'Claude error: ' + JSON.stringify(cd.error) });
+    var tu = (cd.content || []).filter(function (b) { return b.type === 'tool_use' && b.name === 'respond'; })[0];
+    var out = tu && tu.input;
+    if (!out || typeof out.edited !== 'string') return res.status(200).json({ error: 'No usable response — try rephrasing.' });
+    return res.status(200).json({ edited: out.edited, reply: out.reply || '', changed: !!out.changed });
+  } catch (err) {
+    return res.status(500).json({ error: err.message });
+  }
+}
+
 module.exports = async function handler(req, res) {
   var key = process.env.ANTHROPIC_API_KEY;
   if (!key) return res.status(500).json({ error: 'Missing ANTHROPIC_API_KEY.' });
 
   var body = req.body || {};
+
+  if (body.refine) return handleRefine(res, key, body);
+
   var draft = (body.draft || '').toString().trim();
   if (draft.length < 40) return res.status(200).json({ error: 'Paste a draft to edit.' });
 

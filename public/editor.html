@@ -400,6 +400,7 @@ async function runEdit(){
     if(d.error){document.getElementById('ed-status').textContent=d.error;}
     else {
       lastEdit={d:d,writerName:wname,draftId:null,sourceDraft:draft};
+      _chatHistory=[];
       document.getElementById('copydesk-card').style.display='none';   // result goes to the top
       renderEdit(d);
       window.scrollTo(0,0);
@@ -436,12 +437,19 @@ function renderEdit(d){
     ? 'Your draft &mdash; <span class="hint" style="font-weight:400">unchanged, only obvious typos fixed</span>'
     : 'Edited draft <span class="hint" style="font-weight:400"> &middot; '+(d.relatedCount||0)+' related articles available for links</span>';
   h+='<div class="card"><h2>'+draftHead+'</h2>'+
-     '<div class="out-article">'+md(d.edited||'')+'</div>'+
+     '<div class="out-article" id="ed-article">'+md(d.edited||'')+'</div>'+
      '<div class="row"><button class="btn ghost" onclick="copyMd(this)">Copy Markdown</button>'+
      '<button class="btn ghost" id="ed-save" onclick="submitArticle(this,\'save\')">Save draft</button>'+
      '<button class="btn" id="ed-submit" onclick="submitArticle(this,\'submit\')">Send to publisher</button>'+
      '<span id="ed-submit-status" style="font-size:12px;color:var(--muted)"></span></div>'+
-     '<textarea id="ed-md" style="position:absolute;left:-9999px;top:0">'+esc(d.edited||'')+'</textarea></div>'+
+     '<textarea id="ed-md" style="position:absolute;left:-9999px;top:0">'+esc(d.edited||'')+'</textarea>'+
+     '<div style="margin-top:14px;padding-top:12px;border-top:1px solid var(--border)">'+
+       '<div id="ed-chat" style="display:flex;flex-direction:column;gap:8px;margin-bottom:8px"></div>'+
+       '<div style="display:flex;gap:6px">'+
+         '<input id="ed-ask" placeholder="Ask for a change, or a question about the piece…" style="flex:1;font-size:13px;padding:8px 10px;border:1px solid var(--border);border-radius:6px" onkeydown="if(event.key===\'Enter\')askEditor()">'+
+         '<button class="btn" onclick="askEditor()">Send</button>'+
+       '</div>'+
+     '</div></div>'+
      '<div id="ed-final" style="display:none"></div>';
   if(d.notes&&d.notes.length)
     h+='<div class="card"><h2>'+(kept?'What a full edit would change':'Editor’s notes')+'</h2><ul class="notes">'+d.notes.map(function(n){return '<li>'+esc(n)+'</li>';}).join('')+'</ul></div>';
@@ -487,13 +495,13 @@ function renderEdit(d){
 
   var tier=document.getElementById('ed-tier').value;
   var inserts=getPromos().filter(function(p){return (p.tier===tier||p.tier==='both') && (p.html||'').trim();});
-  if(inserts.length){
-    addedInserts=[];
-    h+='<div class="card"><h2>Inserts</h2><div class="hint">Click a block to add it. It drops in at its default spot &mdash; change where per article with the menu. The draft above previews it live.</div><div id="insert-btns">'+
-      inserts.map(function(p,i){
-        return '<button class="btn ghost" style="margin:4px 6px 4px 0" data-ins="'+i+'" onclick="toggleInsert('+i+')">+ '+esc(p.name||('Insert '+(i+1)))+'</button>';
-      }).join('')+'</div><div id="insert-added" style="margin-top:10px;"></div></div>';
-  }
+  addedInserts=[];
+  h+='<div class="card"><h2>Inserts &amp; media</h2><div class="hint">Click to add a block. It drops in at its default spot &mdash; change where per article. The draft above previews it live.</div><div id="insert-btns">'+
+    inserts.map(function(p,i){
+      return '<button class="btn ghost" style="margin:4px 6px 4px 0" data-ins="'+i+'" onclick="toggleInsert('+i+')">+ '+esc(p.name||('Insert '+(i+1)))+'</button>';
+    }).join('')+
+    '<button class="btn ghost" style="margin:4px 6px 4px 0" onclick="loadPodcastEpisodes(this)">🎙️ Embed a podcast episode</button>'+
+    '</div><div id="podcast-list" style="margin-top:8px"></div><div id="insert-added" style="margin-top:10px;"></div></div>';
 
   var src=(lastEdit&&lastEdit.sourceDraft)||'';
   if(src){
@@ -545,6 +553,34 @@ function renderInsertControls(){
       '</div>';
     }).join('');
 }
+async function loadPodcastEpisodes(btn){
+  var box=document.getElementById('podcast-list');
+  btn.disabled=true;var old=btn.textContent;btn.textContent='Loading episodes…';
+  try{
+    var r=await fetch('/api/podcast-episodes');var d=await r.json();
+    if(d.error && !(d.episodes||[]).length){ box.innerHTML='<div style="font-size:12px;color:var(--red)">'+esc(d.error)+'</div>'; }
+    else{
+      box.innerHTML=(d.episodes||[]).slice(0,8).map(function(ep){
+        var html='<audio controls preload="none" src="'+esc(ep.audioUrl)+'" style="width:100%"></audio>';
+        var name='🎙️ '+ep.title;
+        return '<div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid var(--border);font-size:13px">'+
+          '<div style="flex:1"><div>'+esc(ep.title)+'</div><div style="font-size:11px;color:var(--muted)">'+esc(ep.date||'')+(ep.duration?' · '+esc(ep.duration):'')+'</div></div>'+
+          '<button class="btn ghost" style="padding:3px 9px;font-size:11px" onclick=\'embedPodcast('+JSON.stringify(name)+','+JSON.stringify(html)+')\'>Embed</button>'+
+        '</div>';
+      }).join('');
+    }
+  }catch(e){ box.innerHTML='<div style="font-size:12px;color:var(--red)">'+esc(e.message)+'</div>'; }
+  btn.disabled=false;btn.textContent=old;
+}
+function embedPodcast(name,html){
+  window._availableInserts=window._availableInserts||[];
+  window._availableInserts.push({name:name,tier:'both',placement:'end',html:html});
+  toggleInsert(window._availableInserts.length-1);
+  // reflect it as a pressed button
+  var wrap=document.getElementById('insert-btns');
+  if(wrap){ var b=document.createElement('button'); b.className='btn ghost'; b.style.cssText='margin:4px 6px 4px 0;background:var(--red);color:#fff'; b.textContent='✓ '+name; b.setAttribute('data-ins',window._availableInserts.length-1); b.onclick=function(){toggleInsert(window._availableInserts.length-1);}; wrap.appendChild(b); }
+}
+
 function renderInsertPreview(){
   var art=document.querySelector('#ed-result .out-article');
   if(!art) return;
@@ -560,6 +596,43 @@ function renderInsertPreview(){
     var k=idxFor(e.placement);
     if(k>=blocks.length) art.appendChild(wrap); else art.insertBefore(wrap,blocks[k]);
   });
+}
+
+var _chatHistory=[];
+async function askEditor(){
+  var inp=document.getElementById('ed-ask');
+  var q=(inp.value||'').trim();
+  if(!q||!lastEdit) return;
+  inp.value='';inp.disabled=true;
+  var log=document.getElementById('ed-chat');
+  log.innerHTML+='<div style="align-self:flex-end;background:var(--red);color:#fff;padding:6px 10px;border-radius:10px 10px 2px 10px;font-size:13px;max-width:85%">'+esc(q)+'</div>';
+  var wait=document.createElement('div');
+  wait.style.cssText='align-self:flex-start;color:var(--muted);font-size:13px';
+  wait.innerHTML='<span class="spin" style="border-color:var(--border);border-top-color:var(--muted)"></span> Thinking…';
+  log.appendChild(wait);
+  try{
+    var wi=document.getElementById('ed-writer').value, w=getWriters();
+    var r=await fetch('/api/copyedit',{method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({refine:{current:lastEdit.d.edited||'',instruction:q,history:_chatHistory},
+        styleGuide:document.getElementById('sg').value, writerName:(wi!==''?((w[wi]&&w[wi].name)||''):'')})});
+    var res=await r.json();
+    wait.remove();
+    if(res.error){ log.innerHTML+='<div style="align-self:flex-start;color:var(--red);font-size:13px">'+esc(res.error)+'</div>'; }
+    else{
+      log.innerHTML+='<div style="align-self:flex-start;background:#f1efe9;padding:6px 10px;border-radius:10px 10px 10px 2px;font-size:13px;max-width:85%">'+esc(res.reply||(res.changed?'Done.':'—'))+'</div>';
+      _chatHistory.push({role:'user',text:q});
+      _chatHistory.push({role:'assistant',text:res.reply||''});
+      if(res.changed && res.edited){
+        lastEdit.d.edited=res.edited;
+        var art=document.getElementById('ed-article'); if(art) art.innerHTML=md(res.edited);
+        var mdb=document.getElementById('ed-md'); if(mdb) mdb.value=res.edited;
+        window._articleBaseHtml=art?art.innerHTML:window._articleBaseHtml;
+        if(typeof renderInsertPreview==='function') renderInsertPreview();
+      }
+    }
+  }catch(e){ wait.remove(); log.innerHTML+='<div style="align-self:flex-start;color:var(--red);font-size:13px">'+esc(e.message)+'</div>'; }
+  inp.disabled=false;inp.focus();
+  log.scrollTop=log.scrollHeight;
 }
 
 async function submitArticle(btn,action){

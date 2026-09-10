@@ -48,7 +48,8 @@ Last updated: 2026-09-10
 | Per-writer style profiles | Learns each writer's voice from ~15 samples so edits polish rather than flatten them. |
 | House style guide | The editable rulebook every edit is measured against — per publication. |
 | Related-article links | Automatically hotlinks relevant phrases in the copy to the publication's own recent articles. |
-| Inserts | Publisher defines reusable blocks once (newsletter sign-up, VIP pitch, related-coverage boxes, ad units) with a tier and a default position. On the editing page the writer or editor clicks to add one — it drops in at its default spot (top / near top / middle / end), overridable per article, and the draft previews it live. |
+| Inserts & media | Publisher defines reusable blocks once (newsletter sign-up, VIP pitch, related-coverage boxes, ad units) with a tier and a default position. On the editing page the writer or editor clicks to add one — it drops in at its default spot, overridable per article, previewed live. Plus **one-click embed of a recent podcast episode** from the show's feed. |
+| Ask the editor | After an edit, a chat box on the result: ask for a change ("tighten the second paragraph", "cut the last line") or a question ("what's the source for the visit date?") — it revises the article in place or answers, like talking to Claude about a draft. |
 | Draft workflow | Save-as-draft vs. send-to-publisher; publisher gets an email on submission; drafts list with view/edit/delete. |
 
 ---
