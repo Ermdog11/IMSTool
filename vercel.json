@@ -37,7 +37,7 @@
     }
   },
   "rewrites": [
-    { "source": "/(alerts|digest|social|chat|backlog|recruiting|trending|podcasts|youtube|bluesky|settings)", "destination": "/index.html" }
+    { "source": "/:section(alerts|digest|social|chat|backlog|recruiting|trending|podcasts|youtube|bluesky|settings)", "destination": "/index.html" }
   ],
   "headers": [
     {
@@ -49,7 +49,7 @@
       "headers": [{ "key": "Cache-Control", "value": "no-cache, no-store, must-revalidate" }]
     },
     {
-      "source": "/(alerts|digest|social|chat|backlog|recruiting|trending|podcasts|youtube|bluesky|settings)",
+      "source": "/:section(alerts|digest|social|chat|backlog|recruiting|trending|podcasts|youtube|bluesky|settings)",
       "headers": [{ "key": "Cache-Control", "value": "no-cache, no-store, must-revalidate" }]
     }
   ],
