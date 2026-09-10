@@ -31,7 +31,7 @@ Last updated: 2026-09-10
 | Bluesky | Monitors social chatter, sorted by engagement. |
 | Digest emails | Morning brief, 8 PM nightly digest, and rolling updates — organized by day / sport / rating. |
 | Breaking-news email | Rating-5 stories email immediately, 24/7. |
-| Roster-change watch | Emails when a roster move is detected. |
+| Roster-change watch | Checks official team rosters 3×/week and emails when a player is added or drops off — often before the transfer/injury is reported anywhere. (Dedicated in-app view coming.) |
 | Noise controls | Per-topic caps with an overflow view (demote, don't drop), low-priority-sport suppression, stat-page filtering, "block this source" list. |
 | Own-outlet exclusion | Never shows the customer their own site's stories back to them. |
 | Team chat | High-rated alerts auto-drop into a shared channel for the newsroom to claim and discuss. |
@@ -65,6 +65,7 @@ Last updated: 2026-09-10
 ## Roadmap
 
 ### Near term
+- **Roster watch view** — an in-app page showing each team's current roster and a dated history of every add/drop the watcher has caught.
 - **Publish connector** — file a finished article straight into the customer's CMS as a draft (never auto-live). One-click for WordPress and Ghost; clean formatted export for Substack, Squarespace, and closed CMSes.
 - **Deeper related-links index** — index the publication's full archive, not just its front page, and add a writer-driven "pick one of 3 suggested links" control.
 - **Photo upload tool** — writers attach images to a draft in the Content Editor.
