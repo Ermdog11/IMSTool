@@ -1,6 +1,13 @@
 // Copydesk: takes a staff writer's draft and returns it rewritten in the site's house
 // style, preserving the writer's voice (via their style profile), with helpful context
 // added (flagged for verification) and internal links to related published articles.
+//
+// mode 'edit' (default): full rewrite in house style + voice, links inserted.
+// mode 'keep':           prose returned verbatim; everything else comes back as suggestions.
+//
+// Output is collected via a forced tool call (structured output) rather than asking the
+// model to emit raw JSON in text — the article body is quote- and newline-heavy and the
+// raw-JSON approach broke on ~every other draft.
 
 var BROWSER_UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0 Safari/537.36';
 
@@ -17,7 +24,6 @@ async function relatedArticleIndex() {
 
     var seen = {};
     var out = [];
-    // Matches relative or absolute: /college/maryland/article/<slug>-<id>/  (same as scan.js)
     var re = /\/college\/maryland\/(?:article|longformarticle)\/([a-z0-9-]+)-(\d{6,})/g;
     var m;
     while ((m = re.exec(html)) !== null) {
@@ -46,8 +52,6 @@ module.exports = async function handler(req, res) {
   var writerProfile = (body.writerProfile || '').toString().slice(0, 6000);
   var writerName = (body.writerName || 'the writer').toString().slice(0, 80);
   var wantHeadline = body.headline !== false;
-  // 'edit' (default): rewrite in house style + voice, insert links.
-  // 'keep': return the writer's prose untouched; give everything else as suggestions.
   var mode = body.mode === 'keep' ? 'keep' : 'edit';
 
   var related = await relatedArticleIndex();
@@ -58,61 +62,72 @@ module.exports = async function handler(req, res) {
     '=== HOUSE STYLE GUIDE ===\n' + (styleGuide || '(No house style guide provided — apply standard clean sports-news style: AP style, active voice, tight sentences, attribute claims, no cliches.)') +
     (writerProfile ? ('\n\n=== THIS WRITER\'S STYLE PROFILE (' + writerName + ') — preserve this voice ===\n' + writerProfile) : '');
 
-  var headlineBlock = wantHeadline
-    ? ',\n  "headlines": [\n    {"label": "Straight news", "text": "<clear, factual, names the subject>"},\n    {"label": "Punchy", "text": "<sharper, more voice, still accurate — no clickbait>"},\n    {"label": "SEO", "text": "<leads with the key search terms: player/coach name + Maryland + the topic>"}\n  ]'
-    : '';
-  var headlineNote = wantHeadline ? 'All three headlines must be publishable, accurate, house-style, and under ~90 characters. Different angles, not reworded versions of each other.\n\n' : '';
-
   var factsRule =
-    '- factsToCheck is a SHORT list. Add an item ONLY when you have a specific reason to believe something the writer wrote is likely wrong or misleading to readers — an internal contradiction, a date / number / name that does not look right, a claim that overstates or misrepresents what actually happened — OR a spot where the draft trails off or is missing a word or number it needs. Phrase each one as a question the editor can quickly answer (e.g. "Was the visit in June or is this from last year?"). If a claim is just something you personally cannot confirm but have no real reason to doubt, leave it out. A clean draft should produce zero or one item, not five.\n' +
-    '- Attribution questions are for objective claims of fact only (scores, injuries, quotes, statistics, transactions). Do NOT flag the writer\'s own opinion, analysis, or subjective read ("that was the right call," "Maryland looked flat") — that\'s their voice, not a factual claim.\n';
+    '- factsToCheck is a SHORT list. Add an item ONLY when you have a specific reason to believe something the writer wrote is likely wrong or misleading to readers — an internal contradiction, a date / number / name that does not look right, a claim that overstates or misrepresents what actually happened — OR a spot where the draft trails off or is missing a word or number it needs. Phrase each one as a question the editor can quickly answer. If a claim is just something you cannot personally confirm but have no real reason to doubt, leave it out. A clean draft should produce zero or one item, not five.\n' +
+    '- Attribution questions are for objective claims of fact only (scores, injuries, quotes, statistics, transactions). Do NOT flag the writer\'s own opinion, analysis, or subjective read — that\'s their voice.\n';
+
+  var linkRule = mode === 'keep'
+    ? '- Do NOT change the text or insert links. Put internal-link ideas in relatedSuggestions: 2-5 of the related articles below that genuinely relate, each with the phrase in the draft it would sit near. Do not force it.\n'
+    : '- Insert Markdown links to related InsideMDSports articles from the list below where a phrase genuinely relates to that article. Link 2-5 where natural; do not force links or link the same article twice. Leave relatedSuggestions empty.\n';
 
   var user;
   if (mode === 'keep') {
     user =
-      'The writer wants their copy left ALONE. Do NOT rewrite it. Review it and return suggestions they can choose to apply.\n\n' +
-      'RULES:\n' +
-      '- "edited" MUST be the writer\'s draft returned essentially verbatim. The ONLY changes allowed are unambiguous typo / misspelling / obvious punctuation-slip fixes. No style changes, no restructuring, no word substitutions, no tightening, no added or removed sentences.\n' +
-      '- Do NOT insert links into the text.\n' +
+      'The writer wants their copy left ALONE. Do NOT rewrite it. Review it and return suggestions they can choose to apply. Call the submit_copyedit tool with:\n' +
+      '- "edited": the writer\'s draft returned essentially verbatim, as Markdown. ONLY unambiguous typo / misspelling / obvious punctuation-slip fixes are allowed. No style changes, no restructuring, no word swaps, no tightening, no added or removed sentences.\n' +
       '- Do NOT invent quotes, statistics, dates, scores, or outcomes.\n' +
-      '- TRUST THE WRITER ON FACTS by default — a professional beat reporter. Do not build a checklist of routine facts they stated confidently.\n' +
-      factsRule +
-      '- "notes": briefly, what a full house-style edit WOULD change (so they can decide). Keep it to a few bullets.\n' +
-      '- "addedContext": context a general reader might need that the draft assumes — as standalone suggested sentences/clauses, NOT inserted. Prefix with "[VERIFY]" any you are not sure of.\n' +
-      '- "relatedSuggestions": 2-5 of the related articles below that genuinely relate, each with the phrase in the draft it would attach near. Do not force it.\n\n' +
-      'RELATED ARTICLES:\n' + (relatedList || '(none available this run)') + '\n\n' +
-      'Return ONLY a JSON object:\n' +
-      '{\n' +
-      '  "edited": "<the writer\'s draft, verbatim except typo fixes, as Markdown>",\n' +
-      '  "notes": ["<what a full edit would change>", ...],\n' +
-      '  "addedContext": ["<suggested standalone context, [VERIFY]-flagged if unsure>", ...],\n' +
-      '  "factsToCheck": ["<short question per the rule above; empty list if clean>", ...],\n' +
-      '  "relatedSuggestions": [{"phrase": "<phrase in the draft>", "headline": "<related article>", "url": "<url>"}]' +
-      headlineBlock +
-      '\n}\n\n' + headlineNote +
-      'DRAFT:\n' + draft;
+      '- TRUST THE WRITER ON FACTS by default — a professional beat reporter.\n' +
+      factsRule + linkRule +
+      '- "notes": briefly, what a full house-style edit WOULD change (a few bullets), so they can decide.\n' +
+      '- "addedContext": context a general reader might need that the draft assumes, as standalone suggested sentences — NOT inserted. Prefix "[VERIFY]" on any you are unsure of.\n' +
+      (wantHeadline ? '- "headlines": three publishable options (Straight news / Punchy / SEO), each accurate, house-style, under ~90 chars, different angles.\n' : '- Leave "headlines" empty.\n') +
+      '\nRELATED ARTICLES:\n' + (relatedList || '(none available this run)') + '\n\nDRAFT:\n' + draft;
   } else {
     user =
-      'Edit the draft below.\n\n' +
-      'RULES:\n' +
-      '- Rewrite it in the house style above, but KEEP ' + writerName + '\'s voice and structural habits from their profile. You are polishing them, not replacing them.\n' +
+      'Edit the draft below and call the submit_copyedit tool.\n' +
+      '- Rewrite it in the house style above, but KEEP ' + writerName + '\'s voice and structural habits. You are polishing them, not replacing them.\n' +
       '- Fix grammar, AP style, attribution, flabby sentences, cliches, and structure.\n' +
-      '- Where the draft assumes context a general reader lacks (who a person is, why something matters, prior events), ADD a brief clause or sentence of context. Prefix ONLY context YOU added with "[VERIFY]" when you are not sure of it. Never attach [VERIFY] to something the writer already wrote.\n' +
+      '- Where the draft assumes context a general reader lacks, ADD a brief clause or sentence. Prefix ONLY context YOU added with "[VERIFY]" when unsure. Never attach [VERIFY] to something the writer already wrote.\n' +
       '- Do NOT invent quotes, statistics, dates, scores, or outcomes.\n' +
-      '- TRUST THE WRITER ON FACTS by default. They are a professional beat reporter who knows this team, its people and its history. Do not build a checklist out of routine facts they stated confidently (names, positions, class years, recruiting ratings, past results, who said what).\n' +
-      factsRule +
-      '- Insert Markdown links to related InsideMDSports articles from the list below where a phrase in the piece genuinely relates to that article. Link 2-5 where natural; do not force links or link the same article twice.\n\n' +
-      'RELATED ARTICLES (for internal links):\n' + (relatedList || '(none available this run)') + '\n\n' +
-      'Return ONLY a JSON object:\n' +
-      '{\n' +
-      '  "edited": "<the full edited article as Markdown, including the internal links>",\n' +
-      '  "notes": ["<short bullet: what you changed and why>", ...],\n' +
-      '  "addedContext": ["<each sentence/clause of context you added, with its [VERIFY] flag if applicable>", ...],\n' +
-      '  "factsToCheck": ["<short question about something that looks likely wrong/misleading or where the draft is incomplete, per the rule above; empty list if the draft is clean>", ...]' +
-      headlineBlock +
-      '\n}\n\n' + headlineNote +
-      'DRAFT:\n' + draft;
+      '- TRUST THE WRITER ON FACTS by default. Do not build a checklist out of routine facts they stated confidently.\n' +
+      factsRule + linkRule +
+      '- "edited": the full edited article as Markdown, with the internal links in place.\n' +
+      '- "notes": short bullets on what you changed and why.\n' +
+      '- "addedContext": each clause/sentence of context you added, with its [VERIFY] flag if applicable.\n' +
+      (wantHeadline ? '- "headlines": three publishable options (Straight news / Punchy / SEO), each accurate, house-style, under ~90 chars, different angles.\n' : '- Leave "headlines" empty.\n') +
+      '\nRELATED ARTICLES (for internal links):\n' + (relatedList || '(none available this run)') + '\n\nDRAFT:\n' + draft;
   }
+
+  var tool = {
+    name: 'submit_copyedit',
+    description: 'Return the copyedited draft and review notes.',
+    input_schema: {
+      type: 'object',
+      properties: {
+        edited: { type: 'string', description: 'The article as Markdown.' },
+        notes: { type: 'array', items: { type: 'string' } },
+        addedContext: { type: 'array', items: { type: 'string' } },
+        factsToCheck: { type: 'array', items: { type: 'string' } },
+        headlines: {
+          type: 'array',
+          items: {
+            type: 'object',
+            properties: { label: { type: 'string' }, text: { type: 'string' } },
+            required: ['label', 'text']
+          }
+        },
+        relatedSuggestions: {
+          type: 'array',
+          items: {
+            type: 'object',
+            properties: { phrase: { type: 'string' }, headline: { type: 'string' }, url: { type: 'string' } },
+            required: ['phrase', 'url']
+          }
+        }
+      },
+      required: ['edited', 'notes', 'addedContext', 'factsToCheck']
+    }
+  };
 
   try {
     var cr = await fetch('https://api.anthropic.com/v1/messages', {
@@ -122,16 +137,31 @@ module.exports = async function handler(req, res) {
         model: 'claude-sonnet-4-6',
         max_tokens: 8000,
         system: sys,
+        tools: [tool],
+        tool_choice: { type: 'tool', name: 'submit_copyedit' },
         messages: [{ role: 'user', content: user }]
       })
     });
     var cd = await cr.json();
     if (cd.error) return res.status(200).json({ error: 'Claude error: ' + JSON.stringify(cd.error) });
-    var text = (cd.content || []).map(function (i) { return i.type === 'text' ? i.text : ''; }).join('\n');
-    var s = text.indexOf('{');
-    var e = text.lastIndexOf('}');
-    if (s === -1 || e === -1) return res.status(200).json({ error: 'Editor did not return JSON.', raw: text.slice(0, 400) });
-    var parsed = JSON.parse(text.slice(s, e + 1));
+
+    var toolUse = (cd.content || []).filter(function (b) { return b.type === 'tool_use' && b.name === 'submit_copyedit'; })[0];
+    var parsed = toolUse && toolUse.input;
+
+    // Fallback: some responses still land as text JSON — salvage it.
+    if (!parsed) {
+      var txt = (cd.content || []).map(function (i) { return i.type === 'text' ? i.text : ''; }).join('\n');
+      var s = txt.indexOf('{'), e = txt.lastIndexOf('}');
+      if (s !== -1 && e !== -1) { try { parsed = JSON.parse(txt.slice(s, e + 1)); } catch (x) {} }
+    }
+    if (!parsed || typeof parsed.edited !== 'string') {
+      return res.status(200).json({ error: 'The editor did not return a usable result. Try again.' });
+    }
+
+    parsed.notes = parsed.notes || [];
+    parsed.addedContext = parsed.addedContext || [];
+    parsed.factsToCheck = parsed.factsToCheck || [];
+    if (!wantHeadline) delete parsed.headlines;
     parsed.relatedCount = related.length;
     parsed.mode = mode;
     return res.status(200).json(parsed);
