@@ -75,6 +75,7 @@ Last updated: 2026-09-10
 - **Faster scans** — reduce scan time without cutting coverage.
 
 ### Mid term
+- **Audience analytics** — connect Google Analytics, Chartbeat, Parse.ly, Search Console, and your Facebook/Instagram page. Get real-time alerts when a story is taking off or dying, a weekly read on what's working (best day and time to publish, which topics and headline styles land, which evergreens are slipping), proactive suggestions, and a question box: *"What's been working best for us this month?"* — answered with specifics, because it knows what each piece was about and who wrote it.
 - **Multi-tenant onboarding** — a new publisher self-configures their beat (watch list, feeds, house style) via a guided, AI-assisted wizard in minutes — no code changes.
 - **Scheduled agents** — proactive assistants that run on a cadence and push results: competitive-coverage scan, coverage-gap audit, evergreen-refresh finder, recruiting-board watch.
 - **Shared newsroom settings** — style guide, writer profiles, and block lists shared across the team instead of per-browser.
