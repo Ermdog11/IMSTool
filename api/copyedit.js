@@ -14,16 +14,17 @@ var BROWSER_UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (
 // Recent InsideMDSports / 247 Maryland articles, for internal linking. Same scrape the
 // news monitor uses for its own-outlet blocklist — the landing page loads server-side.
 async function relatedArticleIndex() {
+  var fresh = [];
   try {
     var c = new AbortController();
     var t = setTimeout(function () { c.abort(); }, 12000);
-    var html = await fetch('https://247sports.com/college/maryland/', {
+    var resp = await fetch('https://247sports.com/college/maryland/', {
       headers: { 'User-Agent': BROWSER_UA },
       signal: c.signal
-    }).then(function (r) { return r.text(); }).finally(function () { clearTimeout(t); });
+    }).finally(function () { clearTimeout(t); });
+    var html = await resp.text();
 
     var seen = {};
-    var out = [];
     var re = /\/college\/maryland\/(?:article|longformarticle)\/([a-z0-9-]+)-(\d{6,})/g;
     var m;
     while ((m = re.exec(html)) !== null) {
@@ -31,13 +32,28 @@ async function relatedArticleIndex() {
       var url = 'https://247sports.com/college/maryland/article/' + slug + '-' + m[2] + '/';
       if (seen[slug]) continue;
       seen[slug] = 1;
-      out.push({ url: url, headline: slug.replace(/-/g, ' ').replace(/\b\w/g, function (x) { return x.toUpperCase(); }) });
-      if (out.length >= 30) break;
+      fresh.push({ url: url, headline: slug.replace(/-/g, ' ').replace(/\b\w/g, function (x) { return x.toUpperCase(); }) });
+      if (fresh.length >= 30) break;
     }
-    return out;
-  } catch (e) {
-    return [];
-  }
+  } catch (e) { /* fall through to cache */ }
+
+  // The 247 landing page intermittently 406s bot traffic -> zero links that run.
+  // Persist the last good scrape to Blob and fall back to it when a scrape is empty.
+  try {
+    var blob = require('@vercel/blob');
+    if (fresh.length >= 5) {
+      blob.put('copydesk-related-index.json', JSON.stringify(fresh), {
+        access: 'private', addRandomSuffix: false, allowOverwrite: true, contentType: 'application/json'
+      }).catch(function () {});
+      return fresh;
+    }
+    var cached = await blob.get('copydesk-related-index.json', { access: 'private', useCache: false }).catch(function () { return null; });
+    if (cached && cached.statusCode === 200) {
+      var arr = await new Response(cached.stream).json();
+      if (Array.isArray(arr) && arr.length) return arr;
+    }
+  } catch (e) { /* no blob — just use whatever we scraped */ }
+  return fresh;
 }
 
 // 3 related YouTube videos for a search query. Best-effort — returns [] on any
@@ -46,6 +62,9 @@ async function suggestVideos(query) {
   var ytKey = process.env.YOUTUBE_API_KEY;
   query = (query || '').toString().trim();
   if (!ytKey || query.length < 3) return [];
+  // Keep the search on the Maryland beat — a bare "outside linebacker" query pulls
+  // NFL clips and memes.
+  if (!/\b(maryland|terp|terrapin)/i.test(query)) query += ' Maryland Terrapins';
   try {
     var c = new AbortController();
     var t = setTimeout(function () { c.abort(); }, 8000);
