@@ -43,7 +43,7 @@ Last updated: 2026-09-10
 
 | Feature | What it does for the customer |
 |---|---|
-| Copydesk | Paste a writer's draft. Two modes: **Full edit** rewrites it in house style and the writer's voice with context and links added; **Keep my words** leaves the prose untouched and returns everything else as suggestions. Either way you get reader context (anything unverified flagged), a short list of genuine questions to resolve (trusts the writer on routine facts), related-link suggestions, 3 headline options, an **SEO panel** (meta description, URL slug, primary + secondary keywords, schema type, and quick fixes for this draft), and 3 related YouTube videos to embed. |
+| Copydesk | Paste a writer's draft. Two modes: **Full edit** rewrites it in house style and the writer's voice with context and links added; **Keep my words** leaves the prose untouched and returns everything else as suggestions. Either way you get reader context (anything unverified flagged), a short list of genuine questions to resolve (trusts the writer on routine facts), related-link suggestions, 3 headline options, and an **SEO panel** (meta description, URL slug, primary + secondary keywords, schema type, and quick fixes for this draft). |
 | Per-writer style profiles | Learns each writer's voice from ~15 samples so edits polish rather than flatten them. |
 | House style guide | The editable rulebook every edit is measured against — per publication. |
 | Related-article links | Automatically hotlinks relevant phrases in the copy to the publication's own recent articles. |

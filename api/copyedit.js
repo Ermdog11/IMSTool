@@ -169,11 +169,6 @@ module.exports = async function handler(req, res) {
             required: ['phrase', 'url']
           }
         },
-        videoKeywords: {
-          type: 'array',
-          items: { type: 'string' },
-          description: 'The 3-6 most important search terms FROM THIS ARTICLE for finding related videos — the specific player and coach names, the school/opponent, and the topic (e.g. "commitment", "depth chart", "spring game"). Real terms that appear in the piece, most specific first. Used to suggest videos the writer could embed.'
-        },
         seo: {
           type: 'object',
           description: 'Search-optimisation help for this article.',
@@ -188,7 +183,7 @@ module.exports = async function handler(req, res) {
           required: ['metaDescription', 'slug', 'primaryKeyword', 'secondaryKeywords', 'schemaType', 'checks']
         }
       },
-      required: ['edited', 'notes', 'addedContext', 'factsToCheck', 'videoKeywords', 'seo']
+      required: ['edited', 'notes', 'addedContext', 'factsToCheck', 'seo']
     }
   };
 
@@ -228,12 +223,11 @@ module.exports = async function handler(req, res) {
     parsed.relatedCount = related.length;
     parsed.mode = mode;
 
-    // Suggest 3 related YouTube videos the writer could embed, searched on the
-    // article's own key terms. (v1: a general Terps-scoped search. Future:
-    // restrict to the publisher's own video library.)
-    var vkw = Array.isArray(parsed.videoKeywords) ? parsed.videoKeywords : [];
-    parsed.videoSuggestions = await suggestVideos(vkw.slice(0, 6).join(' '));
+    // YouTube video suggestions are DISABLED for now (the shared YouTube API quota
+    // is consumed by the news scanner). suggestVideos() + the videoKeywords schema
+    // field are kept for when this is revived as a per-publisher video library.
     delete parsed.videoKeywords;
+    parsed.videoSuggestions = [];
 
     return res.status(200).json(parsed);
   } catch (err) {
