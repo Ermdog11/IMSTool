@@ -248,3 +248,6 @@ module.exports = async function handler(req, res) {
     return res.status(500).json({ error: err.message });
   }
 };
+
+// Reused by the Coverage Desk agent.
+module.exports.relatedArticleIndex = relatedArticleIndex;

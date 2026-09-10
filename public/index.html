@@ -317,6 +317,10 @@ body { padding-bottom: 40px; }
     </div>
     <button class="scan-btn" onclick="generateBacklog()"><i class="ti ti-bulb"></i> Generate ideas</button>
   </div>
+  <div class="notice" style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;">
+    <span><i class="ti ti-robot"></i> <strong>Coverage Desk</strong> — an assistant editor's memo (priorities, gaps, follow-ups) emails you every morning at 7&nbsp;AM.</span>
+    <button class="chip" onclick="runCoverageDesk(this)">Email me one now</button>
+  </div>
   <div id="backlogContainer">
     <div class="empty"><i class="ti ti-notebook"></i>Run a scan first, then generate story ideas from the latest alerts</div>
   </div>
@@ -1538,6 +1542,17 @@ function generateBacklogFromAlerts() {
       </div>
     </div>
   `).join('');
+}
+
+async function runCoverageDesk(btn) {
+  var old = btn.textContent;
+  btn.disabled = true; btn.textContent = 'Working… (~1 min)';
+  try {
+    var r = await fetch('/api/coverage-desk', { method: 'POST' });
+    var d = await r.json();
+    btn.textContent = d.ok ? '✓ Sent to your inbox' : ('Failed: ' + (d.error || 'unknown'));
+  } catch (e) { btn.textContent = 'Failed: ' + e.message; }
+  setTimeout(function () { btn.disabled = false; btn.textContent = old; }, 4000);
 }
 
 async function generateBacklog() {
