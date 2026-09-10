@@ -56,7 +56,8 @@ Last updated: 2026-09-10
 
 | Feature | Status |
 |---|---|
-| **Login system** | Approved. Real accounts + roles (publisher / editor / writer) for the newsroom, built to generalize to multiple publishers later. Magic-link + Google sign-in. Unlocks per-person permissions and alert control. |
+| **Login system** | Approved — built first. Real accounts + roles (publisher / editor / writer) for the newsroom, built to generalize to multiple publishers later. Magic-link + Google sign-in. Unlocks per-person permissions and everything below. |
+| **Newsroom knowledge base** | The Content Editor keeps and indexes every article that passes through it — plus the imported back catalog — as a private, growing memory for each newsroom. Every new piece makes the writer's voice model, the internal-linking, and the added context sharper. Built on the same foundation as login. |
 | **Publisher-controlled alerts** | Publisher decides exactly who receives which alerts (breaking news, article-saved, digests). Depends on login. |
 | **"Article started" alert** | Publisher is notified the first time a writer saves a new article. Depends on login. |
 
@@ -67,7 +68,8 @@ Last updated: 2026-09-10
 ### Near term
 - **Roster watch view** — an in-app page showing each team's current roster and a dated history of every add/drop the watcher has caught.
 - **Publish connector** — file a finished article straight into the customer's CMS as a draft (never auto-live). One-click for WordPress and Ghost; clean formatted export for Substack, Squarespace, and closed CMSes.
-- **Deeper related-links index** — index the publication's full archive, not just its front page, and add a writer-driven "pick one of 3 suggested links" control.
+- **Per-writer content catalog** — a complete index of everything each writer has published, feeding a fuller style model and the internal-linking. (Builds on the knowledge base.)
+- **Deeper related-links** — internal links drawn from the full archive, not just the front page, plus a writer-driven "pick one of 3 suggested links" control.
 - **Photo upload tool** — writers attach images to a draft in the Content Editor.
 - **Video auto-suggest** — publisher configures where their videos live (YouTube channel / Vimeo / feed); the Content Editor drops a relevant video into the draft.
 - **Faster scans** — reduce scan time without cutting coverage.
@@ -86,9 +88,10 @@ Last updated: 2026-09-10
 
 ## Positioning notes
 
-- **The moat is the free-source aggregation.** Assembling real-time beat coverage out of
-  free feeds and search operators — no $200/mo Twitter API, no per-seat news-API fees — is
-  the hard part to replicate and the core value.
+- **Two moats.** (1) The free-source aggregation — real-time beat coverage out of free
+  feeds and search operators, no $200/mo social API, no per-seat news-API fees. (2) The
+  newsroom knowledge base — the longer a customer uses it, the more it knows their beat
+  and their writers, and the harder it is to leave.
 - **The Content Editor is likely the stronger recurring-revenue hook** (per-writer-seat,
   used daily) vs. the Monitor (per-newsroom).
 - **Human stays in control** everywhere it matters: nothing publishes itself, alerts are
