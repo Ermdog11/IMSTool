@@ -373,7 +373,7 @@ function renderEdit(d){
   if(d.addedContext&&d.addedContext.length)
     h+='<div class="card"><h2>Context added</h2>'+d.addedContext.map(function(c){return '<div class="ctx">'+esc(c).replace(/\[VERIFY\]/g,'<b>[VERIFY]</b>')+'</div>';}).join('')+'</div>';
   if(d.factsToCheck&&d.factsToCheck.length)
-    h+='<div class="card"><h2>Facts to check / missing</h2><ul class="notes">'+d.factsToCheck.map(function(n){return '<li>'+esc(n)+'</li>';}).join('')+'</ul></div>';
+    h+='<div class="card"><h2>Questions to resolve</h2><ul class="notes">'+d.factsToCheck.map(function(n){return '<li>'+esc(n)+'</li>';}).join('')+'</ul></div>';
   document.getElementById('ed-result').innerHTML=h;
 }
 

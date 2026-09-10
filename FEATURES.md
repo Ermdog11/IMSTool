@@ -43,7 +43,7 @@ Last updated: 2026-09-10
 
 | Feature | What it does for the customer |
 |---|---|
-| Copydesk | Paste a writer's draft → returns it rewritten in the publication's house style, **in that writer's voice**, with reader context added (anything unverified flagged), facts-to-check listed, and 3 headline options (straight / punchy / SEO). |
+| Copydesk | Paste a writer's draft → returns it rewritten in the publication's house style, **in that writer's voice**, with reader context added (anything unverified flagged), a short list of genuine questions to resolve (it trusts the writer on routine facts, only flags likely errors), and 3 headline options (straight / punchy / SEO). |
 | Per-writer style profiles | Learns each writer's voice from ~15 samples so edits polish rather than flatten them. |
 | House style guide | The editable rulebook every edit is measured against — per publication. |
 | Related-article links | Automatically hotlinks relevant phrases in the copy to the publication's own recent articles. |
