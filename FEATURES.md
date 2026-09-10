@@ -95,6 +95,11 @@ Last updated: 2026-09-10
   feeds and search operators, no $200/mo social API, no per-seat news-API fees. (2) The
   newsroom knowledge base — the longer a customer uses it, the more it knows their beat
   and their writers, and the harder it is to leave.
+- **Knowledge-base ownership may be worth more than it looks.** Once every article and
+  every writer's voice model is captured and portable, that corpus is an asset in its own
+  right: a career asset a writer carries between outlets, a retention lever and an
+  acquisition line-item for a publication, and a reason for IMSTool to be the neutral
+  place it lives. The near-term build is a settings toggle; design it deliberately.
 - **The Content Editor is likely the stronger recurring-revenue hook** (per-writer-seat,
   used daily) vs. the Monitor (per-newsroom).
 - **Human stays in control** everywhere it matters: nothing publishes itself, alerts are
