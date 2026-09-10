@@ -10,19 +10,36 @@ function tag(xml, name) {
   return m ? m[1].trim() : '';
 }
 
-module.exports = async function handler(req, res) {
-  var feed = process.env.PODCAST_FEED_URL || DEFAULT_FEED;
+async function fetchText(url) {
+  var controller = new AbortController();
+  var t = setTimeout(function () { controller.abort(); }, 9000);
   try {
-    var controller = new AbortController();
-    var t = setTimeout(function () { controller.abort(); }, 9000);
-    var xml = await fetch(feed, {
-      headers: { 'User-Agent': 'Mozilla/5.0 (compatible; IMSTool/1.0)' },
-      signal: controller.signal
-    }).then(function (r) { return r.text(); }).finally(function () { clearTimeout(t); });
+    var r = await fetch(url, { headers: { 'User-Agent': 'Mozilla/5.0 (compatible; IMSTool/1.0)' }, signal: controller.signal });
+    return await r.text();
+  } finally { clearTimeout(t); }
+}
 
-    var items = (xml.match(/<item>[\s\S]*?<\/item>/g) || []).slice(0, 12);
+module.exports = async function handler(req, res) {
+  var feed = (req.query && req.query.url) || process.env.PODCAST_FEED_URL || DEFAULT_FEED;
+  try {
+    var xml = await fetchText(feed);
+    // If we got a landing page, try common feed paths off the same URL.
+    if (!/<(item|entry)[\s>]/.test(xml)) {
+      var base = feed.replace(/\/+$/, '');
+      var tries = [base + '/feed', base + '/rss', base + '/rss.xml', base + '.xml', base + '/feed.xml'];
+      for (var i = 0; i < tries.length; i++) {
+        try { var x2 = await fetchText(tries[i]); if (/<(item|entry)[\s>]/.test(x2)) { xml = x2; feed = tries[i]; break; } } catch (e) {}
+      }
+    }
+    if (!/<(item|entry)[\s>]/.test(xml)) {
+      return res.status(200).json({ episodes: [], error: 'That URL is not a podcast RSS feed. Paste the show’s RSS feed URL (from Apple Podcasts “Copy RSS” or your podcast host) into PODCAST_FEED_URL.' });
+    }
+
+    var items = (xml.match(/<(?:item|entry)>[\s\S]*?<\/(?:item|entry)>/g) || []).slice(0, 12);
     var episodes = items.map(function (it) {
-      var enc = it.match(/<enclosure[^>]*url="([^"]+)"[^>]*>/i);
+      var enc = it.match(/<enclosure[^>]*url="([^"]+)"[^>]*>/i)
+        || it.match(/<media:content[^>]*url="([^"]+\.mp3[^"]*)"/i)
+        || it.match(/<link[^>]*rel="enclosure"[^>]*href="([^"]+)"/i);
       var audio = enc ? enc[1] : '';
       if (!audio) return null;
       var pub = tag(it, 'pubDate');
