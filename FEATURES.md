@@ -69,6 +69,7 @@ Last updated: 2026-09-10
 - **Roster watch view** — an in-app page showing each team's current roster and a dated history of every add/drop the watcher has caught.
 - **Publish connector** — file a finished article straight into the customer's CMS as a draft (never auto-live). One-click for WordPress and Ghost; clean formatted export for Substack, Squarespace, and closed CMSes.
 - **Per-writer content catalog** — a complete index of everything each writer has published, feeding a fuller style model and the internal-linking. (Builds on the knowledge base.)
+- **Knowledge-base ownership** — each newsroom decides, per writer, whether the knowledge built from that writer's work belongs to the publication, to the writer (portable — they can export it and take it with them), or both. Set up front.
 - **Deeper related-links** — internal links drawn from the full archive, not just the front page, plus a writer-driven "pick one of 3 suggested links" control.
 - **Photo upload tool** — writers attach images to a draft in the Content Editor.
 - **Video auto-suggest** — publisher configures where their videos live (YouTube channel / Vimeo / feed); the Content Editor drops a relevant video into the draft.
@@ -76,6 +77,7 @@ Last updated: 2026-09-10
 
 ### Mid term
 - **Audience analytics** — connect Google Analytics, Chartbeat, Parse.ly, Search Console, and your Facebook/Instagram page. Get real-time alerts when a story is taking off or dying, a weekly read on what's working (best day and time to publish, which topics and headline styles land, which evergreens are slipping), proactive suggestions, and a question box: *"What's been working best for us this month?"* — answered with specifics, because it knows what each piece was about and who wrote it.
+- **Writer analytics** — per-writer views and engaged time on page, broken out by the kind of story (recruiting, recap, feature…), with loose nudges like *"your last two commitment pieces averaged 38% more views than your baseline."* A fair, data-backed read for the publisher; their own dashboard for the writer.
 - **Multi-tenant onboarding** — a new publisher self-configures their beat (watch list, feeds, house style) via a guided, AI-assisted wizard in minutes — no code changes.
 - **Scheduled agents** — proactive assistants that run on a cadence and push results: competitive-coverage scan, coverage-gap audit, evergreen-refresh finder, recruiting-board watch.
 - **Shared newsroom settings** — style guide, writer profiles, and block lists shared across the team instead of per-browser.
