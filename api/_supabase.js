@@ -1,17 +1,18 @@
 // Supabase server-side client + auth helpers.
 //
 // Env vars (set in Vercel -> Project -> Settings -> Environment Variables):
-//   SUPABASE_URL                 - the project URL, e.g. https://abcd.supabase.co   (not secret)
-//   SUPABASE_ANON_KEY            - the anon/public key                              (not secret)
-//   SUPABASE_SERVICE_ROLE_KEY    - the service_role key                             (SECRET - server only)
+//   SUPABASE_URL               - the project URL, e.g. https://abcd.supabase.co        (not secret)
+//   SUPABASE_PUBLISHABLE_KEY   - the sb_publishable_... key                            (safe in the browser)
+//   SUPABASE_SECRET_KEY        - the sb_secret_... key                                 (SECRET - server only)
 //
-// The service-role client bypasses Row Level Security, so it is only ever used
-// from API functions (never shipped to the browser). Browser code uses the anon
-// key + the signed-in user's JWT.
+// (These are Supabase's current key format. Legacy anon / service_role JWT keys
+// also work if that's what a project shows.) The secret-key client bypasses Row
+// Level Security, so it is only ever used from API functions, never shipped to
+// the browser. Browser code uses the publishable key + the signed-in user's JWT.
 
 var SUPABASE_URL = process.env.SUPABASE_URL || '';
-var SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
-var ANON_KEY = process.env.SUPABASE_ANON_KEY || '';
+var SERVICE_KEY = process.env.SUPABASE_SECRET_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY || '';
+var ANON_KEY = process.env.SUPABASE_PUBLISHABLE_KEY || process.env.SUPABASE_ANON_KEY || '';
 
 var _admin = null;
 
@@ -19,7 +20,7 @@ var _admin = null;
 function admin() {
   if (_admin) return _admin;
   if (!SUPABASE_URL || !SERVICE_KEY) {
-    throw new Error('Supabase not configured (SUPABASE_URL / SUPABASE_SERVICE_ROLE_KEY missing)');
+    throw new Error('Supabase not configured (SUPABASE_URL / SUPABASE_SECRET_KEY missing)');
   }
   var createClient = require('@supabase/supabase-js').createClient;
   _admin = createClient(SUPABASE_URL, SERVICE_KEY, {

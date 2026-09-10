@@ -12,14 +12,14 @@ couple of minutes.
 
 ## 2. Give me the two safe values
 
-In Supabase → **Project Settings** (gear) → **API**, copy and paste into chat:
+In Supabase → **Project Settings** (gear) → **API Keys** (and **Data API** for the URL),
+copy and paste into chat:
 
 - **Project URL** (e.g. `https://abcdefgh.supabase.co`)
-- **`anon` `public`** key (the shorter of the two keys)
+- **Publishable key** (`sb_publishable_...`) — Supabase itself says this "can be safely
+  shared publicly."
 
-These are safe to share — the `anon` key is meant to live in the app's front-end.
-
-## 3. Add all three keys to Vercel (I'll tell you exactly when)
+## 3. Add all three values to Vercel (I'll tell you exactly when)
 
 In **Vercel → the `ims-tool` project → Settings → Environment Variables**, add three, each
 for **Production, Preview, and Development**:
@@ -27,8 +27,8 @@ for **Production, Preview, and Development**:
 | Name | Value |
 |---|---|
 | `SUPABASE_URL` | the Project URL |
-| `SUPABASE_ANON_KEY` | the `anon` `public` key |
-| `SUPABASE_SERVICE_ROLE_KEY` | the **`service_role` `secret`** key — the longer one, marked secret. **Only paste this in Vercel, never in chat.** |
+| `SUPABASE_PUBLISHABLE_KEY` | the `sb_publishable_...` key |
+| `SUPABASE_SECRET_KEY` | the **`sb_secret_...`** key. **Only paste this in Vercel, never in chat.** |
 
 Then redeploy (Vercel does this automatically on the next push, or hit **Redeploy** on the
 latest deployment).
