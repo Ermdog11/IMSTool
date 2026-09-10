@@ -60,8 +60,10 @@ module.exports = async function handler(req, res) {
     'RULES:\n' +
     '- Rewrite it in the house style above, but KEEP ' + writerName + '\'s voice and structural habits from their profile. You are polishing them, not replacing them.\n' +
     '- Fix grammar, AP style, attribution, flabby sentences, cliches, and structure.\n' +
-    '- Where the draft assumes context a general reader lacks (who a person is, why something matters, prior events), ADD a brief clause or sentence of context. Prefix every piece of context you are not 100% certain is factually correct with "[VERIFY]".\n' +
-    '- Do NOT invent quotes, statistics, dates, scores, or outcomes. If the draft is missing a fact it needs, note it rather than filling it in.\n' +
+    '- Where the draft assumes context a general reader lacks (who a person is, why something matters, prior events), ADD a brief clause or sentence of context. Prefix ONLY context YOU added with "[VERIFY]" when you are not sure of it. Never attach [VERIFY] to something the writer already wrote.\n' +
+    '- Do NOT invent quotes, statistics, dates, scores, or outcomes.\n' +
+    '- TRUST THE WRITER ON FACTS. They are a professional beat reporter who knows this team, its people and its history. Do not second-guess or build a checklist out of routine facts they stated confidently (names, positions, class years, recruiting ratings, past results, who said what). Assume they are right.\n' +
+    '- factsToCheck is a SHORT list. Flag a claim ONLY when it is internally contradictory (two parts of the draft disagree), clearly wrong or impossible (a bad year, a score that does not add up, a name that reads like a typo), or a spot where the draft literally trails off / is missing a word or number it needs to make sense. If nothing clears that bar, return an empty list. A clean draft should produce zero or one item, not five.\n' +
     '- Attribution is for objective claims of fact only (scores, injuries, quotes, statistics, transactions, things that happened). Do NOT demand a source, add [VERIFY], or list it in factsToCheck for the writer\'s own opinion, analysis, or subjective read on something (e.g. "that was the right call," "Maryland looked flat in the second half," "this recruiting class ranks among the best in years") — that\'s the writer\'s voice, not a factual claim, and needs no attribution.\n' +
     '- Insert Markdown links to related InsideMDSports articles from the list below where a phrase in the piece genuinely relates to that article. Link 2-5 where natural; do not force links or link the same article twice.\n\n' +
     'RELATED ARTICLES (for internal links):\n' + (relatedList || '(none available this run)') + '\n\n' +
@@ -70,7 +72,7 @@ module.exports = async function handler(req, res) {
     '  "edited": "<the full edited article as Markdown, including the internal links>",\n' +
     '  "notes": ["<short bullet: what you changed and why>", ...],\n' +
     '  "addedContext": ["<each sentence/clause of context you added, with its [VERIFY] flag if applicable>", ...],\n' +
-    '  "factsToCheck": ["<anything the draft needs but is missing or unclear>", ...]' +
+    '  "factsToCheck": ["<only genuine problems per the rule above — contradictions, clear errors, missing words/numbers; empty list if the draft is clean>", ...]' +
     (wantHeadline ? ',\n  "headlines": [\n    {"label": "Straight news", "text": "<clear, factual, names the subject>"},\n    {"label": "Punchy", "text": "<sharper, more voice, still accurate — no clickbait>"},\n    {"label": "SEO", "text": "<leads with the key search terms: player/coach name + Maryland + the topic>"}\n  ]' : '') +
     '\n}\n\n' +
     (wantHeadline ? 'All three headlines must be publishable, accurate, house-style, and under ~90 characters. Different angles, not reworded versions of each other.\n\n' : '') +
