@@ -173,9 +173,22 @@ module.exports = async function handler(req, res) {
           type: 'array',
           items: { type: 'string' },
           description: 'The 3-6 most important search terms FROM THIS ARTICLE for finding related videos — the specific player and coach names, the school/opponent, and the topic (e.g. "commitment", "depth chart", "spring game"). Real terms that appear in the piece, most specific first. Used to suggest videos the writer could embed.'
+        },
+        seo: {
+          type: 'object',
+          description: 'Search-optimisation help for this article.',
+          properties: {
+            metaDescription: { type: 'string', description: '150-160 chars, leads with the key terms, reads like a sentence, no clickbait.' },
+            slug: { type: 'string', description: 'URL slug: lowercase, hyphenated, 3-6 words, the key names + topic. No stop words.' },
+            primaryKeyword: { type: 'string', description: 'The single phrase a reader would search to find this story.' },
+            secondaryKeywords: { type: 'array', items: { type: 'string' }, description: '3-5 related search phrases the piece also covers.' },
+            schemaType: { type: 'string', description: 'Best schema.org type: usually "NewsArticle"; "SportsEvent" for a game preview/recap.' },
+            checks: { type: 'array', items: { type: 'string' }, description: 'Quick SEO fixes for THIS draft only if they apply — e.g. "The primary keyword isn\'t in the first sentence", "Headline runs over 60 characters", "No subheads in a 900-word piece". Empty if the draft is already fine.' }
+          },
+          required: ['metaDescription', 'slug', 'primaryKeyword', 'secondaryKeywords', 'schemaType', 'checks']
         }
       },
-      required: ['edited', 'notes', 'addedContext', 'factsToCheck', 'videoKeywords']
+      required: ['edited', 'notes', 'addedContext', 'factsToCheck', 'videoKeywords', 'seo']
     }
   };
 

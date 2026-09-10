@@ -422,6 +422,21 @@ function renderEdit(d){
     h+='<div class="card"><h2>'+(kept?'Context you could add':'Context added')+'</h2>'+d.addedContext.map(function(c){return '<div class="ctx">'+esc(c).replace(/\[VERIFY\]/g,'<b>[VERIFY]</b>')+'</div>';}).join('')+'</div>';
   if(d.factsToCheck&&d.factsToCheck.length)
     h+='<div class="card"><h2>Questions to resolve</h2><ul class="notes">'+d.factsToCheck.map(function(n){return '<li>'+esc(n)+'</li>';}).join('')+'</ul></div>';
+  if(d.seo){
+    var seo=d.seo;
+    var row=function(label,val){return '<div style="display:flex;gap:10px;align-items:flex-start;padding:7px 0;border-bottom:1px solid var(--border)">'+
+      '<div style="font-size:11px;font-weight:600;color:var(--text2);width:110px;flex-shrink:0;padding-top:2px">'+label+'</div>'+
+      '<div style="flex:1;font-size:13px">'+esc(val)+'</div>'+
+      '<button class="btn ghost" style="flex-shrink:0;padding:3px 9px;font-size:11px" onclick="copyStr(this,'+JSON.stringify(val)+')">Copy</button></div>';};
+    h+='<div class="card"><h2>SEO</h2>'+
+      row('Meta description',seo.metaDescription||'')+
+      row('URL slug',seo.slug||'')+
+      row('Primary keyword',seo.primaryKeyword||'')+
+      (seo.secondaryKeywords&&seo.secondaryKeywords.length?row('Also targets',seo.secondaryKeywords.join(', ')):'')+
+      row('Schema type',seo.schemaType||'NewsArticle')+
+      (seo.checks&&seo.checks.length?'<div style="margin-top:10px"><div style="font-size:11px;font-weight:600;color:var(--text2);margin-bottom:4px">Fix before publishing</div><ul class="notes">'+seo.checks.map(function(x){return '<li>'+esc(x)+'</li>';}).join('')+'</ul></div>':'<div style="font-size:12px;color:var(--green);margin-top:8px">✓ No SEO issues flagged</div>')+
+    '</div>';
+  }
   if(kept && d.relatedSuggestions && d.relatedSuggestions.length)
     h+='<div class="card"><h2>Related links you could add</h2><div class="hint">Nothing was inserted &mdash; drop these in where they fit.</div>'+
       d.relatedSuggestions.map(function(s){
