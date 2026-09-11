@@ -3,7 +3,7 @@
 // direct audio URL. Feed URL: env PODCAST_FEED_URL, else the default below.
 // (Multi-tenant: this becomes per-site config.)
 
-var DEFAULT_FEED = 'https://studio.amperwave.com/podcasts/36676';
+var DEFAULT_FEED = 'https://rss.amperwave.net/v2/feed/audacynetwork/imsradio';
 
 function tag(xml, name) {
   var m = xml.match(new RegExp('<' + name + '[^>]*>(?:<!\\[CDATA\\[)?([\\s\\S]*?)(?:\\]\\]>)?<\\/' + name + '>'));
