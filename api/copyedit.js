@@ -105,21 +105,23 @@ async function handleRefine(res, key, body) {
     'CURRENT ARTICLE (Markdown):\n' + current + '\n\n' +
     (convo ? 'EARLIER IN THIS CONVERSATION:\n' + convo + '\n\n' : '') +
     'THE EDITOR NOW SAYS:\n' + instruction + '\n\n' +
-    'If that is a change request: make ONLY that change (plus anything it directly requires), keeping ' + writerName + '\'s voice and the house style, and return the FULL updated article in "edited" with a one-line "reply" saying what you changed. ' +
-    'If it is a question: leave "edited" byte-for-byte identical to the current article and answer in "reply". ' +
-    'Never invent quotes, stats, or facts. If a change would require a fact you do not have, say so in "reply" and leave the article unchanged.';
+    'Decide first: is this a CHANGE request or a QUESTION (including "what do you know about X" / background lookups)?\n' +
+    'If it is a CHANGE: set "changed":true, make ONLY that change (plus anything it directly requires) keeping ' + writerName + '\'s voice and house style, put the FULL updated article in "edited", and a one-line "reply" saying what you did.\n' +
+    'If it is a QUESTION: set "changed":false and do NOT fill in "edited" at all (leave it out / empty — do not re-type the article, it wastes time). Answer fully in "reply" from what you know. ' +
+    'Say plainly in the reply if your knowledge of something recent (a roster, a depth chart, a stat line) may be out of date — you have no live internet access here, only training knowledge and the current article.\n' +
+    'Never invent quotes, stats, or facts when making a change. If a change would require a fact you do not have, say so in "reply" and set "changed":false.';
 
   var tool = {
     name: 'respond',
-    description: 'Return the (possibly updated) article and a short reply to the editor.',
+    description: 'Return a reply to the editor, and the updated article only if you changed it.',
     input_schema: {
       type: 'object',
       properties: {
-        edited: { type: 'string', description: 'The full article as Markdown — updated if a change was made, otherwise unchanged.' },
-        reply: { type: 'string', description: 'One or two sentences: what you changed, or the answer to their question.' },
-        changed: { type: 'boolean', description: 'true if you modified the article.' }
+        changed: { type: 'boolean', description: 'true only if you are returning a modified article in "edited".' },
+        edited: { type: 'string', description: 'Omit or leave empty for a question. Only include this, with the FULL article, when changed is true.' },
+        reply: { type: 'string', description: 'One to three sentences: what you changed, or the answer to their question.' }
       },
-      required: ['edited', 'reply', 'changed']
+      required: ['changed', 'reply']
     }
   };
 
@@ -133,8 +135,9 @@ async function handleRefine(res, key, body) {
     if (cd.error) return res.status(200).json({ error: 'Claude error: ' + JSON.stringify(cd.error) });
     var tu = (cd.content || []).filter(function (b) { return b.type === 'tool_use' && b.name === 'respond'; })[0];
     var out = tu && tu.input;
-    if (!out || typeof out.edited !== 'string') return res.status(200).json({ error: 'No usable response — try rephrasing.' });
-    return res.status(200).json({ edited: out.edited, reply: out.reply || '', changed: !!out.changed });
+    if (!out || typeof out.reply !== 'string') return res.status(200).json({ error: 'No usable response — try rephrasing.' });
+    var changed = !!out.changed && typeof out.edited === 'string' && out.edited.trim().length > 0;
+    return res.status(200).json({ edited: changed ? out.edited : current, reply: out.reply || '', changed: changed });
   } catch (err) {
     return res.status(500).json({ error: err.message });
   }
