@@ -204,6 +204,7 @@ module.exports = async function handler(req, res) {
       'Edit the draft below and call the submit_copyedit tool.\n' +
       '- Rewrite it in the house style above, but KEEP ' + writerName + '\'s voice and structural habits. You are polishing them, not replacing them.\n' +
       '- Fix grammar, AP style, attribution, flabby sentences, cliches, and structure.\n' +
+      '- Vary paragraph rhythm: a one-sentence paragraph is fine on its own, but never stack two or more of them back to back. If the draft has a run of one-liners, combine some or add a sentence so at least every other paragraph runs 2-4 sentences.\n' +
       '- Where the draft assumes context a general reader lacks, ADD a brief clause or sentence. Prefix ONLY context YOU added with "[VERIFY]" when unsure. Never attach [VERIFY] to something the writer already wrote.\n' +
       '- Do NOT invent quotes, statistics, dates, scores, or outcomes.\n' +
       '- TRUST THE WRITER ON FACTS by default. Do not build a checklist out of routine facts they stated confidently.\n' +
