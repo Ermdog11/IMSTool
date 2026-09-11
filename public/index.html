@@ -642,6 +642,12 @@ body { padding-bottom: 40px; }
       var t = document.getElementById('teamCardWrap');
       if (t) t.hidden = false;
     }
+    if (s && s.preview) {
+      var bar = document.createElement('div');
+      bar.style.cssText = 'background:#fff8e1;color:#8a6d00;font-size:12px;text-align:center;padding:6px 10px;border-bottom:1px solid #f0e2a8;';
+      bar.innerHTML = 'Preview mode — you\'re looking, not signed in. <a href="/login" style="color:#8a6d00;font-weight:600;">Sign in</a> for the full tool.';
+      document.body.insertBefore(bar, document.body.firstChild);
+    }
   });
 })();
 

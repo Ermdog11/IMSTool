@@ -9,7 +9,12 @@
 // lock anyone out of the tool.
 
 (function () {
-  var STATE = { ready: false, configured: false, user: null, role: null, byline: null, site: null, client: null };
+  var STATE = { ready: false, configured: false, user: null, role: null, byline: null, site: null, client: null, preview: false };
+
+  // Sections safe to show a signed-out visitor as a read-mostly demo — no drafts,
+  // no team/config controls, nothing that emails the publisher or costs real work
+  // if someone pokes at it. Everything else still requires sign-in.
+  var PUBLIC_PATHS = ['/alerts', '/recruiting', '/trending', '/podcasts', '/youtube', '/bluesky', '/digest'];
 
   function client() {
     if (STATE.client) return STATE.client;
@@ -51,7 +56,8 @@
       if (!me.configured) { STATE.ready = true; return STATE; }        // login not switched on -> business as usual
 
       if (!me.authenticated) {
-        if (opts.noRedirect) { STATE.ready = true; return STATE; }
+        var isPublicPath = PUBLIC_PATHS.indexOf(location.pathname) !== -1;
+        if (opts.noRedirect || isPublicPath) { STATE.ready = true; STATE.preview = isPublicPath; return STATE; }
         var next = encodeURIComponent(location.pathname + location.search);
         location.replace('/login?next=' + next);
         return new Promise(function () {});                            // never resolves; page is navigating away
