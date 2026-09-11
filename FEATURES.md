@@ -79,6 +79,9 @@ Last updated: 2026-09-10
 - **Faster scans** — reduce scan time without cutting coverage.
 
 ### Mid term
+- **Article templates** — pick a structure (game recap, transfer-portal piece, positional ranking, interview feature), paste raw notes, get an ~80%-done draft fast.
+- **Archive fact-checker** — before publishing, cross-references claims in a draft against the newsroom's own past coverage to catch contradictions. Builds on the knowledge base.
+- **Assignment board** — writers claim stories from the scan results so nobody duplicates coverage, and everyone can see who's on what.
 - **Writer research suite** — a scouting-report generator (team + week → depth chart, roster, results, stats, matchup notes), a one-query stat lookup (career stats, game logs, comparisons), postgame quote transcripts, and a searchable historical-records database — everything a writer would otherwise dig up by hand across ESPN, the school site, and memory, in one place.
 - **Social post generator, standalone** — turn any finished article into X/Facebook/Instagram posts plus a thread version, usable on its own instead of buried in a dashboard action; sending straight to Buffer is a stretch goal.
 - **Reader newsletter** — an auto-built daily/weekly newsletter from published articles and trending topics, for actual subscribers (distinct from the internal digest emails the team already gets).
