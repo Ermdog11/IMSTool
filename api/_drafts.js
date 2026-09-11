@@ -38,6 +38,11 @@ async function saveDraft(doc) {
   var i = index.findIndex(function(e) { return e.id === doc.id; });
   if (i === -1) index.unshift(entry); else index[i] = entry;
   await saveIndex(index);
+
+  // Newsroom knowledge base: every save/submit/edit of this draft updates its
+  // one content_items row. Best-effort - never throws, never blocks the draft
+  // itself from saving even if Supabase is down or not configured.
+  try { await require('./_knowledge').upsertFromDraft(doc); } catch (e) { /* logged inside, swallow here too */ }
 }
 
 async function deleteDraft(id) {

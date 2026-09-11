@@ -112,6 +112,13 @@ create index if not exists content_items_site_idx    on public.content_items (si
 create index if not exists content_items_writer_idx  on public.content_items (site_id, writer_user_id);
 create index if not exists content_items_fts_idx     on public.content_items using gin (fts);
 
+-- Migration (2026-09-11): correlate a content_items row with the Blob draft it
+-- came from, so saving/submitting/editing the same draft updates one row
+-- instead of piling up duplicates. Nullable — imported/manual rows have none.
+alter table public.content_items add column if not exists draft_id text;
+alter table public.content_items add column if not exists updated_at timestamptz not null default now();
+create unique index if not exists content_items_draft_idx on public.content_items (site_id, draft_id) where draft_id is not null;
+
 -- Row Level Security ----------------------------------------------------
 -- The API layer talks to Postgres with the service_role key, which bypasses
 -- RLS. These policies are defence-in-depth for any future direct-from-browser

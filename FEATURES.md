@@ -7,7 +7,7 @@ and marketing material. Plain-language, benefit-first. Updated as we build.
 it watches every free source for news on your beat, rates and organizes it, and helps
 your writers turn it into publish-ready copy without leaving the tool.
 
-Two product surfaces, one login (login system in progress):
+Two product surfaces, one login:
 1. **News Monitor** — for the editor. Aggregates and rates everything happening on your beat.
 2. **Content Editor** — for every writer. Turns a rough draft into a house-style, publish-ready article.
 
@@ -50,6 +50,8 @@ Last updated: 2026-09-10
 | Related-article links | Automatically hotlinks relevant phrases in the copy to the publication's own recent articles. |
 | Inserts & media | Publisher defines reusable blocks once (newsletter sign-up, VIP pitch, related-coverage boxes, ad units) with a tier and a default position. On the editing page the writer or editor clicks to add one — it drops in at its default spot, overridable per article, previewed live. Plus **one-click embed of a recent podcast episode** from the show's feed. |
 | Ask the editor | After an edit, a chat box on the result: ask for a change ("tighten the second paragraph", "cut the last line") or a question ("what's the source for the visit date?") — it revises the article in place or answers, like talking to Claude about a draft. |
+| Newsroom knowledge base | Every draft saved, submitted, or edited is stored and indexed automatically, privately per newsroom. The retrieval side — richer style profiles from the full history, full-archive internal linking, the archive fact-checker — builds on top of this next. |
+| Sign-in, roles & team | Magic-link, Google, and Facebook sign-in; roles (publisher / editor / writer); a publisher-only Team panel to invite people and set who gets which alerts. First person to sign in becomes the publisher. |
 | Draft workflow | Save-as-draft vs. send-to-publisher; publisher gets an email on submission; drafts list with view/edit/delete. |
 
 ---
@@ -58,8 +60,6 @@ Last updated: 2026-09-10
 
 | Feature | Status |
 |---|---|
-| **Login system** | Code built (behind a config switch). Magic-link sign-in, roles (publisher / editor / writer), a publisher-only **Team & alerts** panel to invite people and set who gets which alerts. First person to sign in becomes the publisher. Waiting on the Supabase keys to switch on. |
-| **Newsroom knowledge base** | The Content Editor keeps and indexes every article that passes through it — plus the imported back catalog — as a private, growing memory for each newsroom. Every new piece makes the writer's voice model, the internal-linking, and the added context sharper. Built on the same foundation as login. |
 | **Publisher-controlled alerts** | Publisher decides exactly who receives which alerts (breaking news, article-started, digests) from the Team panel. UI built; wiring the mailers to it is next. |
 | **"Article started" alert** | Publisher is notified the first time a writer saves a new article. Wiring pending. |
 | **Audience analytics** | The `/analytics` section exists with the connection list (Google Analytics, YouTube Analytics, Search Console, Facebook/Instagram, Chartbeat, Parse.ly). Each connection's OAuth/API wiring and the insights engine come next, one source at a time. |
