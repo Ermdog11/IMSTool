@@ -618,6 +618,17 @@ body { padding-bottom: 40px; }
   </div>
 
   <div class="settings-card">
+    <h3><i class="ti ti-message-circle-question"></i> Ask about your audience</h3>
+    <div style="font-size:12px;color:var(--text3);margin-bottom:12px;line-height:1.5;">Answered strictly from your connected sources' real numbers — not general knowledge. Try "what's been working best this week?" or "when should I publish?"</div>
+    <div id="analyticsQuestionScope" style="margin-bottom:8px;"></div>
+    <div style="display:flex;gap:6px;margin-bottom:8px;">
+      <input id="analyticsQuestionInput" placeholder="Ask a question about your audience…" style="flex:1;font-size:13px;padding:8px 10px;border:1px solid var(--border);border-radius:6px" onkeydown="if(event.key==='Enter')askAnalyticsQuestion()">
+      <button class="chip" onclick="askAnalyticsQuestion()">Ask</button>
+    </div>
+    <div id="analyticsQuestionAnswer"></div>
+  </div>
+
+  <div class="settings-card">
     <h3><i class="ti ti-plug"></i> Connections</h3>
     <div style="font-size:12px;color:var(--text3);margin-bottom:12px;line-height:1.5;">Each connection needs a one-time setup (an app registration with that provider). Nothing is connected yet.</div>
     <div id="analyticsConnections"></div>
@@ -629,7 +640,7 @@ body { padding-bottom: 40px; }
       <div class="empty" style="padding:20px;">Connect at least one source above to see insights here.</div>
     </div>
     <div style="font-size:11px;color:var(--text3);margin-top:8px;line-height:1.6;">
-      Planned: real-time alerts when a story takes off or dies · weekly "what's working" read (publish windows, topics, headline styles, slipping evergreens) · per-writer views &amp; engaged time by story type · proactive nudges · a question box.
+      Planned: real-time alerts when a story takes off or dies · per-writer views &amp; engaged time by story type · proactive nudges.
     </div>
   </div>
 
@@ -645,16 +656,6 @@ body { padding-bottom: 40px; }
     <div id="analyticsTrends"></div>
   </div>
 
-  <div class="settings-card">
-    <h3><i class="ti ti-message-circle-question"></i> Ask about your audience</h3>
-    <div style="font-size:12px;color:var(--text3);margin-bottom:12px;line-height:1.5;">Answered strictly from your connected sources' real numbers — not general knowledge. Try "what's been working best this week?" or "when should I publish?"</div>
-    <div id="analyticsQuestionScope" style="margin-bottom:8px;"></div>
-    <div style="display:flex;gap:6px;margin-bottom:8px;">
-      <input id="analyticsQuestionInput" placeholder="Ask a question about your audience…" style="flex:1;font-size:13px;padding:8px 10px;border:1px solid var(--border);border-radius:6px" onkeydown="if(event.key==='Enter')askAnalyticsQuestion()">
-      <button class="chip" onclick="askAnalyticsQuestion()">Ask</button>
-    </div>
-    <div id="analyticsQuestionAnswer"></div>
-  </div>
 </div>
 
 <!-- ROSTER WATCH TAB -->
@@ -2047,7 +2048,7 @@ function loadQuestionBox() {
     return;
   }
   document.getElementById('analyticsQuestionInput').disabled = false;
-  const options = (connectedKeys.length > 1 ? [`<option value="all">All connected sources</option>`] : [])
+  const options = [`<option value="all">Combined</option>`]
     .concat(connectedKeys.map(k => `<option value="${k}">${SOURCE_LABELS[k]}</option>`));
   sel.innerHTML = `<select id="analyticsQuestionSourceSel" style="font-size:12px;padding:5px 8px;border:1px solid var(--border);border-radius:6px;">${options.join('')}</select>`;
 }
