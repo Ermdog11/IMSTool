@@ -640,8 +640,19 @@ body { padding-bottom: 40px; }
 
   <div class="settings-card">
     <h3><i class="ti ti-trending-up"></i> Trends</h3>
-    <div style="font-size:12px;color:var(--text3);margin-bottom:12px;line-height:1.5;">Patterns from a running history of snapshots, captured every few hours — takes a day or two to build up enough data. Chartbeat only for now; Parse.ly/GA4/Meta feed the same view once connected.</div>
+    <div style="font-size:12px;color:var(--text3);margin-bottom:12px;line-height:1.5;">Patterns from a running history of snapshots, captured every few hours — takes a day or two to build up enough data per source. Parse.ly/GA4 feed the same view once connected.</div>
     <div id="analyticsTrends"></div>
+  </div>
+
+  <div class="settings-card">
+    <h3><i class="ti ti-message-circle-question"></i> Ask about your audience</h3>
+    <div style="font-size:12px;color:var(--text3);margin-bottom:12px;line-height:1.5;">Answered strictly from your connected sources' real numbers — not general knowledge. Try "what's been working best this week?" or "when should I publish?"</div>
+    <div id="analyticsQuestionScope" style="margin-bottom:8px;"></div>
+    <div style="display:flex;gap:6px;margin-bottom:8px;">
+      <input id="analyticsQuestionInput" placeholder="Ask a question about your audience…" style="flex:1;font-size:13px;padding:8px 10px;border:1px solid var(--border);border-radius:6px" onkeydown="if(event.key==='Enter')askAnalyticsQuestion()">
+      <button class="chip" onclick="askAnalyticsQuestion()">Ask</button>
+    </div>
+    <div id="analyticsQuestionAnswer"></div>
   </div>
 </div>
 
@@ -1921,13 +1932,13 @@ async function disconnectAnalytics(key) {
 function loadAnalyticsInsights() {
   const c = document.getElementById('analyticsInsights');
   if (!c) return;
-  if (!analyticsConnected.chartbeat) {
-    c.innerHTML = '<div class="empty" style="padding:20px;">Connect at least one source above to see insights here.</div>';
-    document.getElementById('analyticsTrends').innerHTML = '';
-  } else {
+  const anyConnected = analyticsConnected.chartbeat || analyticsConnected.meta;
+
+  if (analyticsConnected.chartbeat) {
     c.innerHTML = '<div class="empty" style="padding:14px;"><i class="ti ti-loader spin"></i>Loading Chartbeat…</div>';
     refreshChartbeatInsights();
-    loadAnalyticsTrends();
+  } else {
+    c.innerHTML = '<div class="empty" style="padding:20px;">Connect at least one source above to see insights here.</div>';
   }
 
   const fb = document.getElementById('facebookInsightsCard');
@@ -1935,6 +1946,11 @@ function loadAnalyticsInsights() {
     fb.style.display = analyticsConnected.meta ? '' : 'none';
     if (analyticsConnected.meta) refreshFacebookInsights();
   }
+
+  if (anyConnected) loadAnalyticsTrends();
+  else document.getElementById('analyticsTrends').innerHTML = '';
+
+  loadQuestionBox();
 }
 
 async function refreshFacebookInsights() {
@@ -1957,6 +1973,30 @@ async function refreshFacebookInsights() {
   }
 }
 
+const SOURCE_LABELS = { chartbeat: 'Chartbeat', meta: 'Facebook' };
+const HOUR_LABELS = ['12am','1am','2am','3am','4am','5am','6am','7am','8am','9am','10am','11am','12pm','1pm','2pm','3pm','4pm','5pm','6pm','7pm','8pm','9pm','10pm','11pm'];
+
+function renderTrendSection(t) {
+  const label = SOURCE_LABELS[t.source] || t.source;
+  if (!t.enough) {
+    return `<div style="margin-bottom:14px;"><div class="sdiv-label">${label}</div>
+      <div style="font-size:12px;color:var(--text3);">Building trend data — ${t.count} of ${t.needed} snapshots collected so far. Check back in a day or two.</div></div>`;
+  }
+  const timePart = t.timeOfDayMeaningful
+    ? `<div style="display:flex;gap:20px;flex-wrap:wrap;margin-bottom:8px;">
+        ${t.bestHour ? `<div><div style="font-size:11px;color:var(--text3);">Best hour</div><strong style="font-size:16px;">${HOUR_LABELS[t.bestHour.hour]}</strong></div>` : ''}
+        ${t.bestDay ? `<div><div style="font-size:11px;color:var(--text3);">Best day</div><strong style="font-size:16px;">${t.bestDay.day}</strong></div>` : ''}
+      </div>`
+    : `<div style="font-size:11px;color:var(--text3);margin-bottom:8px;">${label}'s numbers here are rolling multi-day totals, not real-time — not enough variation hour-to-hour for a "best time" read.</div>`;
+  const pagesPart = t.topRecurringPages ? `<div class="sdiv-label" style="margin-top:6px;">Recurring top performers</div>
+    ${(t.topRecurringPages || []).map(p => `<div style="display:flex;justify-content:space-between;gap:10px;padding:5px 0;border-bottom:1px solid var(--border);font-size:12px;">
+        <span style="flex:1;">${p.title || p.path}</span>
+        <span style="color:var(--text3);white-space:nowrap;">${p.totalVisits} readers across ${p.appearances} snapshots</span>
+      </div>`).join('') || '<div style="font-size:12px;color:var(--text3);padding:6px 0;">Not enough repeat activity yet.</div>'}` : '';
+  return `<div style="margin-bottom:14px;"><div class="sdiv-label">${label}</div>${timePart}${pagesPart}
+    <div style="font-size:11px;color:var(--text3);margin-top:6px;">Based on ${t.count} snapshots over ${t.windowDays} days.</div></div>`;
+}
+
 async function loadAnalyticsTrends() {
   const c = document.getElementById('analyticsTrends');
   if (!c) return;
@@ -1965,25 +2005,56 @@ async function loadAnalyticsTrends() {
     const r = await IMSAuth.authFetch('/api/analytics-trends');
     const d = await r.json();
     if (d.error) { c.innerHTML = `<div class="empty" style="padding:14px;">Trends — ${d.error}</div>`; return; }
-    if (!d.enough) {
-      c.innerHTML = `<div class="empty" style="padding:14px;">Building trend data — ${d.count} of ${d.needed} snapshots collected so far. Check back in a day or two.</div>`;
+    if (!d.bySource || !d.bySource.length) {
+      c.innerHTML = '<div class="empty" style="padding:14px;">Connect a source above to see trends here.</div>';
       return;
     }
-    const HOUR_LABELS = ['12am','1am','2am','3am','4am','5am','6am','7am','8am','9am','10am','11am','12pm','1pm','2pm','3pm','4pm','5pm','6pm','7pm','8pm','9pm','10pm','11pm'];
-    const pagesRows = (d.topRecurringPages || []).map(p => `<div style="display:flex;justify-content:space-between;gap:10px;padding:5px 0;border-bottom:1px solid var(--border);font-size:12px;">
-        <span style="flex:1;">${p.title || p.path}</span>
-        <span style="color:var(--text3);white-space:nowrap;">${p.totalVisits} readers across ${p.appearances} snapshots</span>
-      </div>`).join('') || '<div style="font-size:12px;color:var(--text3);padding:6px 0;">Not enough repeat activity yet.</div>';
-    c.innerHTML = `<div style="display:flex;gap:20px;flex-wrap:wrap;margin-bottom:12px;">
-        ${d.bestHour ? `<div><div style="font-size:11px;color:var(--text3);">Best hour to publish</div><strong style="font-size:16px;">${HOUR_LABELS[d.bestHour.hour]}</strong></div>` : ''}
-        ${d.bestDay ? `<div><div style="font-size:11px;color:var(--text3);">Best day</div><strong style="font-size:16px;">${d.bestDay.day}</strong></div>` : ''}
-      </div>
-      <div class="sdiv-label">Recurring top performers (last ${d.windowDays} days)</div>
-      ${pagesRows}
-      <div style="font-size:11px;color:var(--text3);margin-top:8px;">Based on ${d.count} snapshots.</div>`;
+    c.innerHTML = d.bySource.map(renderTrendSection).join('');
   } catch (e) {
     c.innerHTML = `<div class="empty" style="padding:14px;">Couldn't load trends — ${e.message}</div>`;
   }
+}
+
+function loadQuestionBox() {
+  const sel = document.getElementById('analyticsQuestionScope');
+  if (!sel) return;
+  const connectedKeys = Object.keys(analyticsConnected).filter(k => SOURCE_LABELS[k]);
+  if (!connectedKeys.length) {
+    sel.innerHTML = '<div style="font-size:12px;color:var(--text3);">Connect a source above first.</div>';
+    document.getElementById('analyticsQuestionInput').disabled = true;
+    return;
+  }
+  document.getElementById('analyticsQuestionInput').disabled = false;
+  const options = (connectedKeys.length > 1 ? [`<option value="all">All connected sources</option>`] : [])
+    .concat(connectedKeys.map(k => `<option value="${k}">${SOURCE_LABELS[k]}</option>`));
+  sel.innerHTML = `<select id="analyticsQuestionSourceSel" style="font-size:12px;padding:5px 8px;border:1px solid var(--border);border-radius:6px;">${options.join('')}</select>`;
+}
+
+async function askAnalyticsQuestion() {
+  const inp = document.getElementById('analyticsQuestionInput');
+  const q = (inp.value || '').trim();
+  if (!q) return;
+  const ans = document.getElementById('analyticsQuestionAnswer');
+  const sourceSel = document.getElementById('analyticsQuestionSourceSel');
+  const source = sourceSel ? sourceSel.value : 'all';
+  inp.disabled = true;
+  ans.innerHTML = '<div class="empty" style="padding:10px;"><i class="ti ti-loader spin"></i>Thinking…</div>';
+  try {
+    const r = await IMSAuth.authFetch('/api/analytics-question', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ source, question: q })
+    });
+    const d = await r.json();
+    if (d.error) { ans.innerHTML = `<div class="empty" style="padding:10px;color:var(--red);">${d.error}</div>`; }
+    else {
+      const used = (d.sourcesUsed || []).map(s => SOURCE_LABELS[s] || s).join(', ');
+      ans.innerHTML = `<div style="padding:10px;background:#f1efe9;border-radius:8px;font-size:13px;line-height:1.5;">${d.answer}</div>` +
+        (used ? `<div style="font-size:11px;color:var(--text3);margin-top:4px;">Based on: ${used}</div>` : '');
+    }
+  } catch (e) {
+    ans.innerHTML = `<div class="empty" style="padding:10px;color:var(--red);">Couldn't get an answer — ${e.message}</div>`;
+  }
+  inp.disabled = false;
 }
 
 async function refreshChartbeatInsights() {
@@ -1993,14 +2064,25 @@ async function refreshChartbeatInsights() {
     const r = await IMSAuth.authFetch('/api/chartbeat');
     const d = await r.json();
     if (d.error) { c.innerHTML = `<div class="empty" style="padding:14px;">Chartbeat — ${d.error}</div>`; return; }
-    const rows = (d.pages || []).map(p => `<div style="display:flex;justify-content:space-between;gap:10px;padding:5px 0;border-bottom:1px solid var(--border);font-size:12px;">
-        <span style="flex:1;">${p.title || p.path}</span>
-        <span style="color:var(--text3);white-space:nowrap;">${p.visits} reading now</span>
-      </div>`).join('') || '<div style="font-size:12px;color:var(--text3);padding:6px 0;">No pages with live readers right now.</div>';
-    c.innerHTML = `<div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:10px;">
+    const rows = (d.pages || []).map(p => {
+      const extraBits = Object.keys(p.extra || {}).map(k => `${k}: ${p.extra[k]}`).join(' · ');
+      return `<div style="padding:5px 0;border-bottom:1px solid var(--border);font-size:12px;">
+        <div style="display:flex;justify-content:space-between;gap:10px;">
+          <span style="flex:1;">${p.title || p.path}</span>
+          <span style="color:var(--text3);white-space:nowrap;">${p.visits} reading now</span>
+        </div>
+        ${extraBits ? `<div style="color:var(--text3);font-size:11px;margin-top:2px;">${extraBits}</div>` : ''}
+      </div>`;
+    }).join('') || '<div style="font-size:12px;color:var(--text3);padding:6px 0;">No pages with live readers right now.</div>';
+    const otherMetrics = Object.keys(d.metrics || {}).filter(k => !['visits','host'].includes(k));
+    const metricsRow = otherMetrics.length
+      ? `<div style="display:flex;gap:16px;flex-wrap:wrap;margin:8px 0 10px;">${otherMetrics.map(k => `<div><div style="font-size:10px;color:var(--text3);">${k}</div><strong style="font-size:13px;">${d.metrics[k]}</strong></div>`).join('')}</div>`
+      : '';
+    c.innerHTML = `<div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:2px;">
         <div><strong style="font-size:20px;">${d.visits}</strong> <span style="font-size:12px;color:var(--text3);">reading right now on ${d.host}</span></div>
         <button class="chip" onclick="refreshChartbeatInsights()">Refresh</button>
       </div>
+      ${metricsRow}
       <div class="sdiv-label">Top pages right now</div>
       ${rows}
       ${(d.warnings && d.warnings.length) ? `<div style="font-size:11px;color:var(--text3);margin-top:8px;">${d.warnings.join(' · ')}</div>` : ''}`;

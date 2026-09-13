@@ -31,6 +31,7 @@ module.exports = async function handler(req, res) {
       host: conn.host,
       visits: live.visits,
       pages: live.pages,
+      metrics: live.metrics,
       fetchedAt: new Date().toISOString(),
       warnings: live.warnings
     });
