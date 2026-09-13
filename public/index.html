@@ -632,6 +632,12 @@ body { padding-bottom: 40px; }
       Planned: real-time alerts when a story takes off or dies · weekly "what's working" read (publish windows, topics, headline styles, slipping evergreens) · per-writer views &amp; engaged time by story type · proactive nudges · a question box.
     </div>
   </div>
+
+  <div class="settings-card">
+    <h3><i class="ti ti-trending-up"></i> Trends</h3>
+    <div style="font-size:12px;color:var(--text3);margin-bottom:12px;line-height:1.5;">Patterns from a running history of snapshots, captured every few hours — takes a day or two to build up enough data. Chartbeat only for now; Parse.ly/GA4/Meta feed the same view once connected.</div>
+    <div id="analyticsTrends"></div>
+  </div>
 </div>
 
 <!-- ROSTER WATCH TAB -->
@@ -1890,10 +1896,41 @@ function loadAnalyticsInsights() {
   if (!c) return;
   if (!analyticsConnected.chartbeat) {
     c.innerHTML = '<div class="empty" style="padding:20px;">Connect at least one source above to see insights here.</div>';
+    document.getElementById('analyticsTrends').innerHTML = '';
     return;
   }
   c.innerHTML = '<div class="empty" style="padding:14px;"><i class="ti ti-loader spin"></i>Loading Chartbeat…</div>';
   refreshChartbeatInsights();
+  loadAnalyticsTrends();
+}
+
+async function loadAnalyticsTrends() {
+  const c = document.getElementById('analyticsTrends');
+  if (!c) return;
+  c.innerHTML = '<div class="empty" style="padding:14px;"><i class="ti ti-loader spin"></i>Loading trends…</div>';
+  try {
+    const r = await IMSAuth.authFetch('/api/analytics-trends');
+    const d = await r.json();
+    if (d.error) { c.innerHTML = `<div class="empty" style="padding:14px;">Trends — ${d.error}</div>`; return; }
+    if (!d.enough) {
+      c.innerHTML = `<div class="empty" style="padding:14px;">Building trend data — ${d.count} of ${d.needed} snapshots collected so far. Check back in a day or two.</div>`;
+      return;
+    }
+    const HOUR_LABELS = ['12am','1am','2am','3am','4am','5am','6am','7am','8am','9am','10am','11am','12pm','1pm','2pm','3pm','4pm','5pm','6pm','7pm','8pm','9pm','10pm','11pm'];
+    const pagesRows = (d.topRecurringPages || []).map(p => `<div style="display:flex;justify-content:space-between;gap:10px;padding:5px 0;border-bottom:1px solid var(--border);font-size:12px;">
+        <span style="flex:1;">${p.title || p.path}</span>
+        <span style="color:var(--text3);white-space:nowrap;">${p.totalVisits} readers across ${p.appearances} snapshots</span>
+      </div>`).join('') || '<div style="font-size:12px;color:var(--text3);padding:6px 0;">Not enough repeat activity yet.</div>';
+    c.innerHTML = `<div style="display:flex;gap:20px;flex-wrap:wrap;margin-bottom:12px;">
+        ${d.bestHour ? `<div><div style="font-size:11px;color:var(--text3);">Best hour to publish</div><strong style="font-size:16px;">${HOUR_LABELS[d.bestHour.hour]}</strong></div>` : ''}
+        ${d.bestDay ? `<div><div style="font-size:11px;color:var(--text3);">Best day</div><strong style="font-size:16px;">${d.bestDay.day}</strong></div>` : ''}
+      </div>
+      <div class="sdiv-label">Recurring top performers (last ${d.windowDays} days)</div>
+      ${pagesRows}
+      <div style="font-size:11px;color:var(--text3);margin-top:8px;">Based on ${d.count} snapshots.</div>`;
+  } catch (e) {
+    c.innerHTML = `<div class="empty" style="padding:14px;">Couldn't load trends — ${e.message}</div>`;
+  }
 }
 
 async function refreshChartbeatInsights() {

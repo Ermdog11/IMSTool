@@ -152,6 +152,22 @@ create table if not exists public.analytics_connections (
 );
 create index if not exists analytics_connections_site_idx on public.analytics_connections (site_id);
 
+-- Audience analytics snapshots ---------------------------------------------
+-- Point-in-time captures of each connected source's key metrics, taken on a
+-- cron (api/analytics-snapshot.js). A single "right now" reading (what
+-- api/chartbeat.js shows live) can't answer "what's our best time to
+-- publish" — that needs a time series, which is what this table piles up
+-- into. Source-agnostic (metrics shape is source-specific) so Parse.ly/GA4/
+-- Meta slot into the same trend computation once they're connected.
+create table if not exists public.analytics_snapshots (
+  id            uuid primary key default gen_random_uuid(),
+  site_id       uuid not null references public.sites(id) on delete cascade,
+  source        text not null,
+  captured_at   timestamptz not null default now(),
+  metrics       jsonb not null default '{}'::jsonb
+);
+create index if not exists analytics_snapshots_site_source_idx on public.analytics_snapshots (site_id, source, captured_at);
+
 -- Scrape sessions -----------------------------------------------------------
 -- A publisher's own logged-in session cookie for a paywalled outlet (247Sports
 -- today), so api/_publish-match.js can read full article bodies instead of
@@ -203,6 +219,7 @@ alter table public.alert_prefs    enable row level security;
 alter table public.content_items  enable row level security;
 alter table public.roster_events  enable row level security;
 alter table public.analytics_connections enable row level security;
+alter table public.analytics_snapshots enable row level security;
 alter table public.content_revisions enable row level security;
 alter table public.scrape_sessions enable row level security;
 
@@ -264,6 +281,11 @@ create policy "publisher manages analytics connections" on public.analytics_conn
 
 drop policy if exists "member reads content revisions" on public.content_revisions;
 create policy "member reads content revisions" on public.content_revisions
+  for select using (public.is_member(site_id));
+
+-- No insert/update policy — only the cron's service-role client writes here.
+drop policy if exists "member reads analytics snapshots" on public.analytics_snapshots;
+create policy "member reads analytics snapshots" on public.analytics_snapshots
   for select using (public.is_member(site_id));
 
 -- No select policy at all on scrape_sessions, intentionally — the app only
