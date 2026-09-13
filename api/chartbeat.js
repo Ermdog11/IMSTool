@@ -71,19 +71,34 @@ module.exports = async function handler(req, res) {
 
     var quick = quickRes.status === 'fulfilled' ? quickRes.value : {};
     var pagesData = pagesRes.status === 'fulfilled' ? pagesRes.value : {};
+    var pages = pickTopPages(pagesData);
 
-    var visits = (typeof quick.visits === 'number' ? quick.visits : null)
-      || (quick.data && quick.data.visits) || 0;
+    // Chartbeat's quickstats "current site-wide concurrents" field name isn't
+    // pinned down from a live response yet. If none of the known names match,
+    // fall back to summing the (already-verified-working) per-page counts
+    // rather than showing a misleading 0, and flag it so the real field name
+    // can be added here once seen.
+    var visits = null;
+    if (typeof quick.visits === 'number') visits = quick.visits;
+    else if (quick.data && typeof quick.data.visits === 'number') visits = quick.data.visits;
+    else if (typeof quick.people === 'number') visits = quick.people;
+    else if (typeof quick.concurrents === 'number') visits = quick.concurrents;
+
+    var warnings = [
+      quickRes.status === 'rejected' ? 'quickstats: ' + quickRes.reason.message : null,
+      pagesRes.status === 'rejected' ? 'toppages: ' + pagesRes.reason.message : null
+    ];
+    if (visits === null && quickRes.status === 'fulfilled') {
+      visits = pages.reduce(function(sum, p) { return sum + (p.visits || 0); }, 0);
+      warnings.push('quickstats: unrecognized shape (keys: ' + Object.keys(quick).join(', ') + '), using sum of top pages as an estimate');
+    }
 
     return res.status(200).json({
       host: conn.host,
-      visits: visits,
-      pages: pickTopPages(pagesData),
+      visits: visits || 0,
+      pages: pages,
       fetchedAt: new Date().toISOString(),
-      warnings: [
-        quickRes.status === 'rejected' ? 'quickstats: ' + quickRes.reason.message : null,
-        pagesRes.status === 'rejected' ? 'toppages: ' + pagesRes.reason.message : null
-      ].filter(Boolean)
+      warnings: warnings.filter(Boolean)
     });
   } catch (e) {
     return res.status(500).json({ error: e.message });
