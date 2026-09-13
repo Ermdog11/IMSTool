@@ -92,6 +92,7 @@ button.btn:disabled{opacity:.6;cursor:default}
           <select id="ed-mode" onchange="updateModeHint()">
             <option value="edit">Full edit — rewrite in house style</option>
             <option value="keep">Keep my words — review only</option>
+            <option value="links">Hotlinks only — insert links, don't edit</option>
           </select>
         </div>
         <div style="flex:1;min-width:160px">
@@ -380,6 +381,9 @@ function updateModeHint(){
   if(m==='keep'){
     el.innerHTML='The writer’s words are returned <b>unchanged</b> (only obvious typos fixed). You still get headline options, questions to resolve, suggested context, and related links to add — as suggestions, nothing is inserted.';
     if(btn) btn.textContent='Review draft';
+  } else if(m==='links'){
+    el.innerHTML='The writer’s words are returned <b>unchanged</b> — no rewriting, no added context. The only change made is inserting hotlinks to related InsideMDSports coverage directly into the text.';
+    if(btn) btn.textContent='Add hotlinks';
   } else {
     el.innerHTML='The draft comes back rewritten in house style and the selected writer’s voice, with context added ([VERIFY]-flagged) and related links inserted.';
     if(btn) btn.textContent='Edit draft';
@@ -409,7 +413,7 @@ async function runEdit(){
     var elapsed=(Date.now()-start)/1000;
     var pct=Math.round(90*(1-Math.exp(-elapsed/estSeconds)));
     bar.style.width=pct+'%';
-    btn.innerHTML='<span class="spin"></span>'+(mode==='keep'?'Reviewing…':'Editing…')+' '+pct+'%';
+    btn.innerHTML='<span class="spin"></span>'+(mode==='keep'?'Reviewing…':mode==='links'?'Adding hotlinks…':'Editing…')+' '+pct+'%';
   },300);
 
   try{
@@ -427,7 +431,7 @@ async function runEdit(){
     }
   }catch(e){clearInterval(timer);document.getElementById('ed-status').textContent='Failed: '+e.message;}
   setTimeout(function(){wrap.style.display='none';bar.style.width='0%';},400);
-  btn.disabled=false;btn.textContent=mode==='keep'?'Review draft':'Edit draft';
+  btn.disabled=false;btn.textContent=mode==='keep'?'Review draft':mode==='links'?'Add hotlinks':'Edit draft';
 }
 
 function editAgain(){
@@ -441,7 +445,7 @@ function editAgain(){
 
 function renderEdit(d){
   var h='<div style="display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:10px;flex-wrap:wrap;">'+
-    '<div style="font-size:13px;color:var(--muted)">'+(d.mode==='keep'?'Reviewed':'Edited')+' &mdash; result below, original draft at the bottom</div>'+
+    '<div style="font-size:13px;color:var(--muted)">'+(d.mode==='keep'?'Reviewed':d.mode==='links'?'Hotlinks added':'Edited')+' &mdash; result below, original draft at the bottom</div>'+
     '<button class="btn ghost" onclick="editAgain()">&larr; Edit the draft again</button></div>';
   var heds = d.headlines || (d.headline ? [{label:'',text:d.headline}].concat((d.altHeadlines||[]).map(function(x){return {label:'',text:x};})) : []);
   if(heds.length){

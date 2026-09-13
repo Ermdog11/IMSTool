@@ -4,6 +4,8 @@
 //
 // mode 'edit' (default): full rewrite in house style + voice, links inserted.
 // mode 'keep':           prose returned verbatim; everything else comes back as suggestions.
+// mode 'links':          prose returned verbatim, like 'keep' — but hotlinks ARE inserted directly
+//                         (nothing else is: no added context, no rewriting).
 //
 // Output is collected via a forced tool call (structured output) rather than asking the
 // model to emit raw JSON in text — the article body is quote- and newline-heavy and the
@@ -204,7 +206,7 @@ module.exports = async function handler(req, res) {
   var headlineInstruction = wantHeadline
     ? '- "headlines": ' + HL_STYLES[headlineStyle] + ' Every one publishable, accurate, in house style, and under ~90 characters. They must be genuinely different from each other, not the same headline reworded. Set each item\'s "label" to a 1-3 word tag for that option.\n'
     : '- Leave "headlines" empty.\n';
-  var mode = body.mode === 'keep' ? 'keep' : 'edit';
+  var mode = (body.mode === 'keep' || body.mode === 'links') ? body.mode : 'edit';
 
   var related = await relatedArticleIndex();
   var relatedList = related.map(function (r, i) { return (i + 1) + '. ' + r.headline + '  ->  ' + r.url; }).join('\n');
@@ -223,7 +225,18 @@ module.exports = async function handler(req, res) {
     : '- Insert Markdown links to related InsideMDSports articles from the list below. Aim for 2-4 links unless the list genuinely has nothing connected to this story (a recruiting story links to other recruiting coverage; a game story to the preview or a player feature; a coaching story to earlier staff news). Attach each link to a real phrase, do not link the same article twice, and do not invent URLs — use only the list. Leave relatedSuggestions empty.\n';
 
   var user;
-  if (mode === 'keep') {
+  if (mode === 'links') {
+    user =
+      'The writer wants their copy left completely ALONE — the ONLY change you make is inserting internal hotlinks. Do NOT rewrite, tighten, restructure, or add context. Call the submit_copyedit tool with:\n' +
+      '- "edited": the writer\'s draft returned essentially verbatim, as Markdown, with hotlinks inserted per the rule below. ONLY unambiguous typo / misspelling / obvious punctuation-slip fixes are otherwise allowed. No style changes, no restructuring, no word swaps, no tightening, no added or removed sentences, no added context.\n' +
+      '- Do NOT invent quotes, statistics, dates, scores, or outcomes.\n' +
+      '- TRUST THE WRITER ON FACTS by default — a professional beat reporter.\n' +
+      factsRule + linkRule +
+      '- "notes": leave empty — nothing was edited besides hotlinks.\n' +
+      '- "addedContext": leave empty — nothing was added.\n' +
+      headlineInstruction +
+      '\nRELATED ARTICLES:\n' + (relatedList || '(none available this run)') + '\n\nDRAFT:\n' + draft;
+  } else if (mode === 'keep') {
     user =
       'The writer wants their copy left ALONE. Do NOT rewrite it. Review it and return suggestions they can choose to apply. Call the submit_copyedit tool with:\n' +
       '- "edited": the writer\'s draft returned essentially verbatim, as Markdown. ONLY unambiguous typo / misspelling / obvious punctuation-slip fixes are allowed. No style changes, no restructuring, no word swaps, no tightening, no added or removed sentences.\n' +
