@@ -16,7 +16,11 @@ var HotState = require('./_hot-story');
 var Mailer = require('./_mailer');
 var Push = require('./_push');
 
-var HOT_THRESHOLD = parseInt(process.env.HOT_STORY_THRESHOLD || '5', 10);
+// Jeff (2026-09-13): the old default of 5 flooded him with "hot" alerts for
+// stories that only had single-digit readers. Raised well past that; still
+// tunable via HOT_STORY_THRESHOLD in Vercel without a code change if this
+// number turns out wrong for how much traffic this site actually gets.
+var HOT_THRESHOLD = parseInt(process.env.HOT_STORY_THRESHOLD || '30', 10);
 var COOLDOWN_MS = 3 * 60 * 60 * 1000; // don't re-alert the same story for 3h
 
 function pageUrl(path, host) {
