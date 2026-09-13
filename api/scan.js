@@ -23,7 +23,8 @@ module.exports = async function handler(req, res) {
   // Monday morning. News older than this is dropped before rating. Overridable
   // via body.hours for one-off checks (e.g. "how many 4-star stories in the
   // last 72h") without changing the standing window every other caller gets.
-  var windowHours = (body.hours && body.hours > 0) ? body.hours : 66;
+  var hoursOverride = body.hours || (req.query && req.query.hours);
+  var windowHours = (hoursOverride && Number(hoursOverride) > 0) ? Number(hoursOverride) : 66;
   var cutoff = Date.now() - windowHours * 60 * 60 * 1000;
   var googleCutoff = Date.now() - windowHours * 60 * 60 * 1000;
   // Our own outlet is the 247Sports Maryland team site (InsideMDSports). Google News
