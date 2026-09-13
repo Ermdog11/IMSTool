@@ -640,7 +640,7 @@ body { padding-bottom: 40px; }
       <div class="empty" style="padding:20px;">Connect at least one source above to see insights here.</div>
     </div>
     <div style="font-size:11px;color:var(--text3);margin-top:8px;line-height:1.6;">
-      Planned: real-time alerts when a story takes off or dies · per-writer views &amp; engaged time by story type · proactive nudges.
+      Real-time "story going hot" alerts are on — manage who gets them in Settings → Team &amp; alerts. Planned: per-writer views &amp; engaged time by story type · proactive nudges.
     </div>
   </div>
 
@@ -2087,7 +2087,9 @@ async function refreshChartbeatInsights() {
     const r = await IMSAuth.authFetch('/api/chartbeat');
     const d = await r.json();
     if (d.error) { c.innerHTML = `<div class="empty" style="padding:14px;">Chartbeat — ${d.error}</div>`; return; }
-    const rows = (d.pages || []).map(p => {
+    const allPages = d.pages || [];
+    const topPages = allPages.slice(0, 3);
+    const rows = topPages.map(p => {
       const extraBits = Object.keys(p.extra || {}).map(k => `${k}: ${p.extra[k]}`).join(' · ');
       return `<div style="padding:5px 0;border-bottom:1px solid var(--border);font-size:12px;">
         <div style="display:flex;justify-content:space-between;gap:10px;">
@@ -2097,6 +2099,8 @@ async function refreshChartbeatInsights() {
         ${extraBits ? `<div style="color:var(--text3);font-size:11px;margin-top:2px;">${extraBits}</div>` : ''}
       </div>`;
     }).join('') || '<div style="font-size:12px;color:var(--text3);padding:6px 0;">No pages with live readers right now.</div>';
+    const morePages = allPages.length > 3
+      ? `<div style="font-size:11px;color:var(--text3);padding:4px 0;">+${allPages.length - 3} more page${allPages.length - 3 === 1 ? '' : 's'} with live readers right now.</div>` : '';
     const otherMetrics = Object.keys(d.metrics || {}).filter(k => !['visits','host'].includes(k));
     const metricsRow = otherMetrics.length
       ? `<div style="display:flex;gap:16px;flex-wrap:wrap;margin:8px 0 10px;">${otherMetrics.map(k => `<div><div style="font-size:10px;color:var(--text3);">${k}</div><strong style="font-size:13px;">${d.metrics[k]}</strong></div>`).join('')}</div>`
@@ -2106,8 +2110,9 @@ async function refreshChartbeatInsights() {
         <button class="chip" onclick="refreshChartbeatInsights()">Refresh</button>
       </div>
       ${metricsRow}
-      <div class="sdiv-label">Top pages right now</div>
+      <div class="sdiv-label">Top 3 pages right now</div>
       ${rows}
+      ${morePages}
       ${(d.warnings && d.warnings.length) ? `<div style="font-size:11px;color:var(--text3);margin-top:8px;">${d.warnings.join(' · ')}</div>` : ''}`;
   } catch (e) {
     c.innerHTML = `<div class="empty" style="padding:14px;">Couldn't load Chartbeat — ${e.message}</div>`;

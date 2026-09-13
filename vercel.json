@@ -76,6 +76,9 @@
     },
     "api/dev-digest.js": {
       "maxDuration": 60
+    },
+    "api/hot-story-check.js": {
+      "maxDuration": 30
     }
   },
   "rewrites": [
@@ -127,6 +130,10 @@
     {
       "path": "/api/analytics-snapshot",
       "schedule": "0 */3 * * *"
+    },
+    {
+      "path": "/api/hot-story-check",
+      "schedule": "*/15 * * * *"
     }
   ]
 }
