@@ -1,3 +1,5 @@
+var Bluesky = require('./_bluesky');
+
 module.exports = async function handler(req, res) {
   // Bluesky public search API — free, no auth required
   var cutoff = Date.now() - 72 * 60 * 60 * 1000;
@@ -53,23 +55,12 @@ module.exports = async function handler(req, res) {
     var debug = [];
 
     // Bluesky blocks unauthenticated requests from datacenter IPs — authenticate with app password
-    var identifier = process.env.BSKY_IDENTIFIER;
-    var appPassword = process.env.BSKY_APP_PASSWORD;
-    if (!identifier || !appPassword) {
+    if (!Bluesky.isConfigured()) {
       return res.status(200).json({ posts: [], error: 'Bluesky login not configured — add BSKY_IDENTIFIER and BSKY_APP_PASSWORD in Vercel' });
     }
-
-    var sessionRes = await fetch('https://bsky.social/xrpc/com.atproto.server.createSession', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ identifier: identifier, password: appPassword })
-    });
-    if (!sessionRes.ok) {
-      var errText = await sessionRes.text();
-      return res.status(200).json({ posts: [], error: 'Bluesky login failed (' + sessionRes.status + '): ' + errText.substring(0, 150) });
-    }
-    var session = await sessionRes.json();
-    var token = session.accessJwt;
+    var token;
+    try { token = (await Bluesky.createSession()).token; }
+    catch (e) { return res.status(200).json({ posts: [], error: e.message }); }
 
     var allQueries = queries.concat(beatHandles.map(function(h) {
       return { q: 'from:' + h + ' Maryland OR Terps OR Terrapins', requireContext: false };

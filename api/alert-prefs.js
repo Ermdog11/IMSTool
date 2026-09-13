@@ -14,7 +14,8 @@ var ALERT_TYPES = [
   { key: 'article_started', label: 'A writer starts an article',     defaultOn: 'publisher' },
   { key: 'digest_nightly',  label: 'Nightly digest (8 PM)',          defaultOn: 'all' },
   { key: 'digest_rolling',  label: 'Rolling updates (3×/day)',       defaultOn: 'all' },
-  { key: 'roster_change',   label: 'Roster changes',                 defaultOn: 'all' }
+  { key: 'roster_change',   label: 'Roster changes',                 defaultOn: 'all' },
+  { key: 'hot_story',       label: 'A story goes hot (real-time spike)', defaultOn: 'all' }
 ];
 var VALID = ALERT_TYPES.map(function (t) { return t.key; });
 

@@ -468,6 +468,17 @@ body { padding-bottom: 40px; }
     <button class="pill" id="scrapeSessionBtn" onclick="scrapeSessionAction()">Connect</button>
   </div>
 
+  <div class="settings-card" id="socialPromoCardWrap" hidden>
+    <h3><i class="ti ti-rocket"></i> Bluesky promo bot</h3>
+    <div style="font-size:12px;color:var(--text3);margin-bottom:10px;line-height:1.5;">
+      When one of our own Bluesky posts takes off, this replies under it with a short, on-brand call-to-action — never under anyone else's posts. Off by default; a still-hot post only ever gets one reply.
+    </div>
+    <div id="socialPromoStatus" style="font-size:11px;color:var(--text3);margin-bottom:8px;">Loading…</div>
+    <label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer;">
+      <input type="checkbox" id="socialPromoToggle" onchange="setSocialPromo(this.checked)"> Enabled
+    </label>
+  </div>
+
   <div class="settings-card" id="excludeCard">
     <h3><i class="ti ti-ban"></i> Excluded sources</h3>
 
@@ -618,6 +629,17 @@ body { padding-bottom: 40px; }
   </div>
 
   <div class="settings-card">
+    <h3><i class="ti ti-message-circle-question"></i> Ask about your audience</h3>
+    <div style="font-size:12px;color:var(--text3);margin-bottom:12px;line-height:1.5;">Answered strictly from your connected sources' real numbers — not general knowledge. Try "what's been working best this week?" or "when should I publish?"</div>
+    <div id="analyticsQuestionScope" style="margin-bottom:8px;"></div>
+    <div style="display:flex;gap:6px;margin-bottom:8px;">
+      <input id="analyticsQuestionInput" placeholder="Ask a question about your audience…" style="flex:1;font-size:13px;padding:8px 10px;border:1px solid var(--border);border-radius:6px" onkeydown="if(event.key==='Enter')askAnalyticsQuestion()">
+      <button class="chip" onclick="askAnalyticsQuestion()">Ask</button>
+    </div>
+    <div id="analyticsQuestionAnswer"></div>
+  </div>
+
+  <div class="settings-card">
     <h3><i class="ti ti-plug"></i> Connections</h3>
     <div style="font-size:12px;color:var(--text3);margin-bottom:12px;line-height:1.5;">Each connection needs a one-time setup (an app registration with that provider). Nothing is connected yet.</div>
     <div id="analyticsConnections"></div>
@@ -629,7 +651,7 @@ body { padding-bottom: 40px; }
       <div class="empty" style="padding:20px;">Connect at least one source above to see insights here.</div>
     </div>
     <div style="font-size:11px;color:var(--text3);margin-top:8px;line-height:1.6;">
-      Planned: real-time alerts when a story takes off or dies · weekly "what's working" read (publish windows, topics, headline styles, slipping evergreens) · per-writer views &amp; engaged time by story type · proactive nudges · a question box.
+      Real-time "story going hot" alerts are on — manage who gets them in Settings → Team &amp; alerts. Planned: per-writer views &amp; engaged time by story type · proactive nudges.
     </div>
   </div>
 
@@ -645,16 +667,6 @@ body { padding-bottom: 40px; }
     <div id="analyticsTrends"></div>
   </div>
 
-  <div class="settings-card">
-    <h3><i class="ti ti-message-circle-question"></i> Ask about your audience</h3>
-    <div style="font-size:12px;color:var(--text3);margin-bottom:12px;line-height:1.5;">Answered strictly from your connected sources' real numbers — not general knowledge. Try "what's been working best this week?" or "when should I publish?"</div>
-    <div id="analyticsQuestionScope" style="margin-bottom:8px;"></div>
-    <div style="display:flex;gap:6px;margin-bottom:8px;">
-      <input id="analyticsQuestionInput" placeholder="Ask a question about your audience…" style="flex:1;font-size:13px;padding:8px 10px;border:1px solid var(--border);border-radius:6px" onkeydown="if(event.key==='Enter')askAnalyticsQuestion()">
-      <button class="chip" onclick="askAnalyticsQuestion()">Ask</button>
-    </div>
-    <div id="analyticsQuestionAnswer"></div>
-  </div>
 </div>
 
 <!-- ROSTER WATCH TAB -->
@@ -698,6 +710,8 @@ body { padding-bottom: 40px; }
       if (t) t.hidden = false;
       var ss = document.getElementById('scrapeSessionCardWrap');
       if (ss) ss.hidden = false;
+      var sp = document.getElementById('socialPromoCardWrap');
+      if (sp) sp.hidden = false;
     }
     if (s && s.preview) {
       var bar = document.createElement('div');
@@ -749,7 +763,7 @@ function switchTab(idx, fromPop) {
   if (idx === 7) loadPodcasts();
   if (idx === 8) loadYouTube();
   if (idx === 9) loadBluesky();
-  if (idx === 10) { renderBlockedSources(); renderOwnSites(); refreshPushStatus(); loadTeam(); loadScrapeSessionStatus(); }
+  if (idx === 10) { renderBlockedSources(); renderOwnSites(); refreshPushStatus(); loadTeam(); loadScrapeSessionStatus(); loadSocialPromoStatus(); }
   if (idx === 11) renderAnalyticsConnections();
   if (idx === 12) loadRosterWatch();
   window.scrollTo(0, 0);
@@ -1742,6 +1756,40 @@ async function scrapeSessionAction() {
   } catch (e) { alert(e.message); }
 }
 
+async function loadSocialPromoStatus() {
+  const wrap = document.getElementById('socialPromoCardWrap');
+  if (!wrap || wrap.hidden || !window.IMSAuth) return;
+  const s = document.getElementById('socialPromoStatus');
+  const toggle = document.getElementById('socialPromoToggle');
+  try {
+    const r = await IMSAuth.authFetch('/api/social-promo-settings');
+    const d = await r.json();
+    if (!d.configured) {
+      s.textContent = 'Bluesky login not configured (BSKY_IDENTIFIER / BSKY_APP_PASSWORD) — tell Claude to finish setup.';
+      toggle.disabled = true;
+      return;
+    }
+    toggle.disabled = false;
+    toggle.checked = !!d.enabled;
+    s.textContent = d.enabled ? '● Running — checking every 30 minutes' : 'Off';
+    s.style.color = d.enabled ? '#15803d' : 'var(--text3)';
+  } catch (e) {
+    s.textContent = `Couldn't load status — ${e.message}`;
+  }
+}
+
+async function setSocialPromo(enabled) {
+  try {
+    const r = await IMSAuth.authFetch('/api/social-promo-settings', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ enabled })
+    });
+    const d = await r.json();
+    if (d.error) { alert(d.error); }
+  } catch (e) { alert(e.message); }
+  loadSocialPromoStatus();
+}
+
 function renderTeam(team, prefs) {
   const c = document.getElementById('teamContainer');
   const types = (prefs && prefs.types) || [];
@@ -2047,7 +2095,7 @@ function loadQuestionBox() {
     return;
   }
   document.getElementById('analyticsQuestionInput').disabled = false;
-  const options = (connectedKeys.length > 1 ? [`<option value="all">All connected sources</option>`] : [])
+  const options = [`<option value="all">Combined</option>`]
     .concat(connectedKeys.map(k => `<option value="${k}">${SOURCE_LABELS[k]}</option>`));
   sel.innerHTML = `<select id="analyticsQuestionSourceSel" style="font-size:12px;padding:5px 8px;border:1px solid var(--border);border-radius:6px;">${options.join('')}</select>`;
 }
@@ -2086,7 +2134,9 @@ async function refreshChartbeatInsights() {
     const r = await IMSAuth.authFetch('/api/chartbeat');
     const d = await r.json();
     if (d.error) { c.innerHTML = `<div class="empty" style="padding:14px;">Chartbeat — ${d.error}</div>`; return; }
-    const rows = (d.pages || []).map(p => {
+    const allPages = d.pages || [];
+    const topPages = allPages.slice(0, 3);
+    const rows = topPages.map(p => {
       const extraBits = Object.keys(p.extra || {}).map(k => `${k}: ${p.extra[k]}`).join(' · ');
       return `<div style="padding:5px 0;border-bottom:1px solid var(--border);font-size:12px;">
         <div style="display:flex;justify-content:space-between;gap:10px;">
@@ -2096,6 +2146,8 @@ async function refreshChartbeatInsights() {
         ${extraBits ? `<div style="color:var(--text3);font-size:11px;margin-top:2px;">${extraBits}</div>` : ''}
       </div>`;
     }).join('') || '<div style="font-size:12px;color:var(--text3);padding:6px 0;">No pages with live readers right now.</div>';
+    const morePages = allPages.length > 3
+      ? `<div style="font-size:11px;color:var(--text3);padding:4px 0;">+${allPages.length - 3} more page${allPages.length - 3 === 1 ? '' : 's'} with live readers right now.</div>` : '';
     const otherMetrics = Object.keys(d.metrics || {}).filter(k => !['visits','host'].includes(k));
     const metricsRow = otherMetrics.length
       ? `<div style="display:flex;gap:16px;flex-wrap:wrap;margin:8px 0 10px;">${otherMetrics.map(k => `<div><div style="font-size:10px;color:var(--text3);">${k}</div><strong style="font-size:13px;">${d.metrics[k]}</strong></div>`).join('')}</div>`
@@ -2105,8 +2157,9 @@ async function refreshChartbeatInsights() {
         <button class="chip" onclick="refreshChartbeatInsights()">Refresh</button>
       </div>
       ${metricsRow}
-      <div class="sdiv-label">Top pages right now</div>
+      <div class="sdiv-label">Top 3 pages right now</div>
       ${rows}
+      ${morePages}
       ${(d.warnings && d.warnings.length) ? `<div style="font-size:11px;color:var(--text3);margin-top:8px;">${d.warnings.join(' · ')}</div>` : ''}`;
   } catch (e) {
     c.innerHTML = `<div class="empty" style="padding:14px;">Couldn't load Chartbeat — ${e.message}</div>`;
