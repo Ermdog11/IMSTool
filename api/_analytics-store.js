@@ -8,7 +8,8 @@ var Crypto = require('./_crypto');
 // Per-source list of config keys that must be encrypted at rest.
 var SECRET_FIELDS = {
   chartbeat: ['apiKey'],
-  parsely: ['apiSecret']
+  parsely: ['apiSecret'],
+  meta: ['pageAccessToken']
 };
 
 function encryptFields(source, fields) {

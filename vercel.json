@@ -53,6 +53,15 @@
     "api/analytics-trends.js": {
       "maxDuration": 20
     },
+    "api/meta-oauth-start.js": {
+      "maxDuration": 20
+    },
+    "api/meta-oauth-callback.js": {
+      "maxDuration": 20
+    },
+    "api/facebook.js": {
+      "maxDuration": 20
+    },
     "api/publish-watch.js": {
       "maxDuration": 120
     },
