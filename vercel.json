@@ -6,7 +6,7 @@
       "maxDuration": 300
     },
     "api/copyedit.js": {
-      "maxDuration": 120
+      "maxDuration": 180
     },
     "api/style-profile.js": {
       "maxDuration": 120
