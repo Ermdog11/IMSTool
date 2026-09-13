@@ -48,13 +48,16 @@
       "maxDuration": 20
     },
     "api/analytics-snapshot.js": {
-      "maxDuration": 60
+      "maxDuration": 90
     },
     "api/analytics-trends.js": {
       "maxDuration": 20
     },
     "api/analytics-question.js": {
       "maxDuration": 30
+    },
+    "api/analytics-summary.js": {
+      "maxDuration": 20
     },
     "api/meta-oauth-start.js": {
       "maxDuration": 20

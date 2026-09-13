@@ -641,6 +641,7 @@ body { padding-bottom: 40px; }
   <div class="settings-card">
     <h3><i class="ti ti-trending-up"></i> Trends</h3>
     <div style="font-size:12px;color:var(--text3);margin-bottom:12px;line-height:1.5;">Patterns from a running history of snapshots, captured every few hours — takes a day or two to build up enough data per source. Parse.ly/GA4 feed the same view once connected.</div>
+    <div id="analyticsOverallSummary"></div>
     <div id="analyticsTrends"></div>
   </div>
 
@@ -1947,8 +1948,8 @@ function loadAnalyticsInsights() {
     if (analyticsConnected.meta) refreshFacebookInsights();
   }
 
-  if (anyConnected) loadAnalyticsTrends();
-  else document.getElementById('analyticsTrends').innerHTML = '';
+  if (anyConnected) { loadAnalyticsTrends(); loadAnalyticsSummary(); }
+  else { document.getElementById('analyticsTrends').innerHTML = ''; document.getElementById('analyticsOverallSummary').innerHTML = ''; }
 
   loadQuestionBox();
 }
@@ -2012,6 +2013,27 @@ async function loadAnalyticsTrends() {
     c.innerHTML = d.bySource.map(renderTrendSection).join('');
   } catch (e) {
     c.innerHTML = `<div class="empty" style="padding:14px;">Couldn't load trends — ${e.message}</div>`;
+  }
+}
+
+async function loadAnalyticsSummary() {
+  const c = document.getElementById('analyticsOverallSummary');
+  if (!c) return;
+  try {
+    const r = await IMSAuth.authFetch('/api/analytics-summary');
+    const d = await r.json();
+    if (d.error) { c.innerHTML = ''; return; }
+    if (!d.ready) {
+      c.innerHTML = '<div style="font-size:12px;color:var(--text3);padding:8px 0 12px;">Overall summary not generated yet — it builds on the same 3-hour cycle as the snapshots.</div>';
+      return;
+    }
+    const when = new Date(d.generatedAt).toLocaleString([], { weekday: 'short', hour: 'numeric', minute: '2-digit' });
+    c.innerHTML = `<div style="padding:10px 12px;background:#f1efe9;border-radius:8px;font-size:13px;line-height:1.5;margin-bottom:14px;">
+        <div style="font-size:11px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:.03em;margin-bottom:4px;">Overall — as of ${when}</div>
+        ${d.text}
+      </div>`;
+  } catch (e) {
+    c.innerHTML = '';
   }
 }
 

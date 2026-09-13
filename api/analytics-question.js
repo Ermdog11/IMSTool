@@ -1,45 +1,12 @@
 // /api/analytics-question — POST: the "question box" from FEATURES.md
 // ("what's been working best for us this month?") — answers from real
-// audience data, not general knowledge. Gathers whatever's actually
-// connected (a live reading + recent snapshot trends per source) and has
-// Claude answer strictly from that JSON, either scoped to one source or
-// across everything connected.
+// audience data, not general knowledge. Uses api/_analytics-context.js to
+// gather whatever's actually connected (a live reading + recent snapshot
+// trends per source) and has Claude answer strictly from that JSON, either
+// scoped to one source or across everything connected.
 
 var S = require('./_supabase');
-var Store = require('./_analytics-store');
-var Chartbeat = require('./_chartbeat');
-var Meta = require('./_meta');
-var Trends = require('./_trends');
-
-var LOOKBACK_DAYS = 30;
-var MIN_SNAPSHOTS = 8;   // matches api/analytics-trends.js's threshold
-
-async function trendsOrPending(sb, siteId, source) {
-  var since = new Date(Date.now() - LOOKBACK_DAYS * 24 * 60 * 60 * 1000).toISOString();
-  var snapshots = await Store.listSnapshots(sb, siteId, source, since);
-  if (snapshots.length < MIN_SNAPSHOTS) return { trendsPending: { count: snapshots.length, needed: MIN_SNAPSHOTS } };
-  return { trends: Trends.computeTrends(source, snapshots) };
-}
-
-async function chartbeatContext(sb, siteId) {
-  var conn = await Store.getConnection(sb, siteId, 'chartbeat');
-  if (!conn || !conn.apiKey || !conn.host) return null;
-  var out = { source: 'chartbeat', host: conn.host };
-  try { out.liveNow = await Chartbeat.fetchLive(conn.apiKey, conn.host); }
-  catch (e) { out.liveError = e.message; }
-  Object.assign(out, await trendsOrPending(sb, siteId, 'chartbeat'));
-  return out;
-}
-
-async function metaContext(sb, siteId) {
-  var conn = await Store.getConnection(sb, siteId, 'meta');
-  if (!conn || !conn.pageAccessToken || !conn.pageId) return null;
-  var out = { source: 'meta', pageName: conn.pageName };
-  try { out.last28Days = await Meta.getPageInsights(conn.pageId, conn.pageAccessToken); }
-  catch (e) { out.liveError = e.message; }
-  Object.assign(out, await trendsOrPending(sb, siteId, 'meta'));
-  return out;
-}
+var Context = require('./_analytics-context');
 
 module.exports = async function handler(req, res) {
   res.setHeader('Cache-Control', 'no-store');
@@ -58,15 +25,7 @@ module.exports = async function handler(req, res) {
   if (!question) return res.status(200).json({ error: 'Ask something first.' });
 
   try {
-    var contexts = [];
-    if (scope === 'all' || scope === 'chartbeat') {
-      var cb = await chartbeatContext(ctx.supabase, ctx.site.id);
-      if (cb) contexts.push(cb);
-    }
-    if (scope === 'all' || scope === 'meta') {
-      var mt = await metaContext(ctx.supabase, ctx.site.id);
-      if (mt) contexts.push(mt);
-    }
+    var contexts = await Context.gatherContexts(ctx.supabase, ctx.site.id, scope);
     if (!contexts.length) {
       return res.status(200).json({ answer: 'Nothing\'s connected yet for ' + (scope === 'all' ? 'any source' : scope) + ' — connect it above first.' });
     }
