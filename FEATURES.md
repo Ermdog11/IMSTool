@@ -11,7 +11,7 @@ Two product surfaces, one login:
 1. **News Monitor** — for the editor. Aggregates and rates everything happening on your beat.
 2. **Content Editor** — for every writer. Turns a rough draft into a house-style, publish-ready article.
 
-Last updated: 2026-09-10
+Last updated: 2026-09-13
 
 ---
 
@@ -64,6 +64,7 @@ Last updated: 2026-09-10
 | **Publisher-controlled alerts** | Publisher decides exactly who receives which alerts (breaking news, article-started, digests) from the Team panel. UI built; wiring the mailers to it is next. |
 | **"Article started" alert** | Publisher is notified the first time a writer saves a new article. Wiring pending. |
 | **Audience analytics** | Chartbeat is wired up: paste an API key + host to connect (encrypted at rest), and the Insights panel shows live concurrent readers and top pages right now. Google Analytics, YouTube Analytics, Search Console, Facebook/Instagram, and Parse.ly are still connection-list placeholders — OAuth wiring (Google, Meta) and Parse.ly's key-paste flow come next, one source at a time, plus the cross-source "what's working" synthesis layer. |
+| **Web search (Brave)** | A real open-web search alongside the ~70 curated RSS/news queries — catches stories no standing query anticipated. Paste a Brave Search API key into Settings to connect (encrypted at rest); runs only on the 3x/day rolling-digest cron, not the manual/30-min scan, to keep the metered cost small (~$1-2/month). Built and wired in; not yet verified against a live key. |
 
 ---
 
