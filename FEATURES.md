@@ -31,7 +31,7 @@ Last updated: 2026-09-10
 | Bluesky | Monitors social chatter, sorted by engagement. |
 | Digest emails | Morning brief, 8 PM nightly digest, and rolling updates — organized by day / sport / rating. |
 | Breaking-news email | Rating-5 stories email immediately, 24/7. |
-| Roster-change watch | Checks official team rosters 3×/week and emails when a player is added or drops off — often before the transfer/injury is reported anywhere. (Dedicated in-app view coming.) |
+| Roster-change watch | Checks official team rosters 3×/week and emails when a player is added or drops off — often before the transfer/injury is reported anywhere. Dedicated in-app view shows each team's current roster and a dated history of every change caught. |
 | Coverage Desk agent | Runs on its own every morning and emails an assistant-editor's memo: what to cover today, gaps competitors have filled that you haven't, developing threads to follow up, and an editor's read. ("What worked" performance section fills in once analytics is connected.) Also runnable on demand. |
 | Noise controls | Per-topic caps with an overflow view (demote, don't drop), low-priority-sport suppression, stat-page filtering, "block this source" list. |
 | Own-outlet exclusion | Never shows the customer their own site's stories back to them — publisher lists their own domain(s), plus an "Exclude sources" control to add any other site or URL to filter out. |
@@ -69,7 +69,6 @@ Last updated: 2026-09-10
 ## Roadmap
 
 ### Near term
-- **Roster watch view** — an in-app page showing each team's current roster and a dated history of every add/drop the watcher has caught.
 - **Publish connector** — file a finished article straight into the customer's CMS as a draft (never auto-live). One-click for WordPress and Ghost; clean formatted export for Substack, Squarespace, and closed CMSes.
 - **Per-writer content catalog** — a complete index of everything each writer has published, feeding a fuller style model and the internal-linking. (Builds on the knowledge base.)
 - **Knowledge-base ownership** — each newsroom decides, per writer, whether the knowledge built from that writer's work belongs to the publication, to the writer (portable — they can export it and take it with them), or both. Set up front.

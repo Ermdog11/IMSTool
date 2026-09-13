@@ -119,6 +119,22 @@ alter table public.content_items add column if not exists draft_id text;
 alter table public.content_items add column if not exists updated_at timestamptz not null default now();
 create unique index if not exists content_items_draft_idx on public.content_items (site_id, draft_id) where draft_id is not null;
 
+-- Roster watch history ----------------------------------------------------
+-- Every add/drop api/roster-check.js catches (3x/week cron), so the in-app
+-- Roster Watch view can show a dated history per team, not just the latest
+-- snapshot (which lives in Vercel Blob, not here).
+create table if not exists public.roster_events (
+  id            uuid primary key default gen_random_uuid(),
+  site_id       uuid not null references public.sites(id) on delete cascade,
+  team_slug     text not null,
+  team_label    text not null,
+  player_name   text not null,
+  change_type   text not null check (change_type in ('added', 'removed')),
+  detected_at   timestamptz not null default now(),
+  created_at    timestamptz not null default now()
+);
+create index if not exists roster_events_site_team_idx on public.roster_events (site_id, team_slug, detected_at desc);
+
 -- Row Level Security ----------------------------------------------------
 -- The API layer talks to Postgres with the service_role key, which bypasses
 -- RLS. These policies are defence-in-depth for any future direct-from-browser
@@ -129,6 +145,7 @@ alter table public.memberships    enable row level security;
 alter table public.invites        enable row level security;
 alter table public.alert_prefs    enable row level security;
 alter table public.content_items  enable row level security;
+alter table public.roster_events  enable row level security;
 
 create or replace function public.is_member(target_site uuid)
 returns boolean language sql stable security definer set search_path = public as $$
@@ -176,6 +193,10 @@ create policy "publisher manages prefs" on public.alert_prefs
 
 drop policy if exists "member reads content" on public.content_items;
 create policy "member reads content" on public.content_items
+  for select using (public.is_member(site_id));
+
+drop policy if exists "member reads roster events" on public.roster_events;
+create policy "member reads roster events" on public.roster_events
   for select using (public.is_member(site_id));
 
 -- Seed: the first newsroom -------------------------------------------------

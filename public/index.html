@@ -230,6 +230,7 @@ body { padding-bottom: 40px; }
   <button class="nav-tab" id="tab-btn-9" onclick="switchTab(9)">🦋 Bluesky</button>
   <button class="nav-tab" id="tab-btn-10" onclick="switchTab(10)">Settings</button>
   <button class="nav-tab" id="tab-btn-11" onclick="switchTab(11)">📈 Analytics</button>
+  <button class="nav-tab" id="tab-btn-12" onclick="switchTab(12)">🏈 Roster watch</button>
 </div>
 
 <!-- ALERTS TAB -->
@@ -620,6 +621,24 @@ body { padding-bottom: 40px; }
   </div>
 </div>
 
+<!-- ROSTER WATCH TAB -->
+<div class="page" id="page-12">
+  <div style="padding:16px 0 8px;">
+    <h3 style="margin:0;font-size:1.1rem;">🏈 Roster watch</h3>
+    <p style="color:var(--muted);font-size:.85rem;margin:4px 0 0;max-width:64ch;">Each team's roster page is checked 3×/week — you get an email the moment a name is added or drops off, often before a transfer or injury is reported anywhere. This page is the record: today's roster and every change caught, dated.</p>
+  </div>
+  <div class="scan-bar" style="margin-bottom:14px;">
+    <div class="scan-indicator">
+      <div class="scan-dot" style="background:#3B6D11;"></div>
+      <div class="scan-text" id="rosterStatusText"><strong>Watching</strong> — Football, Men's &amp; Women's Basketball, Men's &amp; Women's Lacrosse</div>
+    </div>
+    <button class="scan-btn" id="rosterCheckBtn" onclick="runRosterCheckNow(this)"><i class="ti ti-refresh"></i> Check now</button>
+  </div>
+  <div id="rosterWatchContainer">
+    <div class="empty"><i class="ti ti-users"></i>Loading roster watch…</div>
+  </div>
+</div>
+
 <div class="bottom-bar">
   <span class="bb-brand">INSIDEMDSPORTS</span>
   <span class="bb-tag">TERPS NEWS MONITOR</span>
@@ -678,7 +697,7 @@ const SCAN_MS = 30 * 60 * 1000;
 // scan run on /alerts still feeds /digest, /podcasts, etc. without
 // re-fetching. vercel.json rewrites every path below back to this file.
 // ============================================================
-var TAB_PATHS = ['/alerts','/digest','/social','/chat','/backlog','/recruiting','/trending','/podcasts','/youtube','/bluesky','/settings','/analytics'];
+var TAB_PATHS = ['/alerts','/digest','/social','/chat','/backlog','/recruiting','/trending','/podcasts','/youtube','/bluesky','/settings','/analytics','/roster'];
 function pathToTab(p) {
   p = String(p || '/').replace(/\/+$/, '') || '/';
   if (p === '/' || p === '/index.html' || p === '/index') return 0;
@@ -694,6 +713,7 @@ function switchTab(idx, fromPop) {
   if (idx === 9) loadBluesky();
   if (idx === 10) { renderBlockedSources(); renderOwnSites(); refreshPushStatus(); loadTeam(); }
   if (idx === 11) renderAnalyticsConnections();
+  if (idx === 12) loadRosterWatch();
   window.scrollTo(0, 0);
   if (!fromPop) {
     try { history.pushState({ imsTab: idx }, '', TAB_PATHS[idx]); } catch (e) {}
@@ -1736,6 +1756,65 @@ function renderAnalyticsConnections() {
 function connectAnalytics(key) {
   const s = ANALYTICS_SOURCES.find(x => x.key === key);
   alert(`${s.name}\n\nThis connection isn't wired up yet. ${s.setup}\n\nWhen you're ready to set it up, tell Claude and it'll walk you through the one-time registration, then this button will start the sign-in.`);
+}
+
+// ============================================================
+// ROSTER WATCH — current roster + dated add/drop history per team
+// ============================================================
+async function loadRosterWatch() {
+  const c = document.getElementById('rosterWatchContainer');
+  try {
+    const fetcher = window.IMSAuth ? IMSAuth.authFetch : fetch;
+    const r = await fetcher('/api/roster-view');
+    const d = await r.json();
+    if (d.error) { c.innerHTML = `<div class="empty" style="padding:12px;">${d.error}</div>`; return; }
+    renderRosterWatch(d.teams || []);
+  } catch (e) {
+    c.innerHTML = `<div class="empty" style="padding:12px;">Couldn't load roster watch — ${e.message}</div>`;
+  }
+}
+
+function renderRosterWatch(teams) {
+  const c = document.getElementById('rosterWatchContainer');
+  if (!teams.length) { c.innerHTML = '<div class="empty"><i class="ti ti-users"></i>No teams configured.</div>'; return; }
+
+  c.innerHTML = teams.map(t => {
+    const rosterChips = (t.roster || []).length
+      ? `<div class="tag-cloud">${t.roster.map(p => `<span class="stag">${p.name}${p.jersey ? ' #' + p.jersey : ''}</span>`).join('')}</div>`
+      : '<div class="empty" style="padding:10px;">No baseline yet — the next check will establish one.</div>';
+
+    const history = (t.history || []).slice(0, 25);
+    const historyList = history.length
+      ? history.map(h => `<div style="display:flex;justify-content:space-between;gap:10px;padding:5px 0;border-bottom:1px solid var(--border);font-size:12px;">
+          <span style="color:${h.changeType === 'added' ? '#15803d' : '#b91c1c'};font-weight:600;white-space:nowrap;">${h.changeType === 'added' ? '+ Added' : '− Off roster'}</span>
+          <span style="flex:1;">${h.playerName}</span>
+          <span style="color:var(--text3);white-space:nowrap;">${new Date(h.detectedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</span>
+        </div>`).join('')
+      : '<div style="font-size:12px;color:var(--text3);padding:6px 0;">No changes caught yet.</div>';
+
+    return `<div class="settings-card">
+      <div style="display:flex;justify-content:space-between;align-items:baseline;flex-wrap:wrap;gap:8px;">
+        <h3 style="margin:0;"><i class="ti ti-users"></i> ${t.label}</h3>
+        <a href="${t.url}" target="_blank" rel="noopener" style="font-size:11px;color:var(--text3);">official roster ↗</a>
+      </div>
+      <div style="font-size:11px;color:var(--text3);margin:4px 0 10px;">${t.checkedAt ? 'Last checked ' + new Date(t.checkedAt).toLocaleString() : 'Not checked yet'} · ${(t.roster || []).length} on roster</div>
+      ${rosterChips}
+      <div class="sdiv-label" style="margin-top:12px;">History</div>
+      ${historyList}
+    </div>`;
+  }).join('');
+}
+
+async function runRosterCheckNow(btn) {
+  var old = btn.textContent;
+  btn.disabled = true; btn.textContent = 'Checking…';
+  try {
+    var r = await fetch('/api/roster-check');
+    var d = await r.json();
+    btn.textContent = d.error ? ('Failed: ' + d.error) : `✓ Checked ${d.checked} team(s)`;
+    loadRosterWatch();
+  } catch (e) { btn.textContent = 'Failed: ' + e.message; }
+  setTimeout(function () { btn.disabled = false; btn.textContent = old; }, 4000);
 }
 </script>
 </body>

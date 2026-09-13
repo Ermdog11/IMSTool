@@ -37,10 +37,13 @@
     },
     "api/drafts.js": {
       "maxDuration": 30
+    },
+    "api/roster-view.js": {
+      "maxDuration": 30
     }
   },
   "rewrites": [
-    { "source": "/:section(alerts|digest|social|chat|backlog|recruiting|trending|podcasts|youtube|bluesky|settings|analytics)", "destination": "/" }
+    { "source": "/:section(alerts|digest|social|chat|backlog|recruiting|trending|podcasts|youtube|bluesky|settings|analytics|roster)", "destination": "/" }
   ],
   "headers": [
     {
@@ -52,7 +55,7 @@
       "headers": [{ "key": "Cache-Control", "value": "no-cache, no-store, must-revalidate" }]
     },
     {
-      "source": "/:section(alerts|digest|social|chat|backlog|recruiting|trending|podcasts|youtube|bluesky|settings|analytics|editor|login)",
+      "source": "/:section(alerts|digest|social|chat|backlog|recruiting|trending|podcasts|youtube|bluesky|settings|analytics|roster|editor|login)",
       "headers": [{ "key": "Cache-Control", "value": "no-cache, no-store, must-revalidate" }]
     }
   ],
