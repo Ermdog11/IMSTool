@@ -40,6 +40,12 @@
     },
     "api/roster-view.js": {
       "maxDuration": 30
+    },
+    "api/analytics-connections.js": {
+      "maxDuration": 20
+    },
+    "api/chartbeat.js": {
+      "maxDuration": 20
     }
   },
   "rewrites": [

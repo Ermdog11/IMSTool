@@ -62,7 +62,7 @@ Last updated: 2026-09-10
 |---|---|
 | **Publisher-controlled alerts** | Publisher decides exactly who receives which alerts (breaking news, article-started, digests) from the Team panel. UI built; wiring the mailers to it is next. |
 | **"Article started" alert** | Publisher is notified the first time a writer saves a new article. Wiring pending. |
-| **Audience analytics** | The `/analytics` section exists with the connection list (Google Analytics, YouTube Analytics, Search Console, Facebook/Instagram, Chartbeat, Parse.ly). Each connection's OAuth/API wiring and the insights engine come next, one source at a time. |
+| **Audience analytics** | Chartbeat is wired up: paste an API key + host to connect (encrypted at rest), and the Insights panel shows live concurrent readers and top pages right now. Google Analytics, YouTube Analytics, Search Console, Facebook/Instagram, and Parse.ly are still connection-list placeholders — OAuth wiring (Google, Meta) and Parse.ly's key-paste flow come next, one source at a time, plus the cross-source "what's working" synthesis layer. |
 
 ---
 

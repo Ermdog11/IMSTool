@@ -614,7 +614,9 @@ body { padding-bottom: 40px; }
 
   <div class="settings-card">
     <h3><i class="ti ti-chart-line"></i> Insights</h3>
-    <div class="empty" style="padding:20px;">Connect at least one source above to see insights here.</div>
+    <div id="analyticsInsights">
+      <div class="empty" style="padding:20px;">Connect at least one source above to see insights here.</div>
+    </div>
     <div style="font-size:11px;color:var(--text3);margin-top:8px;line-height:1.6;">
       Planned: real-time alerts when a story takes off or dies · weekly "what's working" read (publish windows, topics, headline styles, slipping evergreens) · per-writer views &amp; engaged time by story type · proactive nudges · a question box.
     </div>
@@ -1739,23 +1741,107 @@ const ANALYTICS_SOURCES = [
   { key:'chartbeat', name:'Chartbeat',          gives:'Real-time concurrents and engaged time per story', setup:'Needs your Chartbeat API key (paste it).' },
   { key:'parsely', name:'Parse.ly',             gives:'Historical performance by post, author, section, tag', setup:'Needs your Parse.ly API secret (paste it).' }
 ];
-function renderAnalyticsConnections() {
+let analyticsConnected = {};
+
+async function renderAnalyticsConnections() {
   const c = document.getElementById('analyticsConnections');
   if (!c) return;
-  c.innerHTML = ANALYTICS_SOURCES.map(s =>
-    `<div style="border:1px solid var(--border);border-radius:8px;padding:12px 14px;margin-bottom:10px;">
+  try {
+    const fetcher = window.IMSAuth ? IMSAuth.authFetch : fetch;
+    const r = await fetcher('/api/analytics-connections');
+    const d = await r.json();
+    analyticsConnected = {};
+    (d.connections || []).forEach(x => analyticsConnected[x.source] = x);
+  } catch (e) { analyticsConnected = {}; }
+
+  c.innerHTML = ANALYTICS_SOURCES.map(s => {
+    const conn = analyticsConnected[s.key];
+    const status = conn
+      ? `<span style="color:#15803d;font-size:11px;font-weight:600;">● Connected${conn.meta && conn.meta.host ? ' · ' + conn.meta.host : ''}</span>`
+      : '';
+    const actionBtn = conn
+      ? `<button class="pill" onclick="disconnectAnalytics('${s.key}')">Disconnect</button>`
+      : `<button class="pill" onclick="connectAnalytics('${s.key}')">Connect</button>`;
+    return `<div style="border:1px solid var(--border);border-radius:8px;padding:12px 14px;margin-bottom:10px;">
       <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;">
-        <div><strong>${s.name}</strong>
+        <div><strong>${s.name}</strong> ${status}
           <div style="font-size:12px;color:var(--text3);margin-top:2px;">${s.gives}</div></div>
-        <button class="pill" onclick="connectAnalytics('${s.key}')">Connect</button>
+        ${actionBtn}
       </div>
       <div style="font-size:11px;color:var(--text3);margin-top:6px;">${s.setup}</div>
-    </div>`
-  ).join('');
+    </div>`;
+  }).join('');
+
+  loadAnalyticsInsights();
 }
+
 function connectAnalytics(key) {
+  if (key === 'chartbeat') return connectChartbeat();
   const s = ANALYTICS_SOURCES.find(x => x.key === key);
   alert(`${s.name}\n\nThis connection isn't wired up yet. ${s.setup}\n\nWhen you're ready to set it up, tell Claude and it'll walk you through the one-time registration, then this button will start the sign-in.`);
+}
+
+async function connectChartbeat() {
+  const host = prompt("Chartbeat host — the domain / Site ID on your Chartbeat account (e.g. insidemdsports.com):");
+  if (!host) return;
+  const apiKey = prompt("Chartbeat API key — find it under Settings → API in your Chartbeat account:");
+  if (!apiKey) return;
+  try {
+    const r = await IMSAuth.authFetch('/api/analytics-connections', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ source: 'chartbeat', apiKey, host })
+    });
+    const d = await r.json();
+    if (d.error) { alert('Chartbeat: ' + d.error); return; }
+    renderAnalyticsConnections();
+  } catch (e) { alert('Chartbeat: ' + e.message); }
+}
+
+async function disconnectAnalytics(key) {
+  if (!confirm('Disconnect ' + key + '? This removes the stored API key.')) return;
+  try {
+    const r = await IMSAuth.authFetch('/api/analytics-connections', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ source: key, action: 'disconnect' })
+    });
+    const d = await r.json();
+    if (d.error) { alert(d.error); return; }
+    renderAnalyticsConnections();
+  } catch (e) { alert(e.message); }
+}
+
+function loadAnalyticsInsights() {
+  const c = document.getElementById('analyticsInsights');
+  if (!c) return;
+  if (!analyticsConnected.chartbeat) {
+    c.innerHTML = '<div class="empty" style="padding:20px;">Connect at least one source above to see insights here.</div>';
+    return;
+  }
+  c.innerHTML = '<div class="empty" style="padding:14px;"><i class="ti ti-loader spin"></i>Loading Chartbeat…</div>';
+  refreshChartbeatInsights();
+}
+
+async function refreshChartbeatInsights() {
+  const c = document.getElementById('analyticsInsights');
+  if (!c) return;
+  try {
+    const r = await IMSAuth.authFetch('/api/chartbeat');
+    const d = await r.json();
+    if (d.error) { c.innerHTML = `<div class="empty" style="padding:14px;">Chartbeat — ${d.error}</div>`; return; }
+    const rows = (d.pages || []).map(p => `<div style="display:flex;justify-content:space-between;gap:10px;padding:5px 0;border-bottom:1px solid var(--border);font-size:12px;">
+        <span style="flex:1;">${p.title || p.path}</span>
+        <span style="color:var(--text3);white-space:nowrap;">${p.visits} reading now</span>
+      </div>`).join('') || '<div style="font-size:12px;color:var(--text3);padding:6px 0;">No pages with live readers right now.</div>';
+    c.innerHTML = `<div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:10px;">
+        <div><strong style="font-size:20px;">${d.visits}</strong> <span style="font-size:12px;color:var(--text3);">reading right now on ${d.host}</span></div>
+        <button class="chip" onclick="refreshChartbeatInsights()">Refresh</button>
+      </div>
+      <div class="sdiv-label">Top pages right now</div>
+      ${rows}
+      ${(d.warnings && d.warnings.length) ? `<div style="font-size:11px;color:var(--text3);margin-top:8px;">${d.warnings.join(' · ')}</div>` : ''}`;
+  } catch (e) {
+    c.innerHTML = `<div class="empty" style="padding:14px;">Couldn't load Chartbeat — ${e.message}</div>`;
+  }
 }
 
 // ============================================================

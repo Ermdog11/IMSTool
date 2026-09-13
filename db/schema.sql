@@ -135,6 +135,23 @@ create table if not exists public.roster_events (
 );
 create index if not exists roster_events_site_team_idx on public.roster_events (site_id, team_slug, detected_at desc);
 
+-- Audience analytics connections ------------------------------------------
+-- One row per site+source (chartbeat, parsely, ga4, ...). `config` holds
+-- whatever that source needs — secrets (API keys) are AES-256-GCM encrypted
+-- by api/_crypto.js before they ever reach this table, so a DB read alone
+-- never exposes a usable credential.
+create table if not exists public.analytics_connections (
+  id            uuid primary key default gen_random_uuid(),
+  site_id       uuid not null references public.sites(id) on delete cascade,
+  source        text not null,
+  config        jsonb not null default '{}'::jsonb,
+  connected_by  uuid references public.profiles(id) on delete set null,
+  created_at    timestamptz not null default now(),
+  updated_at    timestamptz not null default now(),
+  unique (site_id, source)
+);
+create index if not exists analytics_connections_site_idx on public.analytics_connections (site_id);
+
 -- Row Level Security ----------------------------------------------------
 -- The API layer talks to Postgres with the service_role key, which bypasses
 -- RLS. These policies are defence-in-depth for any future direct-from-browser
@@ -146,6 +163,7 @@ alter table public.invites        enable row level security;
 alter table public.alert_prefs    enable row level security;
 alter table public.content_items  enable row level security;
 alter table public.roster_events  enable row level security;
+alter table public.analytics_connections enable row level security;
 
 create or replace function public.is_member(target_site uuid)
 returns boolean language sql stable security definer set search_path = public as $$
@@ -198,6 +216,10 @@ create policy "member reads content" on public.content_items
 drop policy if exists "member reads roster events" on public.roster_events;
 create policy "member reads roster events" on public.roster_events
   for select using (public.is_member(site_id));
+
+drop policy if exists "publisher manages analytics connections" on public.analytics_connections;
+create policy "publisher manages analytics connections" on public.analytics_connections
+  for all using (public.is_publisher(site_id)) with check (public.is_publisher(site_id));
 
 -- Seed: the first newsroom -------------------------------------------------
 insert into public.sites (slug, name, domain)
