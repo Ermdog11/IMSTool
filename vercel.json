@@ -79,6 +79,12 @@
     },
     "api/hot-story-check.js": {
       "maxDuration": 30
+    },
+    "api/social-promo-settings.js": {
+      "maxDuration": 20
+    },
+    "api/social-promo-check.js": {
+      "maxDuration": 60
     }
   },
   "rewrites": [
@@ -134,6 +140,10 @@
     {
       "path": "/api/hot-story-check",
       "schedule": "*/15 * * * *"
+    },
+    {
+      "path": "/api/social-promo-check",
+      "schedule": "*/30 * * * *"
     }
   ]
 }
