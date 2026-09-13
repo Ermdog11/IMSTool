@@ -46,6 +46,9 @@
     },
     "api/chartbeat.js": {
       "maxDuration": 20
+    },
+    "api/publish-watch.js": {
+      "maxDuration": 120
     }
   },
   "rewrites": [
@@ -85,6 +88,10 @@
     {
       "path": "/api/coverage-desk",
       "schedule": "0 11 * * *"
+    },
+    {
+      "path": "/api/publish-watch",
+      "schedule": "0 15 * * *"
     }
   ]
 }

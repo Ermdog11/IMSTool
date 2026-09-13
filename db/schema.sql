@@ -152,6 +152,26 @@ create table if not exists public.analytics_connections (
 );
 create index if not exists analytics_connections_site_idx on public.analytics_connections (site_id);
 
+-- Style drift: published vs. submitted ------------------------------------
+-- Automatically matches a submitted content_items row to its live URL (no
+-- manual paste — api/publish-watch.js scrapes the outlet's own recent-articles
+-- page on a cron and fuzzy-matches by headline), pulls whatever text is
+-- publicly reachable, and has Claude note what changed between the Content
+-- Editor's output and what actually got published. Feeds the style profiles
+-- with real human corrections instead of just the initial writing samples.
+create table if not exists public.content_revisions (
+  id                uuid primary key default gen_random_uuid(),
+  site_id           uuid not null references public.sites(id) on delete cascade,
+  content_item_id   uuid not null references public.content_items(id) on delete cascade,
+  published_url     text not null,
+  published_excerpt text,               -- best-effort extracted text; partial when paywalled
+  paywalled         boolean not null default false,
+  diff_summary      text,                -- Claude's note on what changed and why it's worth learning from
+  matched_at        timestamptz not null default now(),
+  unique (content_item_id)
+);
+create index if not exists content_revisions_site_idx on public.content_revisions (site_id, matched_at desc);
+
 -- Row Level Security ----------------------------------------------------
 -- The API layer talks to Postgres with the service_role key, which bypasses
 -- RLS. These policies are defence-in-depth for any future direct-from-browser
@@ -164,6 +184,7 @@ alter table public.alert_prefs    enable row level security;
 alter table public.content_items  enable row level security;
 alter table public.roster_events  enable row level security;
 alter table public.analytics_connections enable row level security;
+alter table public.content_revisions enable row level security;
 
 create or replace function public.is_member(target_site uuid)
 returns boolean language sql stable security definer set search_path = public as $$
@@ -220,6 +241,10 @@ create policy "member reads roster events" on public.roster_events
 drop policy if exists "publisher manages analytics connections" on public.analytics_connections;
 create policy "publisher manages analytics connections" on public.analytics_connections
   for all using (public.is_publisher(site_id)) with check (public.is_publisher(site_id));
+
+drop policy if exists "member reads content revisions" on public.content_revisions;
+create policy "member reads content revisions" on public.content_revisions
+  for select using (public.is_member(site_id));
 
 -- Seed: the first newsroom -------------------------------------------------
 insert into public.sites (slug, name, domain)
