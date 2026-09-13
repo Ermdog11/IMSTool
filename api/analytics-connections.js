@@ -15,7 +15,11 @@ var Store = require('./_analytics-store');
 // (rather than trusting the client) so the API validates before encrypting.
 var SOURCES = {
   chartbeat: { required: ['apiKey', 'host'] },
-  parsely: { required: ['apiSecret', 'siteId'] }
+  parsely: { required: ['apiSecret', 'siteId'] },
+  // meta is OAuth-based (api/meta-oauth-start.js + meta-oauth-callback.js
+  // write the connection directly) — listed here only so GET/disconnect
+  // recognize it; the frontend never POSTs a manual paste for it.
+  meta: { required: [] }
 };
 
 module.exports = async function handler(req, res) {

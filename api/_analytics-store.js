@@ -8,7 +8,8 @@ var Crypto = require('./_crypto');
 // Per-source list of config keys that must be encrypted at rest.
 var SECRET_FIELDS = {
   chartbeat: ['apiKey'],
-  parsely: ['apiSecret']
+  parsely: ['apiSecret'],
+  meta: ['pageAccessToken']
 };
 
 function encryptFields(source, fields) {
@@ -68,9 +69,30 @@ async function deleteConnection(sb, siteId, source) {
   return { ok: true };
 }
 
+// Point-in-time metric captures (api/analytics-snapshot.js cron), the raw
+// material the Trends view (api/analytics-trends.js) computes patterns from.
+async function saveSnapshot(sb, siteId, source, metrics) {
+  var ins = await sb.from('analytics_snapshots').insert({
+    site_id: siteId, source: source, metrics: metrics
+  }).select('id').single();
+  if (ins.error) throw new Error(ins.error.message);
+  return ins.data;
+}
+
+async function listSnapshots(sb, siteId, source, sinceIso) {
+  var q = sb.from('analytics_snapshots').select('captured_at, metrics')
+    .eq('site_id', siteId).eq('source', source).order('captured_at', { ascending: true });
+  if (sinceIso) q = q.gte('captured_at', sinceIso);
+  var res = await q;
+  if (res.error) throw new Error(res.error.message);
+  return res.data || [];
+}
+
 module.exports = {
   listConnections: listConnections,
   getConnection: getConnection,
   saveConnection: saveConnection,
-  deleteConnection: deleteConnection
+  deleteConnection: deleteConnection,
+  saveSnapshot: saveSnapshot,
+  listSnapshots: listSnapshots
 };

@@ -47,6 +47,21 @@
     "api/chartbeat.js": {
       "maxDuration": 20
     },
+    "api/analytics-snapshot.js": {
+      "maxDuration": 60
+    },
+    "api/analytics-trends.js": {
+      "maxDuration": 20
+    },
+    "api/meta-oauth-start.js": {
+      "maxDuration": 20
+    },
+    "api/meta-oauth-callback.js": {
+      "maxDuration": 20
+    },
+    "api/facebook.js": {
+      "maxDuration": 20
+    },
     "api/publish-watch.js": {
       "maxDuration": 120
     },
@@ -102,6 +117,10 @@
     {
       "path": "/api/dev-digest",
       "schedule": "0 13 * * *"
+    },
+    {
+      "path": "/api/analytics-snapshot",
+      "schedule": "0 */3 * * *"
     }
   ]
 }

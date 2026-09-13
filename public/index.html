@@ -632,6 +632,17 @@ body { padding-bottom: 40px; }
       Planned: real-time alerts when a story takes off or dies · weekly "what's working" read (publish windows, topics, headline styles, slipping evergreens) · per-writer views &amp; engaged time by story type · proactive nudges · a question box.
     </div>
   </div>
+
+  <div class="settings-card" id="facebookInsightsCard" style="display:none;">
+    <h3><i class="ti ti-brand-facebook"></i> Facebook Page</h3>
+    <div id="facebookInsights"></div>
+  </div>
+
+  <div class="settings-card">
+    <h3><i class="ti ti-trending-up"></i> Trends</h3>
+    <div style="font-size:12px;color:var(--text3);margin-bottom:12px;line-height:1.5;">Patterns from a running history of snapshots, captured every few hours — takes a day or two to build up enough data. Chartbeat only for now; Parse.ly/GA4/Meta feed the same view once connected.</div>
+    <div id="analyticsTrends"></div>
+  </div>
 </div>
 
 <!-- ROSTER WATCH TAB -->
@@ -755,6 +766,18 @@ window.addEventListener('popstate', function (e) {
     switchTab(start, true);
     var b = document.getElementById('backBtn');
     if (b) b.style.display = 'inline-flex';
+  }
+
+  // Facebook OAuth lands back here as a plain navigation (api/meta-oauth-callback.js
+  // redirects to /analytics?meta_connected=1 or ?meta_error=...) — surface it once,
+  // then scrub the query string so a refresh doesn't re-show it.
+  var params = new URLSearchParams(location.search);
+  if (params.has('meta_connected')) {
+    alert('Facebook connected.');
+    history.replaceState(history.state, '', location.pathname);
+  } else if (params.has('meta_error')) {
+    alert('Facebook: ' + params.get('meta_error'));
+    history.replaceState(history.state, '', location.pathname);
   }
 })();
 
@@ -1812,13 +1835,22 @@ let analyticsConnected = {};
 async function renderAnalyticsConnections() {
   const c = document.getElementById('analyticsConnections');
   if (!c) return;
+  let loadError = null;
   try {
     const fetcher = window.IMSAuth ? IMSAuth.authFetch : fetch;
     const r = await fetcher('/api/analytics-connections');
     const d = await r.json();
-    analyticsConnected = {};
-    (d.connections || []).forEach(x => analyticsConnected[x.source] = x);
-  } catch (e) { analyticsConnected = {}; }
+    if (d.error) { loadError = d.error; analyticsConnected = {}; }
+    else {
+      analyticsConnected = {};
+      (d.connections || []).forEach(x => analyticsConnected[x.source] = x);
+    }
+  } catch (e) { loadError = e.message; analyticsConnected = {}; }
+
+  if (loadError) {
+    c.innerHTML = `<div class="empty" style="padding:14px;">Couldn't load connections — ${loadError}. <button class="chip" onclick="renderAnalyticsConnections()">Retry</button></div>`;
+    return;
+  }
 
   c.innerHTML = ANALYTICS_SOURCES.map(s => {
     const conn = analyticsConnected[s.key];
@@ -1843,8 +1875,18 @@ async function renderAnalyticsConnections() {
 
 function connectAnalytics(key) {
   if (key === 'chartbeat') return connectChartbeat();
+  if (key === 'meta') return connectMeta();
   const s = ANALYTICS_SOURCES.find(x => x.key === key);
   alert(`${s.name}\n\nThis connection isn't wired up yet. ${s.setup}\n\nWhen you're ready to set it up, tell Claude and it'll walk you through the one-time registration, then this button will start the sign-in.`);
+}
+
+// OAuth flow: this is a plain page navigation to Facebook (not a fetch), so
+// it can't carry an Authorization header — the session token rides along
+// as a query param instead, same as api/_supabase.js already supports.
+async function connectMeta() {
+  const t = await IMSAuth.token();
+  if (!t) { alert('Sign in again first.'); return; }
+  window.location.href = '/api/meta-oauth-start?access_token=' + encodeURIComponent(t);
 }
 
 async function connectChartbeat() {
@@ -1881,10 +1923,67 @@ function loadAnalyticsInsights() {
   if (!c) return;
   if (!analyticsConnected.chartbeat) {
     c.innerHTML = '<div class="empty" style="padding:20px;">Connect at least one source above to see insights here.</div>';
-    return;
+    document.getElementById('analyticsTrends').innerHTML = '';
+  } else {
+    c.innerHTML = '<div class="empty" style="padding:14px;"><i class="ti ti-loader spin"></i>Loading Chartbeat…</div>';
+    refreshChartbeatInsights();
+    loadAnalyticsTrends();
   }
-  c.innerHTML = '<div class="empty" style="padding:14px;"><i class="ti ti-loader spin"></i>Loading Chartbeat…</div>';
-  refreshChartbeatInsights();
+
+  const fb = document.getElementById('facebookInsightsCard');
+  if (fb) {
+    fb.style.display = analyticsConnected.meta ? '' : 'none';
+    if (analyticsConnected.meta) refreshFacebookInsights();
+  }
+}
+
+async function refreshFacebookInsights() {
+  const c = document.getElementById('facebookInsights');
+  if (!c) return;
+  c.innerHTML = '<div class="empty" style="padding:14px;"><i class="ti ti-loader spin"></i>Loading Facebook…</div>';
+  try {
+    const r = await IMSAuth.authFetch('/api/facebook');
+    const d = await r.json();
+    if (d.error) { c.innerHTML = `<div class="empty" style="padding:14px;">Facebook — ${d.error}</div>`; return; }
+    const m = d.metrics || {};
+    c.innerHTML = `<div style="font-size:12px;color:var(--text3);margin-bottom:8px;">${d.pageName}${d.hasInstagram ? ' · Instagram linked' : ''} — last 28 days</div>
+      <div style="display:flex;gap:20px;flex-wrap:wrap;">
+        <div><div style="font-size:11px;color:var(--text3);">Impressions</div><strong style="font-size:16px;">${m.page_impressions ?? '—'}</strong></div>
+        <div><div style="font-size:11px;color:var(--text3);">Engaged users</div><strong style="font-size:16px;">${m.page_engaged_users ?? '—'}</strong></div>
+        <div><div style="font-size:11px;color:var(--text3);">Post engagements</div><strong style="font-size:16px;">${m.page_post_engagements ?? '—'}</strong></div>
+      </div>`;
+  } catch (e) {
+    c.innerHTML = `<div class="empty" style="padding:14px;">Couldn't load Facebook — ${e.message}</div>`;
+  }
+}
+
+async function loadAnalyticsTrends() {
+  const c = document.getElementById('analyticsTrends');
+  if (!c) return;
+  c.innerHTML = '<div class="empty" style="padding:14px;"><i class="ti ti-loader spin"></i>Loading trends…</div>';
+  try {
+    const r = await IMSAuth.authFetch('/api/analytics-trends');
+    const d = await r.json();
+    if (d.error) { c.innerHTML = `<div class="empty" style="padding:14px;">Trends — ${d.error}</div>`; return; }
+    if (!d.enough) {
+      c.innerHTML = `<div class="empty" style="padding:14px;">Building trend data — ${d.count} of ${d.needed} snapshots collected so far. Check back in a day or two.</div>`;
+      return;
+    }
+    const HOUR_LABELS = ['12am','1am','2am','3am','4am','5am','6am','7am','8am','9am','10am','11am','12pm','1pm','2pm','3pm','4pm','5pm','6pm','7pm','8pm','9pm','10pm','11pm'];
+    const pagesRows = (d.topRecurringPages || []).map(p => `<div style="display:flex;justify-content:space-between;gap:10px;padding:5px 0;border-bottom:1px solid var(--border);font-size:12px;">
+        <span style="flex:1;">${p.title || p.path}</span>
+        <span style="color:var(--text3);white-space:nowrap;">${p.totalVisits} readers across ${p.appearances} snapshots</span>
+      </div>`).join('') || '<div style="font-size:12px;color:var(--text3);padding:6px 0;">Not enough repeat activity yet.</div>';
+    c.innerHTML = `<div style="display:flex;gap:20px;flex-wrap:wrap;margin-bottom:12px;">
+        ${d.bestHour ? `<div><div style="font-size:11px;color:var(--text3);">Best hour to publish</div><strong style="font-size:16px;">${HOUR_LABELS[d.bestHour.hour]}</strong></div>` : ''}
+        ${d.bestDay ? `<div><div style="font-size:11px;color:var(--text3);">Best day</div><strong style="font-size:16px;">${d.bestDay.day}</strong></div>` : ''}
+      </div>
+      <div class="sdiv-label">Recurring top performers (last ${d.windowDays} days)</div>
+      ${pagesRows}
+      <div style="font-size:11px;color:var(--text3);margin-top:8px;">Based on ${d.count} snapshots.</div>`;
+  } catch (e) {
+    c.innerHTML = `<div class="empty" style="padding:14px;">Couldn't load trends — ${e.message}</div>`;
+  }
 }
 
 async function refreshChartbeatInsights() {
