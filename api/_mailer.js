@@ -6,11 +6,16 @@ async function sendMail(opts) {
   var GMAIL_USER = process.env.GMAIL_USER;
   var GMAIL_APP_PASSWORD = process.env.GMAIL_APP_PASSWORD;
 
-  var recipients = (process.env.ALERT_EMAIL || '')
-    .split(',')
-    .map(function(e) { return e.trim().replace(/[<>]/g, ''); })
-    .filter(Boolean);
-  if (!recipients.length) throw new Error('ALERT_EMAIL not set');
+  // Callers can override the recipient list (e.g. the dev digest, which goes
+  // to a different pair of addresses than the newsroom's own ALERT_EMAIL).
+  var recipients = opts.to
+    ? (Array.isArray(opts.to) ? opts.to : String(opts.to).split(','))
+      .map(function(e) { return e.trim().replace(/[<>]/g, ''); }).filter(Boolean)
+    : (process.env.ALERT_EMAIL || '')
+      .split(',')
+      .map(function(e) { return e.trim().replace(/[<>]/g, ''); })
+      .filter(Boolean);
+  if (!recipients.length) throw new Error(opts.to ? 'No valid recipients in opts.to' : 'ALERT_EMAIL not set');
 
   if (GMAIL_USER && GMAIL_APP_PASSWORD) {
     var transporter = nodemailer.createTransport({

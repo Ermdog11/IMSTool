@@ -52,6 +52,9 @@
     },
     "api/scrape-session.js": {
       "maxDuration": 20
+    },
+    "api/dev-digest.js": {
+      "maxDuration": 60
     }
   },
   "rewrites": [
@@ -95,6 +98,10 @@
     {
       "path": "/api/publish-watch",
       "schedule": "0 15 * * *"
+    },
+    {
+      "path": "/api/dev-digest",
+      "schedule": "0 13 * * *"
     }
   ]
 }
