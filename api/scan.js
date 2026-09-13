@@ -20,9 +20,12 @@ module.exports = async function handler(req, res) {
 
   // Full scan: fetch Reddit + Google News RSS, then ask Claude to rate them
   // Window widened from 36h → 66h so a Friday-night story is still in the pool
-  // Monday morning. News older than this is dropped before rating.
-  var cutoff = Date.now() - 66 * 60 * 60 * 1000;
-  var googleCutoff = Date.now() - 66 * 60 * 60 * 1000;
+  // Monday morning. News older than this is dropped before rating. Overridable
+  // via body.hours for one-off checks (e.g. "how many 4-star stories in the
+  // last 72h") without changing the standing window every other caller gets.
+  var windowHours = (body.hours && body.hours > 0) ? body.hours : 66;
+  var cutoff = Date.now() - windowHours * 60 * 60 * 1000;
+  var googleCutoff = Date.now() - windowHours * 60 * 60 * 1000;
   // Our own outlet is the 247Sports Maryland team site (InsideMDSports). Google News
   // labels it "247Sports" with a redirect URL, so the only reliable signal is the
   // source name / any 247sports.com URL — block the whole domain unconditionally.
