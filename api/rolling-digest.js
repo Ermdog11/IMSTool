@@ -217,17 +217,20 @@ module.exports = async function handler(req, res) {
       } catch (e) { pushResult = { error: e.message }; }
     }
 
-    // Auto-draft a ready-to-review article for each NEW breaking story (never
+    // Auto-draft a ready-to-review article for each NEW rating-4+ story (never
     // re-draft one still sitting in the window on a later run this slot),
     // email it to whoever has 'breaking' alerts on, and drop it in Team Chat
-    // tagged so the whole newsroom sees it, not just the recipients. Each
-    // story is its own try/catch — one bad draft must never cost the others
-    // or the digest email above, which has already been sent by this point.
+    // tagged so the whole newsroom sees it, not just the recipients. Lower
+    // bar than the push notification above (which stays at 5, "drop what
+    // you're doing") — Jeff wants rating-4 covered too (2026-09-13), both
+    // because 4s are real news worth a head start on and because 5s alone
+    // are too rare to exercise/verify this pipeline regularly.
+    var draftEligible = alerts.filter(function(a) { return (a.rating || 0) >= 4; });
     var breakingDrafts = [];
-    if (breaking.length && S.isConfigured()) {
+    if (draftEligible.length && S.isConfigured()) {
       var sb = S.admin();
-      for (var bi = 0; bi < breaking.length; bi++) {
-        var story = breaking[bi];
+      for (var bi = 0; bi < draftEligible.length; bi++) {
+        var story = draftEligible[bi];
         try {
           if (story.url && await Drafts.findBySourceUrl(story.url)) {
             breakingDrafts.push({ headline: story.headline, status: 'already-drafted' });
