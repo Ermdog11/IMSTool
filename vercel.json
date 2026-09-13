@@ -49,6 +49,9 @@
     },
     "api/publish-watch.js": {
       "maxDuration": 120
+    },
+    "api/scrape-session.js": {
+      "maxDuration": 20
     }
   },
   "rewrites": [

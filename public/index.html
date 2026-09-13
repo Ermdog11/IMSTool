@@ -457,6 +457,17 @@ body { padding-bottom: 40px; }
     <div id="teamContainer"><div class="empty" style="padding:12px;">Loading team…</div></div>
   </div>
 
+  <div class="settings-card" id="scrapeSessionCardWrap" hidden>
+    <h3><i class="ti ti-lock-open"></i> 247Sports login (for style drift matching)</h3>
+    <div style="font-size:12px;color:var(--text3);margin-bottom:10px;line-height:1.5;">
+      The knowledge base automatically compares each submitted article against what actually published on 247Sports, to learn from what a human changed. 247Sports paywalls full articles, so without your login it can only see the free preview (usually just the lede). Connect your own subscription once and it reads the full piece every time — no per-article work.
+      <br><br>
+      To connect: sign into 247Sports in your browser, open DevTools → Network tab, reload the page, click any request to 247sports.com, and copy the full value of the <strong>Cookie</strong> request header. Paste it below. Only you (the publisher) can set this, it's encrypted, and it's never shown again once saved.
+    </div>
+    <div id="scrapeSessionStatus" style="font-size:11px;color:var(--text3);margin-bottom:8px;">Loading…</div>
+    <button class="pill" id="scrapeSessionBtn" onclick="scrapeSessionAction()">Connect</button>
+  </div>
+
   <div class="settings-card" id="excludeCard">
     <h3><i class="ti ti-ban"></i> Excluded sources</h3>
 
@@ -662,6 +673,8 @@ body { padding-bottom: 40px; }
     if (s && s.role === 'publisher') {
       var t = document.getElementById('teamCardWrap');
       if (t) t.hidden = false;
+      var ss = document.getElementById('scrapeSessionCardWrap');
+      if (ss) ss.hidden = false;
     }
     if (s && s.preview) {
       var bar = document.createElement('div');
@@ -713,7 +726,7 @@ function switchTab(idx, fromPop) {
   if (idx === 7) loadPodcasts();
   if (idx === 8) loadYouTube();
   if (idx === 9) loadBluesky();
-  if (idx === 10) { renderBlockedSources(); renderOwnSites(); refreshPushStatus(); loadTeam(); }
+  if (idx === 10) { renderBlockedSources(); renderOwnSites(); refreshPushStatus(); loadTeam(); loadScrapeSessionStatus(); }
   if (idx === 11) renderAnalyticsConnections();
   if (idx === 12) loadRosterWatch();
   window.scrollTo(0, 0);
@@ -1639,6 +1652,59 @@ async function loadTeam() {
   } catch (e) {
     c.innerHTML = `<div class="empty" style="padding:12px;">Couldn't load the team — ${e.message}</div>`;
   }
+}
+
+// ============================================================
+// 247SPORTS SCRAPE SESSION — so style-drift matching can read full
+// paywalled articles instead of just the free preview.
+// ============================================================
+let scrapeSessionConnected = false;
+
+async function loadScrapeSessionStatus() {
+  const wrap = document.getElementById('scrapeSessionCardWrap');
+  if (!wrap || wrap.hidden || !window.IMSAuth) return;
+  const s = document.getElementById('scrapeSessionStatus');
+  const btn = document.getElementById('scrapeSessionBtn');
+  try {
+    const r = await IMSAuth.authFetch('/api/scrape-session');
+    const d = await r.json();
+    scrapeSessionConnected = !!d.connected;
+    s.textContent = scrapeSessionConnected
+      ? `● Connected — last set ${new Date(d.updatedAt).toLocaleDateString()}`
+      : 'Not connected — full-text style-drift comparison is limited to the free preview.';
+    s.style.color = scrapeSessionConnected ? '#15803d' : 'var(--text3)';
+    btn.textContent = scrapeSessionConnected ? 'Disconnect' : 'Connect';
+  } catch (e) {
+    s.textContent = `Couldn't load status — ${e.message}`;
+  }
+}
+
+async function scrapeSessionAction() {
+  if (scrapeSessionConnected) {
+    if (!confirm('Disconnect your 247Sports session? Style-drift matching will fall back to the free preview only.')) return;
+    try {
+      const r = await IMSAuth.authFetch('/api/scrape-session', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'disconnect' })
+      });
+      const d = await r.json();
+      if (d.error) { alert(d.error); return; }
+      loadScrapeSessionStatus();
+    } catch (e) { alert(e.message); }
+    return;
+  }
+
+  const cookie = prompt("Paste the full 'Cookie' request header value from a signed-in 247Sports request (DevTools → Network tab):");
+  if (!cookie) return;
+  try {
+    const r = await IMSAuth.authFetch('/api/scrape-session', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ source: '247sports', cookie })
+    });
+    const d = await r.json();
+    if (d.error) { alert(d.error); return; }
+    loadScrapeSessionStatus();
+  } catch (e) { alert(e.message); }
 }
 
 function renderTeam(team, prefs) {

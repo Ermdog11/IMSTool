@@ -21,7 +21,8 @@ module.exports = async function handler(req, res) {
 
     var report = await require('./_publish-match').runMatchPass(sb, siteRes.data.id);
     var matched = report.filter(function(r) { return r.status === 'matched'; }).length;
-    return res.status(200).json({ checked: report.length, matched: matched, report: report });
+    var sessionLikelyExpired = report.some(function(r) { return r.authWallDetected; });
+    return res.status(200).json({ checked: report.length, matched: matched, sessionLikelyExpired: sessionLikelyExpired, report: report });
   } catch (e) {
     console.error('publish-watch error:', e.message);
     return res.status(500).json({ error: e.message });

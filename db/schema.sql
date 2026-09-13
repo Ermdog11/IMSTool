@@ -152,6 +152,25 @@ create table if not exists public.analytics_connections (
 );
 create index if not exists analytics_connections_site_idx on public.analytics_connections (site_id);
 
+-- Scrape sessions -----------------------------------------------------------
+-- A publisher's own logged-in session cookie for a paywalled outlet (247Sports
+-- today), so api/_publish-match.js can read full article bodies instead of
+-- whatever's visible before the meter cuts in. One-time paste, not per-article
+-- work. AES-256-GCM encrypted (api/_crypto.js); never decrypted anywhere but
+-- server-side inside the scraper, and never returned by the API once saved —
+-- no "member reads" policy at all, unlike every other per-site table.
+create table if not exists public.scrape_sessions (
+  id            uuid primary key default gen_random_uuid(),
+  site_id       uuid not null references public.sites(id) on delete cascade,
+  source        text not null,             -- '247sports' today; room for other paywalled outlets later
+  cookie        text not null,             -- encrypted
+  connected_by  uuid references public.profiles(id) on delete set null,
+  created_at    timestamptz not null default now(),
+  updated_at    timestamptz not null default now(),
+  unique (site_id, source)
+);
+create index if not exists scrape_sessions_site_idx on public.scrape_sessions (site_id);
+
 -- Style drift: published vs. submitted ------------------------------------
 -- Automatically matches a submitted content_items row to its live URL (no
 -- manual paste — api/publish-watch.js scrapes the outlet's own recent-articles
@@ -185,6 +204,7 @@ alter table public.content_items  enable row level security;
 alter table public.roster_events  enable row level security;
 alter table public.analytics_connections enable row level security;
 alter table public.content_revisions enable row level security;
+alter table public.scrape_sessions enable row level security;
 
 create or replace function public.is_member(target_site uuid)
 returns boolean language sql stable security definer set search_path = public as $$
@@ -245,6 +265,19 @@ create policy "publisher manages analytics connections" on public.analytics_conn
 drop policy if exists "member reads content revisions" on public.content_revisions;
 create policy "member reads content revisions" on public.content_revisions
   for select using (public.is_member(site_id));
+
+-- No select policy at all on scrape_sessions, intentionally — the app only
+-- ever reads it through the service-role client inside the scraper itself.
+-- These just let a publisher write/replace/remove their own session cookie.
+drop policy if exists "publisher inserts scrape sessions" on public.scrape_sessions;
+create policy "publisher inserts scrape sessions" on public.scrape_sessions
+  for insert with check (public.is_publisher(site_id));
+drop policy if exists "publisher updates scrape sessions" on public.scrape_sessions;
+create policy "publisher updates scrape sessions" on public.scrape_sessions
+  for update using (public.is_publisher(site_id)) with check (public.is_publisher(site_id));
+drop policy if exists "publisher deletes scrape sessions" on public.scrape_sessions;
+create policy "publisher deletes scrape sessions" on public.scrape_sessions
+  for delete using (public.is_publisher(site_id));
 
 -- Seed: the first newsroom -------------------------------------------------
 insert into public.sites (slug, name, domain)

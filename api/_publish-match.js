@@ -5,14 +5,20 @@
 // actually published. Best-effort/non-blocking throughout, same shape as
 // _knowledge.js — a failed match here must never break anything else.
 //
-// Limitation: InsideMDSports publishes on 247Sports, which paywalls full
-// article bodies. Whatever text is reachable in the page's own HTML (often
-// a lede/preview before the meter cuts in) is what gets compared — partial
-// matches are flagged `paywalled: true` rather than silently treated as complete.
+// InsideMDSports publishes on 247Sports, which paywalls full article bodies.
+// With a publisher-supplied session cookie (api/_scrape-store.js — one-time
+// paste, connected on the Settings tab) it fetches as that logged-in
+// subscriber and gets the real body; without one, only whatever's visible
+// before the meter cuts in (often just the lede) is reachable, and that's
+// flagged `paywalled: true` rather than silently treated as complete.
 
 var BROWSER_UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0 Safari/537.36';
 var PAYWALL_TEXT_FLOOR = 500; // shorter than this, on a page that fetched fine, almost certainly means a meter cut it off.
 var MATCH_THRESHOLD = 0.6;
+// Phrases 247Sports (and similar meters) show in place of the article when
+// you're not entitled to read it — if these show up even WITH a cookie sent,
+// the session is expired/invalid, not just "the article happens to be short."
+var PAYWALL_MARKERS = /subscribe (?:now|to continue|to read)|continue reading|247sports\+|premium content|sign up to unlock/i;
 
 function normWords(s) {
   return String(s || '').toLowerCase()
@@ -33,11 +39,13 @@ function overlapScore(a, b) {
   return hits / Math.max(wa.length, wb.length);
 }
 
-async function fetchArticleText(url) {
+async function fetchArticleText(url, cookie) {
   var c = new AbortController();
   var t = setTimeout(function() { c.abort(); }, 15000);
   try {
-    var resp = await fetch(url, { headers: { 'User-Agent': BROWSER_UA }, signal: c.signal });
+    var headers = { 'User-Agent': BROWSER_UA };
+    if (cookie) headers.Cookie = cookie;
+    var resp = await fetch(url, { headers: headers, signal: c.signal });
     var html = await resp.text();
     if (!resp.ok) return { text: '', paywalled: false, error: 'HTTP ' + resp.status };
 
@@ -56,7 +64,13 @@ async function fetchArticleText(url) {
     var text = paras.join('\n\n').slice(0, 8000);
     if (!text && metaDesc) text = metaDesc;
 
-    return { text: text, metaDescription: metaDesc, paywalled: !!text && text.length < PAYWALL_TEXT_FLOOR };
+    // With a session cookie, a short/marker-bearing result means the session
+    // is bad, not that the article is short — surface that distinctly so
+    // it's obvious the fix is reconnecting, not a scraping quirk.
+    var authWallDetected = !!cookie && (PAYWALL_MARKERS.test(html) || text.length < PAYWALL_TEXT_FLOOR);
+    var paywalled = !cookie && !!text && (PAYWALL_MARKERS.test(html) || text.length < PAYWALL_TEXT_FLOOR);
+
+    return { text: text, metaDescription: metaDesc, paywalled: paywalled, authWallDetected: authWallDetected };
   } catch (e) {
     return { text: '', paywalled: false, error: e.message };
   } finally { clearTimeout(t); }
@@ -67,7 +81,7 @@ async function claudeDiff(headline, ours, published, paywalled) {
   if (!key) return null;
   var prompt =
     'Two versions of the same news article. VERSION A is what our AI copydesk tool produced. VERSION B is what actually ' +
-    'went live on the site' + (paywalled ? ' (the outlet paywalls full articles — this is only the portion visible before the paywall, likely just the lede)' : '') + '. ' +
+    'went live on the site' + (paywalled ? ' (only the portion visible before the outlet\'s paywall meter cuts in was reachable, likely just the lede)' : '') + '. ' +
     "Compare them and write 2-4 short bullet points on what a human writer/editor changed — cuts, additions, rewording, structure, tone. " +
     "Be concrete (quote or closely paraphrase the specific change), not generic. If VERSION B is too short/partial to say anything meaningful beyond the opening, say exactly that in one line instead of guessing.\n\n" +
     'HEADLINE: ' + headline + '\n\n' +
@@ -90,6 +104,9 @@ async function claudeDiff(headline, ours, published, paywalled) {
 // records what changed. Returns a per-item report for logging.
 async function runMatchPass(sb, siteId) {
   var report = [];
+  var cookie = null;
+  try { cookie = await require('./_scrape-store').getCookie(sb, siteId, '247sports'); }
+  catch (e) { /* proceed without a session — falls back to whatever's public */ }
 
   var pendingRes = await sb.from('content_items')
     .select('id, headline, body, created_at')
@@ -125,7 +142,7 @@ async function runMatchPass(sb, siteId) {
         continue;
       }
 
-      var fetched = await fetchArticleText(best.url);
+      var fetched = await fetchArticleText(best.url, cookie);
       if (!fetched.text) {
         report.push({ headline: item.headline, status: 'fetch-empty', url: best.url, error: fetched.error });
         continue;
@@ -142,7 +159,10 @@ async function runMatchPass(sb, siteId) {
       }, { onConflict: 'content_item_id' });
       if (ins.error) throw new Error(ins.error.message);
 
-      report.push({ headline: item.headline, status: 'matched', url: best.url, paywalled: fetched.paywalled, score: bestScore });
+      report.push({
+        headline: item.headline, status: 'matched', url: best.url, paywalled: fetched.paywalled, score: bestScore,
+        authWallDetected: fetched.authWallDetected || undefined // present + true only when a cookie was sent but still blocked — session likely expired
+      });
     } catch (e) {
       report.push({ headline: item.headline, status: 'error', error: e.message });
     }
