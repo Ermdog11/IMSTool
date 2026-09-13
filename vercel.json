@@ -74,6 +74,9 @@
     "api/scrape-session.js": {
       "maxDuration": 20
     },
+    "api/search-settings.js": {
+      "maxDuration": 20
+    },
     "api/dev-digest.js": {
       "maxDuration": 60
     },

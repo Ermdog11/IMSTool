@@ -364,6 +364,26 @@ module.exports = async function handler(req, res) {
       } catch(e) { /* skip failed feed */ }
     }
 
+    // Real, open-ended web search alongside the ~70 curated RSS queries above
+    // — opt-in per caller (body.webSearch), set only by rolling-digest.js's
+    // 3x/day cron, never by the client-side "Scan now" button / 30-min
+    // auto-scan, since the free tier is 100 queries/day. See _google-search.js.
+    var webSearchCount = 0, webSearchWarnings = [];
+    if (body.webSearch) {
+      try {
+        var S = require('./_supabase.js');
+        if (S.isConfigured()) {
+          var googleCreds = await require('./_settings-store.js').getGoogleSearch(S.admin());
+          if (googleCreds) {
+            var searchResult = await require('./_google-search.js').searchNews(googleCreds.apiKey, googleCreds.engineId);
+            searchResult.results.forEach(function(item) { stories.push(item); });
+            webSearchCount = searchResult.results.length;
+            webSearchWarnings = searchResult.warnings;
+          }
+        }
+      } catch (e) { webSearchWarnings.push(e.message); }
+    }
+
     // Drop stories that originated on our own outlet (matched by headline against the blocklist feed)
     var ownFiltered = 0;
     stories = stories.filter(function(s) {
@@ -429,7 +449,7 @@ module.exports = async function handler(req, res) {
     var fetchStatuses = results.map(function(r, i) {
       return allNames[i] + ':' + (r.status === 'fulfilled' ? r.value.status : 'FAILED');
     });
-    console.log('Stories:', stories.length, '| Reddit:', redditCount, '| Google:', googleCount, '| YouTube:', videoCount, '| Own-outlet filtered:', ownFiltered, '| Blocklist size:', ownTitleWordSets.length, '| Blocklist source:', blocklistSource, '| Fetches:', fetchStatuses.join(', '));
+    console.log('Stories:', stories.length, '| Reddit:', redditCount, '| Google:', googleCount, '| YouTube:', videoCount, '| WebSearch:', webSearchCount, (webSearchWarnings.length ? '(' + webSearchWarnings.join('; ') + ')' : ''), '| Own-outlet filtered:', ownFiltered, '| Blocklist size:', ownTitleWordSets.length, '| Blocklist source:', blocklistSource, '| Fetches:', fetchStatuses.join(', '));
 
     if (!stories.length) {
       var diagMsg = 'No stories found. Fetch results: ' + fetchStatuses.join(', ');

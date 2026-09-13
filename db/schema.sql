@@ -239,6 +239,14 @@ create table if not exists public.site_settings (
   updated_at          timestamptz not null default now()
 );
 
+-- Web search (Google Programmable Search) for the news scanner — a real,
+-- open-ended search alongside the fixed set of curated RSS feeds. Kept
+-- opt-in per caller (scan.js's `webSearch` flag) rather than run on every
+-- scan, since the free tier is 100 queries/day and the client-side scan can
+-- fire far more often than that if left running.
+alter table public.site_settings add column if not exists google_search_api_key text; -- encrypted (api/_crypto.js)
+alter table public.site_settings add column if not exists google_search_engine_id text; -- not secret, just an ID
+
 -- Row Level Security ----------------------------------------------------
 -- The API layer talks to Postgres with the service_role key, which bypasses
 -- RLS. These policies are defence-in-depth for any future direct-from-browser

@@ -467,6 +467,17 @@ body { padding-bottom: 40px; }
     <button class="pill" id="scrapeSessionBtn" onclick="scrapeSessionAction()">Connect</button>
   </div>
 
+  <div class="settings-card" id="searchSettingsCardWrap" hidden>
+    <h3><i class="ti ti-search"></i> Web search (for the news scanner)</h3>
+    <div style="font-size:12px;color:var(--text3);margin-bottom:10px;line-height:1.5;">
+      The scanner pulls from ~70 curated RSS/news queries — but those only catch a story if someone already wrote a query that matches it. Connecting Google Programmable Search adds a real, open-ended web search alongside them, run on the 3×/day scheduled scan only (never the manual "Scan now" button, to stay well under the free 100-searches/day tier).
+      <br><br>
+      To connect: create a <a href="https://programmablesearchengine.google.com/" target="_blank" rel="noopener">Programmable Search Engine</a> (set it to search the whole web), then get an API key + your Search Engine ID from the <a href="https://developers.google.com/custom-search/v1/introduction" target="_blank" rel="noopener">Custom Search JSON API</a> page. Paste both below.
+    </div>
+    <div id="searchSettingsStatus" style="font-size:11px;color:var(--text3);margin-bottom:8px;">Loading…</div>
+    <button class="pill" id="searchSettingsBtn" onclick="searchSettingsAction()">Connect</button>
+  </div>
+
   <div class="settings-card" id="socialPromoCardWrap" hidden>
     <h3><i class="ti ti-rocket"></i> Bluesky promo bot</h3>
     <div style="font-size:12px;color:var(--text3);margin-bottom:10px;line-height:1.5;">
@@ -711,6 +722,8 @@ body { padding-bottom: 40px; }
       if (ss) ss.hidden = false;
       var sp = document.getElementById('socialPromoCardWrap');
       if (sp) sp.hidden = false;
+      var srch = document.getElementById('searchSettingsCardWrap');
+      if (srch) srch.hidden = false;
     }
     if (s && s.preview) {
       var bar = document.createElement('div');
@@ -763,7 +776,7 @@ function switchTab(idx, fromPop) {
   if (idx === 7) loadPodcasts();
   if (idx === 8) loadYouTube();
   if (idx === 9) loadBluesky();
-  if (idx === 10) { renderBlockedSources(); renderOwnSites(); refreshPushStatus(); loadTeam(); loadScrapeSessionStatus(); loadSocialPromoStatus(); }
+  if (idx === 10) { renderBlockedSources(); renderOwnSites(); refreshPushStatus(); loadTeam(); loadScrapeSessionStatus(); loadSocialPromoStatus(); loadSearchSettingsStatus(); }
   if (idx === 11) renderAnalyticsConnections();
   if (idx === 12) loadRosterWatch();
   window.scrollTo(0, 0);
@@ -1812,6 +1825,57 @@ async function scrapeSessionAction() {
     const d = await r.json();
     if (d.error) { alert(d.error); return; }
     loadScrapeSessionStatus();
+  } catch (e) { alert(e.message); }
+}
+
+let searchSettingsConnected = false;
+
+async function loadSearchSettingsStatus() {
+  const wrap = document.getElementById('searchSettingsCardWrap');
+  if (!wrap || wrap.hidden || !window.IMSAuth) return;
+  const s = document.getElementById('searchSettingsStatus');
+  const btn = document.getElementById('searchSettingsBtn');
+  try {
+    const r = await IMSAuth.authFetch('/api/search-settings');
+    const d = await r.json();
+    searchSettingsConnected = !!d.connected;
+    s.textContent = searchSettingsConnected
+      ? '● Connected — the 3×/day scan now includes a live web search'
+      : 'Not connected — the scanner runs on curated RSS feeds only.';
+    s.style.color = searchSettingsConnected ? '#15803d' : 'var(--text3)';
+    btn.textContent = searchSettingsConnected ? 'Disconnect' : 'Connect';
+  } catch (e) {
+    s.textContent = `Couldn't load status — ${e.message}`;
+  }
+}
+
+async function searchSettingsAction() {
+  if (searchSettingsConnected) {
+    if (!confirm('Disconnect web search? The scanner will go back to RSS feeds only.')) return;
+    try {
+      const r = await IMSAuth.authFetch('/api/search-settings', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'disconnect' })
+      });
+      const d = await r.json();
+      if (d.error) { alert(d.error); return; }
+      loadSearchSettingsStatus();
+    } catch (e) { alert(e.message); }
+    return;
+  }
+
+  const apiKey = prompt("Google Custom Search API key:");
+  if (!apiKey) return;
+  const engineId = prompt("Programmable Search Engine ID (the 'cx' value):");
+  if (!engineId) return;
+  try {
+    const r = await IMSAuth.authFetch('/api/search-settings', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ apiKey, engineId })
+    });
+    const d = await r.json();
+    if (d.error) { alert(d.error); return; }
+    loadSearchSettingsStatus();
   } catch (e) { alert(e.message); }
 }
 

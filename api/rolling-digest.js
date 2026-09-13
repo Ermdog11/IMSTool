@@ -170,7 +170,7 @@ module.exports = async function handler(req, res) {
         status: function() { return this; },
         json: function(d) { resolve(d); return this; }
       };
-      scanHandler({ body: { deep: true } }, fakeRes).catch(reject);
+      scanHandler({ body: { deep: true, webSearch: true } }, fakeRes).catch(reject);
     });
 
     if (scanResult.error) throw new Error('Scan failed: ' + scanResult.error);

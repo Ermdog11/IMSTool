@@ -1,7 +1,10 @@
-// Site-wide settings (currently just the house style guide) — used both by
-// the Content Editor (api/house-style.js, browser-facing) and by anything
-// server-side that needs to write in-house-style without a browser involved
-// (the breaking-news auto-draft in api/rolling-digest.js).
+// Site-wide settings: the house style guide, and the Google Programmable
+// Search credentials used to give the news scanner a real open-ended web
+// search alongside its curated RSS feeds. Used both by the Content Editor /
+// Settings UI (browser-facing) and by anything server-side that needs these
+// without a browser involved (the breaking-news auto-draft, the scan cron).
+
+var Crypto = require('./_crypto');
 
 var SITE_SLUG = 'insidemdsports';
 var siteIdCache = null;
@@ -36,4 +39,39 @@ async function saveHouseStyle(sb, guide) {
   return { ok: true };
 }
 
-module.exports = { getHouseStyle: getHouseStyle, saveHouseStyle: saveHouseStyle };
+// Best-effort — no credentials saved yet is a normal, common state (scan.js
+// just skips web search and falls back to RSS-only, same as always).
+async function getGoogleSearch(sb) {
+  try {
+    var siteId = await resolveSiteId(sb);
+    var q = await sb.from('site_settings').select('google_search_api_key, google_search_engine_id').eq('site_id', siteId).single();
+    if (q.error || !q.data || !q.data.google_search_api_key || !q.data.google_search_engine_id) return null;
+    return { apiKey: Crypto.decrypt(q.data.google_search_api_key), engineId: q.data.google_search_engine_id };
+  } catch (e) {
+    return null;
+  }
+}
+
+async function saveGoogleSearch(sb, apiKey, engineId) {
+  var siteId = await resolveSiteId(sb);
+  var up = await sb.from('site_settings').upsert({
+    site_id: siteId, google_search_api_key: Crypto.encrypt(apiKey), google_search_engine_id: engineId,
+    updated_at: new Date().toISOString()
+  }, { onConflict: 'site_id' });
+  if (up.error) throw new Error(up.error.message);
+  return { ok: true };
+}
+
+async function deleteGoogleSearch(sb) {
+  var siteId = await resolveSiteId(sb);
+  var up = await sb.from('site_settings').update({
+    google_search_api_key: null, google_search_engine_id: null, updated_at: new Date().toISOString()
+  }).eq('site_id', siteId);
+  if (up.error) throw new Error(up.error.message);
+  return { ok: true };
+}
+
+module.exports = {
+  getHouseStyle: getHouseStyle, saveHouseStyle: saveHouseStyle,
+  getGoogleSearch: getGoogleSearch, saveGoogleSearch: saveGoogleSearch, deleteGoogleSearch: deleteGoogleSearch
+};
