@@ -296,11 +296,10 @@ body { padding-bottom: 40px; }
 
 <!-- TEAM CHAT TAB -->
 <div class="page" id="page-3">
-  <div class="notice"><i class="ti ti-users"></i> General channel — alerts rated 4+ auto-drop here. Two staffers + you.</div>
+  <div class="notice"><i class="ti ti-users"></i> General channel — alerts rated 4+ auto-drop here, and breaking-news auto-drafts land here tagged. Shared with the whole team.</div>
   <div class="chat-layout">
     <div class="chat-messages" id="chatMessages">
-      <div class="chat-msg system">InsideMDSports News Monitor — General Channel</div>
-      <div class="chat-msg system">Alerts rated 4 or 5 will auto-drop here for the team to discuss and claim.</div>
+      <div class="chat-msg system">Loading…</div>
     </div>
     <div class="chat-input-row">
       <input class="chat-input" id="chatInput" placeholder="Message the team..." onkeydown="if(event.key==='Enter')sendChat()" />
@@ -760,6 +759,7 @@ function pathToTab(p) {
 function switchTab(idx, fromPop) {
   document.querySelectorAll('.page').forEach((p, i) => p.classList.toggle('active', i === idx));
   document.querySelectorAll('.nav-tab').forEach((t, i) => t.classList.toggle('active', i === idx));
+  if (idx === 3) { loadChatMessages(); startChatPolling(); } else { stopChatPolling(); }
   if (idx === 7) loadPodcasts();
   if (idx === 8) loadYouTube();
   if (idx === 9) loadBluesky();
@@ -1584,7 +1584,9 @@ async function draftReply(idx, postText) {
 }
 
 // ============================================================
-// TEAM CHAT
+// TEAM CHAT — persisted server-side (api/chat.js), shared across the whole
+// team. Local-only helper for client-side notices (e.g. "claimed a story")
+// that were never meant to be a shared record.
 // ============================================================
 function addChatMessage(text, type, sender) {
   const c = document.getElementById('chatMessages');
@@ -1596,20 +1598,77 @@ function addChatMessage(text, type, sender) {
   c.scrollTop = c.scrollHeight;
 }
 
-function dropAlertToChat(a) {
+let chatPollTimer = null;
+let chatLatestTs = null;
+
+function renderChatMessage(m) {
   const c = document.getElementById('chatMessages');
   const div = document.createElement('div');
-  div.className = 'chat-msg alert-drop';
-  div.innerHTML = `<div class="alert-headline">🚨 ${a.rating === 5 ? 'BREAKING' : 'ALERT'}: ${a.headline}</div><div class="alert-meta">${a.category} · ${a.source} · ${a.time} · Rating ${a.rating}/5</div>`;
+  const myId = window.IMSAuth && IMSAuth.state && IMSAuth.state.user && IMSAuth.state.user.id;
+  if (m.kind === 'breaking' || m.kind === 'alert-drop') {
+    div.className = 'chat-msg alert-drop';
+    const tag = m.tag ? `<span style="background:var(--red);color:#fff;font-size:10px;font-weight:700;padding:1px 7px;border-radius:20px;margin-right:6px;vertical-align:1px;">${m.tag}</span>` : '';
+    const link = (m.meta && m.meta.reviewUrl) ? ` — <a href="${m.meta.reviewUrl}" target="_blank" rel="noopener">open draft</a>` : '';
+    div.innerHTML = `<div class="alert-headline">${tag}🚨 ${m.text}${link}</div><div class="alert-meta">${new Date(m.created_at).toLocaleString()}</div>`;
+  } else if (m.kind === 'system') {
+    div.className = 'chat-msg system';
+    div.textContent = m.text;
+  } else {
+    div.className = 'chat-msg ' + (m.sender_user_id && m.sender_user_id === myId ? 'me' : 'other');
+    div.innerHTML = `<div class="sender">${m.sender_name || ''}</div>${m.text.replace(/</g,'&lt;')}`;
+  }
   c.appendChild(div);
   c.scrollTop = c.scrollHeight;
+  chatLatestTs = m.created_at;
 }
 
-function sendChat() {
+async function loadChatMessages() {
+  const c = document.getElementById('chatMessages');
+  if (!window.IMSAuth) return;
+  try {
+    const r = await IMSAuth.authFetch('/api/chat');
+    const d = await r.json();
+    if (d.error) { c.innerHTML = `<div class="chat-msg system">${d.error}</div>`; return; }
+    c.innerHTML = '';
+    chatLatestTs = null;
+    (d.messages || []).forEach(renderChatMessage);
+    if (!(d.messages || []).length) c.innerHTML = '<div class="chat-msg system">No messages yet — say hello, or wait for the next scan / breaking story.</div>';
+  } catch (e) {
+    c.innerHTML = `<div class="chat-msg system">Couldn't load chat — ${e.message}</div>`;
+  }
+}
+
+async function pollChatMessages() {
+  if (!window.IMSAuth || !chatLatestTs) return;
+  try {
+    const r = await IMSAuth.authFetch('/api/chat?since=' + encodeURIComponent(chatLatestTs));
+    const d = await r.json();
+    (d.messages || []).forEach(renderChatMessage);
+  } catch (e) { /* silent — next poll tries again */ }
+}
+
+function startChatPolling() {
+  stopChatPolling();
+  chatPollTimer = setInterval(pollChatMessages, 8000);
+}
+function stopChatPolling() {
+  if (chatPollTimer) { clearInterval(chatPollTimer); chatPollTimer = null; }
+}
+
+async function sendChat() {
   const input = document.getElementById('chatInput');
-  if (!input.value.trim()) return;
-  addChatMessage(input.value, 'me', 'Jeff Ermann');
+  const text = input.value.trim();
+  if (!text || !window.IMSAuth) return;
   input.value = '';
+  try {
+    const r = await IMSAuth.authFetch('/api/chat', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ text })
+    });
+    const d = await r.json();
+    if (d.error) { addChatMessage(d.error, 'system'); return; }
+    pollChatMessages();
+  } catch (e) { addChatMessage('Failed to send: ' + e.message, 'system'); }
 }
 
 // ============================================================

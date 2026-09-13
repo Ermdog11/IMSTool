@@ -34,7 +34,7 @@ async function saveDraft(doc) {
     access: 'private', addRandomSuffix: false, allowOverwrite: true, contentType: 'application/json'
   });
   var index = await loadIndex();
-  var entry = { id: doc.id, headline: doc.headline || '', writerName: doc.writerName || '', tier: doc.tier || 'free', status: doc.status || 'submitted', updatedAt: doc.updatedAt };
+  var entry = { id: doc.id, headline: doc.headline || '', writerName: doc.writerName || '', tier: doc.tier || 'free', status: doc.status || 'submitted', updatedAt: doc.updatedAt, sourceUrl: doc.sourceUrl || null };
   var i = index.findIndex(function(e) { return e.id === doc.id; });
   if (i === -1) index.unshift(entry); else index[i] = entry;
   await saveIndex(index);
@@ -51,4 +51,13 @@ async function deleteDraft(id) {
   await saveIndex(index.filter(function(e) { return e.id !== id; }));
 }
 
-module.exports = { loadIndex: loadIndex, loadDraft: loadDraft, saveDraft: saveDraft, deleteDraft: deleteDraft };
+// Dedup for anything auto-generated from an external source (e.g. the
+// breaking-news auto-draft in rolling-digest.js) — don't draft the same
+// story twice just because it's still in the scan window on a later run.
+async function findBySourceUrl(url) {
+  if (!url) return null;
+  var index = await loadIndex();
+  return index.find(function(e) { return e.sourceUrl === url; }) || null;
+}
+
+module.exports = { loadIndex: loadIndex, loadDraft: loadDraft, saveDraft: saveDraft, deleteDraft: deleteDraft, findBySourceUrl: findBySourceUrl };

@@ -207,6 +207,27 @@ create table if not exists public.content_revisions (
 );
 create index if not exists content_revisions_site_idx on public.content_revisions (site_id, matched_at desc);
 
+-- Team chat ----------------------------------------------------------------
+-- Real persisted messages for the "Team chat" tab, which used to be pure
+-- client-side DOM state (nothing shared between team members, nothing
+-- surviving a refresh). `kind` distinguishes a person's own message from an
+-- automated drop — 'alert-drop' for the existing rating-4+ scan behavior,
+-- 'breaking' for the auto-drafted breaking-news pieces (api/rolling-digest.js),
+-- each optionally carrying a `tag` (e.g. "Breaking News Alert") and `meta`
+-- (headline/url/rating/draftId) for the frontend to render richly.
+create table if not exists public.chat_messages (
+  id              uuid primary key default gen_random_uuid(),
+  site_id         uuid not null references public.sites(id) on delete cascade,
+  sender_user_id  uuid references public.profiles(id) on delete set null,
+  sender_name     text not null,
+  text            text not null,
+  kind            text not null default 'user', -- 'user' | 'alert-drop' | 'breaking'
+  tag             text,
+  meta            jsonb not null default '{}'::jsonb,
+  created_at      timestamptz not null default now()
+);
+create index if not exists chat_messages_site_idx on public.chat_messages (site_id, created_at desc);
+
 -- Row Level Security ----------------------------------------------------
 -- The API layer talks to Postgres with the service_role key, which bypasses
 -- RLS. These policies are defence-in-depth for any future direct-from-browser
@@ -221,6 +242,7 @@ alter table public.roster_events  enable row level security;
 alter table public.analytics_connections enable row level security;
 alter table public.analytics_snapshots enable row level security;
 alter table public.content_revisions enable row level security;
+alter table public.chat_messages enable row level security;
 alter table public.scrape_sessions enable row level security;
 
 create or replace function public.is_member(target_site uuid)
@@ -282,6 +304,13 @@ create policy "publisher manages analytics connections" on public.analytics_conn
 drop policy if exists "member reads content revisions" on public.content_revisions;
 create policy "member reads content revisions" on public.content_revisions
   for select using (public.is_member(site_id));
+
+drop policy if exists "member reads chat" on public.chat_messages;
+create policy "member reads chat" on public.chat_messages
+  for select using (public.is_member(site_id));
+drop policy if exists "member sends chat" on public.chat_messages;
+create policy "member sends chat" on public.chat_messages
+  for insert with check (public.is_member(site_id));
 
 -- No insert/update policy — only the cron's service-role client writes here.
 drop policy if exists "member reads analytics snapshots" on public.analytics_snapshots;

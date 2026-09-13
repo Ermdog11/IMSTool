@@ -30,12 +30,13 @@ Last updated: 2026-09-10
 | YouTube | Surfaces relevant videos, rated the same way as articles; filters out AI-spam and content-farm channels. |
 | Bluesky | Monitors social chatter, sorted by engagement. |
 | Digest emails | Morning brief, 8 PM nightly digest, and rolling updates — organized by day / sport / rating. |
-| Breaking-news email | Rating-5 stories email immediately, 24/7. |
+| Breaking-news email | Rating-5 stories trigger an immediate push + email. The scan itself runs 3x/day server-side (more often when the dashboard is open in a browser tab). |
+| Breaking-news auto-draft | Every rating-5 story is auto-drafted into a short, hotlinked, publish-ready article the moment it's caught — lands in the Content Editor's Drafts list, emails whoever has breaking alerts on with a direct link to open and finish it, and drops into Team Chat tagged "Breaking News Alert". |
 | Roster-change watch | Checks official team rosters 3×/week and emails when a player is added or drops off — often before the transfer/injury is reported anywhere. Dedicated in-app view shows each team's current roster and a dated history of every change caught. |
 | Coverage Desk agent | Runs on its own every morning and emails an assistant-editor's memo: what to cover today, gaps competitors have filled that you haven't, developing threads to follow up, and an editor's read. ("What worked" performance section fills in once analytics is connected.) Also runnable on demand. |
 | Noise controls | Per-topic caps with an overflow view (demote, don't drop), low-priority-sport suppression, stat-page filtering, "block this source" list. |
 | Own-outlet exclusion | Never shows the customer their own site's stories back to them — publisher lists their own domain(s), plus an "Exclude sources" control to add any other site or URL to filter out. |
-| Team chat | High-rated alerts auto-drop into a shared channel for the newsroom to claim and discuss. |
+| Team chat | Real shared channel (persisted, not just your own browser) — message the team, high-rated alerts and auto-drafted breaking stories drop in automatically. |
 | Story backlog | Auto-generates story angles from the current news. |
 | Desktop notifications | Optional browser push for breaking news. |
 | Real section URLs | Every section is its own bookmarkable, shareable address; browser back/forward works. |

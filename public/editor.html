@@ -832,7 +832,14 @@ document.getElementById('sg').value=getGuide();
 renderWriters();
 renderPromos();
 updateModeHint();
-(function(){var i=parseInt((location.hash||'').replace(/[^0-9]/g,''),10);if(i>=1&&i<=3){setActive(i);if(i===3)loadDrafts();}})();
+(function(){
+  var parts=(location.hash||'').replace('#','').split('/');
+  var i=parseInt(parts[0],10);
+  if(i>=1&&i<=3){
+    setActive(i);
+    if(i===3) loadDrafts().then(function(){ if(parts[1]) openDraft(parts[1]); });
+  }
+})();
 </script>
 </body>
 </html>
