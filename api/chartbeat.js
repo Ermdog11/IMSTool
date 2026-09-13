@@ -32,11 +32,20 @@ async function cbGet(path, apiKey, host) {
 }
 
 // Looks for a current-concurrents count under any of Chartbeat's known field
-// names, checking the top level, a "data" wrapper, and a data object keyed
+// names, checking the top level, a "data" wrapper, the "metrics"/"stats"
+// objects nested inside it (confirmed present on maryland-terrapins'
+// account — data: {stats, metrics, host_metadata}), and a data object keyed
 // by host (some Chartbeat endpoints nest per-domain when scoped that way).
 function extractVisits(quick, host) {
   var names = ['visits', 'people', 'concurrents', 'visitors'];
-  var candidates = [quick, quick.data, quick.data && host && quick.data[host]];
+  var data = quick.data;
+  var candidates = [
+    quick,
+    data,
+    data && data.metrics,
+    data && data.stats,
+    data && host && data[host]
+  ];
   for (var i = 0; i < candidates.length; i++) {
     var obj = candidates[i];
     if (!obj || typeof obj !== 'object') continue;
@@ -49,8 +58,14 @@ function extractVisits(quick, host) {
 
 function describeShape(quick) {
   var parts = ['top-level: ' + Object.keys(quick).join(',')];
-  if (quick.data && typeof quick.data === 'object') {
-    parts.push('data: ' + Object.keys(quick.data).join(','));
+  var data = quick.data;
+  if (data && typeof data === 'object') {
+    parts.push('data: ' + Object.keys(data).join(','));
+    ['metrics', 'stats', 'host_metadata'].forEach(function(k) {
+      if (data[k] && typeof data[k] === 'object') {
+        parts.push('data.' + k + ': ' + Object.keys(data[k]).join(','));
+      }
+    });
   }
   return parts.join(' | ');
 }
