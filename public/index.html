@@ -1812,13 +1812,22 @@ let analyticsConnected = {};
 async function renderAnalyticsConnections() {
   const c = document.getElementById('analyticsConnections');
   if (!c) return;
+  let loadError = null;
   try {
     const fetcher = window.IMSAuth ? IMSAuth.authFetch : fetch;
     const r = await fetcher('/api/analytics-connections');
     const d = await r.json();
-    analyticsConnected = {};
-    (d.connections || []).forEach(x => analyticsConnected[x.source] = x);
-  } catch (e) { analyticsConnected = {}; }
+    if (d.error) { loadError = d.error; analyticsConnected = {}; }
+    else {
+      analyticsConnected = {};
+      (d.connections || []).forEach(x => analyticsConnected[x.source] = x);
+    }
+  } catch (e) { loadError = e.message; analyticsConnected = {}; }
+
+  if (loadError) {
+    c.innerHTML = `<div class="empty" style="padding:14px;">Couldn't load connections — ${loadError}. <button class="chip" onclick="renderAnalyticsConnections()">Retry</button></div>`;
+    return;
+  }
 
   c.innerHTML = ANALYTICS_SOURCES.map(s => {
     const conn = analyticsConnected[s.key];
