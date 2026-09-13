@@ -53,6 +53,9 @@
     "api/analytics-trends.js": {
       "maxDuration": 20
     },
+    "api/analytics-question.js": {
+      "maxDuration": 30
+    },
     "api/meta-oauth-start.js": {
       "maxDuration": 20
     },

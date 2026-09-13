@@ -1,6 +1,7 @@
 // Shared Chartbeat fetch + parse logic, used by both the live Insights
-// endpoint (api/chartbeat.js) and the snapshot cron (api/analytics-snapshot.js)
-// so the two never drift out of sync on how a response is read.
+// endpoint (api/chartbeat.js), the snapshot cron (api/analytics-snapshot.js),
+// and the question box (api/analytics-question.js) so they never drift out
+// of sync on how a response is read.
 //
 // Real-time API (docs.chartbeat.com/cbp/api/real-time-apis):
 //   GET https://api.chartbeat.com/live/quickstats/v4/?host=<host>
@@ -62,6 +63,35 @@ function describeShape(quick) {
   return parts.join(' | ');
 }
 
+// Only scalars — skips nested objects/arrays so this can't dump something
+// huge or weird into a metrics list meant to just be "the numbers Chartbeat
+// gave us, whatever they're called."
+function scalarFields(obj) {
+  var out = {};
+  if (!obj || typeof obj !== 'object') return out;
+  Object.keys(obj).forEach(function(k) {
+    var v = obj[k];
+    if (typeof v === 'number' || typeof v === 'string' || typeof v === 'boolean') out[k] = v;
+  });
+  return out;
+}
+
+// Pulls every scalar Chartbeat handed back for site-wide quickstats — not
+// just "visits" — so engaged time, new/returning, traffic-source breakdown
+// etc. all surface once seen, without needing to guess their field names in
+// advance (the same shape-discovery approach that got "visits" itself
+// working: see describeShape's warning path in fetchLive below).
+function extractMetrics(quick) {
+  var data = quick.data;
+  return Object.assign(
+    {},
+    scalarFields(quick),
+    scalarFields(data),
+    scalarFields(data && data.metrics),
+    scalarFields(data && data.stats)
+  );
+}
+
 // Chartbeat tracks the whole site, message boards and off-topic forums
 // included — not just articles. Drop anything that reads like a board/thread
 // rather than a story (same blunt title-pattern approach api/scan.js uses to
@@ -73,11 +103,17 @@ function pickTopPages(data) {
   if (!Array.isArray(list)) return [];
   return list.map(function(p) {
     var stats = p.stats || {};
+    var visits = (typeof p.visits === 'number' ? p.visits : null)
+      || stats.visits || stats.people || stats.visitors || 0;
+    // Whatever else Chartbeat reports per page (engaged time, avg time,
+    // recirc, etc.) beyond the visits count already pulled out above.
+    var extra = scalarFields(stats);
+    delete extra.visits; delete extra.people; delete extra.visitors;
     return {
       path: p.path || p.page || p.url || '',
       title: p.title || p.headline || '',
-      visits: (typeof p.visits === 'number' ? p.visits : null)
-        || stats.visits || stats.people || stats.visitors || 0
+      visits: visits,
+      extra: extra
     };
   }).filter(function(p) {
     return !NON_ARTICLE_TITLE.test(p.title) && !NON_ARTICLE_TITLE.test(p.path);
@@ -85,8 +121,8 @@ function pickTopPages(data) {
 }
 
 // Fetches + parses both endpoints for one connection. Returns
-// { visits, pages, warnings } — never throws (a single endpoint failing
-// still returns whatever the other one had), except when both fail.
+// { visits, pages, metrics, warnings } — never throws (a single endpoint
+// failing still returns whatever the other one had), except when both fail.
 async function fetchLive(apiKey, host) {
   var results = await Promise.allSettled([
     cbGet('/live/quickstats/v4/', apiKey, host),
@@ -111,7 +147,9 @@ async function fetchLive(apiKey, host) {
     warnings.push('quickstats: unrecognized shape (' + describeShape(quick) + '), using sum of top pages as an estimate');
   }
 
-  return { visits: visits || 0, pages: pages, warnings: warnings.filter(Boolean) };
+  var metrics = quickRes.status === 'fulfilled' ? extractMetrics(quick) : {};
+
+  return { visits: visits || 0, pages: pages, metrics: metrics, warnings: warnings.filter(Boolean) };
 }
 
 module.exports = { fetchLive: fetchLive };
