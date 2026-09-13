@@ -43,19 +43,26 @@ async function writeDigest(commits, pending, dateLabel) {
     : '(no commits merged to main in the last 24 hours)';
 
   if (!key) {
-    // Degrade gracefully — plain commit list instead of a synthesized note.
-    return { shipped: commitList, next: '(ANTHROPIC_API_KEY not set — showing raw pending list)\n' + pending.slice(0, 1500) };
+    // Degrade gracefully — plain text instead of a synthesized note (still readable, just not translated).
+    return {
+      shipped: '<pre style="white-space:pre-wrap;font-family:inherit;font-size:14px;">' + commitList + '</pre>',
+      next: '<p>(Digest couldn\'t reach the writing assistant today, so here\'s the raw to-do list instead.)</p><pre style="white-space:pre-wrap;font-family:inherit;font-size:14px;">' + pending.slice(0, 1500) + '</pre>'
+    };
   }
 
   var prompt =
-    'You write a short daily engineering digest email for the founder of IMSTool, a newsroom SaaS product, covering work on the tool itself (not its news content). ' +
+    'You write a short daily email for Jeff, the founder of a newsroom product called IMSTool, and his wife Dana, updating them on what the engineering team built yesterday. ' +
+    "Neither is a programmer, so write like you're catching a smart friend up over coffee — plain English, no jargon. " +
+    'Never use words like: commit, repo, API, cron, endpoint, database table, schema, deploy, backend, frontend, function, or any file/variable name. ' +
+    'Instead of naming the mechanism, describe what changed for a person using the product and why it matters — e.g. instead of "added a cron job to scrape 247Sports and diff it against content_items", write "the tool now automatically checks what actually got published against what our AI first drafted, so we can see what our editors tend to change." ' +
     "Today's date: " + dateLabel + ".\n\n" +
-    'COMMITS MERGED TO MAIN IN THE LAST 24 HOURS:\n' + commitList + '\n\n' +
-    "TOP OF THE PROJECT'S PENDING TODO LIST (not all of it will be worked on immediately — pick what's genuinely next):\n" + (pending || '(none)') + '\n\n' +
-    'Write two short sections as clean HTML fragments (no markdown, no preamble):\n' +
-    '1. WHAT SHIPPED — <ul><li> bullets, one per meaningfully distinct commit, in plain founder-facing language (not git jargon). If there were no commits, one line saying so plainly.\n' +
-    "2. WHAT'S NEXT — <ul><li> bullets, 2-4 concrete near-term items pulled from the pending list, prioritizing ones that unblock other work or were explicitly asked for recently.\n\n" +
-    'Return ONLY a JSON object: {"shipped": "<ul>...</ul>", "next": "<ul>...</ul>"} — no other text.';
+    'WORK LOG FROM THE LAST 24 HOURS (technical notes to translate, not to quote):\n' + commitList + '\n\n' +
+    "TOP OF THE TEAM'S TODO LIST (not all of it happens immediately — mention only what's genuinely next):\n" + (pending || '(none)') + '\n\n' +
+    'Write two sections, each as a series of short HTML paragraphs (2-4 sentences each, one clear idea per paragraph, plenty of white space — never a dense bullet list):\n' +
+    '1. WHAT WE BUILT YESTERDAY — one paragraph per distinct piece of work. If nothing happened, one short paragraph saying so plainly.\n' +
+    "2. WHAT'S COMING NEXT — one paragraph per near-term item, 2-4 total, prioritizing whatever unblocks other work or was asked for recently.\n\n" +
+    'Give every paragraph the style attribute style="margin:0 0 14px" so they have breathing room in an email client. ' +
+    'Return ONLY a JSON object: {"shipped": "<p style=\\"margin:0 0 14px\\">...</p>...", "next": "<p style=\\"margin:0 0 14px\\">...</p>..."} — no markdown, no preamble, no other text.';
 
   var r = await fetch('https://api.anthropic.com/v1/messages', {
     method: 'POST',
@@ -65,13 +72,17 @@ async function writeDigest(commits, pending, dateLabel) {
   var d = await r.json();
   if (d.error) throw new Error('Claude error: ' + JSON.stringify(d.error));
   var raw = (d.content || []).map(function(b) { return b.type === 'text' ? b.text : ''; }).join('\n').trim();
+  var fallback = {
+    shipped: '<pre style="white-space:pre-wrap;font-family:inherit;font-size:14px;">' + commitList + '</pre>',
+    next: '<pre style="white-space:pre-wrap;font-family:inherit;font-size:14px;">' + pending.slice(0, 1500) + '</pre>'
+  };
   var jsonMatch = raw.match(/\{[\s\S]*\}/);
-  if (!jsonMatch) return { shipped: commitList, next: pending.slice(0, 1500) };
+  if (!jsonMatch) return fallback;
   try {
     var parsed = JSON.parse(jsonMatch[0]);
-    return { shipped: parsed.shipped || commitList, next: parsed.next || '' };
+    return { shipped: parsed.shipped || fallback.shipped, next: parsed.next || fallback.next };
   } catch (e) {
-    return { shipped: commitList, next: pending.slice(0, 1500) };
+    return fallback;
   }
 }
 
