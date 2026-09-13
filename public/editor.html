@@ -114,6 +114,9 @@ button.btn:disabled{opacity:.6;cursor:default}
         <button class="btn" id="ed-go" onclick="runEdit()">Edit draft</button>
         <span id="ed-status" style="font-size:12px;color:var(--muted)"></span>
       </div>
+      <div id="ed-progress-wrap" style="display:none;margin-top:8px;background:var(--border);border-radius:4px;height:5px;overflow:hidden;">
+        <div id="ed-progress-bar" style="height:100%;width:0%;background:var(--red);transition:width .3s linear;"></div>
+      </div>
     </div>
     <div id="ed-result"></div>
   </div>
@@ -391,13 +394,29 @@ async function runEdit(){
   var w=getWriters();
   var prof=wi!==''?((w[wi]&&w[wi].profile)||''):'';
   var wname=wi!==''?((w[wi]&&w[wi].name)||''):'';
-  var btn=document.getElementById('ed-go');btn.disabled=true;btn.innerHTML='<span class="spin"></span>'+(mode==='keep'?'Reviewing…':'Editing…');
+  var btn=document.getElementById('ed-go');btn.disabled=true;
   document.getElementById('ed-status').textContent='';
   document.getElementById('ed-result').innerHTML='';
+
+  // Not streamed on the backend, so this is a pace estimate scaled to draft
+  // length (not literal token progress) — eases toward 90% and only reaches
+  // 100% once the real response actually lands.
+  var wrap=document.getElementById('ed-progress-wrap'), bar=document.getElementById('ed-progress-bar');
+  var estSeconds=Math.min(75,Math.max(15,draft.length/50));
+  var start=Date.now();
+  wrap.style.display='';bar.style.width='0%';
+  var timer=setInterval(function(){
+    var elapsed=(Date.now()-start)/1000;
+    var pct=Math.round(90*(1-Math.exp(-elapsed/estSeconds)));
+    bar.style.width=pct+'%';
+    btn.innerHTML='<span class="spin"></span>'+(mode==='keep'?'Reviewing…':'Editing…')+' '+pct+'%';
+  },300);
+
   try{
     var r=await fetch('/api/copyedit',{method:'POST',headers:{'Content-Type':'application/json'},
       body:JSON.stringify({draft:draft,styleGuide:document.getElementById('sg').value,writerProfile:prof,writerName:wname,headlineStyle:document.getElementById('ed-headline-style').value,mode:document.getElementById('ed-mode').value})});
     var d=await r.json();
+    clearInterval(timer);bar.style.width='100%';
     if(d.error){document.getElementById('ed-status').textContent=d.error;}
     else {
       lastEdit={d:d,writerName:wname,draftId:null,sourceDraft:draft};
@@ -406,7 +425,8 @@ async function runEdit(){
       renderEdit(d);
       window.scrollTo(0,0);
     }
-  }catch(e){document.getElementById('ed-status').textContent='Failed: '+e.message;}
+  }catch(e){clearInterval(timer);document.getElementById('ed-status').textContent='Failed: '+e.message;}
+  setTimeout(function(){wrap.style.display='none';bar.style.width='0%';},400);
   btn.disabled=false;btn.textContent=mode==='keep'?'Review draft':'Edit draft';
 }
 
@@ -445,7 +465,7 @@ function renderEdit(d){
      '<span id="ed-submit-status" style="font-size:12px;color:var(--muted)"></span></div>'+
      '<textarea id="ed-md" style="position:absolute;left:-9999px;top:0">'+esc(d.edited||'')+'</textarea>'+
      '<div style="margin-top:14px;padding-top:12px;border-top:1px solid var(--border)">'+
-       '<div class="hint" style="margin-bottom:8px">Answers from the article and general knowledge only — no live internet lookup, so it can be wrong or out of date on anything recent (rosters, injuries, this week\'s news).</div>'+
+       '<div class="hint" style="margin-bottom:8px">Can search the web for current stats, injuries, and this week\'s news when a question needs it — sources are cited below the reply. Still double-check anything you\'ll publish.</div>'+
        '<div id="ed-chat" style="display:flex;flex-direction:column;gap:8px;margin-bottom:8px"></div>'+
        '<div style="display:flex;gap:6px">'+
          '<input id="ed-ask" placeholder="Ask for a change, or a question about the piece…" style="flex:1;font-size:13px;padding:8px 10px;border:1px solid var(--border);border-radius:6px" onkeydown="if(event.key===\'Enter\')askEditor()">'+
@@ -621,7 +641,11 @@ async function askEditor(){
     wait.remove();
     if(res.error){ log.innerHTML+='<div style="align-self:flex-start;color:var(--red);font-size:13px">'+esc(res.error)+'</div>'; }
     else{
-      log.innerHTML+='<div style="align-self:flex-start;background:#f1efe9;padding:6px 10px;border-radius:10px 10px 10px 2px;font-size:13px;max-width:85%">'+esc(res.reply||(res.changed?'Done.':'—'))+'</div>';
+      var sourcesHtml=(res.sources&&res.sources.length)
+        ?'<div style="margin-top:5px;padding-top:5px;border-top:1px solid var(--border);font-size:11px;color:var(--muted)">Sources: '+
+          res.sources.map(function(s){return '<a href="'+esc(s.url)+'" target="_blank" rel="noopener">'+esc(s.title)+'</a>';}).join(' · ')+'</div>'
+        :'';
+      log.innerHTML+='<div style="align-self:flex-start;background:#f1efe9;padding:6px 10px;border-radius:10px 10px 10px 2px;font-size:13px;max-width:85%">'+esc(res.reply||(res.changed?'Done.':'—'))+sourcesHtml+'</div>';
       _chatHistory.push({role:'user',text:q});
       _chatHistory.push({role:'assistant',text:res.reply||''});
       if(res.changed && res.edited){

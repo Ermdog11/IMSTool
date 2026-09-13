@@ -85,10 +85,17 @@ async function suggestVideos(query) {
   } catch (e) { return []; }
 }
 
+// Anthropic-executed server tool — Claude runs its own searches and the
+// results come back inline in the same response, no extra round trip on
+// our end. docs.claude.com/en/docs/agents-and-tools/tool-use/web-search-tool
+var WEB_SEARCH_TOOL = { type: 'web_search_20250305', name: 'web_search', max_uses: 5 };
+
 // Conversational follow-up on an already-edited article. The editor asks for a
 // change ("make the second graf punchier", "cut the last line") or a question
-// ("what's the source for the visit date?"); we return the updated article and a
-// one-line reply. Same idea as talking to Claude about a draft.
+// that may need current information ("what's Malik Washington's rushing total
+// this season?", "any injury news since this was written?") — Claude can
+// search the web before answering. Same idea as talking to Claude about a
+// draft, but grounded when the question calls for it.
 async function handleRefine(res, key, body) {
   var current = (body.refine.current || '').toString().slice(0, 24000);
   var instruction = (body.refine.instruction || '').toString().slice(0, 2000).trim();
@@ -106,10 +113,11 @@ async function handleRefine(res, key, body) {
     (convo ? 'EARLIER IN THIS CONVERSATION:\n' + convo + '\n\n' : '') +
     'THE EDITOR NOW SAYS:\n' + instruction + '\n\n' +
     'Decide first: is this a CHANGE request or a QUESTION (including "what do you know about X" / background lookups)?\n' +
+    'If answering well needs current information you\'re not sure of — a stat line, an injury update, a roster/depth-chart move, this week\'s news, a score — use the web_search tool first. Prefer reputable sports sources (247Sports, ESPN, official Maryland Athletics) and note in the reply when something came from a live search vs. what you already knew. Skip searching for stable facts, or when the article itself already has what you need.\n' +
     'If it is a CHANGE: set "changed":true, make ONLY that change (plus anything it directly requires) keeping ' + writerName + '\'s voice and house style, put the FULL updated article in "edited", and a one-line "reply" saying what you did.\n' +
-    'If it is a QUESTION: set "changed":false and do NOT fill in "edited" at all (leave it out / empty — do not re-type the article, it wastes time). Answer fully in "reply" from what you know. ' +
-    'Say plainly in the reply if your knowledge of something recent (a roster, a depth chart, a stat line) may be out of date — you have no live internet access here, only training knowledge and the current article.\n' +
-    'Never invent quotes, stats, or facts when making a change. If a change would require a fact you do not have, say so in "reply" and set "changed":false.';
+    'If it is a QUESTION: set "changed":false and do NOT fill in "edited" at all (leave it out / empty — do not re-type the article, it wastes time). Answer fully in "reply".\n' +
+    'Never invent quotes, stats, or facts when making a change. If a change would require a fact you do not have and can\'t find, say so in "reply" and set "changed":false.\n' +
+    'Always finish by calling the respond tool with your final answer — never leave it as plain text, even after searching.';
 
   var tool = {
     name: 'respond',
@@ -129,15 +137,39 @@ async function handleRefine(res, key, body) {
     var cr = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'x-api-key': key, 'anthropic-version': '2023-06-01' },
-      body: JSON.stringify({ model: 'claude-sonnet-4-6', max_tokens: 8000, system: sys, tools: [tool], tool_choice: { type: 'tool', name: 'respond' }, messages: [{ role: 'user', content: user }] })
+      // No forced tool_choice here (unlike the main copyedit call) — Claude
+      // needs the freedom to call web_search zero or more times before its
+      // final respond call, which Anthropic runs inline within this same
+      // request (docs.claude.com/en/docs/agents-and-tools/tool-use/web-search-tool).
+      body: JSON.stringify({ model: 'claude-sonnet-4-6', max_tokens: 8000, system: sys, tools: [WEB_SEARCH_TOOL, tool], messages: [{ role: 'user', content: user }] })
     });
     var cd = await cr.json();
     if (cd.error) return res.status(200).json({ error: 'Claude error: ' + JSON.stringify(cd.error) });
-    var tu = (cd.content || []).filter(function (b) { return b.type === 'tool_use' && b.name === 'respond'; })[0];
+
+    var content = cd.content || [];
+    var tu = content.filter(function (b) { return b.type === 'tool_use' && b.name === 'respond'; }).pop();
     var out = tu && tu.input;
+
+    // Claude searched but, contrary to instructions, answered in plain text
+    // instead of calling respond — salvage the text rather than erroring.
+    if (!out) {
+      var txt = content.filter(function (b) { return b.type === 'text'; }).map(function (b) { return b.text; }).join('\n').trim();
+      if (txt) out = { changed: false, reply: txt };
+    }
     if (!out || typeof out.reply !== 'string') return res.status(200).json({ error: 'No usable response — try rephrasing.' });
+
+    var sources = [];
+    var seenUrls = {};
+    content.forEach(function (b) {
+      if (b.type === 'text' && Array.isArray(b.citations)) {
+        b.citations.forEach(function (c) {
+          if (c.url && !seenUrls[c.url]) { seenUrls[c.url] = 1; sources.push({ url: c.url, title: c.title || c.url }); }
+        });
+      }
+    });
+
     var changed = !!out.changed && typeof out.edited === 'string' && out.edited.trim().length > 0;
-    return res.status(200).json({ edited: changed ? out.edited : current, reply: out.reply || '', changed: changed });
+    return res.status(200).json({ edited: changed ? out.edited : current, reply: out.reply || '', changed: changed, sources: sources });
   } catch (err) {
     return res.status(500).json({ error: err.message });
   }
