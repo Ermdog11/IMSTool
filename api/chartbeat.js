@@ -31,10 +31,40 @@ async function cbGet(path, apiKey, host) {
   return data || {};
 }
 
+// Looks for a current-concurrents count under any of Chartbeat's known field
+// names, checking the top level, a "data" wrapper, and a data object keyed
+// by host (some Chartbeat endpoints nest per-domain when scoped that way).
+function extractVisits(quick, host) {
+  var names = ['visits', 'people', 'concurrents', 'visitors'];
+  var candidates = [quick, quick.data, quick.data && host && quick.data[host]];
+  for (var i = 0; i < candidates.length; i++) {
+    var obj = candidates[i];
+    if (!obj || typeof obj !== 'object') continue;
+    for (var j = 0; j < names.length; j++) {
+      if (typeof obj[names[j]] === 'number') return obj[names[j]];
+    }
+  }
+  return null;
+}
+
+function describeShape(quick) {
+  var parts = ['top-level: ' + Object.keys(quick).join(',')];
+  if (quick.data && typeof quick.data === 'object') {
+    parts.push('data: ' + Object.keys(quick.data).join(','));
+  }
+  return parts.join(' | ');
+}
+
+// Chartbeat tracks the whole site, message boards and off-topic forums
+// included — not just articles. Drop anything that reads like a board/thread
+// rather than a story (same blunt title-pattern approach api/scan.js uses to
+// drop non-news pages).
+var NON_ARTICLE_TITLE = /\bmessage board\b|\boff[- ]topic\b|\bthread\b|\bforum\b/i;
+
 function pickTopPages(data) {
   var list = data.pages || data.toppages || [];
   if (!Array.isArray(list)) return [];
-  return list.slice(0, 15).map(function(p) {
+  return list.map(function(p) {
     var stats = p.stats || {};
     return {
       path: p.path || p.page || p.url || '',
@@ -42,7 +72,9 @@ function pickTopPages(data) {
       visits: (typeof p.visits === 'number' ? p.visits : null)
         || stats.visits || stats.people || stats.visitors || 0
     };
-  }).sort(function(a, b) { return b.visits - a.visits; });
+  }).filter(function(p) {
+    return !NON_ARTICLE_TITLE.test(p.title) && !NON_ARTICLE_TITLE.test(p.path);
+  }).sort(function(a, b) { return b.visits - a.visits; }).slice(0, 15);
 }
 
 module.exports = async function handler(req, res) {
@@ -78,11 +110,7 @@ module.exports = async function handler(req, res) {
     // fall back to summing the (already-verified-working) per-page counts
     // rather than showing a misleading 0, and flag it so the real field name
     // can be added here once seen.
-    var visits = null;
-    if (typeof quick.visits === 'number') visits = quick.visits;
-    else if (quick.data && typeof quick.data.visits === 'number') visits = quick.data.visits;
-    else if (typeof quick.people === 'number') visits = quick.people;
-    else if (typeof quick.concurrents === 'number') visits = quick.concurrents;
+    var visits = extractVisits(quick, conn.host);
 
     var warnings = [
       quickRes.status === 'rejected' ? 'quickstats: ' + quickRes.reason.message : null,
@@ -90,7 +118,7 @@ module.exports = async function handler(req, res) {
     ];
     if (visits === null && quickRes.status === 'fulfilled') {
       visits = pages.reduce(function(sum, p) { return sum + (p.visits || 0); }, 0);
-      warnings.push('quickstats: unrecognized shape (keys: ' + Object.keys(quick).join(', ') + '), using sum of top pages as an estimate');
+      warnings.push('quickstats: unrecognized shape (' + describeShape(quick) + '), using sum of top pages as an estimate');
     }
 
     return res.status(200).json({
