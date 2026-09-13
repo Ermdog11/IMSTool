@@ -342,6 +342,9 @@ module.exports = async function handler(req, res) {
     parsed.factsToCheck = parsed.factsToCheck || [];
     if (!wantHeadline) delete parsed.headlines;
     parsed.relatedCount = related.length;
+    // So the editor can show a hover preview on each inserted hotlink without
+    // an extra round-trip — the model only ever links to something in this list.
+    parsed.relatedIndex = related.map(function(r) { return { url: r.url, headline: r.headline }; });
     parsed.mode = mode;
 
     // YouTube video suggestions are DISABLED for now (the shared YouTube API quota

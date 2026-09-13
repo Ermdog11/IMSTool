@@ -40,6 +40,9 @@ button.btn:disabled{opacity:.6;cursor:default}
 .out-article{background:#fff;border:1px solid var(--border);border-radius:8px;padding:16px 18px;font-size:14.5px;line-height:1.65}
 .out-article h2{font-size:1.15rem;margin:.6em 0 .3em}
 .out-article p{margin:.6em 0}
+.out-article a{border-bottom:1px dashed var(--blue);text-decoration:none}
+.out-article a:hover{border-bottom-style:solid}
+.hotlink-tip{position:fixed;z-index:1000;background:#1a1a1a;color:#fff;font-size:12px;line-height:1.4;padding:7px 11px;border-radius:6px;max-width:280px;box-shadow:0 4px 14px rgba(0,0,0,.25);pointer-events:none;display:none}
 .notes li{margin:4px 0;font-size:13px;margin-left:18px}
 .ctx{background:var(--amber-bg);border:1px solid #f0e2a8;border-radius:6px;padding:10px 12px;font-size:12.5px;margin-top:8px}
 .ctx b{color:var(--amber)}
@@ -540,6 +543,40 @@ function renderEdit(d){
   window._availableInserts=inserts;
   var artEl=document.querySelector('#ed-result .out-article');
   window._articleBaseHtml=artEl?artEl.innerHTML:'';
+
+  // Hover preview on inserted hotlinks — shows which article a link points
+  // to (from the same list the editor was told to link from) so it can be
+  // sanity-checked without opening every link in a new tab.
+  window._hotlinkMap={};
+  (d.relatedIndex||[]).forEach(function(r){ if(r.url) window._hotlinkMap[r.url]=r.headline; });
+  initHotlinkPreviews();
+}
+
+// Delegated on #ed-result (not the article div itself) so it keeps working
+// after toggling an insert rebuilds the article's innerHTML underneath it.
+function initHotlinkPreviews(){
+  var root=document.getElementById('ed-result');
+  if(!root || root._hotlinkWired) return;
+  root._hotlinkWired=true;
+  var tip=document.createElement('div');
+  tip.className='hotlink-tip';
+  document.body.appendChild(tip);
+  function linkAt(e){ return e.target && e.target.closest && e.target.closest('a[href]'); }
+  root.addEventListener('mouseover',function(e){
+    var a=linkAt(e); if(!a) return;
+    var headline=(window._hotlinkMap||{})[a.getAttribute('href')];
+    if(!headline) return;
+    tip.textContent=headline;
+    tip.style.display='block';
+  });
+  root.addEventListener('mousemove',function(e){
+    if(tip.style.display==='none') return;
+    tip.style.left=Math.min(e.clientX+14, window.innerWidth-300)+'px';
+    tip.style.top=(e.clientY+18)+'px';
+  });
+  root.addEventListener('mouseout',function(e){
+    if(linkAt(e)) tip.style.display='none';
+  });
 }
 
 // Each entry: { idx, placement }  (placement: top | early | middle | end)
