@@ -228,6 +228,17 @@ create table if not exists public.chat_messages (
 );
 create index if not exists chat_messages_site_idx on public.chat_messages (site_id, created_at desc);
 
+-- Site settings --------------------------------------------------------
+-- The house style guide used to live ONLY in browser localStorage — every
+-- edit request sent it fresh from whichever browser had it open, and
+-- nothing server-side (a cron, the breaking-news auto-draft) could ever
+-- read it. One row per site now, so it's a real shared source of truth.
+create table if not exists public.site_settings (
+  site_id             uuid primary key references public.sites(id) on delete cascade,
+  house_style_guide   text,
+  updated_at          timestamptz not null default now()
+);
+
 -- Row Level Security ----------------------------------------------------
 -- The API layer talks to Postgres with the service_role key, which bypasses
 -- RLS. These policies are defence-in-depth for any future direct-from-browser
@@ -243,6 +254,7 @@ alter table public.analytics_connections enable row level security;
 alter table public.analytics_snapshots enable row level security;
 alter table public.content_revisions enable row level security;
 alter table public.chat_messages enable row level security;
+alter table public.site_settings enable row level security;
 alter table public.scrape_sessions enable row level security;
 
 create or replace function public.is_member(target_site uuid)
@@ -311,6 +323,13 @@ create policy "member reads chat" on public.chat_messages
 drop policy if exists "member sends chat" on public.chat_messages;
 create policy "member sends chat" on public.chat_messages
   for insert with check (public.is_member(site_id));
+
+drop policy if exists "member reads site settings" on public.site_settings;
+create policy "member reads site settings" on public.site_settings
+  for select using (public.is_member(site_id));
+drop policy if exists "publisher manages site settings" on public.site_settings;
+create policy "publisher manages site settings" on public.site_settings
+  for all using (public.is_publisher(site_id)) with check (public.is_publisher(site_id));
 
 -- No insert/update policy — only the cron's service-role client writes here.
 drop policy if exists "member reads analytics snapshots" on public.analytics_snapshots;

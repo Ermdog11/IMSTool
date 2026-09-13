@@ -28,7 +28,7 @@ var TOOL = {
   }
 };
 
-async function generateBreakingDraft(alert) {
+async function generateBreakingDraft(alert, styleGuide) {
   var key = process.env.ANTHROPIC_API_KEY;
   if (!key) throw new Error('Missing ANTHROPIC_API_KEY');
 
@@ -43,12 +43,13 @@ async function generateBreakingDraft(alert) {
     'CATEGORY: ' + (alert.category || '') + (alert.url ? '\nSOURCE URL: ' + alert.url : '');
 
   var sys =
-    'You are the copy chief for InsideMDSports, a Maryland Terrapins sports site. A rating-5 breaking story just ' +
-    "hit the scanner. Write a short, clean, AP-style breaking-news article a writer can review and send in minutes " +
+    'You are the copy chief for InsideMDSports, a Maryland Terrapins sports site. A breaking story just ' +
+    "hit the scanner. Write a short, clean breaking-news article in the house style below, that a writer can review and send in minutes " +
     "— not the full feature, just the facts reported so far, tightly written.\n\n" +
+    '=== HOUSE STYLE GUIDE (write in this voice, not generic wire-copy) ===\n' +
+    (styleGuide || '(No house style guide set yet — apply standard clean sports-news style: AP style, active voice, tight sentences, attribute claims, no cliches.)') + '\n\n' +
     '- Use ONLY the facts given below. Do NOT invent quotes, statistics, additional details, or context beyond what is stated.\n' +
     '- Where the source is thin (e.g. just a headline and a source name), keep the piece short rather than padding it with guesses.\n' +
-    '- AP style: active voice, tight sentences, attribute the claim to the source given.\n' +
     '- Insert Markdown links to related InsideMDSports coverage from the list below where a phrase genuinely connects — do not force it, and never invent a URL not in the list.\n' +
     '- factsToCheck should flag anything a human needs to verify or add before this goes out (this is a fast draft off a single source, so lean toward flagging, not toward confidence).\n';
 

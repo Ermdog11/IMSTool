@@ -311,6 +311,22 @@ function getWriters(){try{return JSON.parse(localStorage.getItem(LS_WRITERS)||'[
 function setWriters(w){localStorage.setItem(LS_WRITERS,JSON.stringify(w));}
 function getGuide(){return localStorage.getItem(LS_GUIDE)||DEFAULT_GUIDE;}
 
+// The house style guide used to live ONLY in localStorage — per-browser, and
+// invisible to anything server-side (the breaking-news auto-draft cron).
+// Now backed by /api/house-style; localStorage stays as an instant-render
+// cache so the textarea isn't blank while the fetch is in flight.
+async function loadGuideFromServer(){
+  try{
+    const r=await fetch('/api/house-style');
+    const d=await r.json();
+    if(d.guide){
+      localStorage.setItem(LS_GUIDE,d.guide);
+      const el=document.getElementById('sg');
+      if(el) el.value=d.guide;
+    }
+  }catch(e){ /* keep whatever's already shown (localStorage/default) */ }
+}
+
 function setActive(i){
   document.querySelectorAll('.page').forEach(function(p,x){p.classList.toggle('active',x===i);});
   document.querySelectorAll('.nav button').forEach(function(b){b.classList.remove('active');});
@@ -319,9 +335,18 @@ function setActive(i){
 function show(i){ setActive(i); if(i===2)renderPromos(); if(i===3)loadDrafts(); try{history.pushState({t:i},'','#'+i);}catch(e){} }
 window.addEventListener('popstate',function(e){ setActive((e.state&&e.state.t)||0); });
 
-function saveGuide(){
-  localStorage.setItem(LS_GUIDE,document.getElementById('sg').value);
-  var m=document.getElementById('sg-saved');m.style.display='inline';setTimeout(function(){m.style.display='none';},1500);
+async function saveGuide(){
+  var guide=document.getElementById('sg').value;
+  localStorage.setItem(LS_GUIDE,guide);
+  var m=document.getElementById('sg-saved');
+  try{
+    var fetcher=window.IMSAuth?IMSAuth.authFetch:fetch;
+    var r=await fetcher('/api/house-style',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({guide:guide})});
+    var d=await r.json();
+    if(d.error){ m.textContent=d.error; m.style.color='var(--red)'; }
+    else { m.textContent='Saved'; m.style.color=''; }
+  }catch(e){ m.textContent='Saved locally only — '+e.message; m.style.color='var(--red)'; }
+  m.style.display='inline';setTimeout(function(){m.style.display='none';m.textContent='Saved';},1500);
 }
 
 function renderWriters(){
@@ -829,6 +854,7 @@ function copyStr(btn,s){
 }
 
 document.getElementById('sg').value=getGuide();
+loadGuideFromServer();
 renderWriters();
 renderPromos();
 updateModeHint();

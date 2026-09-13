@@ -4,6 +4,7 @@ const S = require('./_supabase.js');
 const Drafts = require('./_drafts.js');
 const Chat = require('./_chat-store.js');
 const BreakingDraft = require('./_breaking-draft.js');
+const Settings = require('./_settings-store.js');
 
 // Same minimal Markdown->HTML used by api/submit-article.js — the auto-draft
 // needs to land in the same doc.html shape the Drafts tab / Content Editor
@@ -229,6 +230,7 @@ module.exports = async function handler(req, res) {
     var breakingDrafts = [];
     if (draftEligible.length && S.isConfigured()) {
       var sb = S.admin();
+      var houseStyle = await Settings.getHouseStyle(sb);
       for (var bi = 0; bi < draftEligible.length; bi++) {
         var story = draftEligible[bi];
         try {
@@ -237,7 +239,7 @@ module.exports = async function handler(req, res) {
             continue;
           }
 
-          var draft = await BreakingDraft.generateBreakingDraft(story);
+          var draft = await BreakingDraft.generateBreakingDraft(story, houseStyle);
           var id = Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
           var now = new Date().toISOString();
           var doc = {
