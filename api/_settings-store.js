@@ -1,8 +1,8 @@
-// Site-wide settings: the house style guide, and the Google Programmable
-// Search credentials used to give the news scanner a real open-ended web
-// search alongside its curated RSS feeds. Used both by the Content Editor /
-// Settings UI (browser-facing) and by anything server-side that needs these
-// without a browser involved (the breaking-news auto-draft, the scan cron).
+// Site-wide settings: the house style guide, and the Brave Search API key
+// used to give the news scanner a real open-ended web search alongside its
+// curated RSS feeds. Used both by the Content Editor / Settings UI
+// (browser-facing) and by anything server-side that needs these without a
+// browser involved (the breaking-news auto-draft, the scan cron).
 
 var Crypto = require('./_crypto');
 
@@ -39,33 +39,32 @@ async function saveHouseStyle(sb, guide) {
   return { ok: true };
 }
 
-// Best-effort — no credentials saved yet is a normal, common state (scan.js
-// just skips web search and falls back to RSS-only, same as always).
-async function getGoogleSearch(sb) {
+// Best-effort — no key saved yet is a normal, common state (scan.js just
+// skips web search and falls back to RSS-only, same as always).
+async function getWebSearch(sb) {
   try {
     var siteId = await resolveSiteId(sb);
-    var q = await sb.from('site_settings').select('google_search_api_key, google_search_engine_id').eq('site_id', siteId).single();
-    if (q.error || !q.data || !q.data.google_search_api_key || !q.data.google_search_engine_id) return null;
-    return { apiKey: Crypto.decrypt(q.data.google_search_api_key), engineId: q.data.google_search_engine_id };
+    var q = await sb.from('site_settings').select('web_search_api_key').eq('site_id', siteId).single();
+    if (q.error || !q.data || !q.data.web_search_api_key) return null;
+    return { apiKey: Crypto.decrypt(q.data.web_search_api_key) };
   } catch (e) {
     return null;
   }
 }
 
-async function saveGoogleSearch(sb, apiKey, engineId) {
+async function saveWebSearch(sb, apiKey) {
   var siteId = await resolveSiteId(sb);
   var up = await sb.from('site_settings').upsert({
-    site_id: siteId, google_search_api_key: Crypto.encrypt(apiKey), google_search_engine_id: engineId,
-    updated_at: new Date().toISOString()
+    site_id: siteId, web_search_api_key: Crypto.encrypt(apiKey), updated_at: new Date().toISOString()
   }, { onConflict: 'site_id' });
   if (up.error) throw new Error(up.error.message);
   return { ok: true };
 }
 
-async function deleteGoogleSearch(sb) {
+async function deleteWebSearch(sb) {
   var siteId = await resolveSiteId(sb);
   var up = await sb.from('site_settings').update({
-    google_search_api_key: null, google_search_engine_id: null, updated_at: new Date().toISOString()
+    web_search_api_key: null, updated_at: new Date().toISOString()
   }).eq('site_id', siteId);
   if (up.error) throw new Error(up.error.message);
   return { ok: true };
@@ -73,5 +72,5 @@ async function deleteGoogleSearch(sb) {
 
 module.exports = {
   getHouseStyle: getHouseStyle, saveHouseStyle: saveHouseStyle,
-  getGoogleSearch: getGoogleSearch, saveGoogleSearch: saveGoogleSearch, deleteGoogleSearch: deleteGoogleSearch
+  getWebSearch: getWebSearch, saveWebSearch: saveWebSearch, deleteWebSearch: deleteWebSearch
 };

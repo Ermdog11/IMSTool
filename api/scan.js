@@ -367,15 +367,15 @@ module.exports = async function handler(req, res) {
     // Real, open-ended web search alongside the ~70 curated RSS queries above
     // — opt-in per caller (body.webSearch), set only by rolling-digest.js's
     // 3x/day cron, never by the client-side "Scan now" button / 30-min
-    // auto-scan, since the free tier is 100 queries/day. See _google-search.js.
+    // auto-scan, since it's metered (Brave dropped its free tier). See _web-search.js.
     var webSearchCount = 0, webSearchWarnings = [];
     if (body.webSearch) {
       try {
         var S = require('./_supabase.js');
         if (S.isConfigured()) {
-          var googleCreds = await require('./_settings-store.js').getGoogleSearch(S.admin());
-          if (googleCreds) {
-            var searchResult = await require('./_google-search.js').searchNews(googleCreds.apiKey, googleCreds.engineId);
+          var webSearchCreds = await require('./_settings-store.js').getWebSearch(S.admin());
+          if (webSearchCreds) {
+            var searchResult = await require('./_web-search.js').searchNews(webSearchCreds.apiKey);
             searchResult.results.forEach(function(item) { stories.push(item); });
             webSearchCount = searchResult.results.length;
             webSearchWarnings = searchResult.warnings;

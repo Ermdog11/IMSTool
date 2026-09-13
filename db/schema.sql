@@ -239,13 +239,16 @@ create table if not exists public.site_settings (
   updated_at          timestamptz not null default now()
 );
 
--- Web search (Google Programmable Search) for the news scanner — a real,
--- open-ended search alongside the fixed set of curated RSS feeds. Kept
--- opt-in per caller (scan.js's `webSearch` flag) rather than run on every
--- scan, since the free tier is 100 queries/day and the client-side scan can
--- fire far more often than that if left running.
-alter table public.site_settings add column if not exists google_search_api_key text; -- encrypted (api/_crypto.js)
-alter table public.site_settings add column if not exists google_search_engine_id text; -- not secret, just an ID
+-- Web search (Brave Search API) for the news scanner — a real, open-ended
+-- search alongside the fixed set of curated RSS feeds. Kept opt-in per
+-- caller (scan.js's `webSearch` flag) rather than run on every scan, since
+-- it's metered (Brave dropped its free tier) and the client-side scan can
+-- fire far more often than the 3x/day cron this is meant for.
+-- (Started as Google Programmable Search — dropped after Google killed
+-- "search the entire web" for that product; migration below undoes it.)
+alter table public.site_settings drop column if exists google_search_api_key;
+alter table public.site_settings drop column if exists google_search_engine_id;
+alter table public.site_settings add column if not exists web_search_api_key text; -- encrypted (api/_crypto.js)
 
 -- Row Level Security ----------------------------------------------------
 -- The API layer talks to Postgres with the service_role key, which bypasses

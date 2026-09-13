@@ -470,9 +470,9 @@ body { padding-bottom: 40px; }
   <div class="settings-card" id="searchSettingsCardWrap" hidden>
     <h3><i class="ti ti-search"></i> Web search (for the news scanner)</h3>
     <div style="font-size:12px;color:var(--text3);margin-bottom:10px;line-height:1.5;">
-      The scanner pulls from ~70 curated RSS/news queries — but those only catch a story if someone already wrote a query that matches it. Connecting Google Programmable Search adds a real, open-ended web search alongside them, run on the 3×/day scheduled scan only (never the manual "Scan now" button, to stay well under the free 100-searches/day tier).
+      The scanner pulls from ~70 curated RSS/news queries — but those only catch a story if someone already wrote a query that matches it. Connecting Brave Search adds a real, open-ended web search alongside them, run on the 3×/day scheduled scan only (never the manual "Scan now" button, to keep the bill small — this is metered, roughly $1-2/month at this volume).
       <br><br>
-      To connect: create a <a href="https://programmablesearchengine.google.com/" target="_blank" rel="noopener">Programmable Search Engine</a> (set it to search the whole web), then get an API key + your Search Engine ID from the <a href="https://developers.google.com/custom-search/v1/introduction" target="_blank" rel="noopener">Custom Search JSON API</a> page. Paste both below.
+      To connect: sign up at the <a href="https://api.search.brave.com/" target="_blank" rel="noopener">Brave Search API</a> dashboard, subscribe to a plan (a card is required — Brave dropped its free tier), and copy your API key from the dashboard. Paste it below.
     </div>
     <div id="searchSettingsStatus" style="font-size:11px;color:var(--text3);margin-bottom:8px;">Loading…</div>
     <button class="pill" id="searchSettingsBtn" onclick="searchSettingsAction()">Connect</button>
@@ -1864,14 +1864,12 @@ async function searchSettingsAction() {
     return;
   }
 
-  const apiKey = prompt("Google Custom Search API key:");
+  const apiKey = prompt("Brave Search API key:");
   if (!apiKey) return;
-  const engineId = prompt("Programmable Search Engine ID (the 'cx' value):");
-  if (!engineId) return;
   try {
     const r = await IMSAuth.authFetch('/api/search-settings', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ apiKey, engineId })
+      body: JSON.stringify({ apiKey })
     });
     const d = await r.json();
     if (d.error) { alert(d.error); return; }
