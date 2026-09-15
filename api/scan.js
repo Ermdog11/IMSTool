@@ -384,6 +384,27 @@ module.exports = async function handler(req, res) {
       } catch (e) { webSearchWarnings.push(e.message); }
     }
 
+    // Fast social-first search (X/Twitter) — catches viral/breaking beat
+    // conversation before any RSS feed or news site covers it. Opt-in per
+    // caller (body.xSearch), set only by api/x-scan.js's own ~30-min cron —
+    // never the client-side "Scan now" / 30-min auto-scan, same reasoning as
+    // webSearch above (metered, keep the cost predictable). See _x-search.js.
+    var xSearchCount = 0, xSearchWarnings = [];
+    if (body.xSearch) {
+      try {
+        var S2 = require('./_supabase.js');
+        if (S2.isConfigured()) {
+          var xSearchCreds = await require('./_settings-store.js').getXSearch(S2.admin());
+          if (xSearchCreds) {
+            var xResult = await require('./_x-search.js').searchX(xSearchCreds.bearerToken);
+            xResult.results.forEach(function(item) { stories.push(item); });
+            xSearchCount = xResult.results.length;
+            xSearchWarnings = xResult.warnings;
+          }
+        }
+      } catch (e) { xSearchWarnings.push(e.message); }
+    }
+
     // Drop stories that originated on our own outlet (matched by headline against the blocklist feed)
     var ownFiltered = 0;
     stories = stories.filter(function(s) {
@@ -449,7 +470,7 @@ module.exports = async function handler(req, res) {
     var fetchStatuses = results.map(function(r, i) {
       return allNames[i] + ':' + (r.status === 'fulfilled' ? r.value.status : 'FAILED');
     });
-    console.log('Stories:', stories.length, '| Reddit:', redditCount, '| Google:', googleCount, '| YouTube:', videoCount, '| WebSearch:', webSearchCount, (webSearchWarnings.length ? '(' + webSearchWarnings.join('; ') + ')' : ''), '| Own-outlet filtered:', ownFiltered, '| Blocklist size:', ownTitleWordSets.length, '| Blocklist source:', blocklistSource, '| Fetches:', fetchStatuses.join(', '));
+    console.log('Stories:', stories.length, '| Reddit:', redditCount, '| Google:', googleCount, '| YouTube:', videoCount, '| WebSearch:', webSearchCount, (webSearchWarnings.length ? '(' + webSearchWarnings.join('; ') + ')' : ''), '| XSearch:', xSearchCount, (xSearchWarnings.length ? '(' + xSearchWarnings.join('; ') + ')' : ''), '| Own-outlet filtered:', ownFiltered, '| Blocklist size:', ownTitleWordSets.length, '| Blocklist source:', blocklistSource, '| Fetches:', fetchStatuses.join(', '));
 
     if (!stories.length) {
       var diagMsg = 'No stories found. Fetch results: ' + fetchStatuses.join(', ');

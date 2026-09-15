@@ -250,6 +250,13 @@ alter table public.site_settings drop column if exists google_search_api_key;
 alter table public.site_settings drop column if exists google_search_engine_id;
 alter table public.site_settings add column if not exists web_search_api_key text; -- encrypted (api/_crypto.js)
 
+-- X (Twitter) recent-search API — a fast, social-first signal RSS/Brave both
+-- miss (a rival player's viral quote, a recruiting bombshell that breaks on
+-- X before any site covers it). Own dedicated cron (api/x-scan.js, ~30 min)
+-- rather than tied to scan.js's other callers, so cost stays predictable
+-- regardless of who has the dashboard open. api/_x-search.js, encrypted.
+alter table public.site_settings add column if not exists x_bearer_token text;
+
 -- Row Level Security ----------------------------------------------------
 -- The API layer talks to Postgres with the service_role key, which bypasses
 -- RLS. These policies are defence-in-depth for any future direct-from-browser

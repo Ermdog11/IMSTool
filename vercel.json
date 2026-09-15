@@ -77,6 +77,12 @@
     "api/search-settings.js": {
       "maxDuration": 20
     },
+    "api/x-settings.js": {
+      "maxDuration": 20
+    },
+    "api/x-scan.js": {
+      "maxDuration": 300
+    },
     "api/dev-digest.js": {
       "maxDuration": 60
     },
@@ -146,6 +152,10 @@
     },
     {
       "path": "/api/social-promo-check",
+      "schedule": "*/30 * * * *"
+    },
+    {
+      "path": "/api/x-scan",
       "schedule": "*/30 * * * *"
     }
   ]

@@ -70,7 +70,39 @@ async function deleteWebSearch(sb) {
   return { ok: true };
 }
 
+// Best-effort, same shape as getWebSearch — no key saved yet just means
+// api/x-scan.js's cron has nothing to do this run.
+async function getXSearch(sb) {
+  try {
+    var siteId = await resolveSiteId(sb);
+    var q = await sb.from('site_settings').select('x_bearer_token').eq('site_id', siteId).single();
+    if (q.error || !q.data || !q.data.x_bearer_token) return null;
+    return { bearerToken: Crypto.decrypt(q.data.x_bearer_token) };
+  } catch (e) {
+    return null;
+  }
+}
+
+async function saveXSearch(sb, bearerToken) {
+  var siteId = await resolveSiteId(sb);
+  var up = await sb.from('site_settings').upsert({
+    site_id: siteId, x_bearer_token: Crypto.encrypt(bearerToken), updated_at: new Date().toISOString()
+  }, { onConflict: 'site_id' });
+  if (up.error) throw new Error(up.error.message);
+  return { ok: true };
+}
+
+async function deleteXSearch(sb) {
+  var siteId = await resolveSiteId(sb);
+  var up = await sb.from('site_settings').update({
+    x_bearer_token: null, updated_at: new Date().toISOString()
+  }).eq('site_id', siteId);
+  if (up.error) throw new Error(up.error.message);
+  return { ok: true };
+}
+
 module.exports = {
   getHouseStyle: getHouseStyle, saveHouseStyle: saveHouseStyle,
-  getWebSearch: getWebSearch, saveWebSearch: saveWebSearch, deleteWebSearch: deleteWebSearch
+  getWebSearch: getWebSearch, saveWebSearch: saveWebSearch, deleteWebSearch: deleteWebSearch,
+  getXSearch: getXSearch, saveXSearch: saveXSearch, deleteXSearch: deleteXSearch
 };

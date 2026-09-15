@@ -478,6 +478,17 @@ body { padding-bottom: 40px; }
     <button class="pill" id="searchSettingsBtn" onclick="searchSettingsAction()">Connect</button>
   </div>
 
+  <div class="settings-card" id="xSettingsCardWrap" hidden>
+    <h3><i class="ti ti-brand-x"></i> X / Twitter search (fast breaking-news signal)</h3>
+    <div style="font-size:12px;color:var(--text3);margin-bottom:10px;line-height:1.5;">
+      A viral or headline-worthy moment (a rival player's comments, a recruiting bombshell) often breaks on X first, before any RSS feed or news site covers it. Connecting this runs a dedicated ~30-minute search cron looking for high-engagement posts mentioning the beat — separate from the 3×/day Brave/RSS scan, since the whole point here is speed. Metered by X (pay-per-use pricing) — check current rates at their developer dashboard before connecting.
+      <br><br>
+      To connect: create a developer account and app at <a href="https://developer.x.com/" target="_blank" rel="noopener">developer.x.com</a>, enable billing, and copy the app's Bearer Token. Paste it below.
+    </div>
+    <div id="xSettingsStatus" style="font-size:11px;color:var(--text3);margin-bottom:8px;">Loading…</div>
+    <button class="pill" id="xSettingsBtn" onclick="xSettingsAction()">Connect</button>
+  </div>
+
   <div class="settings-card" id="socialPromoCardWrap" hidden>
     <h3><i class="ti ti-rocket"></i> Bluesky promo bot</h3>
     <div style="font-size:12px;color:var(--text3);margin-bottom:10px;line-height:1.5;">
@@ -724,6 +735,8 @@ body { padding-bottom: 40px; }
       if (sp) sp.hidden = false;
       var srch = document.getElementById('searchSettingsCardWrap');
       if (srch) srch.hidden = false;
+      var xs = document.getElementById('xSettingsCardWrap');
+      if (xs) xs.hidden = false;
     }
     if (s && s.preview) {
       var bar = document.createElement('div');
@@ -776,7 +789,7 @@ function switchTab(idx, fromPop) {
   if (idx === 7) loadPodcasts();
   if (idx === 8) loadYouTube();
   if (idx === 9) loadBluesky();
-  if (idx === 10) { renderBlockedSources(); renderOwnSites(); refreshPushStatus(); loadTeam(); loadScrapeSessionStatus(); loadSocialPromoStatus(); loadSearchSettingsStatus(); }
+  if (idx === 10) { renderBlockedSources(); renderOwnSites(); refreshPushStatus(); loadTeam(); loadScrapeSessionStatus(); loadSocialPromoStatus(); loadSearchSettingsStatus(); loadXSettingsStatus(); }
   if (idx === 11) renderAnalyticsConnections();
   if (idx === 12) loadRosterWatch();
   window.scrollTo(0, 0);
@@ -1874,6 +1887,55 @@ async function searchSettingsAction() {
     const d = await r.json();
     if (d.error) { alert(d.error); return; }
     loadSearchSettingsStatus();
+  } catch (e) { alert(e.message); }
+}
+
+let xSettingsConnected = false;
+
+async function loadXSettingsStatus() {
+  const wrap = document.getElementById('xSettingsCardWrap');
+  if (!wrap || wrap.hidden || !window.IMSAuth) return;
+  const s = document.getElementById('xSettingsStatus');
+  const btn = document.getElementById('xSettingsBtn');
+  try {
+    const r = await IMSAuth.authFetch('/api/x-settings');
+    const d = await r.json();
+    xSettingsConnected = !!d.connected;
+    s.textContent = xSettingsConnected
+      ? '● Connected — the ~30-min cron now checks X for breaking beat conversation'
+      : 'Not connected — the scanner has no social-first source yet.';
+    s.style.color = xSettingsConnected ? '#15803d' : 'var(--text3)';
+    btn.textContent = xSettingsConnected ? 'Disconnect' : 'Connect';
+  } catch (e) {
+    s.textContent = `Couldn't load status — ${e.message}`;
+  }
+}
+
+async function xSettingsAction() {
+  if (xSettingsConnected) {
+    if (!confirm('Disconnect X/Twitter search? The 30-min breaking-news cron will stop checking X.')) return;
+    try {
+      const r = await IMSAuth.authFetch('/api/x-settings', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'disconnect' })
+      });
+      const d = await r.json();
+      if (d.error) { alert(d.error); return; }
+      loadXSettingsStatus();
+    } catch (e) { alert(e.message); }
+    return;
+  }
+
+  const apiKey = prompt("X (Twitter) API Bearer Token:");
+  if (!apiKey) return;
+  try {
+    const r = await IMSAuth.authFetch('/api/x-settings', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ apiKey })
+    });
+    const d = await r.json();
+    if (d.error) { alert(d.error); return; }
+    loadXSettingsStatus();
   } catch (e) { alert(e.message); }
 }
 
