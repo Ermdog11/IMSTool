@@ -112,6 +112,14 @@ button.btn:disabled{opacity:.6;cursor:default}
         </div>
       </div>
       <div class="hint" id="ed-mode-hint" style="margin-top:2px"></div>
+      <div style="margin:14px 0;padding-bottom:14px;border-bottom:1px solid var(--border)">
+        <div class="hint" style="margin-bottom:8px">Ask a question or tell it what to do while you write or edit &mdash; can search the web for current stats, injuries, and this week's news when a question needs it; sources cited below the reply.</div>
+        <div id="pre-ed-chat" style="display:flex;flex-direction:column;gap:8px;margin-bottom:8px"></div>
+        <div style="display:flex;gap:6px">
+          <input id="pre-ed-ask" placeholder="Ask a question, or tell it what to change in the draft below…" style="flex:1;font-size:13px;padding:8px 10px;border:1px solid var(--border);border-radius:6px" onkeydown="if(event.key==='Enter')askEditorPre()">
+          <button class="btn" onclick="askEditorPre()">Send</button>
+        </div>
+      </div>
       <label>Draft</label>
       <textarea id="ed-draft" rows="16" placeholder="Paste the writer's draft here…"></textarea>
       <div class="row">
@@ -685,6 +693,42 @@ function renderInsertPreview(){
     var k=idxFor(e.placement);
     if(k>=blocks.length) art.appendChild(wrap); else art.insertBefore(wrap,blocks[k]);
   });
+}
+
+var _preChatHistory=[];
+async function askEditorPre(){
+  var inp=document.getElementById('pre-ed-ask');
+  var q=(inp.value||'').trim();
+  if(!q) return;
+  inp.value='';inp.disabled=true;
+  var log=document.getElementById('pre-ed-chat');
+  log.innerHTML+='<div style="align-self:flex-end;background:var(--red);color:#fff;padding:6px 10px;border-radius:10px 10px 2px 10px;font-size:13px;max-width:85%">'+esc(q)+'</div>';
+  var wait=document.createElement('div');
+  wait.style.cssText='align-self:flex-start;color:var(--muted);font-size:13px';
+  wait.innerHTML='<span class="spin" style="border-color:var(--border);border-top-color:var(--muted)"></span> Thinking…';
+  log.appendChild(wait);
+  try{
+    var wi=document.getElementById('ed-writer').value, w=getWriters();
+    var draftNow=document.getElementById('ed-draft').value||'';
+    var r=await fetch('/api/copyedit',{method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({refine:{current:draftNow,instruction:q,history:_preChatHistory,stage:'draft'},
+        styleGuide:document.getElementById('sg').value, writerName:(wi!==''?((w[wi]&&w[wi].name)||''):'')})});
+    var res=await r.json();
+    wait.remove();
+    if(res.error){ log.innerHTML+='<div style="align-self:flex-start;color:var(--red);font-size:13px">'+esc(res.error)+'</div>'; }
+    else{
+      var sourcesHtml=(res.sources&&res.sources.length)
+        ?'<div style="margin-top:5px;padding-top:5px;border-top:1px solid var(--border);font-size:11px;color:var(--muted)">Sources: '+
+          res.sources.map(function(s){return '<a href="'+esc(s.url)+'" target="_blank" rel="noopener">'+esc(s.title)+'</a>';}).join(' · ')+'</div>'
+        :'';
+      log.innerHTML+='<div style="align-self:flex-start;background:#f1efe9;padding:6px 10px;border-radius:10px 10px 10px 2px;font-size:13px;max-width:85%">'+esc(res.reply||(res.changed?'Done.':'—'))+sourcesHtml+'</div>';
+      _preChatHistory.push({role:'user',text:q});
+      _preChatHistory.push({role:'assistant',text:res.reply||''});
+      if(res.changed && res.edited) document.getElementById('ed-draft').value=res.edited;
+    }
+  }catch(e){ wait.remove(); log.innerHTML+='<div style="align-self:flex-start;color:var(--red);font-size:13px">'+esc(e.message)+'</div>'; }
+  inp.disabled=false;inp.focus();
+  log.scrollTop=log.scrollHeight;
 }
 
 var _chatHistory=[];

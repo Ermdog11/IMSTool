@@ -92,26 +92,31 @@ async function suggestVideos(query) {
 // our end. docs.claude.com/en/docs/agents-and-tools/tool-use/web-search-tool
 var WEB_SEARCH_TOOL = { type: 'web_search_20250305', name: 'web_search', max_uses: 5 };
 
-// Conversational follow-up on an already-edited article. The editor asks for a
-// change ("make the second graf punchier", "cut the last line") or a question
-// that may need current information ("what's Malik Washington's rushing total
-// this season?", "any injury news since this was written?") — Claude can
-// search the web before answering. Same idea as talking to Claude about a
-// draft, but grounded when the question calls for it.
+// Conversational follow-up on a piece — either a raw draft still being
+// written (stage:'draft', asked from the Copydesk compose box before it's
+// been through Copydesk at all) or an already-edited article (the default,
+// asked from the result view). The writer/editor asks for a change ("make
+// the second graf punchier", "cut the last line") or a question that may
+// need current information ("what's Malik Washington's rushing total this
+// season?", "any injury news since this was written?") — Claude can search
+// the web before answering. Same idea as talking to Claude about a draft,
+// but grounded when the question calls for it.
 async function handleRefine(res, key, body) {
   var current = (body.refine.current || '').toString().slice(0, 24000);
   var instruction = (body.refine.instruction || '').toString().slice(0, 2000).trim();
   var styleGuide = (body.styleGuide || '').toString().slice(0, 12000);
   var writerName = (body.writerName || 'the writer').toString().slice(0, 80);
   var history = Array.isArray(body.refine.history) ? body.refine.history.slice(-6) : [];
+  var isDraftStage = body.refine.stage === 'draft';
   if (!instruction) return res.status(200).json({ error: 'Say what you want changed or ask a question.' });
 
-  var sys = 'You are the copy chief for InsideMDSports, a Maryland Terrapins sports site, working with an editor on a piece that has already been through a first edit.' +
+  var sys = 'You are the copy chief for InsideMDSports, a Maryland Terrapins sports site, working with a writer or editor on ' +
+    (isDraftStage ? 'a draft still being written — it may be rough, partial, or even empty so far.' : 'a piece that has already been through a first edit.') +
     (styleGuide ? ('\n\nHOUSE STYLE:\n' + styleGuide) : '');
 
   var convo = history.map(function (h) { return (h.role === 'user' ? 'EDITOR: ' : 'YOU: ') + h.text; }).join('\n');
   var user =
-    'CURRENT ARTICLE (Markdown):\n' + current + '\n\n' +
+    (isDraftStage ? 'CURRENT DRAFT (Markdown, may be partial or empty):\n' : 'CURRENT ARTICLE (Markdown):\n') + (current || '(nothing written yet)') + '\n\n' +
     (convo ? 'EARLIER IN THIS CONVERSATION:\n' + convo + '\n\n' : '') +
     'THE EDITOR NOW SAYS:\n' + instruction + '\n\n' +
     'Decide first: is this a CHANGE request or a QUESTION (including "what do you know about X" / background lookups)?\n' +
