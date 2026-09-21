@@ -12,10 +12,15 @@
 // specifically to keep read volume (and cost) down by skipping low-engagement
 // noise, not just relevance.
 //
-// NOT YET VERIFIED against a real Bearer Token — built and syntax-checked
-// only. Query operator availability (-is:retweet, lang:, min_faves) under the
-// pay-per-use plan hasn't been confirmed; if a query 400s, the operator list
-// may need trimming.
+// Verified live 2026-09-21: `min_faves`/`min_retweets` are NOT available on
+// Jeff's pay-per-use tier — every query 400'd with "one or more parameters
+// to your request was invalid" the moment credits were actually available to
+// test against. Those engagement-count query operators have historically
+// been gated to higher/research access levels, not the standard consumer
+// tier. Fixed by dropping them from the query string entirely and filtering
+// on `public_metrics.like_count` client-side instead, after the fact — same
+// effective engagement gate, just applied to the response instead of the
+// request. `-is:retweet` and `lang:` are confirmed working.
 //
 // Storyline-aware pass (2026-09-21, Jeff: X should fuel recognizing developing
 // stories, tracking what we're already covering while still catching other
@@ -38,9 +43,9 @@
 // as already-vetted-credible, not an unknown to weigh.
 
 var QUERIES = [
-  '"Maryland Terrapins" (football OR Terps) -is:retweet lang:en min_faves:20',
-  '"Maryland Terrapins" (basketball OR Terps) -is:retweet lang:en min_faves:20',
-  '"Maryland Terrapins" (recruiting OR commit OR "transfer portal") -is:retweet lang:en min_faves:10'
+  { q: '"Maryland Terrapins" (football OR Terps) -is:retweet lang:en', minFaves: 20 },
+  { q: '"Maryland Terrapins" (basketball OR Terps) -is:retweet lang:en', minFaves: 20 },
+  { q: '"Maryland Terrapins" (recruiting OR commit OR "transfer portal") -is:retweet lang:en', minFaves: 10 }
 ];
 
 // Lower bar than the broad QUERIES above — we already know this storyline
@@ -54,7 +59,9 @@ function hoursAgo(iso) {
   return Math.max(0, (Date.now() - t) / 3600000);
 }
 
-async function runOne(query, bearerToken) {
+// `minFaves` is applied HERE, to the response, not the query string — see
+// the file header note on why (the query-operator version 400s on this tier).
+async function runOne(query, bearerToken, minFaves) {
   var url = 'https://api.x.com/2/tweets/search/recent?query=' + encodeURIComponent(query) +
     '&max_results=10&tweet.fields=created_at,public_metrics&expansions=author_id&user.fields=username,name';
   var r = await fetch(url, { headers: { 'Authorization': 'Bearer ' + bearerToken } });
@@ -65,6 +72,9 @@ async function runOne(query, bearerToken) {
   ((d.includes && d.includes.users) || []).forEach(function(u) { users[u.id] = u; });
 
   var tweets = d.data || [];
+  if (minFaves) {
+    tweets = tweets.filter(function(t) { return t.public_metrics && (t.public_metrics.like_count || 0) >= minFaves; });
+  }
   return tweets.map(function(t) {
     var user = users[t.author_id] || {};
     var handle = user.username || 'unknown';
@@ -97,11 +107,11 @@ async function searchX(bearerToken, storylineTopics, watchHandles) {
   var topics = (storylineTopics || []).filter(function(t) { return t && t.query; }).slice(0, 3);
   var handles = (watchHandles || []).filter(Boolean).slice(0, 15).map(function(h) { return String(h).replace(/^@/, ''); });
 
-  var broadP = Promise.allSettled(QUERIES.map(function(q) { return runOne(q, bearerToken); }));
+  var broadP = Promise.allSettled(QUERIES.map(function(cfg) { return runOne(cfg.q, bearerToken, cfg.minFaves); }));
   var storyP = Promise.allSettled(topics.map(function(t) {
-    return runOne(t.query + ' -is:retweet lang:en min_faves:' + STORYLINE_MIN_FAVES, bearerToken);
+    return runOne(t.query + ' -is:retweet lang:en', bearerToken, STORYLINE_MIN_FAVES);
   }));
-  var handleP = Promise.allSettled(handles.map(function(h) { return runOne('from:' + h + ' -is:retweet', bearerToken); }));
+  var handleP = Promise.allSettled(handles.map(function(h) { return runOne('from:' + h + ' -is:retweet', bearerToken, 0); }));
 
   var settled = await Promise.all([broadP, storyP, handleP]);
   var broadSettled = settled[0], storySettled = settled[1], handleSettled = settled[2];
