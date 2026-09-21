@@ -257,6 +257,15 @@ alter table public.site_settings add column if not exists web_search_api_key tex
 -- regardless of who has the dashboard open. api/_x-search.js, encrypted.
 alter table public.site_settings add column if not exists x_bearer_token text;
 
+-- X accounts to watch directly (2026-09-21, Jeff: "add up to a certain number
+-- of twitter feeds to check every time... the other people covering Maryland").
+-- Additive to the broad/storyline search queries above, not a replacement —
+-- each handle gets its own from:<handle> query every run, no engagement floor
+-- (a publisher-picked beat reporter's routine update matters even if it
+-- doesn't go viral, unlike an unknown account). Capped at 15 server-side to
+-- keep X's pay-per-use read cost bounded.
+alter table public.site_settings add column if not exists x_watch_handles jsonb not null default '[]'::jsonb;
+
 -- Feed prefs: blocked sources, flagged junk, own-outlet excludes, hidden
 -- items (2026-09-20). Used to live ONLY in browser localStorage, which meant
 -- it never followed the editor between browsers (e.g. sources blocked in

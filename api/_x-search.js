@@ -27,6 +27,15 @@
 // modest engagement, not just viral. Results from these are tagged
 // `followUp` so scan.js's rating pass knows it's a development on an active
 // story, not a fresh unrelated mention.
+//
+// Watched-accounts pass (2026-09-21, Jeff: "the other people covering
+// Maryland" — rival/fellow beat reporters). Publisher picks specific X
+// accounts in Settings (up to 15, api/x-watch-handles.js); each gets its own
+// from:<handle> query, no engagement floor at all — unlike a random account,
+// a publisher-curated beat source's routine post matters even with zero
+// likes, same as any RSS feed we trust enough to include. Tagged
+// `watchedAccount:true` so scan.js's rating prompt treats the account itself
+// as already-vetted-credible, not an unknown to weigh.
 
 var QUERIES = [
   '"Maryland Terrapins" (football OR Terps) -is:retweet lang:en min_faves:20',
@@ -69,12 +78,13 @@ async function runOne(query, bearerToken) {
   });
 }
 
-// Runs the standing broad queries plus one targeted query per active
-// storyline, deduped by URL. Best-effort per query — one failing (rate
-// limit, bad operator, quota) doesn't lose the others. `storylineTopics`:
-// up to 3 { label, query } objects from x-scan.js (label = short human name
-// for the storyline, query = an X-search-ready fragment, e.g. a quoted name).
-async function searchX(bearerToken, storylineTopics) {
+// Runs the standing broad queries, one targeted query per active storyline,
+// and one query per watched account — deduped by URL. Best-effort per query —
+// one failing (rate limit, bad operator, quota) doesn't lose the others.
+// `storylineTopics`: up to 3 { label, query } objects from x-scan.js (label =
+// short human name for the storyline, query = an X-search-ready fragment).
+// `watchHandles`: up to 15 plain handles (no @), from api/x-watch-handles.js.
+async function searchX(bearerToken, storylineTopics, watchHandles) {
   var seen = {};
   var results = [];
   var warnings = [];
@@ -105,6 +115,23 @@ async function searchX(bearerToken, storylineTopics) {
       });
     } catch (e) {
       warnings.push('storyline "' + topic.label + '": ' + e.message);
+    }
+  }
+
+  var handles = (watchHandles || []).filter(Boolean).slice(0, 15);
+  for (var k = 0; k < handles.length; k++) {
+    var handle = String(handles[k]).replace(/^@/, '');
+    var handleQuery = 'from:' + handle + ' -is:retweet';
+    try {
+      var hItems = await runOne(handleQuery, bearerToken);
+      hItems.forEach(function(item) {
+        if (!item.url || seen[item.url]) return;
+        seen[item.url] = 1;
+        item.watchedAccount = true;
+        results.push(item);
+      });
+    } catch (e) {
+      warnings.push('watched account "@' + handle + '": ' + e.message);
     }
   }
 

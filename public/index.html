@@ -498,6 +498,14 @@ body { padding-bottom: 40px; }
     </div>
     <div id="xSettingsStatus" style="font-size:11px;color:var(--text3);margin-bottom:8px;">Loading…</div>
     <button class="pill" id="xSettingsBtn" onclick="xSettingsAction()">Connect</button>
+
+    <div class="sdiv-label" style="margin-top:16px;">Accounts to watch directly (up to 15)</div>
+    <div style="font-size:11px;color:var(--text3);margin-bottom:6px;line-height:1.5;">In addition to the broad search above — the other people covering Maryland (rival/fellow beat reporters, insider accounts). Every run checks these specifically, no engagement minimum, since you've already vetted them.</div>
+    <div id="xWatchHandleList"></div>
+    <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:8px;">
+      <input id="xWatchHandleInput" placeholder="@handle (no need for the @)" style="flex:1;min-width:160px;font-size:13px;padding:7px 9px;border:1px solid var(--border);border-radius:6px;" onkeydown="if(event.key==='Enter')addXWatchHandle()">
+      <button class="pill" onclick="addXWatchHandle()">Add</button>
+    </div>
   </div>
 
   <div class="settings-card" id="socialPromoCardWrap" hidden>
@@ -806,7 +814,7 @@ function switchTab(idx, fromPop) {
   if (idx === 7) loadPodcasts();
   if (idx === 8) loadYouTube();
   if (idx === 9) loadBluesky();
-  if (idx === 10) { renderBlockedSources(); renderOwnSites(); refreshPushStatus(); loadTeam(); loadScrapeSessionStatus(); loadSocialPromoStatus(); loadSearchSettingsStatus(); loadGoogleSearchSettingsStatus(); loadXSettingsStatus(); }
+  if (idx === 10) { renderBlockedSources(); renderOwnSites(); refreshPushStatus(); loadTeam(); loadScrapeSessionStatus(); loadSocialPromoStatus(); loadSearchSettingsStatus(); loadGoogleSearchSettingsStatus(); loadXSettingsStatus(); loadXWatchHandles(); }
   if (idx === 11) renderAnalyticsConnections();
   if (idx === 12) loadRosterWatch();
   window.scrollTo(0, 0);
@@ -905,6 +913,7 @@ function renderAlerts() {
         <span class="asrc">${isVideo ? (a.channel || a.source) : a.source}</span>
         <span class="atime">${a.time}</span>
         ${a.followUp ? `<span class="tag" style="background:var(--red);color:#fff;" title="A new X/Twitter update on a story we're already covering">🔁 Following: ${a.followUp}</span>` : ''}
+        ${a.watchedAccount ? `<span class="tag" style="background:var(--text3);color:#fff;" title="From a Maryland beat account you've specifically added to watch">👁 Watched account</span>` : ''}
       </div>
       ${a.trendingTopic && a.overflowCount ?`<div style="margin:4px 0 2px;"><a href="#" onclick="toggleOverflow(${idx},'${a.trendingTopic.replace(/'/g,"\\'")}',this);return false;" style="font-size:.78rem;color:var(--red);font-weight:600;text-decoration:none;">🔥 +${a.overflowCount} more ${a.trendingTopic} stories</a><div class="ovf-inline" id="ovf-${idx}" style="display:none;margin-top:6px;padding-left:10px;border-left:2px solid var(--red);"></div></div>` : ''}
       ${a.summary ? `<div class="asum">${a.summary}</div>` : ''}
@@ -2053,6 +2062,58 @@ async function xSettingsAction() {
     if (d.error) { alert(d.error); return; }
     loadXSettingsStatus();
   } catch (e) { alert(e.message); }
+}
+
+let xWatchHandles = [];
+
+async function loadXWatchHandles() {
+  const wrap = document.getElementById('xSettingsCardWrap');
+  if (!wrap || wrap.hidden || !window.IMSAuth) return;
+  try {
+    const r = await IMSAuth.authFetch('/api/x-watch-handles');
+    const d = await r.json();
+    xWatchHandles = Array.isArray(d.handles) ? d.handles : [];
+    renderXWatchHandles();
+  } catch (e) { /* leave list as-is */ }
+}
+
+function renderXWatchHandles() {
+  const c = document.getElementById('xWatchHandleList');
+  if (!c) return;
+  c.innerHTML = xWatchHandles.length ? xWatchHandles.map(h =>
+    `<div class="src-row ex">@${h}` +
+    `<button onclick="removeXWatchHandle('${h.replace(/'/g,"\\'")}')" style="margin-left:8px;background:none;border:1px solid var(--border);border-radius:4px;padding:1px 7px;cursor:pointer;color:var(--text3);font-size:10px;">remove</button></div>`
+  ).join('') : '<div style="font-size:11px;color:var(--text3);">None yet — add a handle above.</div>';
+}
+
+async function saveXWatchHandles() {
+  try {
+    const r = await IMSAuth.authFetch('/api/x-watch-handles', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ handles: xWatchHandles })
+    });
+    const d = await r.json();
+    if (d.error) { alert(d.error); return; }
+    xWatchHandles = d.handles || xWatchHandles;
+    renderXWatchHandles();
+  } catch (e) { alert(e.message); }
+}
+
+function addXWatchHandle() {
+  const el = document.getElementById('xWatchHandleInput');
+  const v = (el.value || '').trim().replace(/^@/, '');
+  if (!v) return;
+  if (xWatchHandles.length >= 15) { alert('Up to 15 watched accounts — remove one first.'); return; }
+  if (!xWatchHandles.some(h => h.toLowerCase() === v.toLowerCase())) {
+    xWatchHandles.push(v);
+    saveXWatchHandles();
+  }
+  el.value = '';
+}
+
+function removeXWatchHandle(handle) {
+  xWatchHandles = xWatchHandles.filter(h => h.toLowerCase() !== handle.toLowerCase());
+  saveXWatchHandles();
 }
 
 async function loadSocialPromoStatus() {

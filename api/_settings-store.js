@@ -101,6 +101,35 @@ async function deleteXSearch(sb) {
   return { ok: true };
 }
 
+var X_WATCH_HANDLES_MAX = 15;
+
+// X accounts to watch directly (e.g. rival/fellow Maryland beat reporters) —
+// additive to the broad/storyline search, not instead of it. Best-effort:
+// no rows saved yet just means x-scan.js runs broad-only, same as before.
+async function getXWatchHandles(sb) {
+  try {
+    var siteId = await resolveSiteId(sb);
+    var q = await sb.from('site_settings').select('x_watch_handles').eq('site_id', siteId).single();
+    if (q.error || !q.data) return [];
+    return Array.isArray(q.data.x_watch_handles) ? q.data.x_watch_handles : [];
+  } catch (e) {
+    return [];
+  }
+}
+
+async function saveXWatchHandles(sb, handles) {
+  var siteId = await resolveSiteId(sb);
+  var clean = (Array.isArray(handles) ? handles : [])
+    .map(function(h) { return String(h || '').trim().replace(/^@/, ''); })
+    .filter(Boolean)
+    .slice(0, X_WATCH_HANDLES_MAX);
+  var up = await sb.from('site_settings').upsert({
+    site_id: siteId, x_watch_handles: clean, updated_at: new Date().toISOString()
+  }, { onConflict: 'site_id' });
+  if (up.error) throw new Error(up.error.message);
+  return { ok: true, handles: clean };
+}
+
 // Google Programmable Search, site-restricted mode (api/_google-search.js) —
 // a second, complementary real search alongside Brave. Same best-effort
 // shape as getWebSearch/getXSearch: no credentials saved yet just means
@@ -180,6 +209,7 @@ module.exports = {
   getHouseStyle: getHouseStyle, saveHouseStyle: saveHouseStyle,
   getWebSearch: getWebSearch, saveWebSearch: saveWebSearch, deleteWebSearch: deleteWebSearch,
   getXSearch: getXSearch, saveXSearch: saveXSearch, deleteXSearch: deleteXSearch,
+  getXWatchHandles: getXWatchHandles, saveXWatchHandles: saveXWatchHandles,
   getGoogleSearch: getGoogleSearch, saveGoogleSearch: saveGoogleSearch, deleteGoogleSearch: deleteGoogleSearch,
   getFeedPrefs: getFeedPrefs, saveFeedPrefs: saveFeedPrefs
 };

@@ -93,13 +93,16 @@ module.exports = async function handler(req, res) {
     // of only ever running the same 3 broad queries. See activeStorylineTopics
     // above — best-effort, [] just means broad-only this run.
     var storylineTopics = await activeStorylineTopics(sbAdmin, ANTHROPIC_API_KEY);
+    // Publisher-curated accounts to check every run (rival/fellow beat
+    // reporters), additive to the above — see api/x-watch-handles.js.
+    var watchHandles = await Settings.getXWatchHandles(sbAdmin);
 
     var scanHandler = require('./scan.js');
     var scanResult = await new Promise(function(resolve, reject) {
       var fakeRes = { status: function() { return this; }, json: function(d) { resolve(d); return this; } };
       // deep:false — these are short-form social posts, not articles needing
       // a full-text re-read; speed matters more than the deep-read pass here.
-      scanHandler({ body: { deep: false, xSearch: true, xStorylines: storylineTopics } }, fakeRes).catch(reject);
+      scanHandler({ body: { deep: false, xSearch: true, xStorylines: storylineTopics, xWatchHandles: watchHandles } }, fakeRes).catch(reject);
     });
     if (scanResult.error) throw new Error('Scan failed: ' + scanResult.error);
 
