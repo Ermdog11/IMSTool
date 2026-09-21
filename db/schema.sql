@@ -268,6 +268,17 @@ alter table public.site_settings add column if not exists flagged_stories jsonb 
 alter table public.site_settings add column if not exists own_site_exclude jsonb not null default '[]'::jsonb;
 alter table public.site_settings add column if not exists hidden_videos jsonb not null default '[]'::jsonb;
 
+-- Google Programmable Search, take two (2026-09-20) — site-restricted mode.
+-- Google killed whole-web search for new engines (see the migration above
+-- that dropped these same two columns), but a search restricted to a
+-- publisher-curated list of sites is still available and still real search,
+-- not an RSS query — it complements Brave (whole-web) and the News/Bing RSS
+-- feeds rather than replacing either. The site list itself lives in Google's
+-- own Programmable Search Engine console, not here — we only store the two
+-- credentials needed to query it.
+alter table public.site_settings add column if not exists google_search_api_key text; -- encrypted (api/_crypto.js)
+alter table public.site_settings add column if not exists google_search_engine_id text;
+
 -- Row Level Security ----------------------------------------------------
 -- The API layer talks to Postgres with the service_role key, which bypasses
 -- RLS. These policies are defence-in-depth for any future direct-from-browser

@@ -478,6 +478,17 @@ body { padding-bottom: 40px; }
     <button class="pill" id="searchSettingsBtn" onclick="searchSettingsAction()">Connect</button>
   </div>
 
+  <div class="settings-card" id="googleSearchSettingsCardWrap" hidden>
+    <h3><i class="ti ti-brand-google"></i> Google search (site-restricted, complements Brave above)</h3>
+    <div style="font-size:12px;color:var(--text3);margin-bottom:10px;line-height:1.5;">
+      A second, independent search alongside Brave — runs on the same 3×/day scheduled scan, results from both get combined and deduped together. Google no longer lets a new search engine search the whole open web, only a list of sites you pick yourself — so this won't catch things outside that list the way Brave can, but it's still a live search (not a pre-written RSS query) against whichever sites you add, and it can turn up things Brave's own ranking misses. Free for the first 100 queries/day, comfortably inside what this uses (~9/day).
+      <br><br>
+      To connect: 1) at <a href="https://programmablesearchengine.google.com/" target="_blank" rel="noopener">Google Programmable Search Engine</a>, create a search engine and add the sites you want it to cover (Testudo Times, Diamondback, PressBox, ESPN, etc. — add as many as you like, editable anytime in Google's own console), then copy its <strong>Search Engine ID</strong>. 2) At the <a href="https://developers.google.com/custom-search/v1/overview" target="_blank" rel="noopener">Custom Search JSON API</a> page, get an <strong>API key</strong>. Paste both below.
+    </div>
+    <div id="googleSearchSettingsStatus" style="font-size:11px;color:var(--text3);margin-bottom:8px;">Loading…</div>
+    <button class="pill" id="googleSearchSettingsBtn" onclick="googleSearchSettingsAction()">Connect</button>
+  </div>
+
   <div class="settings-card" id="xSettingsCardWrap" hidden>
     <h3><i class="ti ti-brand-x"></i> X / Twitter search (fast breaking-news signal)</h3>
     <div style="font-size:12px;color:var(--text3);margin-bottom:10px;line-height:1.5;">
@@ -739,6 +750,8 @@ body { padding-bottom: 40px; }
       if (sp) sp.hidden = false;
       var srch = document.getElementById('searchSettingsCardWrap');
       if (srch) srch.hidden = false;
+      var gsrch = document.getElementById('googleSearchSettingsCardWrap');
+      if (gsrch) gsrch.hidden = false;
       var xs = document.getElementById('xSettingsCardWrap');
       if (xs) xs.hidden = false;
     }
@@ -793,7 +806,7 @@ function switchTab(idx, fromPop) {
   if (idx === 7) loadPodcasts();
   if (idx === 8) loadYouTube();
   if (idx === 9) loadBluesky();
-  if (idx === 10) { renderBlockedSources(); renderOwnSites(); refreshPushStatus(); loadTeam(); loadScrapeSessionStatus(); loadSocialPromoStatus(); loadSearchSettingsStatus(); loadXSettingsStatus(); }
+  if (idx === 10) { renderBlockedSources(); renderOwnSites(); refreshPushStatus(); loadTeam(); loadScrapeSessionStatus(); loadSocialPromoStatus(); loadSearchSettingsStatus(); loadGoogleSearchSettingsStatus(); loadXSettingsStatus(); }
   if (idx === 11) renderAnalyticsConnections();
   if (idx === 12) loadRosterWatch();
   window.scrollTo(0, 0);
@@ -1938,6 +1951,57 @@ async function searchSettingsAction() {
     const d = await r.json();
     if (d.error) { alert(d.error); return; }
     loadSearchSettingsStatus();
+  } catch (e) { alert(e.message); }
+}
+
+let googleSearchSettingsConnected = false;
+
+async function loadGoogleSearchSettingsStatus() {
+  const wrap = document.getElementById('googleSearchSettingsCardWrap');
+  if (!wrap || wrap.hidden || !window.IMSAuth) return;
+  const s = document.getElementById('googleSearchSettingsStatus');
+  const btn = document.getElementById('googleSearchSettingsBtn');
+  try {
+    const r = await IMSAuth.authFetch('/api/google-search-settings');
+    const d = await r.json();
+    googleSearchSettingsConnected = !!d.connected;
+    s.textContent = googleSearchSettingsConnected
+      ? '● Connected — the 3×/day scan now combines Brave + Google search'
+      : 'Not connected — Brave (above) is the only open-web search running.';
+    s.style.color = googleSearchSettingsConnected ? '#15803d' : 'var(--text3)';
+    btn.textContent = googleSearchSettingsConnected ? 'Disconnect' : 'Connect';
+  } catch (e) {
+    s.textContent = `Couldn't load status — ${e.message}`;
+  }
+}
+
+async function googleSearchSettingsAction() {
+  if (googleSearchSettingsConnected) {
+    if (!confirm('Disconnect Google search? Brave will keep running on its own.')) return;
+    try {
+      const r = await IMSAuth.authFetch('/api/google-search-settings', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'disconnect' })
+      });
+      const d = await r.json();
+      if (d.error) { alert(d.error); return; }
+      loadGoogleSearchSettingsStatus();
+    } catch (e) { alert(e.message); }
+    return;
+  }
+
+  const apiKey = prompt("Google Custom Search API key:");
+  if (!apiKey) return;
+  const engineId = prompt("Google Programmable Search Engine ID (cx):");
+  if (!engineId) return;
+  try {
+    const r = await IMSAuth.authFetch('/api/google-search-settings', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ apiKey, engineId })
+    });
+    const d = await r.json();
+    if (d.error) { alert(d.error); return; }
+    loadGoogleSearchSettingsStatus();
   } catch (e) { alert(e.message); }
 }
 

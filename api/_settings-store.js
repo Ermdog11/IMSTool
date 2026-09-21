@@ -101,6 +101,40 @@ async function deleteXSearch(sb) {
   return { ok: true };
 }
 
+// Google Programmable Search, site-restricted mode (api/_google-search.js) —
+// a second, complementary real search alongside Brave. Same best-effort
+// shape as getWebSearch/getXSearch: no credentials saved yet just means
+// scan.js skips this source.
+async function getGoogleSearch(sb) {
+  try {
+    var siteId = await resolveSiteId(sb);
+    var q = await sb.from('site_settings').select('google_search_api_key, google_search_engine_id').eq('site_id', siteId).single();
+    if (q.error || !q.data || !q.data.google_search_api_key || !q.data.google_search_engine_id) return null;
+    return { apiKey: Crypto.decrypt(q.data.google_search_api_key), engineId: q.data.google_search_engine_id };
+  } catch (e) {
+    return null;
+  }
+}
+
+async function saveGoogleSearch(sb, apiKey, engineId) {
+  var siteId = await resolveSiteId(sb);
+  var up = await sb.from('site_settings').upsert({
+    site_id: siteId, google_search_api_key: Crypto.encrypt(apiKey), google_search_engine_id: engineId,
+    updated_at: new Date().toISOString()
+  }, { onConflict: 'site_id' });
+  if (up.error) throw new Error(up.error.message);
+  return { ok: true };
+}
+
+async function deleteGoogleSearch(sb) {
+  var siteId = await resolveSiteId(sb);
+  var up = await sb.from('site_settings').update({
+    google_search_api_key: null, google_search_engine_id: null, updated_at: new Date().toISOString()
+  }).eq('site_id', siteId);
+  if (up.error) throw new Error(up.error.message);
+  return { ok: true };
+}
+
 // Blocked sources, flagged junk, own-outlet excludes, hidden items — used to
 // live only in browser localStorage (never followed the editor between
 // browsers). Shared per newsroom, same as house style / search keys above.
@@ -146,5 +180,6 @@ module.exports = {
   getHouseStyle: getHouseStyle, saveHouseStyle: saveHouseStyle,
   getWebSearch: getWebSearch, saveWebSearch: saveWebSearch, deleteWebSearch: deleteWebSearch,
   getXSearch: getXSearch, saveXSearch: saveXSearch, deleteXSearch: deleteXSearch,
+  getGoogleSearch: getGoogleSearch, saveGoogleSearch: saveGoogleSearch, deleteGoogleSearch: deleteGoogleSearch,
   getFeedPrefs: getFeedPrefs, saveFeedPrefs: saveFeedPrefs
 };

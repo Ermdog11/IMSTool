@@ -405,6 +405,26 @@ module.exports = async function handler(req, res) {
       } catch (e) { xSearchWarnings.push(e.message); }
     }
 
+    // Second, complementary web search (Google Programmable Search,
+    // site-restricted — see _google-search.js for why it can't be whole-web).
+    // Same opt-in/cadence reasoning as webSearch above; set alongside it by
+    // rolling-digest.js's 3x/day cron.
+    var googleSearchCount = 0, googleSearchWarnings = [];
+    if (body.googleSearch) {
+      try {
+        var S3 = require('./_supabase.js');
+        if (S3.isConfigured()) {
+          var googleSearchCreds = await require('./_settings-store.js').getGoogleSearch(S3.admin());
+          if (googleSearchCreds) {
+            var googleResult = await require('./_google-search.js').searchNews(googleSearchCreds.apiKey, googleSearchCreds.engineId);
+            googleResult.results.forEach(function(item) { stories.push(item); });
+            googleSearchCount = googleResult.results.length;
+            googleSearchWarnings = googleResult.warnings;
+          }
+        }
+      } catch (e) { googleSearchWarnings.push(e.message); }
+    }
+
     // Drop stories that originated on our own outlet (matched by headline against the blocklist feed)
     var ownFiltered = 0;
     stories = stories.filter(function(s) {
@@ -470,7 +490,7 @@ module.exports = async function handler(req, res) {
     var fetchStatuses = results.map(function(r, i) {
       return allNames[i] + ':' + (r.status === 'fulfilled' ? r.value.status : 'FAILED');
     });
-    console.log('Stories:', stories.length, '| Reddit:', redditCount, '| Google:', googleCount, '| YouTube:', videoCount, '| WebSearch:', webSearchCount, (webSearchWarnings.length ? '(' + webSearchWarnings.join('; ') + ')' : ''), '| XSearch:', xSearchCount, (xSearchWarnings.length ? '(' + xSearchWarnings.join('; ') + ')' : ''), '| Own-outlet filtered:', ownFiltered, '| Blocklist size:', ownTitleWordSets.length, '| Blocklist source:', blocklistSource, '| Fetches:', fetchStatuses.join(', '));
+    console.log('Stories:', stories.length, '| Reddit:', redditCount, '| Google:', googleCount, '| YouTube:', videoCount, '| WebSearch:', webSearchCount, (webSearchWarnings.length ? '(' + webSearchWarnings.join('; ') + ')' : ''), '| XSearch:', xSearchCount, (xSearchWarnings.length ? '(' + xSearchWarnings.join('; ') + ')' : ''), '| GoogleSiteSearch:', googleSearchCount, (googleSearchWarnings.length ? '(' + googleSearchWarnings.join('; ') + ')' : ''), '| Own-outlet filtered:', ownFiltered, '| Blocklist size:', ownTitleWordSets.length, '| Blocklist source:', blocklistSource, '| Fetches:', fetchStatuses.join(', '));
 
     if (!stories.length) {
       var diagMsg = 'No stories found. Fetch results: ' + fetchStatuses.join(', ');
