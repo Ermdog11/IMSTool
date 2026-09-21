@@ -21,6 +21,54 @@ const BreakingDraft = require('./_breaking-draft.js');
 const mailer = require('./_mailer.js');
 const push = require('./_push.js');
 
+// What are we actively covering right now? Pulls recent "breaking" chat drops
+// (auto-drafted rating-4+ stories, posted by this cron and rolling-digest.js's)
+// from the last 48h and asks Claude to condense them into up to 3 short,
+// X-search-ready storyline topics — e.g. a DeJuan Williams injury story
+// becomes { label: "DeJuan Williams injury", query: '"DeJuan Williams" injury' }.
+// Best-effort: any failure here just means this run's X search stays broad-only,
+// same as before this feature existed — never blocks the scan itself.
+async function activeStorylineTopics(sb, anthropicKey) {
+  try {
+    var siteId = await Chat.resolveSiteId(sb);
+    var since = new Date(Date.now() - 48 * 60 * 60 * 1000).toISOString();
+    var msgs = await Chat.recent(sb, siteId, since, 200);
+    var breaking = msgs.filter(function(m) { return m.kind === 'breaking' && m.meta && m.meta.headline; });
+    if (!breaking.length) return [];
+
+    // Most recent first, distinct headlines, cap the input list small — this
+    // only needs to name what's actively developing, not catalog everything.
+    var seen = {};
+    var headlines = [];
+    breaking.slice().reverse().forEach(function(m) {
+      var h = m.meta.headline.trim();
+      if (seen[h]) return;
+      seen[h] = 1;
+      headlines.push(h);
+    });
+    headlines = headlines.slice(0, 8);
+
+    var prompt = 'These are headlines InsideMDSports has already flagged as breaking/major Maryland Terrapins news in the last 48 hours:\n' +
+      headlines.map(function(h, i) { return (i + 1) + '. ' + h; }).join('\n') +
+      '\n\nCondense these into up to 3 DISTINCT active storylines worth tracking for new X/Twitter updates (merge headlines about the same underlying story into one). Skip anything that reads as fully resolved/closed (e.g. a final score, a completed signing with nothing left to develop) — only genuinely ongoing storylines. Return ONLY a JSON array, up to 3 items, no other text: [{"label": "short human-readable name, e.g. \'DeJuan Williams injury\'", "query": "an X search fragment for this, e.g. \'\\"DeJuan Williams\\" injury\' — quote the person/entity name, add 1-2 unquoted context words"}]. Return [] if nothing is genuinely still developing.';
+
+    var r = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'x-api-key': anthropicKey, 'anthropic-version': '2023-06-01' },
+      body: JSON.stringify({ model: 'claude-sonnet-4-6', max_tokens: 400, messages: [{ role: 'user', content: prompt }] })
+    });
+    var d = await r.json();
+    var text = ((d.content || []).map(function(b) { return b.type === 'text' ? b.text : ''; }).join('\n'));
+    var m2 = text.match(/\[[\s\S]*\]/);
+    if (!m2) return [];
+    var topics = JSON.parse(m2[0]);
+    return Array.isArray(topics) ? topics.filter(function(t) { return t && t.label && t.query; }).slice(0, 3) : [];
+  } catch (e) {
+    console.error('activeStorylineTopics failed (non-fatal):', e.message);
+    return [];
+  }
+}
+
 function breakingMdToHtml(t) {
   var s = String(t || '')
     .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
@@ -37,15 +85,21 @@ module.exports = async function handler(req, res) {
     // Nothing to do if X search isn't connected — cheap no-op, not an error,
     // so this cron can stay on regardless of whether the key is set yet.
     if (!S.isConfigured()) return res.status(200).json({ skipped: 'Supabase not configured' });
-    var creds = await Settings.getXSearch(S.admin());
+    var sbAdmin = S.admin();
+    var creds = await Settings.getXSearch(sbAdmin);
     if (!creds) return res.status(200).json({ skipped: 'X search not connected' });
+
+    // What's already developing, so the X pass tracks it specifically instead
+    // of only ever running the same 3 broad queries. See activeStorylineTopics
+    // above — best-effort, [] just means broad-only this run.
+    var storylineTopics = await activeStorylineTopics(sbAdmin, ANTHROPIC_API_KEY);
 
     var scanHandler = require('./scan.js');
     var scanResult = await new Promise(function(resolve, reject) {
       var fakeRes = { status: function() { return this; }, json: function(d) { resolve(d); return this; } };
       // deep:false — these are short-form social posts, not articles needing
       // a full-text re-read; speed matters more than the deep-read pass here.
-      scanHandler({ body: { deep: false, xSearch: true } }, fakeRes).catch(reject);
+      scanHandler({ body: { deep: false, xSearch: true, xStorylines: storylineTopics } }, fakeRes).catch(reject);
     });
     if (scanResult.error) throw new Error('Scan failed: ' + scanResult.error);
 
@@ -57,7 +111,7 @@ module.exports = async function handler(req, res) {
     var draftEligible = allAlerts.filter(function(a) { return (a.rating || 0) >= 4; });
     var results = [];
     if (draftEligible.length) {
-      var sb = S.admin();
+      var sb = sbAdmin;
       var houseStyle = await Settings.getHouseStyle(sb);
       for (var i = 0; i < draftEligible.length; i++) {
         var story = draftEligible[i];

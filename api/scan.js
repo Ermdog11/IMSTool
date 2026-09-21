@@ -349,7 +349,14 @@ module.exports = async function handler(req, res) {
           title = title.trim();
           // Auto-generated stat / box-score / live-score stub pages (FOX Sports etc.) are
           // never news — a real recap has analysis in the headline, not "Live Score".
-          if (/\bstats?\s*(?:&|&amp;|and)\s*leaders?\b|\bstat leaders?\b|\blive score\b|\bbox score\b|\bscoreboard\b|\bplay[- ]by[- ]play\b|\bfinal score\b/i.test(title)) return;
+          if (/\bstats?\s*(?:&|&amp;|and)\s*leaders?\b|\bstat leaders?\b|\bsplit stats?\b|\blive score\b|\bbox score\b|\bscoreboard\b|\bplay[- ]by[- ]play\b|\bfinal score\b/i.test(title)) return;
+          // Generic team/player index pages (2026-09-21, Jeff: "we don't want static
+          // pages with stats or no new info") — Google News occasionally indexes a
+          // site's own team-hub or player-stub page (e.g. "St. Frances Academy
+          // Panthers News", "Malik Washington Stats") instead of an actual article.
+          // A real headline is a sentence with something happening in it; these are
+          // just "<name> <category word>" with nothing else.
+          if (/^[\w.' -]{2,60} (News|Stats?|Splits?|Schedule|Roster|Standings)$/i.test(title)) return;
           // Some direct feeds carry the whole publication — require Terps relevance
           if (cfg.requireTerps) {
             var relevanceText = (title + ' ' + desc).toLowerCase();
@@ -396,7 +403,7 @@ module.exports = async function handler(req, res) {
         if (S2.isConfigured()) {
           var xSearchCreds = await require('./_settings-store.js').getXSearch(S2.admin());
           if (xSearchCreds) {
-            var xResult = await require('./_x-search.js').searchX(xSearchCreds.bearerToken);
+            var xResult = await require('./_x-search.js').searchX(xSearchCreds.bearerToken, body.xStorylines);
             xResult.results.forEach(function(item) { stories.push(item); });
             xSearchCount = xResult.results.length;
             xSearchWarnings = xResult.warnings;
@@ -500,6 +507,7 @@ module.exports = async function handler(req, res) {
     // Build numbered list for Claude — include the feed snippet where we have one
     var storyList = stories.map(function(s, i) {
       var line = (i + 1) + '. ' + (s.kind === 'video' ? '[VIDEO] ' : '') + '[' + s.source + '] ' + s.title + ' (' + s.age + 'h ago)';
+      if (s.followUp) line += '\n   [DEVELOPING STORY WE ARE ACTIVELY COVERING: ' + s.followUp + ' — treat a genuine update as newsworthy even without high engagement]';
       if (s.snippet) line += '\n   snippet: ' + s.snippet;
       return line;
     }).join('\n');
@@ -641,6 +649,7 @@ module.exports = async function handler(req, res) {
       var orig = stories[item.idx - 1];
       var extra = { url: orig ? orig.url : '' };
       if (orig && orig.kind === 'video') { extra.kind = 'video'; extra.thumbnail = orig.thumbnail || ''; extra.channel = orig.channel || ''; }
+      if (orig && orig.followUp) extra.followUp = orig.followUp;
       return Object.assign({}, item, extra);
     });
 
