@@ -101,8 +101,50 @@ async function deleteXSearch(sb) {
   return { ok: true };
 }
 
+// Blocked sources, flagged junk, own-outlet excludes, hidden items — used to
+// live only in browser localStorage (never followed the editor between
+// browsers). Shared per newsroom, same as house style / search keys above.
+var FEED_PREF_COLUMNS = {
+  blockedSources: 'blocked_sources',
+  flaggedStories: 'flagged_stories',
+  ownSiteExclude: 'own_site_exclude',
+  hiddenVideos: 'hidden_videos'
+};
+
+async function getFeedPrefs(sb) {
+  var out = { blockedSources: [], flaggedStories: [], ownSiteExclude: [], hiddenVideos: [] };
+  try {
+    var siteId = await resolveSiteId(sb);
+    var q = await sb.from('site_settings')
+      .select('blocked_sources, flagged_stories, own_site_exclude, hidden_videos')
+      .eq('site_id', siteId).single();
+    if (q.error || !q.data) return out;
+    out.blockedSources = q.data.blocked_sources || [];
+    out.flaggedStories = q.data.flagged_stories || [];
+    out.ownSiteExclude = q.data.own_site_exclude || [];
+    out.hiddenVideos = q.data.hidden_videos || [];
+    return out;
+  } catch (e) {
+    return out;
+  }
+}
+
+async function saveFeedPrefs(sb, fields) {
+  var siteId = await resolveSiteId(sb);
+  var update = { site_id: siteId, updated_at: new Date().toISOString() };
+  var touched = false;
+  Object.keys(FEED_PREF_COLUMNS).forEach(function (key) {
+    if (Array.isArray(fields[key])) { update[FEED_PREF_COLUMNS[key]] = fields[key]; touched = true; }
+  });
+  if (!touched) throw new Error('No recognized fields.');
+  var up = await sb.from('site_settings').upsert(update, { onConflict: 'site_id' });
+  if (up.error) throw new Error(up.error.message);
+  return { ok: true };
+}
+
 module.exports = {
   getHouseStyle: getHouseStyle, saveHouseStyle: saveHouseStyle,
   getWebSearch: getWebSearch, saveWebSearch: saveWebSearch, deleteWebSearch: deleteWebSearch,
-  getXSearch: getXSearch, saveXSearch: saveXSearch, deleteXSearch: deleteXSearch
+  getXSearch: getXSearch, saveXSearch: saveXSearch, deleteXSearch: deleteXSearch,
+  getFeedPrefs: getFeedPrefs, saveFeedPrefs: saveFeedPrefs
 };

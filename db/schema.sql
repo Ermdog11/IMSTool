@@ -257,6 +257,17 @@ alter table public.site_settings add column if not exists web_search_api_key tex
 -- regardless of who has the dashboard open. api/_x-search.js, encrypted.
 alter table public.site_settings add column if not exists x_bearer_token text;
 
+-- Feed prefs: blocked sources, flagged junk, own-outlet excludes, hidden
+-- items (2026-09-20). Used to live ONLY in browser localStorage, which meant
+-- it never followed the editor between browsers (e.g. sources blocked in
+-- Chrome kept resurfacing in Brave, since Brave's localStorage starts empty).
+-- Shared per newsroom like the rest of site_settings, not per-user — any
+-- team member curating the feed benefits everyone, same as today's behavior.
+alter table public.site_settings add column if not exists blocked_sources jsonb not null default '[]'::jsonb;
+alter table public.site_settings add column if not exists flagged_stories jsonb not null default '[]'::jsonb;
+alter table public.site_settings add column if not exists own_site_exclude jsonb not null default '[]'::jsonb;
+alter table public.site_settings add column if not exists hidden_videos jsonb not null default '[]'::jsonb;
+
 -- Row Level Security ----------------------------------------------------
 -- The API layer talks to Postgres with the service_role key, which bypasses
 -- RLS. These policies are defence-in-depth for any future direct-from-browser

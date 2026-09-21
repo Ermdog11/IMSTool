@@ -123,7 +123,7 @@ async function handleRefine(res, key, body) {
     'If answering well needs current information you\'re not sure of — a stat line, an injury update, a roster/depth-chart move, this week\'s news, a score — use the web_search tool first. Prefer reputable sports sources (247Sports, ESPN, official Maryland Athletics) and note in the reply when something came from a live search vs. what you already knew. Skip searching for stable facts, or when the article itself already has what you need.\n' +
     'If it is a CHANGE: set "changed":true, make ONLY that change (plus anything it directly requires) keeping ' + writerName + '\'s voice and house style, put the FULL updated article in "edited", and a one-line "reply" saying what you did.\n' +
     'If it is a QUESTION: set "changed":false and do NOT fill in "edited" at all (leave it out / empty — do not re-type the article, it wastes time). Answer fully in "reply".\n' +
-    'Never invent quotes, stats, or facts when making a change. If a change would require a fact you do not have and can\'t find, say so in "reply" and set "changed":false.\n' +
+    'Never invent quotes, stats, or facts when making a change — including a person\'s job title, position, or role (e.g. calling a player a "coach", or guessing which position they play). If a change would require a fact you do not have and can\'t find, say so in "reply" and set "changed":false.\n' +
     'Always finish by calling the respond tool with your final answer — never leave it as plain text, even after searching.';
 
   var tool = {
@@ -246,6 +246,7 @@ module.exports = async function handler(req, res) {
       'The writer wants their copy left ALONE. Do NOT rewrite it. Review it and return suggestions they can choose to apply. Call the submit_copyedit tool with:\n' +
       '- "edited": the writer\'s draft returned essentially verbatim, as Markdown. ONLY unambiguous typo / misspelling / obvious punctuation-slip fixes are allowed. No style changes, no restructuring, no word swaps, no tightening, no added or removed sentences.\n' +
       '- Do NOT invent quotes, statistics, dates, scores, or outcomes.\n' +
+      '- Do NOT invent or guess a person\'s job title, position, or role (e.g. calling a player a "coach", or guessing which position they play) when adding context — if you are not certain, either leave it out or prefix it "[VERIFY]".\n' +
       '- TRUST THE WRITER ON FACTS by default — a professional beat reporter.\n' +
       factsRule + linkRule +
       '- "notes": briefly, what a full house-style edit WOULD change (a few bullets), so they can decide.\n' +
@@ -260,6 +261,7 @@ module.exports = async function handler(req, res) {
       '- Vary paragraph rhythm: a one-sentence paragraph is fine on its own, but never stack two or more of them back to back. If the draft has a run of one-liners, combine some or add a sentence so at least every other paragraph runs 2-4 sentences.\n' +
       '- Where the draft assumes context a general reader lacks, ADD a brief clause or sentence. Prefix ONLY context YOU added with "[VERIFY]" when unsure. Never attach [VERIFY] to something the writer already wrote.\n' +
       '- Do NOT invent quotes, statistics, dates, scores, or outcomes.\n' +
+      '- Do NOT invent or guess a person\'s job title, position, or role (e.g. calling a player a "coach", or guessing which position they play) when adding context — if you are not certain, either leave it out or prefix it "[VERIFY]".\n' +
       '- TRUST THE WRITER ON FACTS by default. Do not build a checklist out of routine facts they stated confidently.\n' +
       factsRule + linkRule +
       '- "edited": the full edited article as Markdown, with the internal links in place.\n' +

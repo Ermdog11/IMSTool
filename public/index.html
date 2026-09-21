@@ -725,6 +725,10 @@ body { padding-bottom: 40px; }
     if (s && s.user) {
       var slot = document.querySelector('.topbar-right');
       if (slot) IMSAuth.mountMenu(slot);
+      syncFeedPrefsFromServer().then(function () {
+        renderBlockedSources(); renderOwnSites();
+        if (typeof applyExclusions === 'function') applyExclusions();
+      });
     }
     if (s && s.role === 'publisher') {
       var t = document.getElementById('teamCardWrap');
@@ -1034,6 +1038,33 @@ function loadYouTube() {
 }
 
 // ============================================================
+// SERVER SYNC — blocked/flagged/hidden lists follow the signed-in account
+// instead of living only in one browser's localStorage (was the cause of
+// blocked/flagged items resurfacing after switching browsers, e.g. Brave).
+// Best-effort: localStorage stays the source of truth for instant reads;
+// a failed sync call never blocks the UI.
+// ============================================================
+async function syncFeedPrefsFromServer() {
+  if (!window.IMSAuth || !IMSAuth.state.user) return;
+  try {
+    const res = await IMSAuth.authFetch('/api/feed-prefs');
+    if (!res.ok) return;
+    const d = await res.json();
+    if (Array.isArray(d.blockedSources)) localStorage.setItem('blockedSources', JSON.stringify(d.blockedSources));
+    if (Array.isArray(d.flaggedStories)) localStorage.setItem('flaggedStories', JSON.stringify(d.flaggedStories));
+    if (Array.isArray(d.ownSiteExclude)) localStorage.setItem('ownSiteExclude', JSON.stringify(d.ownSiteExclude));
+    if (Array.isArray(d.hiddenVideos)) localStorage.setItem('hiddenVideos', JSON.stringify(d.hiddenVideos));
+  } catch (e) { /* offline or not signed in — keep the local copy */ }
+}
+function pushFeedPref(field, arr) {
+  if (!window.IMSAuth || !IMSAuth.state.user) return;
+  IMSAuth.authFetch('/api/feed-prefs', {
+    method: 'POST', headers: {'Content-Type':'application/json'},
+    body: JSON.stringify({ [field]: arr })
+  }).catch(function(){});
+}
+
+// ============================================================
 // FLAG / FEEDBACK
 // ============================================================
 function getFlagged() {
@@ -1046,7 +1077,9 @@ function flagStory(idx) {
   const flagged = getFlagged();
   flagged.push({ headline: a.headline, source: a.source, summary: a.summary || '' });
   // Keep the most recent 30 flags
-  localStorage.setItem('flaggedStories', JSON.stringify(flagged.slice(-30)));
+  const trimmedFlags = flagged.slice(-30);
+  localStorage.setItem('flaggedStories', JSON.stringify(trimmedFlags));
+  pushFeedPref('flaggedStories', trimmedFlags);
   allAlerts.splice(idx, 1);
   renderAlerts();
 }
@@ -1068,7 +1101,11 @@ function getOwnSites() {
     return Array.isArray(a) ? a : OWN_SITE_DEFAULT.slice();
   } catch(e) { return OWN_SITE_DEFAULT.slice(); }
 }
-function setOwnSites(a) { localStorage.setItem('ownSiteExclude', JSON.stringify(a.slice(0, 50))); }
+function setOwnSites(a) {
+  const trimmed = a.slice(0, 50);
+  localStorage.setItem('ownSiteExclude', JSON.stringify(trimmed));
+  pushFeedPref('ownSiteExclude', trimmed);
+}
 function addOwnSite() {
   const el = document.getElementById('ownSiteInput');
   const v = (el.value || '').trim().toLowerCase().replace(/^https?:\/\//,'').replace(/\/+$/,'');
@@ -1098,7 +1135,9 @@ function addBlockedSource() {
   const blocked = getBlockedSources();
   if (!blocked.some(b => String(b).trim().toLowerCase() === v.toLowerCase())) {
     blocked.push(v);
-    localStorage.setItem('blockedSources', JSON.stringify(blocked.slice(-100)));
+    const trimmedBlocked = blocked.slice(-100);
+    localStorage.setItem('blockedSources', JSON.stringify(trimmedBlocked));
+    pushFeedPref('blockedSources', trimmedBlocked);
   }
   el.value = '';
   applyExclusions(); renderBlockedSources();
@@ -1140,7 +1179,9 @@ function blockSource(idx) {
   const blocked = getBlockedSources();
   if (!blocked.some(b => String(b).trim().toLowerCase() === name.toLowerCase())) {
     blocked.push(name);
-    localStorage.setItem('blockedSources', JSON.stringify(blocked.slice(-100)));
+    const trimmedBlocked = blocked.slice(-100);
+    localStorage.setItem('blockedSources', JSON.stringify(trimmedBlocked));
+    pushFeedPref('blockedSources', trimmedBlocked);
   }
   // Drop every story from this source in the current view
   allAlerts = allAlerts.filter(x => !isBlockedSource(x.source));
@@ -1156,7 +1197,9 @@ function blockPodcast(name) {
   const blocked = getBlockedSources();
   if (!blocked.some(b => String(b).trim().toLowerCase() === n.toLowerCase())) {
     blocked.push(n);
-    localStorage.setItem('blockedSources', JSON.stringify(blocked.slice(-100)));
+    const trimmedBlocked = blocked.slice(-100);
+    localStorage.setItem('blockedSources', JSON.stringify(trimmedBlocked));
+    pushFeedPref('blockedSources', trimmedBlocked);
   }
   if (podcastCache) podcastCache = podcastCache.filter(ep => !isBlockedSource(ep.podcast));
   renderPodcastCache();
@@ -1171,7 +1214,9 @@ function blockChannel(name) {
   const blocked = getBlockedSources();
   if (!blocked.some(b => String(b).trim().toLowerCase() === n.toLowerCase())) {
     blocked.push(n);
-    localStorage.setItem('blockedSources', JSON.stringify(blocked.slice(-100)));
+    const trimmedBlocked = blocked.slice(-100);
+    localStorage.setItem('blockedSources', JSON.stringify(trimmedBlocked));
+    pushFeedPref('blockedSources', trimmedBlocked);
   }
   allVideos = (allVideos || []).filter(v => !isBlockedSource(v.channel || v.source));
   loadYouTube();
@@ -1188,7 +1233,12 @@ function isHidden(url) {
 function hideItem(url) {
   if (!url) return;
   const h = getHiddenVideos();
-  if (h.indexOf(url) === -1) { h.push(url); localStorage.setItem('hiddenVideos', JSON.stringify(h.slice(-300))); }
+  if (h.indexOf(url) === -1) {
+    h.push(url);
+    const trimmedHidden = h.slice(-300);
+    localStorage.setItem('hiddenVideos', JSON.stringify(trimmedHidden));
+    pushFeedPref('hiddenVideos', trimmedHidden);
+  }
   allVideos = (allVideos || []).filter(v => !isHidden(v.url));
   allAlerts = allAlerts.filter(a => !isHidden(a.url));
   overflowAlerts = overflowAlerts.filter(a => !isHidden(a.url));
@@ -1279,6 +1329,7 @@ async function togglePush() {
 function unblockSource(name) {
   const blocked = getBlockedSources().filter(b => String(b).trim().toLowerCase() !== String(name).trim().toLowerCase());
   localStorage.setItem('blockedSources', JSON.stringify(blocked));
+  pushFeedPref('blockedSources', blocked);
   renderBlockedSources();
 }
 
