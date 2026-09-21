@@ -28,12 +28,27 @@ const push = require('./_push.js');
 // becomes { label: "DeJuan Williams injury", query: '"DeJuan Williams" injury' }.
 // Best-effort: any failure here just means this run's X search stays broad-only,
 // same as before this feature existed — never blocks the scan itself.
+// Game-result-shaped headlines ("Maryland falls to Virginia Tech, 31-17") are
+// never a "developing storyline" — the event is fully over the moment the
+// final whistle blows, win or loss, upset or not. Filtered out BEFORE the
+// Claude call as a hard code-level backstop, not just a prompt instruction —
+// this is what was actually causing "breaking news" reaction tweets about a
+// 2-day-old game to keep getting surfaced (Jeff, 2026-09-21). Jeff also hit
+// the same underlying problem in a different shape — stale "DJ Moore
+// injured" alerts kept resurfacing with no new information — which isn't
+// catchable by a regex (injury language varies too much), so that one is
+// fixed at the RATING step instead (scan.js): the "active storyline" tag no
+// longer auto-boosts a rating on its own, only a genuine new development
+// does. The prompt instruction below alone ("skip a final score") wasn't a
+// reliable enough backstop by itself for either case.
+var GAME_RESULT_PATTERN = /\b(beats?|beat|defeat(?:s|ed)?|top(?:s|ped)?|down(?:s|ed)?|edge(?:s|d)?|rally|rallies|rallied|upset(?:s|ted)?|rout(?:s|ed)?|blow(?:s)? out|falls? to|loses? to|lost to|wins? (?:over|against)|drops? (?:the )?(?:game|match|contest)|final(?:\s+score)?)\b[\s\S]{0,40}\b\d{1,3}\s*[-–]\s*\d{1,3}\b/i;
+
 async function activeStorylineTopics(sb, anthropicKey) {
   try {
     var siteId = await Chat.resolveSiteId(sb);
     var since = new Date(Date.now() - 48 * 60 * 60 * 1000).toISOString();
     var msgs = await Chat.recent(sb, siteId, since, 200);
-    var breaking = msgs.filter(function(m) { return m.kind === 'breaking' && m.meta && m.meta.headline; });
+    var breaking = msgs.filter(function(m) { return m.kind === 'breaking' && m.meta && m.meta.headline && !GAME_RESULT_PATTERN.test(m.meta.headline); });
     if (!breaking.length) return [];
 
     // Most recent first, distinct headlines, cap the input list small — this
@@ -50,7 +65,7 @@ async function activeStorylineTopics(sb, anthropicKey) {
 
     var prompt = 'These are headlines InsideMDSports has already flagged as breaking/major Maryland Terrapins news in the last 48 hours:\n' +
       headlines.map(function(h, i) { return (i + 1) + '. ' + h; }).join('\n') +
-      '\n\nCondense these into up to 3 DISTINCT active storylines worth tracking for new X/Twitter updates (merge headlines about the same underlying story into one). Skip anything that reads as fully resolved/closed (e.g. a final score, a completed signing with nothing left to develop) — only genuinely ongoing storylines. Return ONLY a JSON array, up to 3 items, no other text: [{"label": "short human-readable name, e.g. \'DeJuan Williams injury\'", "query": "an X search fragment for this, e.g. \'\\"DeJuan Williams\\" injury\' — quote the person/entity name, add 1-2 unquoted context words"}]. Return [] if nothing is genuinely still developing.';
+      '\n\nCondense these into up to 3 DISTINCT active storylines worth tracking for new X/Twitter updates (merge headlines about the same underlying story into one). A storyline is only "active" if there is something real left to develop or confirm — an injury whose severity/return timeline is still unknown, a coaching search still underway, a transfer decision still pending, a recruiting battle still open. It is NOT active if the event already fully happened and there is nothing left to learn: a completed game (ANY final score or result, regardless of how big the win/loss/upset was — the game being over IS the resolution, reactions/analysis afterward are not "developing"), a signing/commitment that already happened, an announcement that was already made. When in doubt, leave it out. Return ONLY a JSON array, up to 3 items, no other text: [{"label": "short human-readable name, e.g. \'DeJuan Williams injury\'", "query": "an X search fragment for this, e.g. \'\\"DeJuan Williams\\" injury\' — quote the person/entity name, add 1-2 unquoted context words"}]. Return [] if nothing is genuinely still developing — an empty array is a normal, common result, not a failure.';
 
     var r = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',

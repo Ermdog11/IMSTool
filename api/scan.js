@@ -507,7 +507,7 @@ module.exports = async function handler(req, res) {
     // Build numbered list for Claude — include the feed snippet where we have one
     var storyList = stories.map(function(s, i) {
       var line = (i + 1) + '. ' + (s.kind === 'video' ? '[VIDEO] ' : '') + '[' + s.source + '] ' + s.title + ' (' + s.age + 'h ago)';
-      if (s.followUp) line += '\n   [DEVELOPING STORY WE ARE ACTIVELY COVERING: ' + s.followUp + ' — treat a genuine update as newsworthy even without high engagement]';
+      if (s.followUp) line += '\n   [DEVELOPING STORY WE ARE ACTIVELY COVERING: ' + s.followUp + ' — do NOT let this tag alone push the rating up. Only treat it as newsworthy despite low engagement if it is a genuine NEW development (a status actually changed, a real update). Reaction, analysis, jokes, or commentary about something that already fully happened rates exactly like any other social post — usually 1-2 — the tag is not a rating boost.]';
       if (s.watchedAccount) line += '\n   [WATCHED ACCOUNT: the publisher has specifically curated this X account as a credible Maryland beat source — do not downrate for low/no engagement or unfamiliarity, judge purely on newsworthiness]';
       if (s.snippet) line += '\n   snippet: ' + s.snippet;
       return line;
