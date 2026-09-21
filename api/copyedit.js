@@ -92,6 +92,96 @@ async function suggestVideos(query) {
 // our end. docs.claude.com/en/docs/agents-and-tools/tool-use/web-search-tool
 var WEB_SEARCH_TOOL = { type: 'web_search_20250305', name: 'web_search', max_uses: 5 };
 
+// Our OWN tool (client-side, not Anthropic-executed) — full-text search over
+// this newsroom's own past coverage (2026-09-21, Jeff: give the Content
+// Editor "access to search... with the knowledge base added"). The
+// ingestion side has been live since 2026-09-11 (every draft save/submit/
+// edit upserts a content_items row, api/_knowledge.js) but nothing has
+// queried it back out until now. Distinct from web_search: this is for "have
+// we already covered this" / consistency / a real internal-link target
+// beyond the front-page scrape's ~30 recent items, not current/breaking facts.
+var KB_SEARCH_TOOL = {
+  name: 'search_knowledge_base',
+  description: 'Full-text search over InsideMDSports\' own past published/submitted articles. Use to check whether this site already reported something (for consistency, avoiding contradictions, or finding a real internal link beyond the recent-articles list already given to you) — NOT for current facts or breaking news, use web_search for that.',
+  input_schema: {
+    type: 'object',
+    properties: { query: { type: 'string', description: 'Search terms — a name, topic, or event.' } },
+    required: ['query']
+  }
+};
+
+// Unlike web_search this is OUR tool, so a call to it must be answered with a
+// tool_result before Claude can continue — best-effort throughout, same
+// fails-open philosophy as every other Supabase read in this codebase: no
+// connection or no rows just means "nothing found," never a hard error that
+// blocks the edit.
+async function searchKnowledgeBase(query, excludeDraftId) {
+  query = (query || '').toString().trim().slice(0, 200);
+  if (!query) return { error: 'Empty query.' };
+  try {
+    var S = require('./_supabase');
+    if (!S.isConfigured()) return { error: 'Knowledge base not connected.' };
+    var sb = S.admin();
+    var siteId = await require('./_chat-store').resolveSiteId(sb);
+    var got = await sb.from('content_items')
+      .select('headline, body, url, published_at, draft_id')
+      .eq('site_id', siteId)
+      .textSearch('fts', query, { type: 'websearch', config: 'english' })
+      .order('created_at', { ascending: false })
+      .limit(5);
+    if (got.error) return { error: got.error.message };
+    var rows = (got.data || []).filter(function (r) { return !excludeDraftId || r.draft_id !== excludeDraftId; });
+    if (!rows.length) return { results: [], note: 'No matching past coverage found — this may be new ground for the site.' };
+    return {
+      results: rows.map(function (r) {
+        return {
+          headline: r.headline || '(untitled)',
+          excerpt: (r.body || '').replace(/\s+/g, ' ').trim().slice(0, 400),
+          url: r.url || null,
+          publishedAt: r.published_at || null
+        };
+      })
+    };
+  } catch (e) {
+    return { error: e.message };
+  }
+}
+
+// Shared agentic loop: keeps calling Claude, resolving our own
+// search_knowledge_base tool calls (web_search resolves server-side inline,
+// nothing for us to do there) and feeding results back, until Claude calls
+// `finalToolName` or gives up and answers in plain text. Bounded so a model
+// that won't stop searching can't loop forever / run up cost.
+async function runAgenticLoop(key, systemPrompt, userContent, tools, finalToolName, maxRounds) {
+  var messages = [{ role: 'user', content: userContent }];
+  var lastContent = [];
+  for (var round = 0; round < (maxRounds || 4); round++) {
+    var cr = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'x-api-key': key, 'anthropic-version': '2023-06-01' },
+      body: JSON.stringify({ model: 'claude-sonnet-4-6', max_tokens: 8000, system: systemPrompt, tools: tools, messages: messages })
+    });
+    var cd = await cr.json();
+    if (cd.error) return { error: cd.error };
+
+    var content = cd.content || [];
+    lastContent = content;
+    var finalUse = content.filter(function (b) { return b.type === 'tool_use' && b.name === finalToolName; }).pop();
+    if (finalUse) return { input: finalUse.input, content: content };
+
+    var kbUses = content.filter(function (b) { return b.type === 'tool_use' && b.name === 'search_knowledge_base'; });
+    if (!kbUses.length) return { content: content }; // no client tool call, no final call — done, caller salvages from text
+
+    var kbResults = await Promise.all(kbUses.map(function (u) { return searchKnowledgeBase(u.input && u.input.query); }));
+    messages.push({ role: 'assistant', content: content });
+    messages.push({
+      role: 'user',
+      content: kbUses.map(function (u, i) { return { type: 'tool_result', tool_use_id: u.id, content: JSON.stringify(kbResults[i]) }; })
+    });
+  }
+  return { content: lastContent };
+}
+
 // Conversational follow-up on a piece — either a raw draft still being
 // written (stage:'draft', asked from the Copydesk compose box before it's
 // been through Copydesk at all) or an already-edited article (the default,
@@ -121,6 +211,7 @@ async function handleRefine(res, key, body) {
     'THE EDITOR NOW SAYS:\n' + instruction + '\n\n' +
     'Decide first: is this a CHANGE request or a QUESTION (including "what do you know about X" / background lookups)?\n' +
     'If answering well needs current information you\'re not sure of — a stat line, an injury update, a roster/depth-chart move, this week\'s news, a score — use the web_search tool first. Prefer reputable sports sources (247Sports, ESPN, official Maryland Athletics) and note in the reply when something came from a live search vs. what you already knew. Skip searching for stable facts, or when the article itself already has what you need.\n' +
+    'If the question is about whether/how InsideMDSports has covered something before (a prior story, an earlier stance, internal consistency), use search_knowledge_base instead — that is our own archive, not the open web.\n' +
     'If it is a CHANGE: set "changed":true, make ONLY that change (plus anything it directly requires) keeping ' + writerName + '\'s voice and house style, put the FULL updated article in "edited", and a one-line "reply" saying what you did.\n' +
     'If it is a QUESTION: set "changed":false and do NOT fill in "edited" at all (leave it out / empty — do not re-type the article, it wastes time). Answer fully in "reply".\n' +
     'Never invent quotes, stats, or facts when making a change — including a person\'s job title, position, or role (e.g. calling a player a "coach", or guessing which position they play). If a change would require a fact you do not have and can\'t find, say so in "reply" and set "changed":false.\n' +
@@ -141,21 +232,15 @@ async function handleRefine(res, key, body) {
   };
 
   try {
-    var cr = await fetch('https://api.anthropic.com/v1/messages', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'x-api-key': key, 'anthropic-version': '2023-06-01' },
-      // No forced tool_choice here (unlike the main copyedit call) — Claude
-      // needs the freedom to call web_search zero or more times before its
-      // final respond call, which Anthropic runs inline within this same
-      // request (docs.claude.com/en/docs/agents-and-tools/tool-use/web-search-tool).
-      body: JSON.stringify({ model: 'claude-sonnet-4-6', max_tokens: 8000, system: sys, tools: [WEB_SEARCH_TOOL, tool], messages: [{ role: 'user', content: user }] })
-    });
-    var cd = await cr.json();
-    if (cd.error) return res.status(200).json({ error: 'Claude error: ' + JSON.stringify(cd.error) });
+    // No forced tool_choice — Claude needs the freedom to call web_search
+    // (Anthropic-executed, resolves inline) and/or search_knowledge_base
+    // (ours — runAgenticLoop answers it and continues the conversation)
+    // zero or more times before its final respond call.
+    var loopResult = await runAgenticLoop(key, sys, user, [WEB_SEARCH_TOOL, KB_SEARCH_TOOL, tool], 'respond', 4);
+    if (loopResult.error) return res.status(200).json({ error: 'Claude error: ' + JSON.stringify(loopResult.error) });
 
-    var content = cd.content || [];
-    var tu = content.filter(function (b) { return b.type === 'tool_use' && b.name === 'respond'; }).pop();
-    var out = tu && tu.input;
+    var content = loopResult.content || [];
+    var out = loopResult.input;
 
     // Claude searched but, contrary to instructions, answered in plain text
     // instead of calling respond — salvage the text rather than erroring.
@@ -226,8 +311,11 @@ module.exports = async function handler(req, res) {
     '- Attribution questions are for objective claims of fact only (scores, injuries, quotes, statistics, transactions). Do NOT flag the writer\'s own opinion, analysis, or subjective read — that\'s their voice.\n';
 
   var linkRule = mode === 'keep'
-    ? '- Do NOT change the text or insert links. Put internal-link ideas in relatedSuggestions: 2-5 of the related articles below that genuinely relate, each with the phrase in the draft it would sit near. Do not force it.\n'
-    : '- Insert Markdown links to related InsideMDSports articles from the list below. Aim for 2-4 links unless the list genuinely has nothing connected to this story (a recruiting story links to other recruiting coverage; a game story to the preview or a player feature; a coaching story to earlier staff news). Attach each link to a real phrase, do not link the same article twice, and do not invent URLs — use only the list. Leave relatedSuggestions empty.\n';
+    ? '- Do NOT change the text or insert links. Put internal-link ideas in relatedSuggestions: 2-5 of the related articles below that genuinely relate, each with the phrase in the draft it would sit near. Do not force it. If the RELATED ARTICLES list below has nothing strong, try search_knowledge_base for older coverage on the same person/topic before giving up on a suggestion.\n'
+    : '- Insert Markdown links to related InsideMDSports articles from the list below. Aim for 2-4 links unless the list genuinely has nothing connected to this story (a recruiting story links to other recruiting coverage; a game story to the preview or a player feature; a coaching story to earlier staff news). Attach each link to a real phrase, do not link the same article twice, and do not invent URLs — use only the list, or a search_knowledge_base result that has a real (non-null) url — a knowledge-base hit with no url is still useful for context/consistency but is never a link target. Leave relatedSuggestions empty.\n';
+
+  var researchRule =
+    '- You have two research tools. search_knowledge_base checks InsideMDSports\' OWN past coverage — use it to avoid contradicting or flatly re-explaining something already reported, and to find a stronger internal link than the recent-articles list below when it falls short. web_search checks the open web for CURRENT facts you are not sure of (a stat, an injury status, a score) — do not invent instead of checking when a quick search would settle it. Use either zero or more times before calling submit_copyedit; do not mention "I searched" in the output, just use what you found.\n';
 
   var user;
   if (mode === 'links') {
@@ -236,7 +324,7 @@ module.exports = async function handler(req, res) {
       '- "edited": the writer\'s draft returned essentially verbatim, as Markdown, with hotlinks inserted per the rule below. ONLY unambiguous typo / misspelling / obvious punctuation-slip fixes are otherwise allowed. No style changes, no restructuring, no word swaps, no tightening, no added or removed sentences, no added context.\n' +
       '- Do NOT invent quotes, statistics, dates, scores, or outcomes.\n' +
       '- TRUST THE WRITER ON FACTS by default — a professional beat reporter.\n' +
-      factsRule + linkRule +
+      factsRule + linkRule + researchRule +
       '- "notes": leave empty — nothing was edited besides hotlinks.\n' +
       '- "addedContext": leave empty — nothing was added.\n' +
       headlineInstruction +
@@ -248,7 +336,7 @@ module.exports = async function handler(req, res) {
       '- Do NOT invent quotes, statistics, dates, scores, or outcomes.\n' +
       '- Do NOT invent or guess a person\'s job title, position, or role (e.g. calling a player a "coach", or guessing which position they play) when adding context — if you are not certain, either leave it out or prefix it "[VERIFY]".\n' +
       '- TRUST THE WRITER ON FACTS by default — a professional beat reporter.\n' +
-      factsRule + linkRule +
+      factsRule + linkRule + researchRule +
       '- "notes": briefly, what a full house-style edit WOULD change (a few bullets), so they can decide.\n' +
       '- "addedContext": context a general reader might need that the draft assumes, as standalone suggested sentences — NOT inserted. Prefix "[VERIFY]" on any you are unsure of.\n' +
       headlineInstruction +
@@ -263,7 +351,7 @@ module.exports = async function handler(req, res) {
       '- Do NOT invent quotes, statistics, dates, scores, or outcomes.\n' +
       '- Do NOT invent or guess a person\'s job title, position, or role (e.g. calling a player a "coach", or guessing which position they play) when adding context — if you are not certain, either leave it out or prefix it "[VERIFY]".\n' +
       '- TRUST THE WRITER ON FACTS by default. Do not build a checklist out of routine facts they stated confidently.\n' +
-      factsRule + linkRule +
+      factsRule + linkRule + researchRule +
       '- "edited": the full edited article as Markdown, with the internal links in place.\n' +
       '- "notes": short bullets on what you changed and why.\n' +
       '- "addedContext": each clause/sentence of context you added, with its [VERIFY] flag if applicable.\n' +
@@ -316,27 +404,20 @@ module.exports = async function handler(req, res) {
   };
 
   try {
-    var cr = await fetch('https://api.anthropic.com/v1/messages', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'x-api-key': key, 'anthropic-version': '2023-06-01' },
-      body: JSON.stringify({
-        model: 'claude-sonnet-4-6',
-        max_tokens: 8000,
-        system: sys,
-        tools: [tool],
-        tool_choice: { type: 'tool', name: 'submit_copyedit' },
-        messages: [{ role: 'user', content: user }]
-      })
-    });
-    var cd = await cr.json();
-    if (cd.error) return res.status(200).json({ error: 'Claude error: ' + JSON.stringify(cd.error) });
+    // No forced tool_choice (2026-09-21) — used to force submit_copyedit
+    // immediately, which left no room for Claude to search first. Now gives
+    // it web_search + search_knowledge_base to use zero or more times before
+    // the final submit_copyedit call; runAgenticLoop answers our own
+    // search_knowledge_base calls and continues the conversation
+    // (web_search resolves inline, nothing for us to do there).
+    var loopResult = await runAgenticLoop(key, sys, user, [WEB_SEARCH_TOOL, KB_SEARCH_TOOL, tool], 'submit_copyedit', 4);
+    if (loopResult.error) return res.status(200).json({ error: 'Claude error: ' + JSON.stringify(loopResult.error) });
 
-    var toolUse = (cd.content || []).filter(function (b) { return b.type === 'tool_use' && b.name === 'submit_copyedit'; })[0];
-    var parsed = toolUse && toolUse.input;
+    var parsed = loopResult.input;
 
     // Fallback: some responses still land as text JSON — salvage it.
     if (!parsed) {
-      var txt = (cd.content || []).map(function (i) { return i.type === 'text' ? i.text : ''; }).join('\n');
+      var txt = (loopResult.content || []).map(function (i) { return i.type === 'text' ? i.text : ''; }).join('\n');
       var s = txt.indexOf('{'), e = txt.lastIndexOf('}');
       if (s !== -1 && e !== -1) { try { parsed = JSON.parse(txt.slice(s, e + 1)); } catch (x) {} }
     }
