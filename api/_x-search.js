@@ -79,61 +79,65 @@ async function runOne(query, bearerToken) {
 }
 
 // Runs the standing broad queries, one targeted query per active storyline,
-// and one query per watched account — deduped by URL. Best-effort per query —
-// one failing (rate limit, bad operator, quota) doesn't lose the others.
+// and one query per watched account — ALL concurrently (2026-09-21: these
+// used to run one at a time in a serial loop, which meaningfully added to
+// scan time once storyline + up to 15 watched-account queries stacked on
+// top of the original 3 — up to 21 sequential round-trips. They're
+// independent HTTP calls with nothing for one to wait on from another, so
+// there's no quality tradeoff in firing them together, only speed).
+// Deduped by URL, in the same broad -> storyline -> watched priority order
+// as before so a story appearing in multiple passes still gets the most
+// specific tag (a broad-query hit that's ALSO an active storyline still
+// resolves to `followUp`, not silently plain). Best-effort per query — one
+// failing (rate limit, bad operator, quota) doesn't lose the others.
 // `storylineTopics`: up to 3 { label, query } objects from x-scan.js (label =
 // short human name for the storyline, query = an X-search-ready fragment).
 // `watchHandles`: up to 15 plain handles (no @), from api/x-watch-handles.js.
 async function searchX(bearerToken, storylineTopics, watchHandles) {
+  var topics = (storylineTopics || []).filter(function(t) { return t && t.query; }).slice(0, 3);
+  var handles = (watchHandles || []).filter(Boolean).slice(0, 15).map(function(h) { return String(h).replace(/^@/, ''); });
+
+  var broadP = Promise.allSettled(QUERIES.map(function(q) { return runOne(q, bearerToken); }));
+  var storyP = Promise.allSettled(topics.map(function(t) {
+    return runOne(t.query + ' -is:retweet lang:en min_faves:' + STORYLINE_MIN_FAVES, bearerToken);
+  }));
+  var handleP = Promise.allSettled(handles.map(function(h) { return runOne('from:' + h + ' -is:retweet', bearerToken); }));
+
+  var settled = await Promise.all([broadP, storyP, handleP]);
+  var broadSettled = settled[0], storySettled = settled[1], handleSettled = settled[2];
+
   var seen = {};
   var results = [];
   var warnings = [];
-  for (var i = 0; i < QUERIES.length; i++) {
-    try {
-      var items = await runOne(QUERIES[i], bearerToken);
-      items.forEach(function(item) {
-        if (!item.url || seen[item.url]) return;
-        seen[item.url] = 1;
-        results.push(item);
-      });
-    } catch (e) {
-      warnings.push(e.message);
-    }
-  }
 
-  var topics = (storylineTopics || []).filter(function(t) { return t && t.query; }).slice(0, 3);
-  for (var j = 0; j < topics.length; j++) {
-    var topic = topics[j];
-    var storyQuery = topic.query + ' -is:retweet lang:en min_faves:' + STORYLINE_MIN_FAVES;
-    try {
-      var sItems = await runOne(storyQuery, bearerToken);
-      sItems.forEach(function(item) {
-        if (!item.url || seen[item.url]) return;
-        seen[item.url] = 1;
-        item.followUp = topic.label;
-        results.push(item);
-      });
-    } catch (e) {
-      warnings.push('storyline "' + topic.label + '": ' + e.message);
-    }
-  }
+  broadSettled.forEach(function(r) {
+    if (r.status !== 'fulfilled') { warnings.push(r.reason.message); return; }
+    r.value.forEach(function(item) {
+      if (!item.url || seen[item.url]) return;
+      seen[item.url] = 1;
+      results.push(item);
+    });
+  });
 
-  var handles = (watchHandles || []).filter(Boolean).slice(0, 15);
-  for (var k = 0; k < handles.length; k++) {
-    var handle = String(handles[k]).replace(/^@/, '');
-    var handleQuery = 'from:' + handle + ' -is:retweet';
-    try {
-      var hItems = await runOne(handleQuery, bearerToken);
-      hItems.forEach(function(item) {
-        if (!item.url || seen[item.url]) return;
-        seen[item.url] = 1;
-        item.watchedAccount = true;
-        results.push(item);
-      });
-    } catch (e) {
-      warnings.push('watched account "@' + handle + '": ' + e.message);
-    }
-  }
+  storySettled.forEach(function(r, i) {
+    if (r.status !== 'fulfilled') { warnings.push('storyline "' + topics[i].label + '": ' + r.reason.message); return; }
+    r.value.forEach(function(item) {
+      if (!item.url || seen[item.url]) return;
+      seen[item.url] = 1;
+      item.followUp = topics[i].label;
+      results.push(item);
+    });
+  });
+
+  handleSettled.forEach(function(r, i) {
+    if (r.status !== 'fulfilled') { warnings.push('watched account "@' + handles[i] + '": ' + r.reason.message); return; }
+    r.value.forEach(function(item) {
+      if (!item.url || seen[item.url]) return;
+      seen[item.url] = 1;
+      item.watchedAccount = true;
+      results.push(item);
+    });
+  });
 
   return { results: results, warnings: warnings };
 }

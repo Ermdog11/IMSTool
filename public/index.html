@@ -69,6 +69,8 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; b
 .scan-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--gold); flex-shrink: 0; }
 .scan-text { font-size: 12px; color: var(--text2); }
 .scan-text strong { color: var(--text); }
+.scan-progress-track { width: 100%; height: 4px; background: var(--border); border-radius: 3px; margin-top: 6px; overflow: hidden; }
+.scan-progress-fill { height: 100%; width: 0%; background: var(--red); border-radius: 3px; transition: width 0.4s ease; }
 .scan-btn { background: var(--red); color: #fff; border: none; border-radius: 6px; padding: 6px 14px; font-size: 12px; font-weight: 600; cursor: pointer; display: flex; align-items: center; gap: 5px; }
 .scan-btn:disabled { opacity: 0.5; cursor: not-allowed; }
 
@@ -243,9 +245,14 @@ body { padding-bottom: 40px; }
     <div class="metric"><div class="metric-label">Last scan</div><div class="metric-value" id="m-last" style="font-size:14px;padding-top:3px;">—</div><div class="metric-sub">next in <span id="m-next">—</span></div></div>
   </div>
   <div class="scan-bar">
-    <div class="scan-indicator">
-      <div class="scan-dot" id="scanDot"></div>
-      <div class="scan-text" id="scanText"><strong>Ready</strong> — every 30 min, 24/7 · all stories rated 1-5 · your content excluded</div>
+    <div class="scan-indicator" style="flex-direction:column;align-items:stretch;gap:4px;">
+      <div style="display:flex;align-items:center;gap:10px;">
+        <div class="scan-dot" id="scanDot"></div>
+        <div class="scan-text" id="scanText"><strong>Ready</strong> — every 30 min, 24/7 · all stories rated 1-5 · your content excluded</div>
+      </div>
+      <div class="scan-progress-track" id="scanProgressTrack" hidden>
+        <div class="scan-progress-fill" id="scanProgressFill"></div>
+      </div>
     </div>
     <div style="display:flex;gap:8px;flex-wrap:wrap;">
       <button class="scan-btn" style="background:#fff;color:var(--fg);border:1px solid var(--border);" onclick="openExcludeSettings()"><i class="ti ti-ban"></i> Exclude sources</button>
@@ -1518,7 +1525,51 @@ function claimStory(idx) {
 // ============================================================
 // SCAN
 // ============================================================
+// Typical full scan takes ~150s (RSS/Reddit/Brave/Google/X fetch + one big
+// rating call) — no real backend progress signal exists to report against,
+// so this is an ESTIMATED bar against that typical duration, capped at 95%
+// until the scan actually finishes, then snapped to 100%. Honest-enough
+// feedback without pretending to know real server-side progress.
+const SCAN_ESTIMATED_MS = 150000;
+let scanProgressTimer = null;
+
+function startScanProgress() {
+  const track = document.getElementById('scanProgressTrack');
+  const fill = document.getElementById('scanProgressFill');
+  if (!track || !fill) return;
+  track.hidden = false;
+  fill.style.width = '0%';
+  const startedAt = Date.now();
+  if (scanProgressTimer) clearInterval(scanProgressTimer);
+  scanProgressTimer = setInterval(() => {
+    const pct = Math.min(95, (Date.now() - startedAt) / SCAN_ESTIMATED_MS * 100);
+    fill.style.width = pct + '%';
+  }, 300);
+}
+function finishScanProgress() {
+  if (scanProgressTimer) { clearInterval(scanProgressTimer); scanProgressTimer = null; }
+  const track = document.getElementById('scanProgressTrack');
+  const fill = document.getElementById('scanProgressFill');
+  if (!track || !fill) return;
+  fill.style.width = '100%';
+  setTimeout(() => { track.hidden = true; fill.style.width = '0%'; }, 500);
+}
+
+let scanInProgress = false;
+
 async function runScan() {
+  // Reentrancy guard — this is the actual fix for the status "bouncing up and
+  // down": startCountdown()'s 1-second timer calls runScan() once the 30-min
+  // countdown hits zero, but lastScanTime (which the countdown is based on)
+  // doesn't update until a scan FULLY finishes — a scan takes ~150s, so
+  // without this guard the timer fired runScan() again every single second
+  // for the entire scan, stacking dozens of concurrent scans whose completions
+  // then raced each other, flipping the button/status text back and forth
+  // unpredictably as each one finished out of order. It was also silently
+  // very expensive — every one of those was a full duplicate RSS+Claude scan.
+  if (scanInProgress) return;
+  scanInProgress = true;
+
   const btn = document.getElementById('scanBtn');
   const dot = document.getElementById('scanDot');
   const txt = document.getElementById('scanText');
@@ -1527,6 +1578,7 @@ async function runScan() {
   dot.style.background = '#cf0315';
   txt.innerHTML = '<strong>Scanning now</strong> — checking all sources, names, and channels...';
   document.getElementById('alertsContainer').innerHTML = '<div class="empty"><i class="ti ti-loader spin"></i>Searching news, Reddit, social, podcasts, recruiting boards...</div>';
+  startScanProgress();
 
   try {
     // Call our server-side API route (keeps API key secret)
@@ -1581,6 +1633,8 @@ async function runScan() {
     dot.style.background = '#ffd520';
     txt.innerHTML = `<strong>Scan failed</strong> — ${e.message}`;
   }
+  finishScanProgress();
+  scanInProgress = false;
   btn.disabled = false;
   btn.innerHTML = '<i class="ti ti-refresh"></i> Scan now';
 }
@@ -1595,7 +1649,7 @@ function startCountdown() {
     const rem = Math.max(0, SCAN_MS - (Date.now() - lastScanTime));
     const m = Math.floor(rem / 60000), s = Math.floor((rem % 60000) / 1000);
     document.getElementById('m-next').textContent = `${m}m ${s}s`;
-    if (rem === 0) runScan();
+    if (rem === 0 && !scanInProgress) runScan();
   }, 1000);
 }
 

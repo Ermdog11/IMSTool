@@ -123,19 +123,18 @@ async function searchNews(apiKey) {
   var results = [];
   var warnings = [];
   var suppressed = 0;
-  for (var i = 0; i < QUERIES.length; i++) {
-    try {
-      var items = await runOne(QUERIES[i], apiKey);
-      items.forEach(function(item) {
-        if (!item.url || seenThisRun[item.url]) return;
-        seenThisRun[item.url] = 1;
-        if (seenBefore[item.url]) { suppressed++; return; }
-        results.push(item);
-      });
-    } catch (e) {
-      warnings.push(e.message);
-    }
-  }
+  // Concurrent, not one-at-a-time (2026-09-21) — independent HTTP calls with
+  // nothing for one query to wait on from another; only affects speed.
+  var settled = await Promise.allSettled(QUERIES.map(function(q) { return runOne(q, apiKey); }));
+  settled.forEach(function(r) {
+    if (r.status !== 'fulfilled') { warnings.push(r.reason.message); return; }
+    r.value.forEach(function(item) {
+      if (!item.url || seenThisRun[item.url]) return;
+      seenThisRun[item.url] = 1;
+      if (seenBefore[item.url]) { suppressed++; return; }
+      results.push(item);
+    });
+  });
 
   Object.keys(seenThisRun).forEach(function(u) { seenBefore[u] = seenBefore[u] || now; });
   await saveSeen(seenBefore);
