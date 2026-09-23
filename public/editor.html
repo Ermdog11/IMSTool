@@ -507,7 +507,8 @@ function renderEdit(d){
        '</div>'+
      '</div>'+
      '<div class="out-article" id="ed-article">'+md(d.edited||'')+'</div>'+
-     '<div class="row"><button class="btn ghost" onclick="copyMd(this)">Copy Markdown</button>'+
+     '<div class="row"><button class="btn ghost" onclick="copyArticle(this)">Copy article</button>'+
+     '<button class="btn ghost" onclick="copyMd(this)">Copy Markdown</button>'+
      '<button class="btn ghost" id="ed-save" onclick="submitArticle(this,\'save\')">Save draft</button>'+
      '<button class="btn" id="ed-submit" onclick="submitArticle(this,\'submit\')">Send to publisher</button>'+
      '<span id="ed-submit-status" style="font-size:12px;color:var(--muted)"></span></div>'+
@@ -889,6 +890,32 @@ function copyMd(btn){
   var t=document.getElementById('ed-md'); if(!t)return;
   t.select(); t.setSelectionRange(0,t.value.length);
   try{ document.execCommand('copy'); btn.textContent='Copied'; setTimeout(function(){btn.textContent='Copy Markdown';},1500); }catch(e){}
+}
+// Copies the rendered article, not raw Markdown syntax — pasting into a rich-text
+// CMS field keeps bold/links/headings; pasting into a plain field falls back to
+// plain text. Modern Clipboard API (works over HTTPS, which this site always is)
+// with the old execCommand path kept as a last-resort fallback.
+async function copyArticle(btn){
+  var el=document.getElementById('ed-article'); if(!el)return;
+  var reset=function(){setTimeout(function(){btn.textContent='Copy article';},1500);};
+  try{
+    if(navigator.clipboard && window.ClipboardItem){
+      var item=new ClipboardItem({
+        'text/html': new Blob([el.innerHTML],{type:'text/html'}),
+        'text/plain': new Blob([el.innerText],{type:'text/plain'})
+      });
+      await navigator.clipboard.write([item]);
+    } else if(navigator.clipboard && navigator.clipboard.writeText){
+      await navigator.clipboard.writeText(el.innerText);
+    } else {
+      var t=document.getElementById('ed-md'); if(!t)throw new Error('no fallback');
+      t.select(); t.setSelectionRange(0,t.value.length);
+      document.execCommand('copy');
+    }
+    btn.textContent='Copied'; reset();
+  }catch(e){
+    btn.textContent='Copy failed — try Copy Markdown'; reset();
+  }
 }
 function copyStr(btn,s){
   var ta=document.createElement('textarea'); ta.value=s; ta.style.position='fixed'; ta.style.left='-9999px';
