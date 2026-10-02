@@ -449,3 +449,7 @@ module.exports = async function handler(req, res) {
 
 // Reused by the Coverage Desk agent.
 module.exports.relatedArticleIndex = relatedArticleIndex;
+// Reused by /api/related-links.
+module.exports.searchKnowledgeBase = searchKnowledgeBase;
+module.exports.KB_SEARCH_TOOL = KB_SEARCH_TOOL;
+module.exports.WEB_SEARCH_TOOL = WEB_SEARCH_TOOL;

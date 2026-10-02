@@ -14,6 +14,12 @@
     "api/podcasts.js": {
       "maxDuration": 60
     },
+    "api/related-links.js": {
+      "maxDuration": 120
+    },
+    "api/transcribe.js": {
+      "maxDuration": 300
+    },
     "api/transcripts.js": {
       "maxDuration": 120
     },
@@ -98,7 +104,8 @@
   },
   "rewrites": [
     { "source": "/:section(alerts|digest|social|chat|backlog|recruiting|trending|podcasts|youtube|bluesky|settings|analytics|roster)", "destination": "/" },
-    { "source": "/house-style", "destination": "/editor" }
+    { "source": "/house-style", "destination": "/editor" },
+    { "source": "/transcribe", "destination": "/editor" }
   ],
   "headers": [
     {
@@ -110,7 +117,7 @@
       "headers": [{ "key": "Cache-Control", "value": "no-cache, no-store, must-revalidate" }]
     },
     {
-      "source": "/:section(alerts|digest|social|chat|backlog|recruiting|trending|podcasts|youtube|bluesky|settings|analytics|roster|editor|login|house-style|setup)",
+      "source": "/:section(alerts|digest|social|chat|backlog|recruiting|trending|podcasts|youtube|bluesky|settings|analytics|roster|editor|login|house-style|setup|transcribe)",
       "headers": [{ "key": "Cache-Control", "value": "no-cache, no-store, must-revalidate" }]
     }
   ],
