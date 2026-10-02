@@ -27,12 +27,15 @@ module.exports = async function handler(req, res) {
   var windowHours = (hoursOverride && Number(hoursOverride) > 0) ? Number(hoursOverride) : 66;
   var cutoff = Date.now() - windowHours * 60 * 60 * 1000;
   var googleCutoff = Date.now() - windowHours * 60 * 60 * 1000;
-  // Our own outlet is the 247Sports Maryland team site (InsideMDSports). Google News
-  // labels it "247Sports" with a redirect URL, so the only reliable signal is the
-  // source name / any 247sports.com URL — block the whole domain unconditionally.
-  // This also drops 247Sports *national* recruiting items about Maryland; that beat
-  // is InsideMDSports' own and the same news reaches us via On3/Rivals/GNews anyway.
-  var excluded = ['insidemd', 'inside md sports', 'inside maryland sports', 'jeff ermann', 'ims radio', '247sports', '247 sports', 'insidetheshell', 'mshale', 'times of india'];
+  // Everything about WHICH team this newsroom covers — feeds, watchlist,
+  // relevance words, rating-prompt wording, its own site — comes from the
+  // newsroom's beat profile (api/_beat.js). InsideMDSports' profile is the
+  // Maryland setup that used to be hard-coded here.
+  var B = require('./_beat.js');
+  var SB = require('./_supabase.js');
+  var beat = await B.getBeat(SB.isConfigured() ? SB.admin() : null);
+  // Our own outlet and known junk sources never show up as stories.
+  var excluded = beat.excludeSources.slice();
   // Sources the editor has blocked via the "Block source" button — filtered out below and never shown again.
   var userBlocked = ((req.body && req.body.blockedSources) || [])
     .map(function(s) { return String(s || '').trim().toLowerCase(); })
@@ -40,104 +43,17 @@ module.exports = async function handler(req, res) {
   if (userBlocked.length) excluded = excluded.concat(userBlocked);
 
   try {
-    // RSS/news feeds: name is for diagnostics, src is the fallback source label
-    var feedConfigs = [
-      { url: 'https://news.google.com/rss/search?q=%22Maryland+Terrapins%22+OR+%22Terps%22+OR+%22Maryland+Athletics%22+OR+%22Maryland+football%22+OR+%22Maryland+basketball%22+OR+%22Maryland+recruiting%22&hl=en-US&gl=US&ceid=US:en', name: 'GNews/core' },
-      { url: 'https://news.google.com/rss/search?q=%22James+E.+Smith%22+OR+%22Damon+Evans%22+OR+%22SECU+Stadium%22+OR+%22Xfinity+Center%22+OR+%22Maryland+athletic+director%22+OR+%22Barry+Gossett%22&hl=en-US&gl=US&ceid=US:en', name: 'GNews/admin' },
-      { url: 'https://news.google.com/rss/search?q=%22Mike+Locksley%22+OR+%22Brian+Williams%22+OR+%22Clint+Trickett%22+OR+%22Andre+Powell%22+OR+%22Pep+Hamilton%22+OR+%22Latrell+Scott%22&hl=en-US&gl=US&ceid=US:en', name: 'GNews/fbstaff' },
-      { url: 'https://news.google.com/rss/search?q=%22Malik+Washington%22+OR+%22Zahir+Mathis%22+OR+%22Sidney+Stewart%22+OR+%22Dontay+Joyner%22+OR+%22Amory+Hills%22+OR+%22Kyree+Caldwell%22+OR+%22Zeke+Walkup%22&hl=en-US&gl=US&ceid=US:en', name: 'GNews/fbplayers' },
-      { url: 'https://news.google.com/rss/search?q=%22Maryland+football+recruiting%22+OR+%22Maryland+commits%22+OR+%22Maryland+official+visit%22+OR+%22Maryland+2027+recruiting%22+OR+%22Maryland+2028+recruiting%22+OR+%22James+Branch%22+OR+%22Dallas+Pauldo%22&hl=en-US&gl=US&ceid=US:en', name: 'GNews/fbrecruits' },
-      { url: 'https://news.google.com/rss/search?q=%22Boomer+Esiason%22+OR+%22Randy+White%22+OR+%22Vernon+Davis%22+OR+%22Stefon+Diggs%22+OR+%22Darnell+Savage%22+OR+%22DJ+Moore%22+OR+%22Torrey+Smith%22&hl=en-US&gl=US&ceid=US:en', name: 'GNews/fblgd1' },
-      { url: 'https://news.google.com/rss/search?q=%22Shawne+Merriman%22+OR+%22E.J.+Henderson%22+OR+%22Josh+Wilson%22+OR+%22LaMont+Jordan%22+OR+%22Jermaine+Lewis%22+OR+%22Frank+Wycheck%22+OR+%22Randy+Edsall%22&hl=en-US&gl=US&ceid=US:en', name: 'GNews/fblgd2' },
-      { url: 'https://news.google.com/rss/search?q=%22Buzz+Williams%22+OR+%22Kevin+Willard%22+OR+%22Danny+Manning%22+OR+%22David+Cox%22+OR+%22Maryland+basketball+recruiting%22+OR+%22Maryland+basketball+NIL%22&hl=en-US&gl=US&ceid=US:en', name: 'GNews/bbstaff' },
-      { url: 'https://news.google.com/rss/search?q=%22DJ+Wagner%22+OR+%22Baba+Oladotun%22+OR+%22Mike+McNair%22+OR+%22Robert+Jennings%22+OR+%22Bishop+Boswell%22+OR+%22Kaden+House%22+OR+%22Adama+Tambedou%22&hl=en-US&gl=US&ceid=US:en', name: 'GNews/bbplayers' },
-      { url: 'https://news.google.com/rss/search?q=%22Len+Bias%22+OR+%22Juan+Dixon%22+OR+%22Greivis+Vasquez%22+OR+%22Melo+Trimble%22+OR+%22Joe+Smith%22+OR+%22Steve+Francis%22+OR+%22Walt+Williams%22&hl=en-US&gl=US&ceid=US:en', name: 'GNews/fmrbb1' },
-      { url: 'https://news.google.com/rss/search?q=%22Jalen+Smith%22+OR+%22Kevin+Huerter%22+OR+%22Bruno+Fernando%22+OR+%22Jake+Layman%22+OR+%22Alex+Len%22+OR+%22Dez+Wells%22&hl=en-US&gl=US&ceid=US:en', name: 'GNews/fmrbb2' },
-      { url: 'https://news.google.com/rss/search?q=%22Brenda+Frese%22+OR+%22Alyssa+Thomas%22+OR+%22Kristi+Toliver%22+OR+%22Diamond+Miller%22+OR+%22Maryland+women%27s+basketball%22+OR+%22Crystal+Langhorne%22&hl=en-US&gl=US&ceid=US:en', name: 'GNews/wbb' },
-      { url: 'https://news.google.com/rss/search?q=%22John+Tillman%22+OR+%22Logan+Wisnauskas%22+OR+%22Jared+Bernhardt%22+OR+%22Matt+Rambo%22+OR+%22Maryland+men%27s+lacrosse%22+OR+%22Maryland+women%27s+lacrosse%22+OR+%22Taylor+Cummings%22&hl=en-US&gl=US&ceid=US:en', name: 'GNews/lacrosse' },
-      { url: 'https://news.google.com/rss/search?q=%22Rob+Vaughn%22+OR+%22Maryland+baseball%22+OR+%22Sasho+Cirovski%22+OR+%22Patrick+Mullins%22+OR+%22Taylor+Twellman%22+OR+%22Zack+Steffen%22+OR+%22Maryland+soccer%22&hl=en-US&gl=US&ceid=US:en', name: 'GNews/baseball' },
-      { url: 'https://news.google.com/rss/search?q=%22Maryland+wrestling%22+OR+%22Missy+Meharg%22+OR+%22Maryland+field+hockey%22+OR+%22Maryland+volleyball%22+OR+%22Maryland+gymnastics%22+OR+%22Renaldo+Nehemiah%22+OR+%22Kyle+Snyder%22&hl=en-US&gl=US&ceid=US:en', name: 'GNews/othersports' },
-      { url: 'https://news.google.com/rss/search?q=%22Maryland+Crystal+Ball%22+OR+%22Maryland+decommitment%22+OR+%22Maryland+portal+target%22+OR+%22Maryland+transfer+portal%22+OR+%22Maryland+scholarship+offer%22+OR+%22Maryland+visit+weekend%22&hl=en-US&gl=US&ceid=US:en', name: 'GNews/recruiting' },
-      { url: 'https://news.google.com/rss/search?q=%22Maryland+NIL%22+OR+%22Maryland+NIL+collective%22+OR+%22Maryland+Terrapin+Club%22+OR+%22Maryland+athletics+fundraising%22+OR+%22Maryland+athletics+revenue%22&hl=en-US&gl=US&ceid=US:en', name: 'GNews/nil' },
-      { url: 'https://news.google.com/rss/search?q=%22Testudo+Times%22+OR+%22Terrapin+Sports+Report%22+OR+%22On3+Maryland%22+OR+%22Rivals+Maryland%22+OR+%22Fear+the+Turtle%22+OR+%22Fear+the+Podcast%22&hl=en-US&gl=US&ceid=US:en', name: 'GNews/media' },
-      { url: 'https://news.google.com/rss/search?q=%22Maryland+football+roster%22+OR+%22Maryland+basketball+schedule%22+OR+%22Maryland+spring+football%22+OR+%22Maryland+Big+Ten%22+OR+%22Maryland+coaching+search%22+OR+%22Maryland+stadium+renovation%22&hl=en-US&gl=US&ceid=US:en', name: 'GNews/season' },
-      { url: 'https://news.google.com/rss/search?q=%22Aaron+Wiggins%22+OR+%22Jalen+Smith+NBA%22+OR+%22Alex+Len+NBA%22+OR+%22Bruno+Fernando+NBA%22+OR+%22DJ+Moore+NFL%22+OR+%22Darnell+Savage+NFL%22+OR+%22Torrey+Smith+NFL%22&hl=en-US&gl=US&ceid=US:en', name: 'GNews/nflnba' },
-      { url: 'https://www.insidetheblackandgold.net/feed/', name: 'ITBG', src: 'Inside The Black And Gold' },
-      { url: 'https://news.google.com/rss/search?q=site%3Anytimes.com+%22Maryland+Terrapins%22&hl=en-US&gl=US&ceid=US:en', name: 'Athletic/terrapins', src: 'The Athletic' },
-      { url: 'https://news.google.com/rss/search?q=site%3Anytimes.com+%22Terps%22+OR+site%3Anytimes.com+%22Locksley%22&hl=en-US&gl=US&ceid=US:en', name: 'Athletic/names', src: 'The Athletic' },
-      { url: 'https://news.google.com/rss/search?q=site%3Aespn.com+%22Maryland+Terrapins%22&hl=en-US&gl=US&ceid=US:en', name: 'ESPN/terrapins', src: 'ESPN' },
-      { url: 'https://news.google.com/rss/search?q=site%3Aespn.com+%22Terps%22+OR+site%3Aespn.com+%22Locksley%22+OR+site%3Aespn.com+%22Buzz+Williams%22&hl=en-US&gl=US&ceid=US:en', name: 'ESPN/names', src: 'ESPN' },
-      { url: 'https://news.google.com/rss/search?q=site%3Afoxsports.com+%22Maryland+Terrapins%22&hl=en-US&gl=US&ceid=US:en', name: 'FoxSports/terrapins', src: 'FOX Sports' },
-      { url: 'https://news.google.com/rss/search?q=site%3Afoxsports.com+%22Terps%22+OR+site%3Afoxsports.com+%22Locksley%22+OR+site%3Afoxsports.com+%22Buzz+Williams%22&hl=en-US&gl=US&ceid=US:en', name: 'FoxSports/names', src: 'FOX Sports' },
-      { url: 'https://collegehoopstoday.com/feed/', name: 'Rothstein', src: 'College Hoops Today (Rothstein)', requireTerps: true },
-      { url: 'https://news.google.com/rss/search?q=site%3Acollegehoopstoday.com+%22Maryland%22&hl=en-US&gl=US&ceid=US:en', name: 'Rothstein/gnews', src: 'College Hoops Today (Rothstein)' },
-      { url: 'https://news.google.com/rss/search?q=site%3Acbssports.com+%22Maryland+Terrapins%22+OR+site%3Acbssports.com+%22Terps%22&hl=en-US&gl=US&ceid=US:en', name: 'CBS/terps', src: 'CBS Sports' },
-      { url: 'https://news.google.com/rss/search?q=site%3Asports.yahoo.com+%22Maryland+Terrapins%22+OR+site%3Asports.yahoo.com+%22Terps%22&hl=en-US&gl=US&ceid=US:en', name: 'Yahoo/terps', src: 'Yahoo Sports' },
-      { url: 'https://news.google.com/rss/search?q=site%3Aon3.com+%22Maryland%22+recruiting+OR+commit+OR+portal&hl=en-US&gl=US&ceid=US:en', name: 'On3/maryland' },
-      { url: 'https://news.google.com/rss/search?q=site%3Arivals.com+%22Maryland%22+recruiting+OR+commit+OR+portal&hl=en-US&gl=US&ceid=US:en', name: 'Rivals/maryland' },
-      // (Removed the site:247sports.com recruiting feed — everything on that domain is
-      // our own outlet or 247 national, both of which we now block outright below.)
-      // Our own outlet (247Sports Maryland / InsideMDSports). Google News reports its source
-      // as plain "247Sports" and gives a redirect URL, and it doesn't index the site anyway,
-      // so neither the src label nor the URL can be matched against `excluded`. Instead we
-      // scrape the Maryland landing page — its article URLs carry the headline as a slug —
-      // and use those headlines as a fuzzy-matched blocklist (see ownTitleWordSets / scrapeSlugs below).
-      { url: 'https://247sports.com/college/maryland/', name: 'own247/blocklist', scrapeSlugs: true },
-      { url: 'https://news.google.com/rss/search?q=site%3Abtn.com+%22Maryland%22&hl=en-US&gl=US&ceid=US:en', name: 'BTN', src: 'Big Ten Network' },
-      { url: 'https://news.google.com/rss/search?q=site%3Asi.com+%22Maryland+Terrapins%22+OR+site%3Asi.com+%22Terps%22&hl=en-US&gl=US&ceid=US:en', name: 'SI/terps', src: 'Sports Illustrated' },
-      { url: 'https://news.google.com/rss/search?q=%22Maryland+Terrapins%22+preview+OR+prediction+OR+%22scouting+report%22&hl=en-US&gl=US&ceid=US:en', name: 'GNews/opponents' },
-      // Bing News — independent index, catches stories Google misses
-      { url: 'https://www.bing.com/news/search?q=%22Maryland+Terrapins%22&format=rss', name: 'Bing/terrapins' },
-      { url: 'https://www.bing.com/news/search?q=%22Terps%22+football+OR+basketball&format=rss', name: 'Bing/terps' },
-      { url: 'https://www.bing.com/news/search?q=%22Maryland+football%22+OR+%22Maryland+basketball%22+recruiting&format=rss', name: 'Bing/recruiting' },
-      // Niche site direct feeds — no dependence on search engine indexing
-      { url: 'https://www.testudotimes.com/rss/index.xml', name: 'TestudoTimes', src: 'Testudo Times' },
-      { url: 'https://dbknews.com/feed/', name: 'Diamondback', src: 'The Diamondback', requireTerps: true },
-      { url: 'https://pressboxonline.com/feed/', name: 'PressBox', src: 'PressBox', requireTerps: true },
-      // UMD official — roster moves and schedule changes announced here first
-      { url: 'https://umterps.com/rss.aspx', name: 'UMTerps', src: 'UMTerps.com' },
-      // Regional outlets via Google News site queries (their own feeds are unreliable)
-      { url: 'https://news.google.com/rss/search?q=site%3Abaltimoresun.com+%22Terps%22+OR+site%3Abaltimoresun.com+%22Maryland+Terrapins%22&hl=en-US&gl=US&ceid=US:en', name: 'BaltSun', src: 'Baltimore Sun' },
-      { url: 'https://news.google.com/rss/search?q=site%3Awashingtonpost.com+%22Terps%22+OR+site%3Awashingtonpost.com+%22Maryland+Terrapins%22&hl=en-US&gl=US&ceid=US:en', name: 'WaPo', src: 'Washington Post' },
-      { url: 'https://news.google.com/rss/search?q=site%3Athebaltimorebanner.com+%22Terps%22+OR+site%3Athebaltimorebanner.com+%22Maryland+Terrapins%22&hl=en-US&gl=US&ceid=US:en', name: 'BaltBanner', src: 'Baltimore Banner' },
-      // Rival team boards — recruiting battles often break on other schools' sites
-      { url: 'https://news.google.com/rss/search?q=%22beats+out+Maryland%22+OR+%22over+Maryland%22+recruiting+OR+commit&hl=en-US&gl=US&ceid=US:en', name: 'GNews/rivalwins' },
-      { url: 'https://news.google.com/rss/search?q=Maryland+%22official+visit%22+OR+%22top+schools%22+OR+%22decision+date%22+recruit&hl=en-US&gl=US&ceid=US:en', name: 'GNews/rivalbattles' },
-      // Local TV stations — occasionally break local angles first
-      { url: 'https://news.google.com/rss/search?q=site%3Awbaltv.com+%22Terps%22+OR+site%3Awbaltv.com+%22Maryland+Terrapins%22&hl=en-US&gl=US&ceid=US:en', name: 'WBAL', src: 'WBAL-TV' },
-      { url: 'https://news.google.com/rss/search?q=site%3Acbsnews.com+%22Terps%22+OR+site%3Acbsnews.com+%22Maryland+Terrapins%22&hl=en-US&gl=US&ceid=US:en', name: 'WJZ', src: 'WJZ/CBS Baltimore' },
-      { url: 'https://news.google.com/rss/search?q=site%3Awusa9.com+%22Terps%22+OR+site%3Awusa9.com+%22Maryland+Terrapins%22&hl=en-US&gl=US&ceid=US:en', name: 'WUSA9', src: 'WUSA9' },
-      { url: 'https://news.google.com/rss/search?q=site%3Awtop.com+%22Terps%22+OR+site%3Awtop.com+%22Maryland+Terrapins%22&hl=en-US&gl=US&ceid=US:en', name: 'WTOP', src: 'WTOP' },
-      // High school sports — recruit performances before the national radar
-      { url: 'https://news.google.com/rss/search?q=%22committed+to+Maryland%22+OR+%22Maryland+commit%22+OR+%22Terps+commit%22+%22high+school%22&hl=en-US&gl=US&ceid=US:en', name: 'HS/commits' },
-      { url: 'https://news.google.com/rss/search?q=site%3Amaxpreps.com+Maryland+Terrapins+OR+%22committed+to+Maryland%22&hl=en-US&gl=US&ceid=US:en', name: 'HS/maxpreps', src: 'MaxPreps' },
-      { url: 'https://news.google.com/rss/search?q=%22Maryland+offer%22+OR+%22offered+by+Maryland%22+high+school+football+OR+basketball&hl=en-US&gl=US&ceid=US:en', name: 'HS/offers' },
-      // Angle feeds — coverage areas the queries above don't reach on their own.
-      { url: 'https://news.google.com/rss/search?q=%22Maryland+Terrapins%22+injury+OR+%22ruled+out%22+OR+%22day-to-day%22+OR+suspension+OR+%22out+for+the+season%22&hl=en-US&gl=US&ceid=US:en', name: 'GNews/injuries' },
-      { url: 'https://news.google.com/rss/search?q=%22Maryland+Terrapins%22+%22depth+chart%22+OR+%22position+battle%22+OR+%22starting+lineup%22+OR+%22two-deep%22&hl=en-US&gl=US&ceid=US:en', name: 'GNews/depthchart' },
-      { url: 'https://news.google.com/rss/search?q=%22Maryland%22+%22transfer+portal%22+%22entered%22+OR+%22commits+to%22+OR+%22announces%22+football+OR+basketball&hl=en-US&gl=US&ceid=US:en', name: 'GNews/portalmoves' },
-      { url: 'https://news.google.com/rss/search?q=%22Big+Ten%22+%22Maryland%22+television+OR+%22TV+schedule%22+OR+kickoff+OR+%22tip+time%22+OR+%22revenue+distribution%22+OR+expansion&hl=en-US&gl=US&ceid=US:en', name: 'GNews/bigten' },
-      { url: 'https://news.google.com/rss/search?q=%22Maryland%22+opponent+%22injury+report%22+OR+%22will+not+play%22+OR+%22game+preview%22+Terrapins&hl=en-US&gl=US&ceid=US:en', name: 'GNews/oppnews' },
-      { url: 'https://news.google.com/rss/search?q=%22Maryland+Terrapins%22+ranking+OR+%22AP+poll%22+OR+%22bracketology%22+OR+%22bowl+projection%22+OR+%22power+rankings%22&hl=en-US&gl=US&ceid=US:en', name: 'GNews/rankings' },
-      { url: 'https://news.google.com/rss/search?q=%22Maryland+Terrapins%22+%22College+GameDay%22+OR+%22Big+Ten+Network%22+OR+announced+OR+%22game+time%22+OR+%22kickoff+time%22&hl=en-US&gl=US&ceid=US:en', name: 'GNews/scheduling' },
-      { url: 'https://www.bing.com/news/search?q=%22Maryland+Terrapins%22+transfer+OR+injury+OR+commit&format=rss', name: 'Bing/moves' },
-      { url: 'https://www.bing.com/news/search?q=%22Terps%22+%22Big+Ten%22+OR+recruiting+OR+portal&format=rss', name: 'Bing/bigten' },
-      { url: 'https://www.bing.com/news/search?q=%22Kevin+Willard%22+OR+%22Mike+Locksley%22+OR+%22Buzz+Williams%22+OR+%22Brenda+Frese%22&format=rss', name: 'Bing/coaches' },
-      // Google Alerts (Atom feed, not RSS) — indexes Google's general web crawl
-      // (blogs, forums, fan sites) rather than only News-classified outlets, so it
-      // catches things GNews/Bing structurally can't. Noisier index — requireTerps
-      // filters it down.
-      { url: 'https://www.google.com/alerts/feeds/11342504336305895606/17303326929615026985', name: 'GAlerts/terps', src: 'Google Alerts', isAtom: true, requireTerps: true }
-    ];
+    // RSS/news feeds: name is for diagnostics, src is the fallback source label.
+    // A hand-tuned list from the profile when it has one, otherwise generated
+    // from the team's names, people and outlets.
+    var feedConfigs = B.feedsFor(beat).slice();
+    // Our own outlet's landing page — its article URLs carry the headline as a
+    // slug, used as a fuzzy-matched blocklist (see ownTitleWordSets / scrapeSlugs
+    // below) and as "our own recent coverage" for the rater. Google News doesn't
+    // reliably label or index our own outlet, so this is the only solid signal.
+    if (beat.ownSite.url) feedConfigs.push({ url: beat.ownSite.url, name: 'ownsite/blocklist', scrapeSlugs: true });
 
-    var redditFetches = [
-      { url: 'https://www.reddit.com/r/MarylandTerrapins/new.json?limit=40', name: 'Reddit/MarylandTerrapins' },
-      { url: 'https://www.reddit.com/r/CFB/search.json?q=Maryland+Terrapins&sort=new&restrict_sr=on&limit=20', name: 'Reddit/CFB' },
-      { url: 'https://www.reddit.com/r/CollegeBasketball/search.json?q=Maryland+Terrapins&sort=new&restrict_sr=on&limit=20', name: 'Reddit/CollegeBasketball' },
-      { url: 'https://www.reddit.com/r/CFBRecruiting/search.json?q=Maryland&sort=new&restrict_sr=on&limit=20', name: 'Reddit/CFBRecruiting' },
-      { url: 'https://www.reddit.com/r/bigten/search.json?q=Maryland+Terrapins&sort=new&restrict_sr=on&limit=15', name: 'Reddit/bigten' },
-      { url: 'https://www.reddit.com/search.json?q=%22Maryland+Terrapins%22&sort=new&limit=25', name: 'Reddit/sitewide' }
-    ];
+    var redditFetches = B.redditFor(beat);
 
     // Every external fetch gets its own timeout — without this, a single slow or
     // hanging RSS/Reddit source can block Promise.allSettled indefinitely (fetch()
@@ -253,7 +169,7 @@ module.exports = async function handler(req, res) {
       var cfg = feedConfigs[gi - redditFetches.length];
       try {
         var xml = await results[gi].value.text();
-        // Our-outlet blocklist: pull headline slugs out of the Maryland landing page's
+        // Our-outlet blocklist: pull headline slugs out of our own landing page's
         // article URLs (…/article/some-headline-slug-289225568/) and record them. This
         // scrape intermittently 406s (bot detection) — when that happens the page body
         // is a block page with zero article links, which used to silently zero out the
@@ -261,7 +177,8 @@ module.exports = async function handler(req, res) {
         // through with nothing to match against). Persist the last good scrape to Blob
         // and fall back to it whenever the live one fails or looks too thin to be real.
         if (cfg.scrapeSlugs) {
-          var slugMatches = xml.match(/\/college\/maryland\/(?:article|longformarticle)\/[a-z0-9-]+-\d{6,}/g) || [];
+          var slugRe = B.ownArticleRegex(beat);
+          var slugMatches = (slugRe && xml.match(slugRe)) || [];
           var freshSlugWords = {};
           var ownSlugTexts = [];
           slugMatches.forEach(function(m) {
@@ -316,11 +233,7 @@ module.exports = async function handler(req, res) {
               .replace(/\s+/g, ' ').trim().slice(0, 320);
             if (!title) return;
             title = title.trim();
-            if (cfg.requireTerps) {
-              var gaRelevance = (title + ' ' + snippet).toLowerCase();
-              var gaTerpsWords = ['terps', 'terrapins', 'maryland athletic', 'maryland football', 'maryland basketball', 'maryland lacrosse', 'maryland soccer', 'maryland baseball', 'locksley', 'buzz williams', 'willard', 'frese', 'umterps', 'xfinity center', 'secu stadium'];
-              if (!gaTerpsWords.some(function(w) { return gaRelevance.includes(w); })) return;
-            }
+            if ((cfg.requireBeat || cfg.requireTerps) && !B.isRelevant(beat, title + ' ' + snippet)) return;
             var gaAge = pubDate ? Math.round((Date.now() - new Date(pubDate).getTime()) / 3600000) : 0;
             if (pubDate && new Date(pubDate).getTime() < googleCutoff) return;
             if (excluded.some(function(ex) { return src.toLowerCase().includes(ex) || title.toLowerCase().includes(ex) || realUrl.toLowerCase().includes(ex); })) return;
@@ -361,12 +274,8 @@ module.exports = async function handler(req, res) {
           // A real headline is a sentence with something happening in it; these are
           // just "<name> <category word>" with nothing else.
           if (/^[\w.' -]{2,60} (News|Stats?|Splits?|Schedule|Roster|Standings)$/i.test(title)) return;
-          // Some direct feeds carry the whole publication — require Terps relevance
-          if (cfg.requireTerps) {
-            var relevanceText = (title + ' ' + desc).toLowerCase();
-            var terpsWords = ['terps', 'terrapins', 'maryland athletic', 'maryland football', 'maryland basketball', 'maryland lacrosse', 'maryland soccer', 'maryland baseball', 'maryland wrestling', 'maryland volleyball', 'maryland gymnastics', 'field hockey', 'locksley', 'buzz williams', 'willard', 'frese', 'umterps', 'xfinity center', 'secu stadium', 'college park recruit'];
-            if (!terpsWords.some(function(w) { return relevanceText.includes(w); })) return;
-          }
+          // Some direct feeds carry the whole publication — require beat relevance
+          if ((cfg.requireBeat || cfg.requireTerps) && !B.isRelevant(beat, title + ' ' + desc)) return;
           var age = pubDate ? Math.round((Date.now() - new Date(pubDate).getTime()) / 3600000) : 0;
           if (pubDate && new Date(pubDate).getTime() < googleCutoff) return;
           if (excluded.some(function(ex) { return src.toLowerCase().includes(ex) || srcUrl.toLowerCase().includes(ex) || title.toLowerCase().includes(ex) || realUrl.toLowerCase().includes(ex); })) return;
@@ -524,7 +433,7 @@ module.exports = async function handler(req, res) {
     var storyList = stories.map(function(s, i) {
       var line = (i + 1) + '. ' + (s.kind === 'video' ? '[VIDEO] ' : '') + '[' + s.source + '] ' + s.title + ' (' + s.age + 'h ago)';
       if (s.followUp) line += '\n   [DEVELOPING STORY WE ARE ACTIVELY COVERING: ' + s.followUp + ' — do NOT let this tag alone push the rating up. Only treat it as newsworthy despite low engagement if it is a genuine NEW development (a status actually changed, a real update). Reaction, analysis, jokes, or commentary about something that already fully happened rates exactly like any other social post — usually 1-2 — the tag is not a rating boost.]';
-      if (s.watchedAccount) line += '\n   [WATCHED ACCOUNT: the publisher has specifically curated this X account as a credible Maryland beat source — do not downrate for low/no engagement or unfamiliarity, judge purely on newsworthiness]';
+      if (s.watchedAccount) line += '\n   [WATCHED ACCOUNT: the publisher has specifically curated this X account as a credible ' + beat.team.short + ' beat source — do not downrate for low/no engagement or unfamiliarity, judge purely on newsworthiness]';
       if (s.snippet) line += '\n   snippet: ' + s.snippet;
       return line;
     }).join('\n');
@@ -535,26 +444,8 @@ module.exports = async function handler(req, res) {
       flaggedNote = '\n\nThe editor has FLAGGED these recent stories as junk/irrelevant. Mark any similar stories (same subject, same kind of noise, same unrelated namesake) as irrelevant:true:\n' + flagged.map(function(f) { return '- [' + f.source + '] ' + f.headline; }).join('\n');
     }
 
-    var WATCH = {
-      coaches: ['Mike Locksley','Buzz Williams','Brenda Frese','Ted Monachino','Clint Trickett','Aazaar Abdul-Rahim','Jeremy Shapiro','Latrell Scott','Kyle Schmitt','Andre Powell','Gary Williams','Dave Pietramala'],
-      fbCommits26: ['Zion Elee','Darrell Carey','Jamarcus Whyce','Javonte Williams','Jesse Moody','Ontario Washington Jr.','Chuck Roberts'],
-      fbCommits27: ['Myles McAfee','Levi Babin','Mekhi Graham','Davion Vanderbilt','Dallas Pauldo','Kenaz Sullivan','James Branch','Kyren Caldwell','Charles Roberts','Emerson Lewis','Jayden Agberodiola','Terrance Grant Jr.','Zeke Walkup','William Jackson','Anthony Henderson','Caleb Canty','Kendon Bauer','Shelvy Clark','Alex Fontenot','Abdus Kone','Kevin Jackson','Mason McClure'],
-      fbTargets: ['James Pace III','Anthony Jennings','Cahron Wheeler','Franklin Richardson'],
-      fbRoster: ['Malik Washington (Maryland QB)','Zahir Mathis','Sidney Stewart','Daniel Wingate (Maryland LB)','Dontay Joyner','Jamare Glasker','Messiah Delhomme','Justin Merriman','Lavain Scruggs','Jayden Shipps','Darrell Carey','Gavin Edwards'],
-      bkRoster: ['Pharrel Payne','Andre Mills','DJ Wagner','Tomislav Buljan','Bishop Boswell','Kaden House','Austin Brown','Adama Tambedou','Robert Jennings','Baba Oladotun','Guillermo del Pino','Alexandre K\'Medehouto','George Turkson','Michael McNair','Maban Jabriel','Lukas Sotell'],
-      bkTargets: ['Amir Jenkins','Beau Daniels','Markus Kerr','Corey Dixon'],
-      nflAlumni: ['DJ Moore','Stefon Diggs','Chig Okonkwo','Nick Cross','Tai Felton','DJ Glaze','Deonte Banks','Jakorian Bennett','Tarheeb Still','Corey Bullock','Jalil Farooq','Shaleak Knotts','Dante Trader Jr.','Kaden Prather','Ruben Hyppolite II','Jeshaun Jones'],
-      nbaAlumni: ['Derik Queen','Aaron Wiggins','Kevin Huerter','Joe Smith','Steve Blake','Buck Williams','Len Elmore','Tom McMillen','Alex Len','Bruno Fernando','Jalen Smith'],
-      wnba: ['Kristi Toliver','Crystal Langhorne','Marissa Coleman'],
-      legends: ['Juan Dixon','Greivis Vasquez','Len Bias','Albert King','Adrian Branch','John Lucas','Lonny Baxter','Walt Williams','Keith Booth','Johnny Rhodes','Terence Morris','Jake Layman','Dez Wells','Melo Trimble','Anthony Cowan','Nik Caner-Medley','Gene Shue','Derrick Lewis','Ernest Graham','Greg Manning','Keith Gatlin','Terrell Stokes','Eric Hayes','Duane Simpkins','Kevin McLinton','James Gist','Shawne Merriman','Boomer Esiason','Randy White','Vernon Davis','E.J. Henderson','Lydell Mitchell','Dominique Dawes','Thea LaFond','Quincy Wilson','Graham Zusi','Taylor Cummings','Frank Urso','Gary Gait'],
-      admin: ['Jim Smith','Darryll Pines','Johnny Holliday','Damon Evans','Geroy Simon'],
-      reporters: ['Testudo Times','TerpRecruiting','DBKSports','Ahmed Ghafir','Nolan Rogalski','Matt Germack'],
-      podcasts: ['Testudo Talk','Locked On Terps','Hear The Turtle','Under The Shell','Protect The Shell','Testudos and Touchdowns']
-    };
-    var watchListText = 'PEOPLE TO WATCH — current/recent Maryland roster, commits, targets, staff, and alumni. Use this to confirm identity (see NAME COLLISIONS above) and to recognize names you might otherwise miss:\nCoaches: ' + WATCH.coaches.join(', ') + '\nFB commits 2026: ' + WATCH.fbCommits26.join(', ') + '\nFB commits 2027: ' + WATCH.fbCommits27.join(', ') + '\nFB targets: ' + WATCH.fbTargets.join(', ') + '\nFB roster: ' + WATCH.fbRoster.join(', ') + '\nBK roster: ' + WATCH.bkRoster.join(', ') + '\nBK targets: ' + WATCH.bkTargets.join(', ') + '\nNFL alumni: ' + WATCH.nflAlumni.join(', ') + '\nNBA alumni: ' + WATCH.nbaAlumni.join(', ') + '\nWNBA alumni: ' + WATCH.wnba.join(', ') + '\nLegends: ' + WATCH.legends.join(', ') + '\nAdmin: ' + WATCH.admin.join(', ') + '\nReporters/outlets to recognize as legitimate Terps coverage: ' + WATCH.reporters.join(', ') + '\nPodcasts: ' + WATCH.podcasts.join(', ');
-
     var today = new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
-    var prompt = 'You are a sports news editor for InsideMDSports covering University of Maryland Terrapins athletics. Today is ' + today + '.\n\nRate and categorize ALL of these stories. Return ONLY a JSON array, no other text. Include EVERY story.\n\nEach object must have:\n- idx: the story number (1-based)\n- headline: a cleaned-up version of the ORIGINAL headline — fix grammar, clarity, length, and clickbait only. DO NOT add or change any factual detail that is not already in the original: player positions (WR, QB, DE, guard...), jersey numbers, class year, height/weight, star ratings, team or school names, coaches, scores, stats, or dates. If the original does not state a player\'s position or role, do not put one in. When unsure, keep the original wording.\n- source: the [Source] shown\n- time: e.g. "2h ago"\n- rating: 1-5 (5=breaking news, 4=major, 3=solid, 2=minor, 1=filler)\n- category: one of: recruiting, football, basketball, alumni, social, podcast, news\n- sport: football, basketball, lacrosse, soccer, or other\n- summary: one factual sentence based only on what the headline/source actually says — do not invent positions, numbers, quotes, or outcomes\n- irrelevant: true if the story has NO genuine connection to Maryland Terrapins athletics, its coaches, players, recruits, or notable alumni (e.g. a random local charity story, general weather/campus news). These will be discarded.\n- needsContext: true if the headline and snippet do NOT give you enough to confidently judge the Maryland relevance or the rating — e.g. a national roundup/ranking/preview that might bury a Maryland player or angle, a vague headline, or a story where you suspect a stronger Terps angle exists in the body. We will pull the full article for these and re-rate.\n\nSome stories include a "snippet:" line — the opening of the article. Use it. If a snippet is present and still not enough, set needsContext:true.\n\nNAME COLLISIONS: many alumni share their name with unrelated athletes in other sports (e.g. Joe Smith the Chicago Cubs pitcher is NOT Maryland alum Joe Smith the former NBA player; Malik Washington the Miami Dolphins receiver is NOT the Maryland alum of the same name — Maryland\'s Malik Washington is the current QB). Before tagging any story category:"alumni", use your own knowledge to confirm the person in the story is actually the former Maryland athlete — check that their sport, team history, or position matches the real Maryland alum, not just the name. If the story is clearly about a different person who merely shares the name, set irrelevant:true.\n\n' + watchListText + '\n- republished: true if this appears to be a recycled/republished article about events that clearly happened weeks or months ago (e.g. a recruiting visit scheduled in a prior month, an old signing, a past season result being re-reported, an old controversy or quote resurfacing). Use today\'s date AND your knowledge of when events actually happened to judge this — if you recognize the underlying event as occurring more than 2 weeks ago, set republished true even if the article timestamp is recent. Be especially suspicious of aggregators (MSN, Yahoo, Sports Illustrated syndication) which frequently republish old stories with fresh timestamps. If a story references a SPECIFIC past game, match, ceremony, or event (e.g. a Maryland-Georgetown basketball game, a bowl game, a signing day, "spotted at", "sharing hugs at", "was in attendance at"), check whether that event actually happened in the last ~2 weeks — if it is from a prior season or months ago, set republished:true no matter how recent the timestamp looks. Set false only for genuinely new stories.\n\nPRIORITY — ALWAYS RATE 5, no discretion, for any of these when they relate to Maryland football or basketball:\n- A recruiting commitment or decommitment (any class, any star rating) — football or basketball.\n- A player transferring — entering the portal, or committing to/leaving Maryland via transfer.\n- A coaching change — a coach (head or assistant, football or basketball) hired, fired, or leaving for another job.\n- A major injury to a current player (season-ending, surgery, or a significant new injury update) — football or basketball.\nThese are rating 5 even if the headline is otherwise plain or the source is minor — the EVENT is what makes it breaking, not the writeup. Do not downgrade one of these to 4 just because it seems like routine roster news.\n\nPRIORITY — ALWAYS RATE 4, no discretion, for any of these when they relate to Maryland football or basketball (the one-tier-down version of the rating-5 list above — same categories, earlier or lower-stakes stage):\n- A scholarship offer extended to a recruit, or a recruit taking/scheduling an official or unofficial visit (not yet a commitment — that\'s rating 5).\n- A player entering the transfer portal, or being linked/rumored to Maryland via transfer, before any commitment is confirmed.\n- An assistant coach or lower-profile staff hire/departure (a head coach change is rating 5).\n- A day-to-day, probable, or minor injury update / designation change for a current player (season-ending or a major new injury is rating 5).\nSame rule as above: the event puts it here regardless of how the headline reads or how minor the source seems.\n\nOutside those categories, rating 5 is reserved for a genuinely new, surprising Maryland development of the same weight — a suspension, arrest or legal action involving a player or coach, an eligibility ruling, a player leaving the team, or a major program announcement (a new head coach contract, a facility or conference move). Rating 4 is for real Maryland news a writer would likely cover today. Everything else is 3 or lower.\n\nNOT BREAKING — never rate these above 3, however they are worded or whoever posts them:\n- Another school\'s recruiting or roster news: an opponent\'s recruiting board, commit list, class ranking or offer list, or a recruit committing somewhere else, UNLESS the recruit was a known Maryland target or commit (then it is Maryland news and the rules above apply).\n- A coach\'s or player\'s regularly scheduled media: a weekly radio or TV show, coach\'s call-in show, weekly press conference, podcast appearance or media availability. These are 2-3. Rate on the NEWS only if something said there is itself new and major (an injury, a starter change, a departure), in which case rate that news, not the appearance.\n- Previews, predictions, picks, power rankings, depth charts with no change, schedule or kickoff-time announcements, ticket or promotional posts, and opinion or reaction to known news.\n\nFOLLOW-UP COVERAGE OF AN ALREADY-CONCLUDED EVENT IS NOT BREAKING, no matter how many different outlets keep publishing about it. A completed game (any final score/result, win or loss, however big the upset) is newsworthy ONCE — the first recap right after it happened. Every additional piece about that SAME already-final game — a late recap, "X takeaways," analysis, reaction, a fantasy/power-rankings mention, syndicated re-coverage from a different outlet — is NOT rating 4-5 just because it references a big result. Rate those on whether they contain a genuinely NEW fact you have not already seen in this batch or would not already know (an injury revealed during the game, a suspension, a coach fired over it, a real quote breaking news of its own) — otherwise cap at 2-3, and 1 if it is pure reaction/analysis with nothing new. Apply the exact same logic to an already-known player injury: the ORIGINAL announcement is major (per the injury rules above), but a later mention of that SAME known status — a standard injury report listing, "still out," a fantasy-impact writeup — with no new development is routine, rating 1-2, even though the injury itself was once serious. If several stories in this batch are clearly about the same underlying event, only the single most substantive one should rate as high as the event itself warrants; the rest are follow-up coverage under this rule.\n\nFor former Maryland players now in the NFL/NBA (see NFL/NBA alumni lists above): rate routine pro coverage (fantasy analysis, practice notes, game recaps, rankings) 1-2. Only rate 3+ for major news (trades, signings, serious injuries, milestones) or stories with a genuine Maryland/Terps angle. IMPORTANT: NFL/NBA trades, signings, and roster moves from the most recent offseason (this past spring or summer) are OLD NEWS now — if a story reports a trade/signing that you know happened months ago (e.g. an offseason NBA trade being re-reported), set republished:true even though the article looks fresh.\n\nFor Reddit posts: if the post is fan discussion, opinion, or a question rather than actual news, give it rating 1. Only rate Reddit posts 3+ if they report genuine news (commitments, injuries, hires, transfers, reports).\n\nFor X/Twitter posts (source starts with @): a post tagged [WATCHED ACCOUNT] is from a publisher-curated Maryland beat source — treat it as inherently credible, judge purely on newsworthiness, never downrate for low engagement or an unfamiliar name. Everything else already cleared a minimum-engagement bar to reach you, so genuine reach/virality is already established there too — do not downrate one just for being a social post. What matters is WHO is posting and WHAT they are reporting: a known beat reporter, credible outlet account, or the team/player\'s own account reporting real news (a commitment, injury, transfer, hire) rates 4-5 exactly like any other breaking story. A post that only quotes a coach or player from a show, presser or interview, or shares another team\'s news, follows the NOT BREAKING rules above. An unverified claim, rumor, or hot take from an account you don\'t recognize as a credible source should rate lower (2-3) AND get needsContext:true — flag it for verification rather than reporting it as settled fact. Fan reaction, jokes, or pure opinion with no actual news in it is rating 1, same as Reddit.\n\nFor items marked [VIDEO] (YouTube): rate by news value the same as an article. Rate 4-5 for: genuine breaking or major news from a credible channel (a beat reporter or outlet breaking a commitment, injury, hire, transfer, or real report); OR a substantive sit-down interview, press conference, podcast episode, or one-on-one whose subject is a KEY Maryland figure — a head coach (Mike Locksley, Kevin Willard, Buzz Williams, Brenda Frese), a current starter or high-profile recruit/commit, the athletic director, or a well-known alum (5 if the interview itself breaks news, otherwise 4). Routine analysis, previews, opinion/reaction videos, quick soundbites, sideline clips, watch-alongs, highlight reels, and generic "news roundup" videos are rating 1-2 no matter the view count or who is briefly quoted.\n\nLOW-PRIORITY SPORTS: We almost never cover these. ALWAYS rate a story that is primarily about one of them as rating 1, no matter how newsworthy it seems: volleyball, tennis, golf, cross country, wrestling, softball, field hockey, swimming & diving. Our core beats are football, men\'s and women\'s basketball, and men\'s and women\'s lacrosse.\n\nInclude ALL stories. Do not skip any.';
+    var prompt = B.ratingPrompt(beat, today);
     // Split so the ~250-name watch list + all the editorial rules above (identical on
     // every call) can be prompt-cached, and only the story list + flagged-junk note
     // (different every scan) gets sent fresh. Cuts real wall-clock time on every run
@@ -569,19 +460,18 @@ module.exports = async function handler(req, res) {
     // profile means the built-in rules above apply unchanged.
     var siteProfile = {};
     try {
-      var SProf = require('./_supabase.js');
-      if (SProf.isConfigured()) siteProfile = await require('./_settings-store.js').getProfile(SProf.admin());
+      if (SB.isConfigured()) siteProfile = await require('./_settings-store.js').getProfile(SB.admin());
     } catch (e) { siteProfile = {}; }
     var profileNote = require('./_rating-rules.js').promptBlock(siteProfile);
 
     var ownCoverageNote = '';
     if (ownHeadlines.length) {
-      ownCoverageNote = '\n\nOUR OWN RECENT COVERAGE — the latest articles InsideMDSports has published (taken from article URLs, so wording is approximate):\n' +
+      ownCoverageNote = '\n\nOUR OWN RECENT COVERAGE — the latest articles ' + beat.outletName + ' has published (taken from article URLs, so wording is approximate):\n' +
         ownHeadlines.map(function(h) { return '- ' + h; }).join('\n') +
         '\n\nUse this to judge each story against what we have already done:\n' +
         '- ALREADY COVERED: if a story is about something we already published, it is not breaking for us. Rate it on whether it adds a genuinely new fact beyond our article; if not, cap it at 2.\n' +
         '- FOLLOW-UP TO OUR STORY: a genuinely new development on something we covered (a status change, a decision, a new quote that moves it forward) is a natural next story for us. Rate it one point higher than you otherwise would, up to the normal ceiling for that kind of event.\n' +
-        '- GAP: a real Maryland story other outlets have that we have NOT covered is valuable. Rate it at least 3 if it is genuine Maryland news, and note "not yet covered by us" at the end of its summary.\n' +
+        '- GAP: a real ' + beat.team.short + ' story other outlets have that we have NOT covered is valuable. Rate it at least 3 if it is genuine ' + beat.team.short + ' news, and note "not yet covered by us" at the end of its summary.\n' +
         '- OUR BEAT: topics we publish on often (judge from the list above) are core beat. A borderline story on a core-beat topic can rate one point higher; a topic we never cover stays where the normal rules put it.\n' +
         'All of the NOT BREAKING, FOLLOW-UP COVERAGE and LOW-PRIORITY SPORTS rules above still apply and take precedence.';
     }
@@ -651,7 +541,7 @@ module.exports = async function handler(req, res) {
           return p.item.idx + '. [' + p.item.source + '] ' + p.item.headline + '\nARTICLE TEXT: ' + (art || '(could not fetch — judge from headline)');
         }).join('\n\n');
 
-        var deepPrompt = 'You are the same InsideMDSports editor covering University of Maryland Terrapins athletics. Each item below is a story re-checked with its full article text. Return the CORRECTED rating now that you can see the body. Return ONLY a JSON array; each object: {"idx": <number, matching the number shown>, "rating": 1-5, "irrelevant": <bool>, "summary": "<one factual sentence, no invented facts>", "category": "recruiting|football|basketball|alumni|social|podcast|news", "sport": "football|basketball|lacrosse|soccer|other"}. Scale: 5=breaking, 4=major, 3=solid, 2=minor, 1=filler. irrelevant:true ONLY if the article has no real Maryland Terrapins connection. If a national piece meaningfully covers a Maryland player/recruit/coach/alum, rate that Maryland angle (usually 2-4). Stories primarily about volleyball, tennis, golf, cross country, wrestling, softball, field hockey, or swimming stay rating 1.\n\n' + deepList;
+        var deepPrompt = B.deepPrompt(beat) + deepList;
 
         try {
           var dr = await fetch('https://api.anthropic.com/v1/messages', {
@@ -680,24 +570,25 @@ module.exports = async function handler(req, res) {
       }
     }
 
-    // Drop stories Claude marked as having no Maryland connection
+    // Drop stories Claude marked as having no connection to our beat
     parsed = parsed.filter(function(item) { return !item.irrelevant; });
 
     // Final backstop for our own outlet: the deep-read pass resolves Google News
     // redirects to real publisher URLs, so a 247sports.com / insidemdsports.com link
     // that slipped past the source-label filter (mislabeled feed, reworded headline)
     // is catchable here by its now-resolved URL.
-    parsed = parsed.filter(function(item) {
+    var ownDomainRe = B.ownDomainRegex(beat);
+    if (ownDomainRe) parsed = parsed.filter(function(item) {
       var orig = stories[item.idx - 1];
       var u = (orig && orig.url ? orig.url : '').toLowerCase();
-      return !/247sports\.com|insidemdsports\.com/.test(u);
+      return !ownDomainRe.test(u);
     });
 
     // Editorial rule: sports we almost never write about are always filler (rating 1),
     // regardless of how Claude rated them.
     // A publisher's own "never cover" sports from the setup wizard replace this default list.
-    var LOW_PRIORITY_SPORTS = require('./_rating-rules.js').ignoreSportsRegex(siteProfile) || /\b(volleyball|tennis|golf|cross[ -]country|wrestling|softball|field hockey|swimming|swim (?:and|&) dive)\b/i;
-    parsed.forEach(function(item) {
+    var LOW_PRIORITY_SPORTS = require('./_rating-rules.js').ignoreSportsRegex(siteProfile) || B.lowPriorityRegex(beat);
+    if (LOW_PRIORITY_SPORTS) parsed.forEach(function(item) {
       var t = ((item.headline || '') + ' ' + (item.summary || '')).toLowerCase();
       if (LOW_PRIORITY_SPORTS.test(t)) { item.rating = 1; item.lowPriority = true; }
     });
@@ -717,12 +608,13 @@ module.exports = async function handler(req, res) {
     // lists so "DJ Moore" etc. match regardless of headline wording); the rest go to
     // overflow with a "More on this" link. General Terps topics still get 3.
     // Check original titles (not Claude's rewrites) for reliable name detection.
-    var alumniWatch = [].concat(WATCH.nflAlumni, WATCH.nbaAlumni, WATCH.wnba, WATCH.legends)
+    var alumniWatch = B.alumniNames(beat)
       .map(function(name) { return { display: name, lc: name.toLowerCase() }; });
     // Videos are rated in the same pass but don't go through the article topic caps.
     var videoItems = withUrls.filter(function(it) { return it.kind === 'video' && !it.irrelevant; });
     var articleItems = withUrls.filter(function(it) { return it.kind !== 'video'; });
 
+    var topicStop = B.topicStopRegex(beat);
     var topicRatingCount = {};
     var overflowStories = [];
     // Sort by rating desc so highest-rated stories claim their topic slots first
@@ -746,7 +638,7 @@ module.exports = async function handler(req, res) {
         // Fall back to a two-word name if the alum isn't on a watch list
         if (!who) {
           var m = (originalTitle.match(/\b[A-Z][a-z]+ [A-Z][a-z]+\b/g) || [])
-            .filter(function(t) { return !/^(maryland|university|college|big ten|terps|terrapin|ncaa|the )/i.test(t); })[0];
+            .filter(function(t) { return !topicStop.test(t); })[0];
           who = m || 'alumni';
         }
         itemTopics = [who];
@@ -758,7 +650,7 @@ module.exports = async function handler(req, res) {
         // "Maryland Terrapins", "College Football", "Big Ten"...) — those aren't people and
         // shouldn't spawn a "More on <topic>" grouping; sport sections already handle them.
         itemTopics = (originalTitle.match(/\b[A-Z][a-z]+ [A-Z][a-z]+\b/g) || [])
-          .filter(function(t) { return !/^(maryland|university|college|big ten|terps|terrapin|ncaa|the )/i.test(t); });
+          .filter(function(t) { return !topicStop.test(t); });
         for (var n of itemTopics) {
           topicRatingCount[n] = (topicRatingCount[n] || 0) + 1;
           var cap = alumniTopics[n] ? 1 : 3;

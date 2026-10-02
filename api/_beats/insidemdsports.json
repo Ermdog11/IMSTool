@@ -1,0 +1,663 @@
+{
+ "version": 1,
+ "outletName": "InsideMDSports",
+ "team": {
+  "name": "Maryland Terrapins",
+  "school": "University of Maryland",
+  "short": "Maryland",
+  "nicknames": [
+   "Terps",
+   "Terrapins"
+  ],
+  "level": "college",
+  "conference": "Big Ten",
+  "city": "College Park"
+ },
+ "coverage": "University of Maryland Terrapins athletics",
+ "subject": "Maryland Terrapins athletics",
+ "primarySports": [
+  "football",
+  "basketball"
+ ],
+ "sportsEnum": [
+  "football",
+  "basketball",
+  "lacrosse",
+  "soccer"
+ ],
+ "coreBeatsText": "football, men's and women's basketball, and men's and women's lacrosse",
+ "lowPrioritySports": [
+  "volleyball",
+  "tennis",
+  "golf",
+  "cross country",
+  "wrestling",
+  "softball",
+  "field hockey",
+  "swimming & diving"
+ ],
+ "keyFigures": [
+  "Mike Locksley",
+  "Kevin Willard",
+  "Buzz Williams",
+  "Brenda Frese"
+ ],
+ "nameCollisions": "e.g. Joe Smith the Chicago Cubs pitcher is NOT Maryland alum Joe Smith the former NBA player; Malik Washington the Miami Dolphins receiver is NOT the Maryland alum of the same name — Maryland's Malik Washington is the current QB",
+ "proLeaguesText": "NFL/NBA",
+ "ownSite": {
+  "url": "https://247sports.com/college/maryland/",
+  "articlePath": "/college/maryland/",
+  "domains": [
+   "247sports.com",
+   "insidemdsports.com"
+  ]
+ },
+ "excludeSources": [
+  "insidemd",
+  "inside md sports",
+  "inside maryland sports",
+  "jeff ermann",
+  "ims radio",
+  "247sports",
+  "247 sports",
+  "insidetheshell",
+  "mshale",
+  "times of india"
+ ],
+ "relevanceWords": [
+  "terps",
+  "terrapins",
+  "maryland athletic",
+  "maryland football",
+  "maryland basketball",
+  "maryland lacrosse",
+  "maryland soccer",
+  "maryland baseball",
+  "maryland wrestling",
+  "maryland volleyball",
+  "maryland gymnastics",
+  "field hockey",
+  "locksley",
+  "buzz williams",
+  "willard",
+  "frese",
+  "umterps",
+  "xfinity center",
+  "secu stadium",
+  "college park recruit"
+ ],
+ "topicStopwords": [
+  "maryland",
+  "university",
+  "college",
+  "big ten",
+  "terps",
+  "terrapin",
+  "ncaa",
+  "the"
+ ],
+ "feeds": [
+  {
+   "url": "https://news.google.com/rss/search?q=%22Maryland+Terrapins%22+OR+%22Terps%22+OR+%22Maryland+Athletics%22+OR+%22Maryland+football%22+OR+%22Maryland+basketball%22+OR+%22Maryland+recruiting%22&hl=en-US&gl=US&ceid=US:en",
+   "name": "GNews/core"
+  },
+  {
+   "url": "https://news.google.com/rss/search?q=%22James+E.+Smith%22+OR+%22Damon+Evans%22+OR+%22SECU+Stadium%22+OR+%22Xfinity+Center%22+OR+%22Maryland+athletic+director%22+OR+%22Barry+Gossett%22&hl=en-US&gl=US&ceid=US:en",
+   "name": "GNews/admin"
+  },
+  {
+   "url": "https://news.google.com/rss/search?q=%22Mike+Locksley%22+OR+%22Brian+Williams%22+OR+%22Clint+Trickett%22+OR+%22Andre+Powell%22+OR+%22Pep+Hamilton%22+OR+%22Latrell+Scott%22&hl=en-US&gl=US&ceid=US:en",
+   "name": "GNews/fbstaff"
+  },
+  {
+   "url": "https://news.google.com/rss/search?q=%22Malik+Washington%22+OR+%22Zahir+Mathis%22+OR+%22Sidney+Stewart%22+OR+%22Dontay+Joyner%22+OR+%22Amory+Hills%22+OR+%22Kyree+Caldwell%22+OR+%22Zeke+Walkup%22&hl=en-US&gl=US&ceid=US:en",
+   "name": "GNews/fbplayers"
+  },
+  {
+   "url": "https://news.google.com/rss/search?q=%22Maryland+football+recruiting%22+OR+%22Maryland+commits%22+OR+%22Maryland+official+visit%22+OR+%22Maryland+2027+recruiting%22+OR+%22Maryland+2028+recruiting%22+OR+%22James+Branch%22+OR+%22Dallas+Pauldo%22&hl=en-US&gl=US&ceid=US:en",
+   "name": "GNews/fbrecruits"
+  },
+  {
+   "url": "https://news.google.com/rss/search?q=%22Boomer+Esiason%22+OR+%22Randy+White%22+OR+%22Vernon+Davis%22+OR+%22Stefon+Diggs%22+OR+%22Darnell+Savage%22+OR+%22DJ+Moore%22+OR+%22Torrey+Smith%22&hl=en-US&gl=US&ceid=US:en",
+   "name": "GNews/fblgd1"
+  },
+  {
+   "url": "https://news.google.com/rss/search?q=%22Shawne+Merriman%22+OR+%22E.J.+Henderson%22+OR+%22Josh+Wilson%22+OR+%22LaMont+Jordan%22+OR+%22Jermaine+Lewis%22+OR+%22Frank+Wycheck%22+OR+%22Randy+Edsall%22&hl=en-US&gl=US&ceid=US:en",
+   "name": "GNews/fblgd2"
+  },
+  {
+   "url": "https://news.google.com/rss/search?q=%22Buzz+Williams%22+OR+%22Kevin+Willard%22+OR+%22Danny+Manning%22+OR+%22David+Cox%22+OR+%22Maryland+basketball+recruiting%22+OR+%22Maryland+basketball+NIL%22&hl=en-US&gl=US&ceid=US:en",
+   "name": "GNews/bbstaff"
+  },
+  {
+   "url": "https://news.google.com/rss/search?q=%22DJ+Wagner%22+OR+%22Baba+Oladotun%22+OR+%22Mike+McNair%22+OR+%22Robert+Jennings%22+OR+%22Bishop+Boswell%22+OR+%22Kaden+House%22+OR+%22Adama+Tambedou%22&hl=en-US&gl=US&ceid=US:en",
+   "name": "GNews/bbplayers"
+  },
+  {
+   "url": "https://news.google.com/rss/search?q=%22Len+Bias%22+OR+%22Juan+Dixon%22+OR+%22Greivis+Vasquez%22+OR+%22Melo+Trimble%22+OR+%22Joe+Smith%22+OR+%22Steve+Francis%22+OR+%22Walt+Williams%22&hl=en-US&gl=US&ceid=US:en",
+   "name": "GNews/fmrbb1"
+  },
+  {
+   "url": "https://news.google.com/rss/search?q=%22Jalen+Smith%22+OR+%22Kevin+Huerter%22+OR+%22Bruno+Fernando%22+OR+%22Jake+Layman%22+OR+%22Alex+Len%22+OR+%22Dez+Wells%22&hl=en-US&gl=US&ceid=US:en",
+   "name": "GNews/fmrbb2"
+  },
+  {
+   "url": "https://news.google.com/rss/search?q=%22Brenda+Frese%22+OR+%22Alyssa+Thomas%22+OR+%22Kristi+Toliver%22+OR+%22Diamond+Miller%22+OR+%22Maryland+women%27s+basketball%22+OR+%22Crystal+Langhorne%22&hl=en-US&gl=US&ceid=US:en",
+   "name": "GNews/wbb"
+  },
+  {
+   "url": "https://news.google.com/rss/search?q=%22John+Tillman%22+OR+%22Logan+Wisnauskas%22+OR+%22Jared+Bernhardt%22+OR+%22Matt+Rambo%22+OR+%22Maryland+men%27s+lacrosse%22+OR+%22Maryland+women%27s+lacrosse%22+OR+%22Taylor+Cummings%22&hl=en-US&gl=US&ceid=US:en",
+   "name": "GNews/lacrosse"
+  },
+  {
+   "url": "https://news.google.com/rss/search?q=%22Rob+Vaughn%22+OR+%22Maryland+baseball%22+OR+%22Sasho+Cirovski%22+OR+%22Patrick+Mullins%22+OR+%22Taylor+Twellman%22+OR+%22Zack+Steffen%22+OR+%22Maryland+soccer%22&hl=en-US&gl=US&ceid=US:en",
+   "name": "GNews/baseball"
+  },
+  {
+   "url": "https://news.google.com/rss/search?q=%22Maryland+wrestling%22+OR+%22Missy+Meharg%22+OR+%22Maryland+field+hockey%22+OR+%22Maryland+volleyball%22+OR+%22Maryland+gymnastics%22+OR+%22Renaldo+Nehemiah%22+OR+%22Kyle+Snyder%22&hl=en-US&gl=US&ceid=US:en",
+   "name": "GNews/othersports"
+  },
+  {
+   "url": "https://news.google.com/rss/search?q=%22Maryland+Crystal+Ball%22+OR+%22Maryland+decommitment%22+OR+%22Maryland+portal+target%22+OR+%22Maryland+transfer+portal%22+OR+%22Maryland+scholarship+offer%22+OR+%22Maryland+visit+weekend%22&hl=en-US&gl=US&ceid=US:en",
+   "name": "GNews/recruiting"
+  },
+  {
+   "url": "https://news.google.com/rss/search?q=%22Maryland+NIL%22+OR+%22Maryland+NIL+collective%22+OR+%22Maryland+Terrapin+Club%22+OR+%22Maryland+athletics+fundraising%22+OR+%22Maryland+athletics+revenue%22&hl=en-US&gl=US&ceid=US:en",
+   "name": "GNews/nil"
+  },
+  {
+   "url": "https://news.google.com/rss/search?q=%22Testudo+Times%22+OR+%22Terrapin+Sports+Report%22+OR+%22On3+Maryland%22+OR+%22Rivals+Maryland%22+OR+%22Fear+the+Turtle%22+OR+%22Fear+the+Podcast%22&hl=en-US&gl=US&ceid=US:en",
+   "name": "GNews/media"
+  },
+  {
+   "url": "https://news.google.com/rss/search?q=%22Maryland+football+roster%22+OR+%22Maryland+basketball+schedule%22+OR+%22Maryland+spring+football%22+OR+%22Maryland+Big+Ten%22+OR+%22Maryland+coaching+search%22+OR+%22Maryland+stadium+renovation%22&hl=en-US&gl=US&ceid=US:en",
+   "name": "GNews/season"
+  },
+  {
+   "url": "https://news.google.com/rss/search?q=%22Aaron+Wiggins%22+OR+%22Jalen+Smith+NBA%22+OR+%22Alex+Len+NBA%22+OR+%22Bruno+Fernando+NBA%22+OR+%22DJ+Moore+NFL%22+OR+%22Darnell+Savage+NFL%22+OR+%22Torrey+Smith+NFL%22&hl=en-US&gl=US&ceid=US:en",
+   "name": "GNews/nflnba"
+  },
+  {
+   "url": "https://www.insidetheblackandgold.net/feed/",
+   "name": "ITBG",
+   "src": "Inside The Black And Gold"
+  },
+  {
+   "url": "https://news.google.com/rss/search?q=site%3Anytimes.com+%22Maryland+Terrapins%22&hl=en-US&gl=US&ceid=US:en",
+   "name": "Athletic/terrapins",
+   "src": "The Athletic"
+  },
+  {
+   "url": "https://news.google.com/rss/search?q=site%3Anytimes.com+%22Terps%22+OR+site%3Anytimes.com+%22Locksley%22&hl=en-US&gl=US&ceid=US:en",
+   "name": "Athletic/names",
+   "src": "The Athletic"
+  },
+  {
+   "url": "https://news.google.com/rss/search?q=site%3Aespn.com+%22Maryland+Terrapins%22&hl=en-US&gl=US&ceid=US:en",
+   "name": "ESPN/terrapins",
+   "src": "ESPN"
+  },
+  {
+   "url": "https://news.google.com/rss/search?q=site%3Aespn.com+%22Terps%22+OR+site%3Aespn.com+%22Locksley%22+OR+site%3Aespn.com+%22Buzz+Williams%22&hl=en-US&gl=US&ceid=US:en",
+   "name": "ESPN/names",
+   "src": "ESPN"
+  },
+  {
+   "url": "https://news.google.com/rss/search?q=site%3Afoxsports.com+%22Maryland+Terrapins%22&hl=en-US&gl=US&ceid=US:en",
+   "name": "FoxSports/terrapins",
+   "src": "FOX Sports"
+  },
+  {
+   "url": "https://news.google.com/rss/search?q=site%3Afoxsports.com+%22Terps%22+OR+site%3Afoxsports.com+%22Locksley%22+OR+site%3Afoxsports.com+%22Buzz+Williams%22&hl=en-US&gl=US&ceid=US:en",
+   "name": "FoxSports/names",
+   "src": "FOX Sports"
+  },
+  {
+   "url": "https://collegehoopstoday.com/feed/",
+   "name": "Rothstein",
+   "src": "College Hoops Today (Rothstein)",
+   "requireBeat": true
+  },
+  {
+   "url": "https://news.google.com/rss/search?q=site%3Acollegehoopstoday.com+%22Maryland%22&hl=en-US&gl=US&ceid=US:en",
+   "name": "Rothstein/gnews",
+   "src": "College Hoops Today (Rothstein)"
+  },
+  {
+   "url": "https://news.google.com/rss/search?q=site%3Acbssports.com+%22Maryland+Terrapins%22+OR+site%3Acbssports.com+%22Terps%22&hl=en-US&gl=US&ceid=US:en",
+   "name": "CBS/terps",
+   "src": "CBS Sports"
+  },
+  {
+   "url": "https://news.google.com/rss/search?q=site%3Asports.yahoo.com+%22Maryland+Terrapins%22+OR+site%3Asports.yahoo.com+%22Terps%22&hl=en-US&gl=US&ceid=US:en",
+   "name": "Yahoo/terps",
+   "src": "Yahoo Sports"
+  },
+  {
+   "url": "https://news.google.com/rss/search?q=site%3Aon3.com+%22Maryland%22+recruiting+OR+commit+OR+portal&hl=en-US&gl=US&ceid=US:en",
+   "name": "On3/maryland"
+  },
+  {
+   "url": "https://news.google.com/rss/search?q=site%3Arivals.com+%22Maryland%22+recruiting+OR+commit+OR+portal&hl=en-US&gl=US&ceid=US:en",
+   "name": "Rivals/maryland"
+  },
+  {
+   "url": "https://news.google.com/rss/search?q=site%3Abtn.com+%22Maryland%22&hl=en-US&gl=US&ceid=US:en",
+   "name": "BTN",
+   "src": "Big Ten Network"
+  },
+  {
+   "url": "https://news.google.com/rss/search?q=site%3Asi.com+%22Maryland+Terrapins%22+OR+site%3Asi.com+%22Terps%22&hl=en-US&gl=US&ceid=US:en",
+   "name": "SI/terps",
+   "src": "Sports Illustrated"
+  },
+  {
+   "url": "https://news.google.com/rss/search?q=%22Maryland+Terrapins%22+preview+OR+prediction+OR+%22scouting+report%22&hl=en-US&gl=US&ceid=US:en",
+   "name": "GNews/opponents"
+  },
+  {
+   "url": "https://www.bing.com/news/search?q=%22Maryland+Terrapins%22&format=rss",
+   "name": "Bing/terrapins"
+  },
+  {
+   "url": "https://www.bing.com/news/search?q=%22Terps%22+football+OR+basketball&format=rss",
+   "name": "Bing/terps"
+  },
+  {
+   "url": "https://www.bing.com/news/search?q=%22Maryland+football%22+OR+%22Maryland+basketball%22+recruiting&format=rss",
+   "name": "Bing/recruiting"
+  },
+  {
+   "url": "https://www.testudotimes.com/rss/index.xml",
+   "name": "TestudoTimes",
+   "src": "Testudo Times"
+  },
+  {
+   "url": "https://dbknews.com/feed/",
+   "name": "Diamondback",
+   "src": "The Diamondback",
+   "requireBeat": true
+  },
+  {
+   "url": "https://pressboxonline.com/feed/",
+   "name": "PressBox",
+   "src": "PressBox",
+   "requireBeat": true
+  },
+  {
+   "url": "https://umterps.com/rss.aspx",
+   "name": "UMTerps",
+   "src": "UMTerps.com"
+  },
+  {
+   "url": "https://news.google.com/rss/search?q=site%3Abaltimoresun.com+%22Terps%22+OR+site%3Abaltimoresun.com+%22Maryland+Terrapins%22&hl=en-US&gl=US&ceid=US:en",
+   "name": "BaltSun",
+   "src": "Baltimore Sun"
+  },
+  {
+   "url": "https://news.google.com/rss/search?q=site%3Awashingtonpost.com+%22Terps%22+OR+site%3Awashingtonpost.com+%22Maryland+Terrapins%22&hl=en-US&gl=US&ceid=US:en",
+   "name": "WaPo",
+   "src": "Washington Post"
+  },
+  {
+   "url": "https://news.google.com/rss/search?q=site%3Athebaltimorebanner.com+%22Terps%22+OR+site%3Athebaltimorebanner.com+%22Maryland+Terrapins%22&hl=en-US&gl=US&ceid=US:en",
+   "name": "BaltBanner",
+   "src": "Baltimore Banner"
+  },
+  {
+   "url": "https://news.google.com/rss/search?q=%22beats+out+Maryland%22+OR+%22over+Maryland%22+recruiting+OR+commit&hl=en-US&gl=US&ceid=US:en",
+   "name": "GNews/rivalwins"
+  },
+  {
+   "url": "https://news.google.com/rss/search?q=Maryland+%22official+visit%22+OR+%22top+schools%22+OR+%22decision+date%22+recruit&hl=en-US&gl=US&ceid=US:en",
+   "name": "GNews/rivalbattles"
+  },
+  {
+   "url": "https://news.google.com/rss/search?q=site%3Awbaltv.com+%22Terps%22+OR+site%3Awbaltv.com+%22Maryland+Terrapins%22&hl=en-US&gl=US&ceid=US:en",
+   "name": "WBAL",
+   "src": "WBAL-TV"
+  },
+  {
+   "url": "https://news.google.com/rss/search?q=site%3Acbsnews.com+%22Terps%22+OR+site%3Acbsnews.com+%22Maryland+Terrapins%22&hl=en-US&gl=US&ceid=US:en",
+   "name": "WJZ",
+   "src": "WJZ/CBS Baltimore"
+  },
+  {
+   "url": "https://news.google.com/rss/search?q=site%3Awusa9.com+%22Terps%22+OR+site%3Awusa9.com+%22Maryland+Terrapins%22&hl=en-US&gl=US&ceid=US:en",
+   "name": "WUSA9",
+   "src": "WUSA9"
+  },
+  {
+   "url": "https://news.google.com/rss/search?q=site%3Awtop.com+%22Terps%22+OR+site%3Awtop.com+%22Maryland+Terrapins%22&hl=en-US&gl=US&ceid=US:en",
+   "name": "WTOP",
+   "src": "WTOP"
+  },
+  {
+   "url": "https://news.google.com/rss/search?q=%22committed+to+Maryland%22+OR+%22Maryland+commit%22+OR+%22Terps+commit%22+%22high+school%22&hl=en-US&gl=US&ceid=US:en",
+   "name": "HS/commits"
+  },
+  {
+   "url": "https://news.google.com/rss/search?q=site%3Amaxpreps.com+Maryland+Terrapins+OR+%22committed+to+Maryland%22&hl=en-US&gl=US&ceid=US:en",
+   "name": "HS/maxpreps",
+   "src": "MaxPreps"
+  },
+  {
+   "url": "https://news.google.com/rss/search?q=%22Maryland+offer%22+OR+%22offered+by+Maryland%22+high+school+football+OR+basketball&hl=en-US&gl=US&ceid=US:en",
+   "name": "HS/offers"
+  },
+  {
+   "url": "https://news.google.com/rss/search?q=%22Maryland+Terrapins%22+injury+OR+%22ruled+out%22+OR+%22day-to-day%22+OR+suspension+OR+%22out+for+the+season%22&hl=en-US&gl=US&ceid=US:en",
+   "name": "GNews/injuries"
+  },
+  {
+   "url": "https://news.google.com/rss/search?q=%22Maryland+Terrapins%22+%22depth+chart%22+OR+%22position+battle%22+OR+%22starting+lineup%22+OR+%22two-deep%22&hl=en-US&gl=US&ceid=US:en",
+   "name": "GNews/depthchart"
+  },
+  {
+   "url": "https://news.google.com/rss/search?q=%22Maryland%22+%22transfer+portal%22+%22entered%22+OR+%22commits+to%22+OR+%22announces%22+football+OR+basketball&hl=en-US&gl=US&ceid=US:en",
+   "name": "GNews/portalmoves"
+  },
+  {
+   "url": "https://news.google.com/rss/search?q=%22Big+Ten%22+%22Maryland%22+television+OR+%22TV+schedule%22+OR+kickoff+OR+%22tip+time%22+OR+%22revenue+distribution%22+OR+expansion&hl=en-US&gl=US&ceid=US:en",
+   "name": "GNews/bigten"
+  },
+  {
+   "url": "https://news.google.com/rss/search?q=%22Maryland%22+opponent+%22injury+report%22+OR+%22will+not+play%22+OR+%22game+preview%22+Terrapins&hl=en-US&gl=US&ceid=US:en",
+   "name": "GNews/oppnews"
+  },
+  {
+   "url": "https://news.google.com/rss/search?q=%22Maryland+Terrapins%22+ranking+OR+%22AP+poll%22+OR+%22bracketology%22+OR+%22bowl+projection%22+OR+%22power+rankings%22&hl=en-US&gl=US&ceid=US:en",
+   "name": "GNews/rankings"
+  },
+  {
+   "url": "https://news.google.com/rss/search?q=%22Maryland+Terrapins%22+%22College+GameDay%22+OR+%22Big+Ten+Network%22+OR+announced+OR+%22game+time%22+OR+%22kickoff+time%22&hl=en-US&gl=US&ceid=US:en",
+   "name": "GNews/scheduling"
+  },
+  {
+   "url": "https://www.bing.com/news/search?q=%22Maryland+Terrapins%22+transfer+OR+injury+OR+commit&format=rss",
+   "name": "Bing/moves"
+  },
+  {
+   "url": "https://www.bing.com/news/search?q=%22Terps%22+%22Big+Ten%22+OR+recruiting+OR+portal&format=rss",
+   "name": "Bing/bigten"
+  },
+  {
+   "url": "https://www.bing.com/news/search?q=%22Kevin+Willard%22+OR+%22Mike+Locksley%22+OR+%22Buzz+Williams%22+OR+%22Brenda+Frese%22&format=rss",
+   "name": "Bing/coaches"
+  },
+  {
+   "url": "https://www.google.com/alerts/feeds/11342504336305895606/17303326929615026985",
+   "name": "GAlerts/terps",
+   "src": "Google Alerts",
+   "isAtom": true,
+   "requireBeat": true
+  }
+ ],
+ "reddit": [
+  {
+   "url": "https://www.reddit.com/r/MarylandTerrapins/new.json?limit=40",
+   "name": "Reddit/MarylandTerrapins"
+  },
+  {
+   "url": "https://www.reddit.com/r/CFB/search.json?q=Maryland+Terrapins&sort=new&restrict_sr=on&limit=20",
+   "name": "Reddit/CFB"
+  },
+  {
+   "url": "https://www.reddit.com/r/CollegeBasketball/search.json?q=Maryland+Terrapins&sort=new&restrict_sr=on&limit=20",
+   "name": "Reddit/CollegeBasketball"
+  },
+  {
+   "url": "https://www.reddit.com/r/CFBRecruiting/search.json?q=Maryland&sort=new&restrict_sr=on&limit=20",
+   "name": "Reddit/CFBRecruiting"
+  },
+  {
+   "url": "https://www.reddit.com/r/bigten/search.json?q=Maryland+Terrapins&sort=new&restrict_sr=on&limit=15",
+   "name": "Reddit/bigten"
+  },
+  {
+   "url": "https://www.reddit.com/search.json?q=%22Maryland+Terrapins%22&sort=new&limit=25",
+   "name": "Reddit/sitewide"
+  }
+ ],
+ "watch": [
+  {
+   "label": "Coaches",
+   "names": [
+    "Mike Locksley",
+    "Buzz Williams",
+    "Brenda Frese",
+    "Ted Monachino",
+    "Clint Trickett",
+    "Aazaar Abdul-Rahim",
+    "Jeremy Shapiro",
+    "Latrell Scott",
+    "Kyle Schmitt",
+    "Andre Powell",
+    "Gary Williams",
+    "Dave Pietramala"
+   ]
+  },
+  {
+   "label": "FB commits 2026",
+   "names": [
+    "Zion Elee",
+    "Darrell Carey",
+    "Jamarcus Whyce",
+    "Javonte Williams",
+    "Jesse Moody",
+    "Ontario Washington Jr.",
+    "Chuck Roberts"
+   ]
+  },
+  {
+   "label": "FB commits 2027",
+   "names": [
+    "Myles McAfee",
+    "Levi Babin",
+    "Mekhi Graham",
+    "Davion Vanderbilt",
+    "Dallas Pauldo",
+    "Kenaz Sullivan",
+    "James Branch",
+    "Kyren Caldwell",
+    "Charles Roberts",
+    "Emerson Lewis",
+    "Jayden Agberodiola",
+    "Terrance Grant Jr.",
+    "Zeke Walkup",
+    "William Jackson",
+    "Anthony Henderson",
+    "Caleb Canty",
+    "Kendon Bauer",
+    "Shelvy Clark",
+    "Alex Fontenot",
+    "Abdus Kone",
+    "Kevin Jackson",
+    "Mason McClure"
+   ]
+  },
+  {
+   "label": "FB targets",
+   "names": [
+    "James Pace III",
+    "Anthony Jennings",
+    "Cahron Wheeler",
+    "Franklin Richardson"
+   ]
+  },
+  {
+   "label": "FB roster",
+   "names": [
+    "Malik Washington (Maryland QB)",
+    "Zahir Mathis",
+    "Sidney Stewart",
+    "Daniel Wingate (Maryland LB)",
+    "Dontay Joyner",
+    "Jamare Glasker",
+    "Messiah Delhomme",
+    "Justin Merriman",
+    "Lavain Scruggs",
+    "Jayden Shipps",
+    "Darrell Carey",
+    "Gavin Edwards"
+   ]
+  },
+  {
+   "label": "BK roster",
+   "names": [
+    "Pharrel Payne",
+    "Andre Mills",
+    "DJ Wagner",
+    "Tomislav Buljan",
+    "Bishop Boswell",
+    "Kaden House",
+    "Austin Brown",
+    "Adama Tambedou",
+    "Robert Jennings",
+    "Baba Oladotun",
+    "Guillermo del Pino",
+    "Alexandre K'Medehouto",
+    "George Turkson",
+    "Michael McNair",
+    "Maban Jabriel",
+    "Lukas Sotell"
+   ]
+  },
+  {
+   "label": "BK targets",
+   "names": [
+    "Amir Jenkins",
+    "Beau Daniels",
+    "Markus Kerr",
+    "Corey Dixon"
+   ]
+  },
+  {
+   "label": "NFL alumni",
+   "names": [
+    "DJ Moore",
+    "Stefon Diggs",
+    "Chig Okonkwo",
+    "Nick Cross",
+    "Tai Felton",
+    "DJ Glaze",
+    "Deonte Banks",
+    "Jakorian Bennett",
+    "Tarheeb Still",
+    "Corey Bullock",
+    "Jalil Farooq",
+    "Shaleak Knotts",
+    "Dante Trader Jr.",
+    "Kaden Prather",
+    "Ruben Hyppolite II",
+    "Jeshaun Jones"
+   ],
+   "alumni": true
+  },
+  {
+   "label": "NBA alumni",
+   "names": [
+    "Derik Queen",
+    "Aaron Wiggins",
+    "Kevin Huerter",
+    "Joe Smith",
+    "Steve Blake",
+    "Buck Williams",
+    "Len Elmore",
+    "Tom McMillen",
+    "Alex Len",
+    "Bruno Fernando",
+    "Jalen Smith"
+   ],
+   "alumni": true
+  },
+  {
+   "label": "WNBA alumni",
+   "names": [
+    "Kristi Toliver",
+    "Crystal Langhorne",
+    "Marissa Coleman"
+   ],
+   "alumni": true
+  },
+  {
+   "label": "Legends",
+   "names": [
+    "Juan Dixon",
+    "Greivis Vasquez",
+    "Len Bias",
+    "Albert King",
+    "Adrian Branch",
+    "John Lucas",
+    "Lonny Baxter",
+    "Walt Williams",
+    "Keith Booth",
+    "Johnny Rhodes",
+    "Terence Morris",
+    "Jake Layman",
+    "Dez Wells",
+    "Melo Trimble",
+    "Anthony Cowan",
+    "Nik Caner-Medley",
+    "Gene Shue",
+    "Derrick Lewis",
+    "Ernest Graham",
+    "Greg Manning",
+    "Keith Gatlin",
+    "Terrell Stokes",
+    "Eric Hayes",
+    "Duane Simpkins",
+    "Kevin McLinton",
+    "James Gist",
+    "Shawne Merriman",
+    "Boomer Esiason",
+    "Randy White",
+    "Vernon Davis",
+    "E.J. Henderson",
+    "Lydell Mitchell",
+    "Dominique Dawes",
+    "Thea LaFond",
+    "Quincy Wilson",
+    "Graham Zusi",
+    "Taylor Cummings",
+    "Frank Urso",
+    "Gary Gait"
+   ],
+   "alumni": true
+  },
+  {
+   "label": "Admin",
+   "names": [
+    "Jim Smith",
+    "Darryll Pines",
+    "Johnny Holliday",
+    "Damon Evans",
+    "Geroy Simon"
+   ]
+  },
+  {
+   "label": "Reporters/outlets to recognize as legitimate Terps coverage",
+   "names": [
+    "Testudo Times",
+    "TerpRecruiting",
+    "DBKSports",
+    "Ahmed Ghafir",
+    "Nolan Rogalski",
+    "Matt Germack"
+   ]
+  },
+  {
+   "label": "Podcasts",
+   "names": [
+    "Testudo Talk",
+    "Locked On Terps",
+    "Hear The Turtle",
+    "Under The Shell",
+    "Protect The Shell",
+    "Testudos and Touchdowns"
+   ]
+  }
+ ],
+ "pastEventExample": "Maryland-Georgetown basketball game",
+ "proLeagueExample": "NBA"
+}
