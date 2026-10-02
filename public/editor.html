@@ -170,6 +170,9 @@ button.btn:disabled{opacity:.6;cursor:default}
       <label for="pod-sample">Sample embed code (one episode)</label>
       <textarea id="pod-sample" rows="4" placeholder="Paste the embed code for any one episode, e.g. &lt;iframe src=&quot;…&quot;&gt;&lt;/iframe&gt;"></textarea>
       <div class="hint" id="pod-platform-hint" style="margin-top:4px"></div>
+      <label for="pod-pos">Default spot in the article</label>
+      <div style="display:flex;align-items:center;gap:8px;font-size:12.5px;color:var(--muted)">Top <input id="pod-pos" type="range" min="1" max="10" step="1" value="10" oninput="document.getElementById('pod-pos-val').textContent=this.value" style="width:200px;padding:0"> Bottom <b id="pod-pos-val" style="color:var(--text)">10</b></div>
+      <div class="hint" style="margin-top:4px">1 puts the episode at the very top, 10 at the very end. Writers can still move it for any one article.</div>
       <div class="row"><button class="btn" onclick="savePodcastSettings()">Save podcast settings</button><button class="btn ghost" onclick="testPodcastEmbed(this)">Preview latest episode</button><span class="savedmsg" id="pod-saved" style="display:none">Saved</span></div>
       <div id="pod-test" style="margin-top:10px"></div>
     </div>
@@ -454,7 +457,13 @@ function updateModeHint(){
 
 async function runEdit(){
   var mode=document.getElementById('ed-mode').value;
-  var draft=document.getElementById('ed-draft').value.trim();
+  var draft=document.getElementById('ed-draft').value;
+  // The podcast embed sits in the draft as a marked block so the writer can
+  // see it; pull it out before the edit (so it isn't rewritten) and put it
+  // back at the end of the edited article instead.
+  var podMatch=draft.match(POD_BLOCK_RE);
+  window._queuedEpisode=podMatch?{name:'🎙️ Podcast episode',html:podMatch[1].trim()}:null;
+  draft=draft.replace(POD_BLOCK_RE,'').trim();
   if(draft.length<40){document.getElementById('ed-status').textContent='Paste a longer draft.';return;}
   var wi=document.getElementById('ed-writer').value;
   var w=getWriters();
@@ -611,7 +620,7 @@ function renderEdit(d){
   window._hotlinkMap={};
   (d.relatedIndex||[]).forEach(function(r){ if(r.url) window._hotlinkMap[r.url]=r.headline; });
   initHotlinkPreviews();
-  if(window._queuedEpisode){ embedPodcast(window._queuedEpisode.name, window._queuedEpisode.html); }
+  if(window._queuedEpisode){ embedPodcast(window._queuedEpisode.name, window._queuedEpisode.html, window._podPos); }
 }
 
 // Delegated on #ed-result (not the article div itself) so it keeps working
@@ -650,7 +659,7 @@ function toggleInsert(i){
   var at=addedInserts.map(function(x){return x.idx;}).indexOf(i);
   if(at===-1){
     var def=(window._availableInserts[i].placement||'end');
-    if(PLACEMENTS.indexOf(def)===-1) def='end';
+    if(PLACEMENTS.indexOf(def)===-1 && !/^pos\d{1,2}$/.test(def)) def='end';
     addedInserts.push({idx:i,placement:def});
   } else addedInserts.splice(at,1);
   var on=addedInserts.some(function(x){return x.idx===i;});
@@ -659,6 +668,7 @@ function toggleInsert(i){
   renderInsertControls();
   renderInsertPreview();
 }
+function podPosNum(pl){ var m=/^pos(\d{1,2})$/.exec(pl||''); return m?+m[1]:10; }
 function setInsertPos(i,val){
   var e=addedInserts.filter(function(x){return x.idx===i;})[0];
   if(e){ e.placement=val; renderInsertPreview(); }
@@ -672,9 +682,11 @@ function renderInsertControls(){
       var name=window._availableInserts[e.idx].name||('Insert '+(e.idx+1));
       return '<div style="display:flex;align-items:center;gap:8px;padding:4px 0;font-size:13px">'+
         '<span style="flex:1">'+esc(name)+'</span>'+
-        '<select onchange="setInsertPos('+e.idx+',this.value)" style="font-size:12px;padding:3px 6px;border:1px solid var(--border);border-radius:5px">'+
-          PLACEMENTS.map(function(pl){return '<option value="'+pl+'"'+(pl===e.placement?' selected':'')+'>'+PLACE_LABEL[pl]+'</option>';}).join('')+
-        '</select>'+
+        (window._availableInserts[e.idx].podcast
+          ? '<label style="display:flex;align-items:center;gap:6px;margin:0;font-weight:400;font-size:12px;color:var(--muted)">Top <input type="range" min="1" max="10" step="1" value="'+podPosNum(e.placement)+'" oninput="setInsertPos('+e.idx+',\'pos\'+this.value);this.nextElementSibling.textContent=this.value" style="width:120px;padding:0"> <b style="color:var(--text);min-width:16px">'+podPosNum(e.placement)+'</b> Bottom</label>'
+          : '<select onchange="setInsertPos('+e.idx+',this.value)" style="font-size:12px;padding:3px 6px;border:1px solid var(--border);border-radius:5px">'+
+              PLACEMENTS.map(function(pl){return '<option value="'+pl+'"'+(pl===e.placement?' selected':'')+'>'+PLACE_LABEL[pl]+'</option>';}).join('')+
+            '</select>')+
         '<button class="btn ghost" style="padding:2px 8px;font-size:11px" onclick="toggleInsert('+e.idx+')">remove</button>'+
       '</div>';
     }).join('');
@@ -704,10 +716,11 @@ function loadPodcastSettingsForm(){
   pl.value=c.platform||'amperwave';
   document.getElementById('pod-feed').value=c.feedUrl||'';
   document.getElementById('pod-sample').value=c.sampleEmbed||'';
+  document.getElementById('pod-pos').value=c.position||10; document.getElementById('pod-pos-val').textContent=c.position||10;
   podPlatformHint();
 }
 function savePodcastSettings(){
-  var c={platform:document.getElementById('pod-platform').value,feedUrl:document.getElementById('pod-feed').value.trim(),sampleEmbed:document.getElementById('pod-sample').value.trim()};
+  var c={platform:document.getElementById('pod-platform').value,feedUrl:document.getElementById('pod-feed').value.trim(),sampleEmbed:document.getElementById('pod-sample').value.trim(),position:+document.getElementById('pod-pos').value||10};
   try{localStorage.setItem(LS_PODCAST,JSON.stringify(c));}catch(e){}
   window._podEpisodes=null;
   var m=document.getElementById('pod-saved'); if(m){m.style.display='inline';setTimeout(function(){m.style.display='none';},1500);}
@@ -747,18 +760,27 @@ async function embedLatestEpisode(btn){
   }catch(e){ alertInline('podcast-list',e.message); }
   btn.disabled=false; btn.textContent=old;
 }
+// Marked block in the draft textarea holding the podcast embed code.
+var POD_BLOCK_RE=/\n*<!-- podcast -->([\s\S]*?)<!-- \/podcast -->\n*/;
 async function queueLatestEpisode(btn){
   var st=document.getElementById('pre-pod-status');
-  if(window._queuedEpisode){ window._queuedEpisode=null; btn.textContent='🎙️ Add latest podcast episode'; st.style.display='none'; st.innerHTML=''; return; }
+  var ta=document.getElementById('ed-draft');
+  if(POD_BLOCK_RE.test(ta.value)){
+    ta.value=ta.value.replace(POD_BLOCK_RE,'\n').replace(/\s+$/,'');
+    btn.textContent='🎙️ Add latest podcast episode'; st.style.display='none'; st.innerHTML=''; return;
+  }
   var old=btn.textContent; btn.disabled=true; btn.textContent='Loading…';
   try{
     var eps=await fetchEpisodes();
     if(!eps.length) throw new Error('No episodes found in your podcast feed.');
     var b=buildPodcastEmbed(eps[0],eps);
-    window._queuedEpisode={name:'🎙️ '+eps[0].title,html:b.html};
+    ta.value=ta.value.replace(/\s+$/,'')+'\n\n<!-- podcast -->\n'+b.html+'\n<!-- /podcast -->\n';
+    ta.scrollTop=ta.scrollHeight;
     btn.textContent='✓ Podcast added (click to remove)';
     st.style.display='block';
-    st.innerHTML='<div style="font-size:12px;color:var(--muted);margin-bottom:6px">This embed goes at the end of your article. You\u2019ll see it in place, and it\u2019s included when you copy, save or send the article.</div>'+b.html;
+    st.innerHTML='<div style="font-size:12px;color:var(--muted);margin-bottom:6px">Added the embed code for <b>'+esc(eps[0].title)+'</b> to your draft. It stays exactly as is when you edit, and it\u2019s included when you copy, save or send the article.</div>'+
+      '<label style="display:flex;align-items:center;gap:8px;margin:0 0 8px;font-size:12.5px">Where in the article: Top <input type="range" min="1" max="10" step="1" value="'+(window._podPos||getPodcastSettings().position||10)+'" oninput="window._podPos=+this.value;this.nextElementSibling.textContent=this.value" style="width:160px;padding:0"> <b>'+(window._podPos||getPodcastSettings().position||10)+'</b> Bottom</label>'+
+      '<div style="font-size:12px;color:var(--muted);margin-bottom:6px">Preview:</div>'+b.html;
   }catch(e){ btn.textContent=old; st.style.display='block'; st.innerHTML='<span style="color:var(--red);font-size:12px">'+esc(e.message)+'</span>'; }
   btn.disabled=false;
 }
@@ -799,9 +821,9 @@ async function testPodcastEmbed(btn){
   }catch(e){ out.innerHTML='<div style="font-size:12px;color:var(--red)">'+esc(e.message)+'</div>'; }
   btn.disabled=false; btn.textContent=old;
 }
-function embedPodcast(name,html){
+function embedPodcast(name,html,pos){
   window._availableInserts=window._availableInserts||[];
-  window._availableInserts.push({name:name,tier:'both',placement:'end',html:html});
+  window._availableInserts.push({name:name,tier:'both',placement:'pos'+(pos||window._podPos||getPodcastSettings().position||10),html:html,podcast:true});
   var idx=window._availableInserts.length-1;
   toggleInsert(idx);
   var wrap=document.getElementById('insert-btns');
@@ -814,10 +836,11 @@ function renderInsertPreview(){
   art.innerHTML=window._articleBaseHtml||art.innerHTML;
   var blocks=Array.prototype.filter.call(art.children,function(n){return n.id!=='ed-insert-preview';});
   var n=blocks.length;
-  var idxFor=function(pl){ return pl==='top'?0 : pl==='early'?Math.min(3,n) : pl==='middle'?Math.floor(n/2) : n; };
+  var idxFor=function(pl){ var m=/^pos(\d{1,2})$/.exec(pl||''); if(m) return Math.round((Math.max(1,Math.min(10,+m[1]))-1)/9*n); return pl==='top'?0 : pl==='early'?Math.min(3,n) : pl==='middle'?Math.floor(n/2) : n; };
   // Insert from the end backwards so earlier indices stay valid.
   addedInserts.slice().sort(function(a,b){return idxFor(b.placement)-idxFor(a.placement);}).forEach(function(e){
     var wrap=document.createElement('div');
+    wrap.className='ins-prev';
     wrap.style.cssText='border-left:3px solid var(--red);padding-left:10px;margin:14px 0;opacity:.9';
     wrap.innerHTML=window._availableInserts[e.idx].html;
     var k=idxFor(e.placement);
@@ -1025,8 +1048,12 @@ function copyMd(btn){
 // plain text. Modern Clipboard API (works over HTTPS, which this site always is)
 // with the old execCommand path kept as a last-resort fallback.
 async function copyArticle(btn){
-  var el=document.getElementById('ed-article'); if(!el)return;
-  var reset=function(){setTimeout(function(){btn.textContent='Copy article';},1500);};
+  var src=document.getElementById('ed-article'); if(!src)return;
+  // Copy without the editor's red preview frame around inserts and embeds.
+  var el=src.cloneNode(true);
+  Array.prototype.forEach.call(el.querySelectorAll('.ins-prev'),function(w){ while(w.firstChild) w.parentNode.insertBefore(w.firstChild,w); w.parentNode.removeChild(w); });
+  el.style.cssText='position:fixed;left:-9999px;top:0'; document.body.appendChild(el);
+  var reset=function(){setTimeout(function(){btn.textContent='Copy article';},1500); if(el.parentNode) el.parentNode.removeChild(el);};
   try{
     if(navigator.clipboard && window.ClipboardItem){
       var item=new ClipboardItem({
