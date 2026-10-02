@@ -745,9 +745,11 @@ var LS_PODCAST='ims_editor_podcast';
 // built straight from the RSS feed (the ID is in the audio URL, link or guid),
 // so no sample embed code is needed. Each returns null when it can't find the
 // ID, and the editor falls back to a pasted sample or the plain audio player.
-// Amperwave and Libsyn don't expose a usable player ID in the feed, so they
-// rely on the pasted sample.
+// Libsyn doesn't expose a usable player ID in the feed, so it relies on the
+// pasted sample.
 var POD_TEMPLATES={
+  // Amperwave: the episode ID is the audio file's name (…/audio/8710434/8710434_2026-10-01-025634.192.mp3).
+  amperwave:function(ep){ var m=/\/audio\/\d+\/(\d+_\d{4}-\d{2}-\d{2}-\d{6})\./.exec(ep.audioUrl||''); return m?'<iframe width="100%" height="165px" frameBorder="0" src="https://player.amperwavepodcasting.com/?feed-link='+encodeURIComponent('https://rss.amperwave.net/v2/episode/'+m[1])+'&playerDisplay-download=false&withPlaylist=false&theme=blurred" allow="clipboard-write"></iframe>':null; },
   megaphone:function(ep){ var m=/megaphone\.fm\/([A-Z0-9]+)\.mp3/i.exec(ep.audioUrl||''); return m?'<iframe src="https://playlist.megaphone.fm?e='+m[1]+'" width="100%" height="200" frameborder="0" scrolling="no"></iframe>':null; },
   buzzsprout:function(ep){ var m=/buzzsprout\.com\/(\d+)\/(?:episodes\/)?(\d+)/i.exec((ep.audioUrl||'')+' '+(ep.page||'')); return m?'<iframe src="https://www.buzzsprout.com/'+m[1]+'/'+m[2]+'?client_source=small_player&iframe=true" loading="lazy" width="100%" height="200" frameborder="0" scrolling="no"></iframe>':null; },
   spreaker:function(ep){ var m=/spreaker\.com\/(?:download\/)?episode\/(\d+)/i.exec((ep.audioUrl||'')+' '+(ep.page||'')); return m?'<iframe src="https://widget.spreaker.com/player?episode_id='+m[1]+'&theme=light" width="100%" height="200" frameborder="0"></iframe>':null; },
@@ -755,7 +757,7 @@ var POD_TEMPLATES={
   simplecast:function(ep){ var g=(ep.guid||'').trim(); return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(g)?'<iframe height="200px" width="100%" frameborder="no" scrolling="no" seamless src="https://player.simplecast.com/'+g+'?dark=false"></iframe>':null; }
 };
 var POD_HINTS={
-  amperwave:'Amperwave: paste the embed player code from any one episode in your Amperwave dashboard. Amperwave’s feed doesn’t include its player ID, so this one sample is how the editor learns the format.',
+  amperwave:'Amperwave: built in. Episodes get the Amperwave player automatically. Only paste a sample if you want a different player style.',
   megaphone:'Megaphone: built in. Episodes get the Megaphone player automatically. Only paste a sample if you want a different player style.',
   buzzsprout:'Buzzsprout: built in. Episodes get the Buzzsprout player automatically. Only paste a sample if you want a different player style.',
   libsyn:'Libsyn: paste the embed player code from any one episode. Libsyn’s feed doesn’t include its player ID.',
