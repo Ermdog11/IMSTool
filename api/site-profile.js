@@ -3,6 +3,8 @@
 //   GET                                          -> { profile, houseStyle }   (any member)
 //   POST { profile: {...} }                      -> merge-save (publisher)
 //   POST { action:'suggest-names', ... }         -> AI-suggested people to watch (publisher)
+//   POST { action:'suggest-x', teamName, level } -> AI-suggested X accounts, checked against
+//                                                   X when it's connected (publisher)
 //   POST { action:'build-house-style', samples } -> AI-written house style guide from
 //                                                   sample articles, saved as the site's
 //                                                   house style (publisher)
@@ -70,6 +72,74 @@ async function suggestNames(body) {
   return { groups: (out.groups || []).slice(0, 12) };
 }
 
+// Suggested X accounts for the beat. Claude proposes handles; when the
+// newsroom has connected X, each one is looked up so only real, existing
+// accounts come back (with name, bio and follower count). Without X
+// connected they come back marked unverified.
+async function suggestXAccounts(body, sb) {
+  var team = String(body.teamName || '').slice(0, 200);
+  if (!team) throw new Error('Tell us which team or beat you cover first.');
+  var out = await callClaude(
+    'A newsroom covers this beat: ' + team + ' (' + String(body.level || 'college') + ').\n\n' +
+    'Suggest up to 20 X (Twitter) accounts a beat reporter would follow to catch news first: beat reporters and insiders who cover this team, ' +
+    'recruiting and transfer-portal reporters for it, the official team and athletics accounts, and local outlets that cover it. ' +
+    'Only include handles you are confident exist and belong to that person or outlet. Leave an account out rather than guess a handle.',
+    {
+      name: 'suggest_accounts',
+      description: 'Return suggested X accounts.',
+      input_schema: {
+        type: 'object',
+        properties: {
+          accounts: {
+            type: 'array',
+            items: {
+              type: 'object',
+              properties: {
+                handle: { type: 'string', description: 'X handle without the @' },
+                who: { type: 'string', description: 'Who this is, e.g. "Baltimore Sun Terps beat writer"' }
+              },
+              required: ['handle', 'who']
+            }
+          }
+        },
+        required: ['accounts']
+      }
+    }, 2000);
+  var seen = {};
+  var list = (out.accounts || []).map(function (a) {
+    return { handle: String(a.handle || '').replace(/^@/, '').trim(), who: String(a.who || '').slice(0, 160) };
+  }).filter(function (a) {
+    if (!/^[A-Za-z0-9_]{1,15}$/.test(a.handle) || seen[a.handle.toLowerCase()]) return false;
+    seen[a.handle.toLowerCase()] = 1;
+    return true;
+  }).slice(0, 20);
+  if (!list.length) return { accounts: [], verified: false };
+
+  var creds = await Store.getXSearch(sb);
+  if (!creds) return { accounts: list.map(function (a) { return Object.assign(a, { verified: false }); }), verified: false };
+
+  var r = await fetch('https://api.x.com/2/users/by?usernames=' + encodeURIComponent(list.map(function (a) { return a.handle; }).join(',')) +
+    '&user.fields=description,public_metrics,verified', { headers: { Authorization: 'Bearer ' + creds.bearerToken } });
+  var d = await r.json();
+  if (!d.data && d.errors && !d.errors.every(function (e) { return /not find|suspended/i.test(e.detail || e.title || ''); })) {
+    return { accounts: list.map(function (a) { return Object.assign(a, { verified: false }); }), verified: false, warning: 'Could not check the accounts with X right now.' };
+  }
+  var found = {};
+  (d.data || []).forEach(function (u) { found[u.username.toLowerCase()] = u; });
+  return {
+    verified: true,
+    accounts: list.filter(function (a) { return found[a.handle.toLowerCase()]; }).map(function (a) {
+      var u = found[a.handle.toLowerCase()];
+      return {
+        handle: u.username, name: u.name, who: a.who,
+        bio: String(u.description || '').slice(0, 200),
+        followers: (u.public_metrics || {}).followers_count || 0,
+        verified: true
+      };
+    })
+  };
+}
+
 async function buildHouseStyle(body) {
   var samples = String(body.samples || '').slice(0, 60000);
   if (samples.replace(/\s+/g, ' ').length < 1500) throw new Error('Paste at least two or three full articles so there is enough to learn from.');
@@ -117,6 +187,7 @@ module.exports = async function handler(req, res) {
   var body = req.body || {};
   try {
     if (body.action === 'suggest-names') return res.status(200).json(await suggestNames(body));
+    if (body.action === 'suggest-x') return res.status(200).json(await suggestXAccounts(body, ctx.supabase));
     if (body.action === 'build-house-style') {
       var built = await buildHouseStyle(body);
       await Store.saveHouseStyle(ctx.supabase, built.guide);

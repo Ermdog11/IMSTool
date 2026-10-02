@@ -61,7 +61,7 @@ Last updated: 2026-09-13
 
 | Feature | What it does for the customer |
 |---|---|
-| Setup wizard | A guided, nine-step setup at /setup: outlet and beat, core vs. occasional vs. skipped topics, people to watch (with AI suggestions), what counts as breaking news (plain choices per story type), house style built from your own articles, podcast, X accounts and your own site, and team invites. Saves as you go; the next scan uses it. |
+| Setup wizard | A guided, nine-step setup at /setup: outlet and beat, core vs. occasional vs. skipped topics, people to watch (with AI suggestions), X accounts to follow (AI suggestions checked against X), what counts as breaking news (plain choices per story type), house style built from your own articles, podcast, X accounts and your own site, and team invites. Saves as you go; the next scan uses it. |
 
 ## In progress
 

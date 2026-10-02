@@ -160,11 +160,15 @@ input:focus,select:focus,textarea:focus,button:focus-visible{outline:2px solid v
     </section>
 
     <!-- 6: sources -->
-    <section class="step" data-title="Sources">
-      <h1>Who else covers your beat?</h1>
-      <p class="lead">Add the X (Twitter) accounts of reporters and insiders on your beat. CoPublisher checks them on every scan, so you see their news first. Skip this if you don't use X.</p>
+    <section class="step" data-title="X accounts">
+      <h1>Which X accounts should we follow?</h1>
+      <p class="lead">Pick the X (Twitter) accounts of reporters, insiders and official team accounts on your beat. CoPublisher checks them on every scan, so you see their news first. Let us suggest some, or add your own. Skip this if you don't use X.</p>
+      <button type="button" class="btn ghost small" onclick="suggestX(this)">✨ Suggest accounts for me</button>
+      <div class="help">Suggestions come from AI. When your X connection is set up, each one is checked against X so only real accounts show.</div>
+      <div id="x-suggest"></div>
       <label for="f-x">X accounts to watch <span style="font-weight:400;color:var(--muted)">(up to 15)</span></label>
-      <textarea id="f-x" rows="4" placeholder="@reporter1&#10;@reporter2"></textarea>
+      <textarea id="f-x" rows="5" placeholder="@reporter1&#10;@reporter2"></textarea>
+      <div class="help" id="x-count"></div>
       <label for="f-own">Your own site addresses <span style="font-weight:400;color:var(--muted)">(so your own stories don't show up as alerts)</span></label>
       <textarea id="f-own" rows="2" placeholder="e.g. 247sports.com/college/maryland"></textarea>
     </section>
@@ -332,6 +336,39 @@ async function buildStyle(btn){
 }
 // --- step 5 ---
 function podHint(){ $('pod-hint').textContent=POD_HINTS[$('f-pod-platform').value]||''; }
+// --- step 6 ---
+function xList(){ return lines($('f-x').value).map(function(h){return h.replace(/^@/,'');}); }
+function countX(){ var n=xList().length; $('x-count').textContent=n?(n+' of 15'+(n>15?' — only the first 15 are checked':'')):''; $('x-count').style.color=n>15?'var(--red)':''; }
+$('f-x').addEventListener('input',countX);
+function fmtK(n){ return n>=1e6?(n/1e6).toFixed(1)+'M':n>=1e3?Math.round(n/1e3)+'K':String(n); }
+async function suggestX(btn){
+  var box=$('x-suggest'); var old=btn.textContent; btn.disabled=true; btn.textContent='Finding accounts…';
+  try{
+    var d=await api('/api/site-profile',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'suggest-x',teamName:$('f-team').value,level:level})});
+    if(d.error) throw new Error(d.error);
+    var have={}; xList().forEach(function(h){have[h.toLowerCase()]=1;});
+    var accts=(d.accounts||[]).filter(function(a){return !have[a.handle.toLowerCase()];});
+    if(!accts.length){ box.innerHTML='<div class="msg">No new suggestions. You may already have them all.</div>'; }
+    else{
+      box.innerHTML='<div class="box">'+(d.verified?'':'<div class="msg err" style="margin:0 0 6px">These couldn\u2019t be checked against X'+(d.warning?' ('+esc(d.warning)+')':', because X isn\u2019t connected')+'. Double-check each handle before adding it.</div>')+
+        accts.map(function(a,i){
+          return '<label style="display:flex;gap:10px;align-items:flex-start;font-weight:400;margin:0;padding:7px 0;border-top:'+(i?'1px solid var(--border)':'0')+'">'+
+            '<input type="checkbox" class="x-pick" value="'+esc(a.handle)+'" '+(i<8?'checked':'')+' style="width:auto;margin-top:3px">'+
+            '<span><b>@'+esc(a.handle)+'</b>'+(a.name?' · '+esc(a.name):'')+(a.followers?' <span style="color:var(--muted);font-size:12px">'+fmtK(a.followers)+' followers</span>':'')+
+            '<br><span style="font-size:12px;color:var(--muted)">'+esc(a.who||'')+(a.bio?' — '+esc(a.bio):'')+'</span></span></label>';
+        }).join('')+
+        '<div style="margin-top:8px"><button type="button" class="btn small" onclick="addPickedX()">Add selected</button></div></div>';
+    }
+  }catch(e){ box.innerHTML='<div class="msg err">'+esc(e.message)+'</div>'; }
+  btn.disabled=false; btn.textContent=old;
+}
+function addPickedX(){
+  var cur=xList(), seen={}; cur.forEach(function(h){seen[h.toLowerCase()]=1;});
+  document.querySelectorAll('.x-pick:checked').forEach(function(c){ if(!seen[c.value.toLowerCase()]){ seen[c.value.toLowerCase()]=1; cur.push(c.value); } });
+  $('f-x').value=cur.map(function(h){return '@'+h;}).join('\n');
+  $('x-suggest').innerHTML='';
+  countX();
+}
 // --- step 7 ---
 function addInviteRow(email,role){
   var row=document.createElement('div'); row.className='grid2 invite-row'; row.style.marginBottom='6px';
@@ -436,6 +473,7 @@ async function load(){
   var pod=profile.podcast||{};
   $('f-pod-platform').value=pod.platform||''; $('f-pod-feed').value=pod.feedUrl||''; $('f-pod-sample').value=pod.sampleEmbed||''; podHint();
   try{ var x=await api('/api/x-watch-handles'); $('f-x').value=(x.handles||[]).map(function(h){return '@'+h;}).join('\n'); }catch(e){}
+  countX();
   try{ var fp=await api('/api/feed-prefs'); $('f-own').value=(fp.ownSiteExclude||[]).join('\n'); }catch(e){}
   addInviteRow(); addInviteRow();
   if(profile.setupCompletedAt) maxReached=steps.length-1;
