@@ -67,6 +67,7 @@ button.btn:disabled{opacity:.6;cursor:default}
 
 <div class="nav">
   <button class="active" id="nav-0" onclick="show(0)">Copydesk</button>
+  <button id="nav-5" onclick="show(5)">Transcribe</button>
   <button id="nav-4" onclick="show(4)">House style</button>
   <button id="nav-1" onclick="show(1)">Writers</button>
   <button id="nav-2" onclick="show(2)">Inserts</button>
@@ -80,12 +81,16 @@ button.btn:disabled{opacity:.6;cursor:default}
 
   <div class="page active" id="page-0">
     <div class="card" id="copydesk-card">
-      <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap">
-        <h2 style="margin:0">Copydesk</h2>
-        <button class="btn ghost" id="pre-pod-latest" style="padding:6px 14px;font-size:12.5px" title="Tip: add it after the edit is complete to see exactly where the 1–10 position lands" onclick="queueLatestEpisode(this)">🎙️ Add latest podcast episode</button>
+      <div style="display:flex;align-items:flex-end;justify-content:space-between;gap:10px;flex-wrap:wrap;border-bottom:1px solid var(--border)">
+        <h2 style="margin:0 0 8px">Copydesk</h2>
+        <div style="display:flex;gap:2px;flex-wrap:wrap">
+          <button type="button" id="pre-tab-podcast" style="padding:7px 14px;font-size:13px;border:1px solid transparent;border-radius:8px 8px 0 0;background:transparent;cursor:pointer;font-family:inherit;margin-bottom:-1px" onclick="openPreTab('podcast')">🎙️ Podcast</button>
+          <button type="button" id="pre-tab-related" style="padding:7px 14px;font-size:13px;border:1px solid transparent;border-radius:8px 8px 0 0;background:transparent;cursor:pointer;font-family:inherit;margin-bottom:-1px" onclick="openPreTab('related')">🔗 Related links</button>
+          <button type="button" id="pre-tab-promos" style="padding:7px 14px;font-size:13px;border:1px solid transparent;border-radius:8px 8px 0 0;background:transparent;cursor:pointer;font-family:inherit;margin-bottom:-1px" onclick="openPreTab('promos')">📣 Promos</button>
+        </div>
       </div>
-      <div class="hint" style="margin-top:4px">Paste a draft. Pick a mode below. Always review before publishing &mdash; the editor can be wrong on facts.</div>
-      <div id="pre-pod-status" style="display:none;margin:0 0 12px;border:1px solid var(--border);border-radius:8px;padding:10px 12px;background:#fbfaf7"></div>
+      <div id="pre-panel" style="display:none;border:1px solid var(--border);border-top:0;border-radius:0 0 8px 8px;padding:12px 14px;background:#fbfaf7;margin-bottom:10px"></div>
+      <div class="hint" style="margin-top:8px">Paste a draft. Pick a mode below. Always review before publishing &mdash; the editor can be wrong on facts.</div>
       <div class="row">
         <div style="flex:1;min-width:200px">
           <label>Writer</label>
@@ -93,7 +98,7 @@ button.btn:disabled{opacity:.6;cursor:default}
         </div>
         <div style="flex:1;min-width:160px">
           <label>Tier</label>
-          <select id="ed-tier"><option value="free">Free</option><option value="vip">VIP</option></select>
+          <select id="ed-tier" onchange="if(preTab==='promos')renderPrePanel()"><option value="free">Free</option><option value="vip">VIP</option></select>
         </div>
         <div style="flex:1;min-width:160px">
           <label>Mode</label>
@@ -189,6 +194,32 @@ button.btn:disabled{opacity:.6;cursor:default}
       </div>
     </div>
 
+  </div>
+
+  <div class="page" id="page-5">
+    <div class="card">
+      <h2>Transcribe</h2>
+      <div class="hint">Turn an interview, press conference or podcast into text with each speaker labeled. Works with audio or video files up to 1GB. Names from your newsroom setup help it spell players and coaches right. Always check a quote against the audio before you publish it.</div>
+      <div id="tr-drop" style="border:2px dashed var(--border);border-radius:10px;padding:22px;text-align:center;background:#fbfaf7;cursor:pointer" onclick="document.getElementById('tr-file').click()">
+        <div style="font-size:15px;font-weight:600">🎧 Drop an audio or video file here</div>
+        <div style="font-size:12.5px;color:var(--muted);margin-top:4px">or click to choose one: MP3, M4A, WAV, MP4, MOV and more</div>
+        <input type="file" id="tr-file" accept="audio/*,video/*,.m4a,.mp3,.wav,.mp4,.mov,.aac,.ogg,.webm,.flac" style="display:none" onchange="if(this.files[0])transcribeFile(this.files[0]);this.value=''">
+      </div>
+      <div class="row" style="margin-top:12px;align-items:flex-end">
+        <div style="flex:1;min-width:240px">
+          <label>Or paste a direct link to an audio or video file</label>
+          <input id="tr-url" placeholder="https://…/episode.mp3">
+        </div>
+        <button class="btn ghost" style="margin-top:0" onclick="transcribeUrl()">Transcribe link</button>
+        <button class="btn ghost" style="margin-top:0" onclick="transcribeLatestEpisode(this)">🎙️ Latest podcast episode</button>
+      </div>
+      <div id="tr-status" style="display:none;margin-top:12px;font-size:13px"></div>
+    </div>
+    <div id="tr-result"></div>
+    <div class="card" id="tr-recent-card" style="display:none">
+      <h2 style="font-size:14px">Recent transcripts</h2>
+      <div id="tr-recent"></div>
+    </div>
   </div>
 
   <div class="page" id="page-3">
@@ -368,8 +399,8 @@ function setActive(i){
 }
 // House style has its own shareable URL (/house-style, rewritten to this page
 // in vercel.json); the other tabs keep their /editor#N hashes.
-function tabUrl(i){ return i===4 ? '/house-style' : '/editor'+(i?'#'+i:''); }
-function show(i){ setActive(i); if(i===2){renderPromos();loadPodcastSettingsForm();} if(i===3)loadDrafts(); try{history.pushState({t:i},'',tabUrl(i));}catch(e){} }
+function tabUrl(i){ return i===4 ? '/house-style' : i===5 ? '/transcribe' : '/editor'+(i?'#'+i:''); }
+function show(i){ setActive(i); if(i===2){renderPromos();loadPodcastSettingsForm();} if(i===3)loadDrafts(); if(i===5)renderRecentTranscripts(); try{history.pushState({t:i},'',tabUrl(i));}catch(e){} }
 window.addEventListener('popstate',function(e){ setActive((e.state&&e.state.t)||0); });
 
 async function saveGuide(){
@@ -601,7 +632,8 @@ function renderEdit(d){
     }).join('')+
     '<button class="btn ghost" style="margin:4px 6px 4px 0" onclick="embedLatestEpisode(this)">🎙️ Embed latest episode</button>'+
     '<button class="btn ghost" style="margin:4px 6px 4px 0" onclick="loadPodcastEpisodes(this)">Choose an episode</button>'+
-    '</div><div id="podcast-list" style="margin-top:8px"></div><div id="insert-added" style="margin-top:10px;"></div></div>';
+    '<button class="btn ghost" style="margin:4px 6px 4px 0" onclick="openRelatedBox()">🔗 Add related links</button>'+
+    '</div><div id="related-box" style="display:none;margin-top:8px;border:1px solid var(--border);border-radius:8px;padding:10px 12px;background:#fbfaf7"></div><div id="podcast-list" style="margin-top:8px"></div><div id="insert-added" style="margin-top:10px;"></div></div>';
 
   var src=(lastEdit&&lastEdit.sourceDraft)||'';
   if(src){
@@ -621,6 +653,8 @@ function renderEdit(d){
   (d.relatedIndex||[]).forEach(function(r){ if(r.url) window._hotlinkMap[r.url]=r.headline; });
   initHotlinkPreviews();
   if(window._queuedEpisode){ embedPodcast(window._queuedEpisode.name, window._queuedEpisode.html, window._podPos); }
+  if(window._relQueued){ openRelatedBox(); addRelatedLinks(document.querySelector('#related-box .btn')); }
+  (window._availableInserts||[]).forEach(function(p,i){ if(window._promoQueued[p.name] && !p.podcast && !p.related) toggleInsert(i); });
 }
 
 // Delegated on #ed-result (not the article div itself) so it keeps working
@@ -682,7 +716,7 @@ function renderInsertControls(){
       var name=window._availableInserts[e.idx].name||('Insert '+(e.idx+1));
       return '<div style="display:flex;align-items:center;gap:8px;padding:4px 0;font-size:13px">'+
         '<span style="flex:1">'+esc(name)+'</span>'+
-        (window._availableInserts[e.idx].podcast
+        (window._availableInserts[e.idx].podcast||window._availableInserts[e.idx].slider
           ? '<label style="display:flex;align-items:center;gap:6px;margin:0;font-weight:400;font-size:12px;color:var(--muted)">Top <input type="range" min="1" max="10" step="1" value="'+podPosNum(e.placement)+'" oninput="setInsertPos('+e.idx+',\'pos\'+this.value);this.nextElementSibling.textContent=this.value" style="width:120px;padding:0"> <b style="color:var(--text);min-width:16px">'+podPosNum(e.placement)+'</b> Bottom</label>'
           : '<select onchange="setInsertPos('+e.idx+',this.value)" style="font-size:12px;padding:3px 6px;border:1px solid var(--border);border-radius:5px">'+
               PLACEMENTS.map(function(pl){return '<option value="'+pl+'"'+(pl===e.placement?' selected':'')+'>'+PLACE_LABEL[pl]+'</option>';}).join('')+
@@ -791,29 +825,93 @@ async function embedLatestEpisode(btn){
 }
 // Marked block in the draft textarea holding the podcast embed code.
 var POD_BLOCK_RE=/\n*<!-- podcast -->([\s\S]*?)<!-- \/podcast -->\n*/;
-async function queueLatestEpisode(btn){
-  var st=document.getElementById('pre-pod-status');
-  var ta=document.getElementById('ed-draft');
-  if(POD_BLOCK_RE.test(ta.value)){
-    ta.value=ta.value.replace(POD_BLOCK_RE,'\n').replace(/\s+$/,'');
-    btn.textContent='🎙️ Add latest podcast episode'; st.style.display='none'; st.innerHTML=''; return;
+// ---- Copydesk add-on tabs (Podcast · Related links · Promos) ---------------
+// One strip across the top of Copydesk; each tab opens its panel below. What's
+// switched on here is applied to the finished article after the edit.
+var preTab=null;
+window._promoQueued=window._promoQueued||{};
+function preTabState(){
+  return {
+    podcast:POD_BLOCK_RE.test(document.getElementById('ed-draft').value),
+    related:!!window._relQueued,
+    promos:Object.keys(window._promoQueued).length
+  };
+}
+function openPreTab(t){ preTab=(preTab===t?null:t); renderPrePanel(); }
+function renderPreTabs(){
+  var s=preTabState();
+  var lab={podcast:'🎙️ Podcast'+(s.podcast?' ✓':''),related:'🔗 Related links'+(s.related?' ✓':''),promos:'📣 Promos'+(s.promos?' ('+s.promos+')':'')};
+  ['podcast','related','promos'].forEach(function(t){
+    var b=document.getElementById('pre-tab-'+t); if(!b) return;
+    b.textContent=lab[t];
+    var on=preTab===t, used=t==='promos'?s.promos>0:s[t];
+    b.style.background=on?'#fbfaf7':'transparent';
+    b.style.borderColor=on?'var(--border)':'transparent';
+    b.style.borderBottomColor=on?'#fbfaf7':'transparent';
+    b.style.color=used?'var(--red)':'var(--text)';
+    b.style.fontWeight=used||on?'600':'400';
+  });
+}
+function renderPrePanel(){
+  renderPreTabs();
+  var p=document.getElementById('pre-panel');
+  if(!preTab){ p.style.display='none'; p.innerHTML=''; return; }
+  p.style.display='block';
+  if(preTab==='podcast') p.innerHTML=podcastPanel();
+  else if(preTab==='related') p.innerHTML=relatedPanel();
+  else p.innerHTML=promosPanel();
+}
+var TIP_STYLE='font-size:12.5px;color:var(--text);background:var(--amber-bg);border:1px solid #f0dc8a;border-radius:6px;padding:7px 9px;margin:8px 0';
+function podcastPanel(){
+  var q=window._podQueuedInfo;
+  if(!preTabState().podcast||!q){
+    return '<div style="font-size:12.5px;margin-bottom:8px">Add your latest episode’s player to this article.</div>'+
+      '<button class="btn" style="margin:0" onclick="queueLatestEpisode(this)">Add latest episode</button>'+
+      '<div style="'+TIP_STYLE+'"><b>Tip:</b> the 1–10 position is counted on the finished article, so it’s easiest to add the podcast <b>after the edit is complete</b>. Run the edit, then use <b>Embed latest episode</b> in the Inserts card and slide it until it sits where you want.</div>';
   }
+  var pos=window._podPos||getPodcastSettings().position||10;
+  return '<div style="font-size:12.5px;margin-bottom:6px">Added the embed code for <b>'+esc(q.title)+'</b> to your draft. It stays exactly as is when you edit, and it’s included when you copy, save or send the article.</div>'+
+    '<div style="'+TIP_STYLE+'"><b>Tip:</b> the 1–10 position is counted on the finished article, so it’s easiest to add the podcast <b>after the edit is complete</b>. You can slide it again in the Inserts card once the edit is done.</div>'+
+    '<label style="display:flex;align-items:center;gap:8px;margin:0 0 8px;font-weight:400;font-size:12.5px;color:var(--text)">Where in the article: Top <input type="range" min="1" max="10" step="1" value="'+pos+'" oninput="window._podPos=+this.value;this.nextElementSibling.textContent=this.value" style="width:160px;padding:0"> <b>'+pos+'</b> Bottom</label>'+
+    '<div style="font-size:12px;color:var(--muted);margin-bottom:6px">Preview:</div><div style="background:#fff;border:1px solid var(--border);border-radius:6px;padding:8px">'+q.html+'</div>'+
+    '<button class="btn ghost" style="margin:8px 0 0" onclick="removeQueuedEpisode()">Remove podcast</button>';
+}
+async function queueLatestEpisode(btn){
+  var ta=document.getElementById('ed-draft');
   var old=btn.textContent; btn.disabled=true; btn.textContent='Loading…';
   try{
     var eps=await fetchEpisodes();
     if(!eps.length) throw new Error('No episodes found in your podcast feed.');
     var b=buildPodcastEmbed(eps[0],eps);
-    ta.value=ta.value.replace(/\s+$/,'')+'\n\n<!-- podcast -->\n'+b.html+'\n<!-- /podcast -->\n';
+    ta.value=ta.value.replace(POD_BLOCK_RE,'\n').replace(/\s+$/,'')+'\n\n<!-- podcast -->\n'+b.html+'\n<!-- /podcast -->\n';
     ta.scrollTop=ta.scrollHeight;
-    btn.textContent='✓ Podcast added (click to remove)';
-    st.style.display='block';
-    st.innerHTML='<div style="font-size:12px;color:var(--muted);margin-bottom:6px">Added the embed code for <b>'+esc(eps[0].title)+'</b> to your draft. It stays exactly as is when you edit, and it\u2019s included when you copy, save or send the article.</div>'+
-      '<div style="font-size:12.5px;color:var(--text);background:var(--amber-bg);border:1px solid #f0dc8a;border-radius:6px;padding:7px 9px;margin-bottom:8px"><b>Tip:</b> the 1\u201310 position is counted on the finished article, so it\u2019s easiest to add the podcast <b>after the edit is complete</b>. Run the edit, then use <b>Embed latest episode</b> in the Inserts card and slide it until it sits where you want.</div>'+
-      '<label style="display:flex;align-items:center;gap:8px;margin:0 0 8px;font-size:12.5px">Where in the article: Top <input type="range" min="1" max="10" step="1" value="'+(window._podPos||getPodcastSettings().position||10)+'" oninput="window._podPos=+this.value;this.nextElementSibling.textContent=this.value" style="width:160px;padding:0"> <b>'+(window._podPos||getPodcastSettings().position||10)+'</b> Bottom</label>'+
-      '<div style="font-size:12px;color:var(--muted);margin-bottom:6px">Preview:</div>'+b.html;
-  }catch(e){ btn.textContent=old; st.style.display='block'; st.innerHTML='<span style="color:var(--red);font-size:12px">'+esc(e.message)+'</span>'; }
-  btn.disabled=false;
+    window._podQueuedInfo={title:eps[0].title,html:b.html};
+    renderPrePanel();
+  }catch(e){ btn.disabled=false; btn.textContent=old; btn.insertAdjacentHTML('afterend','<div style="color:var(--red);font-size:12px;margin-top:6px">'+esc(e.message)+'</div>'); }
 }
+function removeQueuedEpisode(){
+  var ta=document.getElementById('ed-draft');
+  ta.value=ta.value.replace(POD_BLOCK_RE,'\n').replace(/\s+$/,'');
+  window._podQueuedInfo=null; renderPrePanel();
+}
+function relatedPanel(){
+  var on=!!window._relQueued;
+  return '<div style="font-size:12.5px;margin-bottom:8px">Add a <b>Related</b> box of links to the article. They’re picked from the finished story after the edit, and no more than half will repeat links already in the text.</div>'+
+    relControls()+
+    '<button class="btn'+(on?' ghost':'')+'" style="margin:10px 0 0" onclick="window._relQueued=!window._relQueued;renderPrePanel()">'+(on?'✓ On for this article (turn off)':'Add related links to this article')+'</button>';
+}
+function promosPanel(){
+  var tier=document.getElementById('ed-tier').value;
+  var list=getPromos().filter(function(p){return (p.tier===tier||p.tier==='both') && (p.html||'').trim();});
+  var lbl={top:'top',early:'near the top',middle:'middle',end:'end'};
+  return '<div style="font-size:12.5px;margin-bottom:8px">Pick the promos to add to this '+(tier==='vip'?'VIP':'free')+' article. Each goes in at its usual spot; you can move it once the edit is done.</div>'+
+    (list.length?list.map(function(p){
+      var on=!!window._promoQueued[p.name];
+      return '<label style="display:flex;align-items:center;gap:8px;margin:0;padding:5px 0;font-weight:400;font-size:13px;color:var(--text)"><input type="checkbox" style="width:auto" '+(on?'checked ':'')+'onchange="togglePromoQueued(this.dataset.n,this.checked)" data-n="'+esc(p.name).replace(/"/g,'&quot;')+'"> '+esc(p.name)+' <span style="color:var(--muted);font-size:12px">('+(lbl[p.placement]||'end')+')</span></label>';
+    }).join(''):'<div style="font-size:12.5px;color:var(--muted)">No promos for this tier yet.</div>')+
+    '<div style="font-size:12px;margin-top:6px"><a href="#" onclick="show(2);return false">Manage promos</a></div>';
+}
+function togglePromoQueued(name,on){ if(on) window._promoQueued[name]=1; else delete window._promoQueued[name]; renderPreTabs(); }
 function alertInline(id,msg){var el=document.getElementById(id);if(el)el.innerHTML='<div style="font-size:12px;color:var(--red)">'+esc(msg)+'</div>';}
 async function loadPodcastEpisodes(btn){
   var box=document.getElementById('podcast-list');
@@ -861,6 +959,67 @@ function embedPodcast(name,html,pos){
   toggleInsert(idx);
   var wrap=document.getElementById('insert-btns');
   if(wrap){ var b=document.createElement('button'); b.className='btn ghost'; b.style.cssText='margin:4px 6px 4px 0;background:var(--red);color:#fff'; b.textContent='✓ '+name; b.setAttribute('data-ins',idx); b.onclick=function(){toggleInsert(idx);}; wrap.appendChild(b); }
+}
+
+// ---- Related links (/api/related-links) -----------------------------------
+// A "Related" block of 1-4 links, placed with the same 1-10 slider as the
+// podcast. Picked after the edit, from the finished article, so it can steer
+// clear of the links the edit already put in the text.
+var LS_RELATED='ims_editor_related';
+function getRelCfg(){
+  var c={}; try{c=JSON.parse(localStorage.getItem(LS_RELATED)||'{}')||{};}catch(e){}
+  return {count:c.count||3, scope:c.scope==='web'?'web':'site', position:c.position||10};
+}
+function setRelCfg(k,v){
+  var c=getRelCfg(); c[k]=v;
+  try{localStorage.setItem(LS_RELATED,JSON.stringify(c));}catch(e){}
+  document.querySelectorAll('.rel-ctl').forEach(function(el){ el.outerHTML=relControls(); });
+}
+function relControls(){
+  var c=getRelCfg();
+  var seg=function(k,v,label){ var on=c[k]===v; return '<button type="button" class="btn ghost" style="margin:0;padding:4px 11px;font-size:12.5px;'+(on?'background:var(--red);color:#fff;border-color:var(--red)':'')+'" onclick="setRelCfg(\''+k+'\','+(typeof v==='number'?v:'\''+v+'\'')+')">'+label+'</button>'; };
+  return '<div class="rel-ctl" style="display:flex;flex-direction:column;gap:8px;font-size:12.5px">'+
+    '<div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap"><span style="width:110px">How many links:</span>'+[1,2,3,4].map(function(n){return seg('count',n,String(n));}).join('')+'</div>'+
+    '<div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap"><span style="width:110px">Link to:</span>'+seg('scope','site','Our site only')+seg('scope','web','Anywhere on the web')+'</div>'+
+    '<label style="display:flex;align-items:center;gap:8px;margin:0;font-weight:400;font-size:12.5px;color:var(--text)"><span style="width:110px">Where:</span>Top <input type="range" min="1" max="10" step="1" value="'+c.position+'" onchange="setRelCfg(\'position\',+this.value)" oninput="this.nextElementSibling.textContent=this.value" style="width:160px;padding:0"> <b>'+c.position+'</b> Bottom</label>'+
+    '</div>';
+}
+function openRelatedBox(){
+  var box=document.getElementById('related-box');
+  if(!box) return;
+  box.style.display=box.style.display==='block'?'none':'block';
+  box.innerHTML=relControls()+'<div style="margin-top:8px"><button class="btn" style="margin:0" onclick="addRelatedLinks(this)">Find related links</button> <span id="related-status" style="font-size:12px;color:var(--muted);margin-left:6px"></span></div>';
+}
+function relatedBlockHtml(links){
+  return '<div class="related-links"><p><strong>RELATED</strong></p><ul>'+links.map(function(l){
+    return '<li><a href="'+esc(l.url).replace(/"/g,'&quot;')+'"'+(l.external?' target="_blank" rel="noopener"':'')+'>'+esc(l.headline)+'</a></li>';
+  }).join('')+'</ul></div>';
+}
+async function addRelatedLinks(btn){
+  var cfg=getRelCfg();
+  var st=document.getElementById('related-status');
+  var say=function(t,err){ if(st){ st.style.color=err?'var(--red)':'var(--muted)'; st.textContent=t; } };
+  var tmp=document.createElement('div'); tmp.innerHTML=window._articleBaseHtml||'';
+  var article=tmp.innerText||tmp.textContent||'';
+  var exclude=Array.prototype.map.call(tmp.querySelectorAll('a[href]'),function(a){return a.getAttribute('href');});
+  if(btn) btn.disabled=true;
+  say(cfg.scope==='web'?'Searching your coverage and the web…':'Searching your coverage…');
+  try{
+    var f=window.IMSAuth?IMSAuth.authFetch:fetch;
+    var r=await f('/api/related-links',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({article:article,count:cfg.count,scope:cfg.scope,exclude:exclude})});
+    var d=await r.json().catch(function(){return {};});
+    if(!r.ok) throw new Error(d.error||('HTTP '+r.status));
+    if(!d.links||!d.links.length) throw new Error(d.note||'No related links found.');
+    // Replace an earlier Related block rather than stacking a second one.
+    addedInserts.filter(function(e){return window._availableInserts[e.idx].related;}).forEach(function(e){ toggleInsert(e.idx); });
+    window._availableInserts.push({name:'🔗 Related links ('+d.links.length+')',tier:'both',placement:'pos'+cfg.position,html:relatedBlockHtml(d.links),slider:true,related:true});
+    var idx=window._availableInserts.length-1;
+    toggleInsert(idx);
+    var wrap=document.getElementById('insert-btns');
+    if(wrap){ var b=document.createElement('button'); b.className='btn ghost'; b.style.cssText='margin:4px 6px 4px 0;background:var(--red);color:#fff'; b.textContent='✓ 🔗 Related links ('+d.links.length+')'; b.setAttribute('data-ins',idx); b.onclick=function(){toggleInsert(idx);}; wrap.appendChild(b); }
+    say('Added '+d.links.length+' link'+(d.links.length>1?'s':'')+'. Slide it under “Added to this article” to move it.');
+  }catch(e){ say(e.message,true); }
+  if(btn) btn.disabled=false;
 }
 
 function renderInsertPreview(){
@@ -1113,16 +1272,167 @@ function copyStr(btn,s){
   document.body.removeChild(ta);
 }
 
+// ── Transcribe (/transcribe) ────────────────────────────────────────────────
+// Files go browser -> private Vercel Blob (client upload, so no 4.5MB body
+// limit) -> /api/transcribe streams them to AssemblyAI. Links go to AssemblyAI
+// directly. Transcript ids live in localStorage so recent ones can be reopened.
+var LS_TR='ims_editor_transcripts';
+var trState={id:null,data:null,names:{},timer:null};
+function trFetch(url,opts){ return (window.IMSAuth?IMSAuth.authFetch:fetch)(url,opts); }
+function trStatus(html,isErr){
+  var st=document.getElementById('tr-status');
+  st.style.display='block';
+  st.innerHTML=isErr?'<span style="color:var(--red)">'+html+'</span>':html;
+}
+function trRecent(){ try{return JSON.parse(localStorage.getItem(LS_TR)||'[]');}catch(e){return [];} }
+function trRemember(id,name){
+  var list=trRecent().filter(function(x){return x.id!==id;});
+  list.unshift({id:id,name:name,at:Date.now()});
+  try{localStorage.setItem(LS_TR,JSON.stringify(list.slice(0,15)));}catch(e){}
+}
+function trSaveNames(){
+  var list=trRecent(); list.forEach(function(x){ if(x.id===trState.id) x.names=trState.names; });
+  try{localStorage.setItem(LS_TR,JSON.stringify(list));}catch(e){}
+}
+function renderRecentTranscripts(){
+  var list=trRecent(), card=document.getElementById('tr-recent-card');
+  if(!card) return;
+  card.style.display=list.length?'block':'none';
+  document.getElementById('tr-recent').innerHTML=list.map(function(x){
+    return '<div style="display:flex;justify-content:space-between;gap:10px;padding:6px 0;border-top:1px solid var(--border)">'+
+      '<a href="#" onclick="openTranscript(\''+esc(x.id)+'\');return false">'+esc(x.name||x.id)+'</a>'+
+      '<span style="font-size:12px;color:var(--muted)">'+new Date(x.at).toLocaleString([], {month:'short',day:'numeric',hour:'numeric',minute:'2-digit'})+'</span></div>';
+  }).join('');
+}
+async function trStart(payload,name){
+  trStatus('<span class="spin" style="border-color:var(--border);border-top-color:var(--muted)"></span> Sending to the transcriber…');
+  var r=await trFetch('/api/transcribe',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(Object.assign({action:'start'},payload))});
+  var d=await r.json().catch(function(){return {};});
+  if(!r.ok||!d.id) throw new Error(d.error||('Could not start (HTTP '+r.status+')'));
+  trRemember(d.id,name); renderRecentTranscripts();
+  openTranscript(d.id);
+}
+async function transcribeFile(file){
+  if(file.size>1024*1024*1024) return trStatus('That file is over 1GB. Trim it or export the audio only.',true);
+  try{
+    trStatus('<span class="spin" style="border-color:var(--border);border-top-color:var(--muted)"></span> Uploading <b>'+esc(file.name)+'</b>… 0%');
+    var mod=await import('/vendor/blob-client.js');
+    var tok=window.IMSAuth?await IMSAuth.token():null;
+    var safe=file.name.replace(/[^A-Za-z0-9._-]+/g,'-').slice(-80)||'audio';
+    var blob=await mod.upload('transcribe/'+safe,file,{
+      access:'private', handleUploadUrl:'/api/transcribe', multipart:file.size>8*1024*1024,
+      contentType:file.type||'application/octet-stream',
+      headers:tok?{Authorization:'Bearer '+tok}:undefined,
+      onUploadProgress:function(p){ trStatus('<span class="spin" style="border-color:var(--border);border-top-color:var(--muted)"></span> Uploading <b>'+esc(file.name)+'</b>… '+Math.round(p.percentage)+'%'); }
+    });
+    await trStart({pathname:blob.pathname},file.name);
+  }catch(e){ trStatus(esc(e.message||String(e)),true); }
+}
+async function transcribeUrl(){
+  var u=document.getElementById('tr-url').value.trim();
+  if(!u) return trStatus('Paste a link first.',true);
+  try{ await trStart({url:u},u.split('/').pop().split('?')[0]||u); }catch(e){ trStatus(esc(e.message),true); }
+}
+async function transcribeLatestEpisode(btn){
+  btn.disabled=true;
+  try{
+    var eps=await fetchEpisodes();
+    if(!eps.length||!eps[0].audioUrl) throw new Error('Couldn’t find the latest episode’s audio. Check your podcast feed on the Inserts tab.');
+    await trStart({url:eps[0].audioUrl},'🎙️ '+eps[0].title);
+  }catch(e){ trStatus(esc(e.message),true); }
+  btn.disabled=false;
+}
+function openTranscript(id){
+  clearTimeout(trState.timer);
+  var rec=trRecent().filter(function(x){return x.id===id;})[0]||{};
+  trState={id:id,data:null,names:rec.names||{},name:rec.name||'',timer:null,t0:Date.now()};
+  document.getElementById('tr-result').innerHTML='';
+  trPoll();
+}
+async function trPoll(){
+  var id=trState.id;
+  try{
+    var r=await trFetch('/api/transcribe?id='+encodeURIComponent(id));
+    var d=await r.json();
+    if(id!==trState.id) return;
+    if(!r.ok) throw new Error(d.error||('HTTP '+r.status));
+    if(d.status==='error') throw new Error('Transcription failed: '+(d.error||'unknown error'));
+    if(d.status!=='completed'){
+      var secs=Math.round((Date.now()-trState.t0)/1000);
+      trStatus('<span class="spin" style="border-color:var(--border);border-top-color:var(--muted)"></span> Transcribing <b>'+esc(trState.name)+'</b>… '+(d.status==='queued'?'queued':'working')+' ('+secs+'s). An hour of audio usually takes a few minutes. You can leave this tab and come back to it under Recent transcripts.');
+      trState.timer=setTimeout(trPoll,5000);
+      return;
+    }
+    document.getElementById('tr-status').style.display='none';
+    trState.data=d; renderTranscript();
+  }catch(e){ trStatus(esc(e.message),true); }
+}
+function trTime(ms){
+  var s=Math.floor((ms||0)/1000), h=Math.floor(s/3600), m=Math.floor(s%3600/60), x=s%60;
+  return (h?h+':'+String(m).padStart(2,'0'):m)+':'+String(x).padStart(2,'0');
+}
+function trName(sp){ return trState.names[sp]||('Speaker '+sp); }
+function trUtterances(){
+  var d=trState.data||{};
+  return d.utterances&&d.utterances.length?d.utterances:[{speaker:'A',start:0,text:d.text||''}];
+}
+function renderTranscript(){
+  var us=trUtterances(), speakers=[];
+  us.forEach(function(u){ if(speakers.indexOf(u.speaker)<0) speakers.push(u.speaker); });
+  var dur=trState.data.duration?' · '+trTime(trState.data.duration*1000):'';
+  var h='<div class="card"><div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap">'+
+    '<h2 style="margin:0">'+esc(trState.name||'Transcript')+'<span style="font-weight:400;font-size:13px;color:var(--muted)">'+dur+'</span></h2>'+
+    '<div><button class="btn ghost" style="margin:0 6px 0 0" onclick="trCopyAll(this)">Copy all</button>'+
+    '<button class="btn ghost" style="margin:0" onclick="trAllToDraft()">Send to Copydesk</button></div></div>'+
+    '<div style="display:flex;gap:10px;flex-wrap:wrap;margin:12px 0 4px">'+speakers.map(function(sp){
+      return '<label style="margin:0;display:flex;align-items:center;gap:6px;font-weight:400">Speaker '+esc(sp)+' is '+
+        '<input value="'+esc(trState.names[sp]||'').replace(/"/g,'&quot;')+'" placeholder="name" style="width:150px;padding:5px 7px" onchange="trState.names[\''+esc(sp)+'\']=this.value.trim();trSaveNames();renderTranscript()"></label>';
+    }).join('')+'</div>'+
+    '<div class="hint" style="margin:0 0 6px">Click <b>Copy</b> to grab a quote, or <b>+ Draft</b> to drop it at the end of your Copydesk draft.</div>'+
+    us.map(function(u,i){
+      return '<div style="display:flex;gap:10px;padding:8px 0;border-top:1px solid var(--border)">'+
+        '<div style="width:120px;flex-shrink:0;font-size:12px"><div style="font-weight:600;color:var(--text)">'+esc(trName(u.speaker))+'</div><div style="color:var(--muted)">'+trTime(u.start)+'</div></div>'+
+        '<div style="flex:1;font-size:14px">'+esc(u.text)+'</div>'+
+        '<div style="flex-shrink:0;display:flex;flex-direction:column;gap:4px">'+
+          '<button class="btn ghost" style="margin:0;padding:3px 9px;font-size:11.5px" onclick="trCopyOne('+i+',this)">Copy</button>'+
+          '<button class="btn ghost" style="margin:0;padding:3px 9px;font-size:11.5px" onclick="trToDraft('+i+',this)">+ Draft</button></div></div>';
+    }).join('')+'</div>';
+  document.getElementById('tr-result').innerHTML=h;
+}
+function trPlain(){
+  return trUtterances().map(function(u){ return '['+trTime(u.start)+'] '+trName(u.speaker)+': '+u.text; }).join('\n\n');
+}
+function trFlash(btn,txt){ var o=btn.textContent; btn.textContent=txt; setTimeout(function(){btn.textContent=o;},1400); }
+function trCopyAll(btn){ navigator.clipboard.writeText(trPlain()).then(function(){trFlash(btn,'Copied ✓');}); }
+function trCopyOne(i,btn){ var u=trUtterances()[i]; navigator.clipboard.writeText('“'+u.text+'” — '+trName(u.speaker)).then(function(){trFlash(btn,'✓');}); }
+function trAppend(text){
+  var ta=document.getElementById('ed-draft');
+  var pod=ta.value.match(/\n*<!-- podcast -->[\s\S]*?<!-- \/podcast -->\n*$/);
+  var base=pod?ta.value.slice(0,pod.index):ta.value;
+  ta.value=base.replace(/\s+$/,'')+(base.trim()?'\n\n':'')+text+(pod?'\n\n'+pod[0].trim()+'\n':'');
+}
+function trToDraft(i,btn){ var u=trUtterances()[i]; trAppend('“'+u.text+'” '+trName(u.speaker)+' said.'); trFlash(btn,'Added ✓'); }
+function trAllToDraft(){ trAppend('TRANSCRIPT — '+(trState.name||'')+'\n\n'+trPlain()); show(0); }
+(function(){
+  var dz=document.getElementById('tr-drop'); if(!dz) return;
+  ['dragenter','dragover'].forEach(function(ev){ dz.addEventListener(ev,function(e){e.preventDefault();dz.style.borderColor='var(--red)';}); });
+  ['dragleave','drop'].forEach(function(ev){ dz.addEventListener(ev,function(e){e.preventDefault();dz.style.borderColor='';}); });
+  dz.addEventListener('drop',function(e){ var f=e.dataTransfer.files&&e.dataTransfer.files[0]; if(f) transcribeFile(f); });
+})();
+
 document.getElementById('sg').value=getGuide();
 loadGuideFromServer();
 renderWriters();
 renderPromos();
 loadPodcastSettingsForm();
 updateModeHint();
+renderPreTabs();
+document.getElementById('ed-draft').addEventListener('input',function(){ if(!POD_BLOCK_RE.test(this.value)) window._podQueuedInfo=null; renderPreTabs(); });
 (function(){
   var parts=(location.hash||'').replace('#','').split('/');
-  var i=/^\/house-style\/?$/.test(location.pathname) ? 4 : parseInt(parts[0],10);
-  if(i>=1&&i<=4){
+  var i=/^\/house-style\/?$/.test(location.pathname) ? 4 : /^\/transcribe\/?$/.test(location.pathname) ? 5 : parseInt(parts[0],10);
+  if(i>=1&&i<=5){
+    if(i===5) renderRecentTranscripts();
     setActive(i);
     if(i===3) loadDrafts().then(function(){ if(parts[1]) openDraft(parts[1]); });
   }
