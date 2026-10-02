@@ -1,0 +1,447 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CoPublisher AI — Set up your newsroom</title>
+<style>
+:root{--red:#cf0315;--red-dark:#a80210;--gold:#ffd520;--dark:#111;--border:#e8e6e1;--bg:#f7f6f3;--bg2:#fff;--text:#1a1a1a;--text2:#555;--muted:#888;--green:#3B6D11;--green-bg:#eaf3de;--blue:#0c447c;--blue-light:#e8f4ff;--amber-bg:#fff8e1;--amber:#8a6d00;}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:var(--bg);color:var(--text);font-size:14px;line-height:1.5}
+a{color:var(--blue)}
+.topbar{background:var(--dark);padding:0 20px;display:flex;align-items:center;justify-content:space-between;height:52px}
+.brand{color:#fff;font-size:15px;font-weight:600;text-decoration:none;display:flex;align-items:center;gap:10px}
+.brand .mark{width:30px;height:30px;background:var(--red);border-radius:6px;display:grid;place-items:center;font-size:11px;font-weight:800}
+.topbar a.out{color:#ccc;font-size:12px;text-decoration:none;border:.5px solid #555;padding:4px 12px;border-radius:20px}
+.wrap{max-width:820px;margin:0 auto;padding:24px 20px 60px}
+.steps{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:18px}
+.steps button{font-size:11.5px;font-weight:600;padding:6px 10px;border-radius:20px;border:1px solid var(--border);background:#fff;color:var(--text2);cursor:pointer}
+.steps button.done{background:var(--green-bg);border-color:#cfe3b5;color:var(--green)}
+.steps button.on{background:var(--red);border-color:var(--red);color:#fff}
+.bar{height:5px;background:var(--border);border-radius:3px;overflow:hidden;margin-bottom:22px}
+.bar span{display:block;height:100%;background:var(--red);transition:width .3s}
+.card{background:var(--bg2);border:1px solid var(--border);border-radius:12px;padding:24px}
+.card h1{font-size:22px;margin-bottom:6px}
+.card .lead{color:var(--text2);margin-bottom:18px;max-width:65ch}
+label{display:block;font-size:12.5px;font-weight:600;color:var(--text2);margin:14px 0 5px}
+.help{font-size:12px;color:var(--muted);margin-top:4px}
+input,select,textarea{width:100%;font-family:inherit;font-size:14px;border:1px solid var(--border);border-radius:7px;padding:10px;background:#fff;color:var(--text)}
+textarea{resize:vertical;line-height:1.5}
+input:focus,select:focus,textarea:focus,button:focus-visible{outline:2px solid var(--blue);outline-offset:1px}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:0 14px}
+.choices{display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:8px;margin-top:6px}
+.choice{border:1.5px solid var(--border);border-radius:9px;padding:12px;cursor:pointer;background:#fff;text-align:left;font:inherit}
+.choice b{display:block;font-size:13.5px}
+.choice span{font-size:12px;color:var(--muted)}
+.choice.on{border-color:var(--red);background:#fff5f5}
+.chips{display:flex;flex-wrap:wrap;gap:8px;margin-top:8px}
+.chip{font:inherit;font-size:13px;font-weight:600;padding:7px 12px;border-radius:20px;border:1.5px solid var(--border);background:#fff;cursor:pointer;color:var(--text2)}
+.chip[data-v="core"]{background:var(--red);border-color:var(--red);color:#fff}
+.chip[data-v="secondary"]{background:var(--amber-bg);border-color:#ecd98f;color:var(--amber)}
+.chip[data-v="ignore"]{background:#f1f0ec;color:#aaa;text-decoration:line-through}
+.legend{display:flex;gap:14px;flex-wrap:wrap;font-size:12px;color:var(--muted);margin-top:10px}
+.legend i{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:5px;vertical-align:-1px}
+.rule{display:grid;grid-template-columns:1fr auto;gap:12px;align-items:center;padding:10px 0;border-top:1px solid var(--border)}
+.rule:first-child{border-top:0}
+.seg{display:flex;border:1px solid var(--border);border-radius:8px;overflow:hidden}
+.seg button{font:inherit;font-size:12px;font-weight:600;padding:6px 9px;border:0;border-left:1px solid var(--border);background:#fff;color:var(--text2);cursor:pointer;white-space:nowrap}
+.seg button:first-child{border-left:0}
+.seg button.on[data-l="breaking"]{background:var(--red);color:#fff}
+.seg button.on[data-l="major"]{background:#e8833a;color:#fff}
+.seg button.on[data-l="normal"]{background:var(--blue);color:#fff}
+.seg button.on[data-l="low"]{background:#9a9a9a;color:#fff}
+.seg button.on[data-l="ignore"]{background:#d6d4cf;color:#555}
+.nav{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-top:24px;flex-wrap:wrap}
+.btn{font:inherit;background:var(--red);color:#fff;border:none;border-radius:8px;padding:10px 20px;font-size:14px;font-weight:600;cursor:pointer}
+.btn:hover{background:var(--red-dark)}
+.btn.ghost{background:transparent;color:var(--text);border:1px solid var(--border)}
+.btn.small{padding:7px 12px;font-size:12.5px}
+.btn:disabled{opacity:.6;cursor:default}
+.msg{font-size:12.5px;margin-top:8px}
+.msg.err{color:var(--red)}.msg.ok{color:var(--green)}
+.box{background:#fbfaf7;border:1px solid var(--border);border-radius:8px;padding:12px;margin-top:10px}
+.summary dt{font-size:12px;font-weight:700;color:var(--text2);margin-top:10px}
+.summary dd{font-size:13.5px}
+.notice{background:var(--amber-bg);border:1px solid #f0e2a8;border-radius:8px;padding:10px 12px;font-size:13px;margin-bottom:14px}
+.step{display:none}.step.on{display:block}
+@media (max-width:600px){.grid2{grid-template-columns:1fr}.rule{grid-template-columns:1fr}.seg{flex-wrap:wrap}}
+</style>
+</head>
+<body>
+<div class="topbar">
+  <a class="brand" href="/"><span class="mark">CP</span>CoPublisher AI</a>
+  <a class="out" href="/">Skip to the News Monitor &rarr;</a>
+</div>
+
+<div class="wrap">
+  <div id="steps" class="steps"></div>
+  <div class="bar"><span id="bar"></span></div>
+  <div id="notice"></div>
+
+  <div class="card">
+
+    <!-- 0: outlet -->
+    <section class="step" data-title="Your outlet">
+      <h1>Let's set up your newsroom</h1>
+      <p class="lead">A few quick questions so CoPublisher watches the right things and writes like you. Every step saves as you go, and you can change anything later.</p>
+      <div class="grid2">
+        <div><label for="f-outlet">Outlet name</label><input id="f-outlet" placeholder="e.g. InsideMDSports"></div>
+        <div><label for="f-website">Your website</label><input id="f-website" placeholder="e.g. 247sports.com/college/maryland"></div>
+      </div>
+      <label for="f-team">What do you cover?</label>
+      <input id="f-team" placeholder="e.g. Maryland Terrapins athletics">
+      <div class="help">The team, school or beat your readers come to you for.</div>
+      <label>What kind of beat is it?</label>
+      <div class="choices" id="f-level">
+        <button type="button" class="choice" data-v="college"><b>College team</b><span>A school's athletics</span></button>
+        <button type="button" class="choice" data-v="pro"><b>Pro team</b><span>An NFL, NBA, MLB or NHL team</span></button>
+        <button type="button" class="choice" data-v="high-school"><b>High school sports</b><span>A region or league</span></button>
+        <button type="button" class="choice" data-v="local"><b>Local news</b><span>A city or community</span></button>
+      </div>
+    </section>
+
+    <!-- 1: sports -->
+    <section class="step" data-title="Topics">
+      <h1>What do you cover most?</h1>
+      <p class="lead">Tap each one to cycle through <b>Core</b>, <b>Sometimes</b> and <b>Skip</b>. Core topics get full attention, Sometimes topics only surface when they're big, and Skipped topics are always rated lowest.</p>
+      <div class="chips" id="f-sports"></div>
+      <div class="legend"><span><i style="background:var(--red)"></i>Core</span><span><i style="background:#ecd98f"></i>Sometimes</span><span><i style="background:#d6d4cf"></i>Skip</span></div>
+      <label for="f-sport-add">Add another topic</label>
+      <div style="display:flex;gap:8px"><input id="f-sport-add" placeholder="e.g. Rowing"><button type="button" class="btn ghost small" onclick="addSport()">Add</button></div>
+    </section>
+
+    <!-- 2: people -->
+    <section class="step" data-title="People to watch">
+      <h1>Who should we watch for you?</h1>
+      <p class="lead">Coaches, players, recruits, executives, alumni. CoPublisher flags any news or social media buzz about them, often before it's reported widely. Put one name per line.</p>
+      <button type="button" class="btn ghost small" id="suggest-btn" onclick="suggestNames(this)">✨ Suggest names for me</button>
+      <div class="help">Suggestions come from AI and may be out of date. Review them before you save.</div>
+      <label for="f-names">Names to watch</label>
+      <textarea id="f-names" rows="12" placeholder="One name per line"></textarea>
+      <div class="help" id="names-count"></div>
+    </section>
+
+    <!-- 3: rules -->
+    <section class="step" data-title="What's breaking">
+      <h1>What counts as breaking news for you?</h1>
+      <p class="lead">Every story gets a splash rating from 1 to 5. <b>Breaking (5)</b> stories email your team right away with a drafted article. Pick a level for each kind of story. The defaults are a good starting point.</p>
+      <div id="f-rules"></div>
+      <label for="f-always">Anything else that's always breaking for you? <span style="font-weight:400;color:var(--muted)">(optional)</span></label>
+      <textarea id="f-always" rows="2" placeholder="e.g. Any news about our head coach's contract"></textarea>
+      <label for="f-never">Anything that's never breaking for you? <span style="font-weight:400;color:var(--muted)">(optional)</span></label>
+      <textarea id="f-never" rows="2" placeholder="e.g. Ticket promotions, uniform reveals"></textarea>
+    </section>
+
+    <!-- 4: voice -->
+    <section class="step" data-title="Your voice">
+      <h1>Teach it how you write</h1>
+      <p class="lead">Paste two or three of your published articles and CoPublisher writes a house style guide from them. Every edit and draft follows it. You can edit the guide any time at <a href="/house-style" target="_blank">/house-style</a>.</p>
+      <label for="f-samples">Sample articles</label>
+      <textarea id="f-samples" rows="8" placeholder="Paste the full text of two or three articles. Separate them with a blank line."></textarea>
+      <div style="margin-top:8px"><button type="button" class="btn ghost small" onclick="buildStyle(this)">✨ Build my house style</button></div>
+      <div class="msg" id="style-msg"></div>
+      <label for="f-style">Your house style guide</label>
+      <textarea id="f-style" rows="10" placeholder="Your guide appears here. You can also type or paste one."></textarea>
+    </section>
+
+    <!-- 5: podcast -->
+    <section class="step" data-title="Podcast">
+      <h1>Have a podcast?</h1>
+      <p class="lead">Writers can drop your latest episode into any article with one click, in your podcast platform's own player. Skip this step if you don't have one.</p>
+      <div class="grid2">
+        <div><label for="f-pod-platform">Podcast platform</label><select id="f-pod-platform" onchange="podHint()">
+          <option value="">No podcast</option><option value="amperwave">Amperwave</option><option value="megaphone">Megaphone</option><option value="buzzsprout">Buzzsprout</option><option value="libsyn">Libsyn</option><option value="spreaker">Spreaker</option><option value="simplecast">Simplecast</option><option value="transistor">Transistor</option><option value="other">Other</option>
+        </select></div>
+        <div><label for="f-pod-feed">Podcast RSS feed URL</label><input id="f-pod-feed" placeholder="https://…"></div>
+      </div>
+      <label for="f-pod-sample">Embed code for any one episode <span style="font-weight:400;color:var(--muted)">(optional)</span></label>
+      <textarea id="f-pod-sample" rows="3" placeholder="Paste the embed code your platform gives for an episode"></textarea>
+      <div class="help" id="pod-hint"></div>
+    </section>
+
+    <!-- 6: sources -->
+    <section class="step" data-title="Sources">
+      <h1>Who else covers your beat?</h1>
+      <p class="lead">Add the X (Twitter) accounts of reporters and insiders on your beat. CoPublisher checks them on every scan, so you see their news first. Skip this if you don't use X.</p>
+      <label for="f-x">X accounts to watch <span style="font-weight:400;color:var(--muted)">(up to 15)</span></label>
+      <textarea id="f-x" rows="4" placeholder="@reporter1&#10;@reporter2"></textarea>
+      <label for="f-own">Your own site addresses <span style="font-weight:400;color:var(--muted)">(so your own stories don't show up as alerts)</span></label>
+      <textarea id="f-own" rows="2" placeholder="e.g. 247sports.com/college/maryland"></textarea>
+    </section>
+
+    <!-- 7: team -->
+    <section class="step" data-title="Your team">
+      <h1>Invite your team</h1>
+      <p class="lead">Add the people who'll use CoPublisher. They get access the first time they sign in with that email. Writers can draft and edit; editors can also change settings.</p>
+      <div id="invites"></div>
+      <button type="button" class="btn ghost small" onclick="addInviteRow()">+ Add another person</button>
+      <div class="msg" id="invite-msg"></div>
+    </section>
+
+    <!-- 8: done -->
+    <section class="step" data-title="Done">
+      <h1>You're all set</h1>
+      <p class="lead">CoPublisher is now tuned to your newsroom. Your next scan uses these settings. Come back to <a href="/setup">/setup</a> any time to change them.</p>
+      <dl class="summary" id="summary"></dl>
+      <div class="nav" style="justify-content:flex-start">
+        <a class="btn" href="/" style="text-decoration:none">Open the News Monitor</a>
+        <a class="btn ghost" href="/editor" style="text-decoration:none">Open the Content Editor</a>
+      </div>
+    </section>
+
+    <div class="nav" id="nav">
+      <button type="button" class="btn ghost" id="back" onclick="go(-1)">&larr; Back</button>
+      <span class="msg" id="save-msg"></span>
+      <button type="button" class="btn" id="next" onclick="go(1)">Next &rarr;</button>
+    </div>
+  </div>
+</div>
+
+<script src="/supabase-config.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="/_auth.js"></script>
+<script>
+// Keep EVENTS/levels in sync with api/_rating-rules.js (same keys and defaults).
+var LEVELS=[['breaking','Breaking'],['major','Major'],['normal','Normal'],['low','Low'],['ignore','Ignore']];
+var EVENTS=[
+  ['commitment','A recruit commits or decommits','breaking'],
+  ['transfer','A player transfers in or out (portal entry or new school)','breaking'],
+  ['coaching_change','Head coach hired, fired or leaving','breaking'],
+  ['major_injury','Season-ending or major injury','breaking'],
+  ['legal','Suspension, arrest or legal trouble','breaking'],
+  ['assistant_change','Assistant coach or staff hire or departure','major'],
+  ['offer_visit','Scholarship offer or recruit visit','major'],
+  ['minor_injury','Day-to-day or minor injury update','major'],
+  ['game_result','Game result (the first report, not follow-ups)','normal'],
+  ['alumni_pro','Former players in the pros (routine coverage)','low'],
+  ['opponent_news',"Another team's recruiting or roster news",'low'],
+  ['weekly_media',"Coach's weekly show, press conference or podcast",'low'],
+  ['previews','Previews, predictions and rankings','low']
+];
+var SPORTS={
+  college:{core:['Football',"Men's basketball","Women's basketball"],secondary:['Baseball',"Men's lacrosse","Women's lacrosse",'Soccer'],ignore:['Volleyball','Softball','Wrestling','Track and field','Golf','Tennis','Field hockey','Swimming','Gymnastics']},
+  pro:{core:['Games and results','Roster moves','Injuries','Front office'],secondary:['Draft','Minor league / G League affiliate'],ignore:['Fantasy','Betting odds']},
+  'high-school':{core:['Football',"Boys' basketball","Girls' basketball",'Recruiting'],secondary:['Baseball','Softball','Soccer','Lacrosse','Wrestling'],ignore:['Tennis','Golf','Swimming']},
+  local:{core:['Local government','Schools','Public safety'],secondary:['Business','Development','High school sports'],ignore:['National politics','Celebrity news']}
+};
+var POD_HINTS={
+  amperwave:'Amperwave: open any episode in your Amperwave dashboard, copy its embed player code and paste it above.',
+  megaphone:'Megaphone: open an episode, choose Embed, copy the single-episode iframe.',
+  buzzsprout:'Buzzsprout: open an episode, click Embed, copy the iframe code.',
+  libsyn:'Libsyn: open an episode and copy its embed player code.',
+  spreaker:'Spreaker: open an episode, choose Embed and copy the code.',
+  simplecast:'Simplecast: open an episode, choose Embed and copy the iframe.',
+  transistor:'Transistor: open an episode, choose Embed and copy the single-episode iframe.',
+  other:'Paste the embed code your podcast host gives for any one episode.',
+  '':'No podcast? Leave this blank and continue.'
+};
+
+var steps=[].slice.call(document.querySelectorAll('.step'));
+var cur=0, profile={}, sportState={}, level='college', maxReached=0;
+
+function $(id){return document.getElementById(id);}
+function esc(s){var d=document.createElement('div');d.textContent=s==null?'':String(s);return d.innerHTML;}
+function lines(v){return String(v||'').split(/\n|,/).map(function(x){return x.trim();}).filter(Boolean);}
+var api=function(url,opts){ return (window.IMSAuth?IMSAuth.authFetch:fetch)(url,opts).then(function(r){return r.json();}); };
+
+function renderSteps(){
+  $('steps').innerHTML=steps.map(function(s,i){
+    var cls=i===cur?'on':(i<=maxReached?'done':'');
+    return '<button type="button" class="'+cls+'" onclick="jump('+i+')">'+(i+1)+'. '+esc(s.dataset.title)+'</button>';
+  }).join('');
+  $('bar').style.width=Math.round(cur/(steps.length-1)*100)+'%';
+  steps.forEach(function(s,i){s.classList.toggle('on',i===cur);});
+  $('back').style.visibility=cur===0?'hidden':'visible';
+  $('nav').style.display=cur===steps.length-1?'none':'flex';
+  $('next').textContent=cur===steps.length-2?'Finish':'Next →';
+  if(cur===steps.length-1) renderSummary();
+  window.scrollTo(0,0);
+}
+function jump(i){ if(i>maxReached) return; saveStep(cur).then(function(){cur=i;renderSteps();}); }
+async function go(d){
+  var btn=$('next'); btn.disabled=true;
+  var ok=d<0 || await saveStep(cur);
+  btn.disabled=false;
+  if(!ok) return;
+  cur=Math.max(0,Math.min(steps.length-1,cur+d));
+  maxReached=Math.max(maxReached,cur);
+  renderSteps();
+}
+
+// --- step 0 ---
+document.querySelectorAll('#f-level .choice').forEach(function(b){
+  b.onclick=function(){ setLevel(b.dataset.v, true); };
+});
+function setLevel(v, resetSports){
+  level=v||'college';
+  document.querySelectorAll('#f-level .choice').forEach(function(b){b.classList.toggle('on',b.dataset.v===level);});
+  if(resetSports || !Object.keys(sportState).length){
+    sportState={}; var d=SPORTS[level]||SPORTS.college;
+    ['core','secondary','ignore'].forEach(function(k){ d[k].forEach(function(n){sportState[n]=k;}); });
+    renderSports();
+  }
+}
+// --- step 1 ---
+function renderSports(){
+  $('f-sports').innerHTML=Object.keys(sportState).map(function(n){
+    return '<button type="button" class="chip" data-v="'+sportState[n]+'" data-n="'+esc(n)+'">'+esc(n)+'</button>';
+  }).join('');
+  document.querySelectorAll('#f-sports .chip').forEach(function(c){
+    c.onclick=function(){ var n=c.dataset.n, order=['core','secondary','ignore']; sportState[n]=order[(order.indexOf(sportState[n])+1)%3]; c.dataset.v=sportState[n]; };
+  });
+}
+function addSport(){ var v=$('f-sport-add').value.trim(); if(!v) return; sportState[v]='core'; $('f-sport-add').value=''; renderSports(); }
+// --- step 2 ---
+function countNames(){ var n=lines($('f-names').value).length; $('names-count').textContent=n?n+' names':''; }
+$('f-names').addEventListener('input',countNames);
+async function suggestNames(btn){
+  var old=btn.textContent; btn.disabled=true; btn.textContent='Finding names…';
+  try{
+    var d=await api('/api/site-profile',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'suggest-names',teamName:$('f-team').value,level:level,sports:Object.keys(sportState).filter(function(n){return sportState[n]==='core';})})});
+    if(d.error) throw new Error(d.error);
+    var have=lines($('f-names').value), seen={};
+    have.forEach(function(n){seen[n.toLowerCase()]=1;});
+    var add=[];
+    (d.groups||[]).forEach(function(g){ (g.names||[]).forEach(function(n){ if(!seen[n.toLowerCase()]){seen[n.toLowerCase()]=1;add.push(n);} }); });
+    $('f-names').value=have.concat(add).join('\n');
+    countNames();
+  }catch(e){ alert(e.message); }
+  btn.disabled=false; btn.textContent=old;
+}
+// --- step 3 ---
+function renderRules(rules){
+  $('f-rules').innerHTML=EVENTS.map(function(e){
+    var v=(rules&&rules[e[0]])||e[2];
+    return '<div class="rule"><div>'+esc(e[1])+'</div><div class="seg" data-k="'+e[0]+'">'+
+      LEVELS.map(function(l){return '<button type="button" data-l="'+l[0]+'" class="'+(l[0]===v?'on':'')+'">'+l[1]+'</button>';}).join('')+'</div></div>';
+  }).join('');
+  document.querySelectorAll('#f-rules .seg button').forEach(function(b){
+    b.onclick=function(){ b.parentNode.querySelectorAll('button').forEach(function(x){x.classList.toggle('on',x===b);}); };
+  });
+}
+function readRules(){ var out={}; document.querySelectorAll('#f-rules .seg').forEach(function(s){ var on=s.querySelector('button.on'); if(on) out[s.dataset.k]=on.dataset.l; }); return out; }
+// --- step 4 ---
+async function buildStyle(btn){
+  var m=$('style-msg'); var old=btn.textContent; btn.disabled=true; btn.textContent='Reading your articles…'; m.className='msg'; m.textContent='This takes about 30 seconds.';
+  try{
+    var d=await api('/api/site-profile',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'build-house-style',samples:$('f-samples').value,outletName:$('f-outlet').value})});
+    if(d.error) throw new Error(d.error);
+    $('f-style').value=d.guide; m.className='msg ok'; m.textContent='Done. Your house style is saved. Edit it below if anything is off.';
+  }catch(e){ m.className='msg err'; m.textContent=e.message; }
+  btn.disabled=false; btn.textContent=old;
+}
+// --- step 5 ---
+function podHint(){ $('pod-hint').textContent=POD_HINTS[$('f-pod-platform').value]||''; }
+// --- step 7 ---
+function addInviteRow(email,role){
+  var row=document.createElement('div'); row.className='grid2 invite-row'; row.style.marginBottom='6px';
+  var n=document.querySelectorAll('.invite-row').length;
+  row.innerHTML='<div><label for="inv-e'+n+'">Email</label><input id="inv-e'+n+'" class="inv-email" type="email" placeholder="name@example.com" value="'+esc(email||'')+'"></div>'+
+    '<div><label for="inv-r'+n+'">Role</label><select id="inv-r'+n+'" class="inv-role"><option value="writer">Writer</option><option value="editor">Editor</option><option value="publisher">Publisher</option></select></div>';
+  $('invites').appendChild(row);
+  if(role) row.querySelector('.inv-role').value=role;
+}
+
+// --- saving ---
+async function saveProfile(fields, extra){
+  var body=Object.assign({profile:fields},extra||{});
+  var d=await api('/api/site-profile',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
+  if(d.error) throw new Error(d.error);
+  if(d.profile) profile=d.profile;
+}
+async function saveStep(i){
+  var m=$('save-msg'); m.className='msg'; m.textContent='';
+  try{
+    if(i===0){
+      if(!$('f-outlet').value.trim()||!$('f-team').value.trim()){ m.className='msg err'; m.textContent='Add your outlet name and what you cover to continue.'; return false; }
+      await saveProfile({outletName:$('f-outlet').value.trim(),website:$('f-website').value.trim(),teamName:$('f-team').value.trim(),level:level});
+    } else if(i===1){
+      var sp={core:[],secondary:[],ignore:[]}; Object.keys(sportState).forEach(function(n){sp[sportState[n]].push(n);});
+      await saveProfile({sports:sp});
+    } else if(i===2){
+      await saveProfile({watchNames:lines($('f-names').value).slice(0,400)});
+    } else if(i===3){
+      await saveProfile({rules:readRules(),alwaysBreaking:$('f-always').value.trim(),neverBreaking:$('f-never').value.trim()});
+    } else if(i===4){
+      await saveProfile({},{houseStyle:$('f-style').value});
+    } else if(i===5){
+      var pod={platform:$('f-pod-platform').value,feedUrl:$('f-pod-feed').value.trim(),sampleEmbed:$('f-pod-sample').value.trim()};
+      await saveProfile({podcast:pod});
+      try{ localStorage.setItem('ims_editor_podcast',JSON.stringify(pod)); }catch(e){}
+    } else if(i===6){
+      var handles=lines($('f-x').value).map(function(h){return h.replace(/^@/,'');}).slice(0,15);
+      var x=await api('/api/x-watch-handles',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({handles:handles})});
+      if(x.error) throw new Error(x.error);
+      var own=lines($('f-own').value);
+      var w=$('f-website').value.trim(); if(w && own.indexOf(w)===-1) own.unshift(w);
+      var f=await api('/api/feed-prefs',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({ownSiteExclude:own})});
+      if(f.error) throw new Error(f.error);
+      await saveProfile({xHandles:handles});
+    } else if(i===7){
+      var sent=0, errs=[];
+      var rows=[].slice.call(document.querySelectorAll('.invite-row'));
+      for(var r=0;r<rows.length;r++){
+        var em=rows[r].querySelector('.inv-email').value.trim(); if(!em) continue;
+        var role=rows[r].querySelector('.inv-role').value;
+        var d=await api('/api/team',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'invite',email:em,role:role})});
+        if(d.error && !/already on the team/.test(d.error)) errs.push(em+': '+d.error); else sent++;
+      }
+      if(errs.length){ $('invite-msg').className='msg err'; $('invite-msg').textContent=errs.join(' · '); return false; }
+      await saveProfile({setupCompletedAt:new Date().toISOString()});
+    }
+    if(i<steps.length-1){ m.className='msg ok'; m.textContent='Saved'; setTimeout(function(){m.textContent='';},1200); }
+    return true;
+  }catch(e){
+    m.className='msg err'; m.textContent=e.message;
+    return false;
+  }
+}
+
+function renderSummary(){
+  var sp=profile.sports||{};
+  var rules=profile.rules||{};
+  var breaking=EVENTS.filter(function(e){return (rules[e[0]]||e[2])==='breaking';}).map(function(e){return e[1];});
+  var rows=[
+    ['Outlet',(profile.outletName||'')+(profile.teamName?' — '+profile.teamName:'')],
+    ['Core topics',(sp.core||[]).join(', ')||'—'],
+    ['People watched',((profile.watchNames||[]).length||0)+' names'],
+    ['Breaking news',breaking.join('; ')||'—'],
+    ['Podcast',profile.podcast&&profile.podcast.platform?profile.podcast.platform:'None'],
+    ['X accounts',(profile.xHandles||[]).map(function(h){return '@'+h;}).join(', ')||'None']
+  ];
+  $('summary').innerHTML=rows.map(function(r){return '<dt>'+esc(r[0])+'</dt><dd>'+esc(r[1])+'</dd>';}).join('');
+}
+
+// --- load existing settings ---
+async function load(){
+  if(window.IMSAuth){
+    var s=await IMSAuth.guard();
+    if(s && s.user && s.role && s.role!=='publisher'){
+      $('notice').innerHTML='<div class="notice">Only the publisher can change these settings. You can look around, but changes won\'t save.</div>';
+    }
+  }
+  try{
+    var d=await api('/api/site-profile');
+    profile=d.profile||{};
+    if(d.houseStyle) $('f-style').value=d.houseStyle;
+  }catch(e){ profile={}; }
+  $('f-outlet').value=profile.outletName||'';
+  $('f-website').value=profile.website||'';
+  $('f-team').value=profile.teamName||'';
+  if(profile.sports){ sportState={}; ['core','secondary','ignore'].forEach(function(k){(profile.sports[k]||[]).forEach(function(n){sportState[n]=k;});}); }
+  setLevel(profile.level||'college', false); renderSports();
+  $('f-names').value=(profile.watchNames||[]).join('\n'); countNames();
+  renderRules(profile.rules);
+  $('f-always').value=profile.alwaysBreaking||''; $('f-never').value=profile.neverBreaking||'';
+  var pod=profile.podcast||{};
+  $('f-pod-platform').value=pod.platform||''; $('f-pod-feed').value=pod.feedUrl||''; $('f-pod-sample').value=pod.sampleEmbed||''; podHint();
+  try{ var x=await api('/api/x-watch-handles'); $('f-x').value=(x.handles||[]).map(function(h){return '@'+h;}).join('\n'); }catch(e){}
+  try{ var fp=await api('/api/feed-prefs'); $('f-own').value=(fp.ownSiteExclude||[]).join('\n'); }catch(e){}
+  addInviteRow(); addInviteRow();
+  if(profile.setupCompletedAt) maxReached=steps.length-1;
+  renderSteps();
+}
+load();
+</script>
+</body>
+</html>

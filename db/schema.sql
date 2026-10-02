@@ -402,3 +402,8 @@ create policy "publisher deletes scrape sessions" on public.scrape_sessions
 insert into public.sites (slug, name, domain)
 values ('insidemdsports', 'InsideMDSports', '247sports.com/college/maryland')
 on conflict (slug) do nothing;
+
+-- Newsroom profile from the setup wizard (/setup, api/site-profile.js):
+-- outlet, beat, sports priorities, people to watch, breaking-news rules,
+-- podcast settings. One jsonb blob; api/scan.js reads it to tailor ratings.
+alter table public.site_settings add column if not exists profile jsonb not null default '{}'::jsonb;
