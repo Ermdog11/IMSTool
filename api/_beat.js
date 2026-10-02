@@ -52,16 +52,23 @@ function normalize(b) {
   b.relevanceWords = list(b.relevanceWords).map(function (s) { return s.toLowerCase(); });
   if (!b.relevanceWords.length) {
     var people = [];
-    (b.watch || []).forEach(function (g) { if (!g.alumni) people = people.concat(list(g.names)); });
+    (b.watch || []).forEach(function (g) { if (!g.alumni && Number(g.rating || 3) > 1) people = people.concat(list(g.names)); });
     b.relevanceWords = [t.name].concat(t.nicknames, b.keyFigures, people, b.primarySports.map(function (s) { return t.short + ' ' + s; }))
       .map(function (s) { return s.replace(/\s*\(.*?\)\s*/g, '').trim().toLowerCase(); }).filter(function (s) { return s.length > 3; });
   }
   b.topicStopwords = list(b.topicStopwords).length ? list(b.topicStopwords)
     : [t.short, t.school || '', t.conference || '', 'university', 'college', 'ncaa', 'the'].concat(t.nicknames).filter(Boolean).map(function (s) { return s.toLowerCase(); });
-  b.watch = (b.watch || []).map(function (g) { return { label: g.label || 'People', names: list(g.names), alumni: !!g.alumni, rating: g.rating }; })
-    .filter(function (g) { return g.names.length; });
-  b.outlets = b.outlets || [];
-  b.subreddits = list(b.subreddits);
+  b.watch = (b.watch || []).map(function (g) {
+    var o = { label: g.label || 'People', names: list(g.names), alumni: !!g.alumni };
+    if (g.rating) o.rating = Number(g.rating);
+    return o;
+  }).filter(function (g) { return g.names.length; });
+  // Communities: plain strings (seed) or { name, rating } (wizard).
+  ['subreddits', 'podcasts', 'youtube'].forEach(function (k) {
+    b[k] = (Array.isArray(b[k]) ? b[k] : list(b[k])).map(function (x) { return typeof x === 'string' ? { name: x } : x; })
+      .filter(function (x) { return x && x.name; });
+  });
+  b.outlets = (b.outlets || []).filter(function (o) { return o && o.name; });
   return b;
 }
 
@@ -74,8 +81,12 @@ async function getBeat(sb, siteSlug) {
       if (profile && profile.beat && profile.beat.team && profile.beat.team.name) saved = profile.beat;
     }
   } catch (e) { /* fall through to seed */ }
-  if (!saved && SEEDS[slug]) saved = SEEDS[slug]();
-  return normalize(saved || {});
+  // The saved profile is layered over the seed, so a newsroom with a
+  // hand-tuned seed (InsideMDSports) keeps its explicit feed list while the
+  // wizard edits names, outlets, people and ratings on top of it.
+  var seed = SEEDS[slug] ? SEEDS[slug]() : null;
+  if (seed && saved) saved = Object.assign({}, seed, saved, { team: Object.assign({}, seed.team, saved.team) });
+  return normalize(saved || seed || {});
 }
 
 // ── Feeds ─────────────────────────────────────────────────────────────────
@@ -126,9 +137,8 @@ function generateFeeds(b) {
 
   // The publisher's own list of outlets on this beat (from the wizard).
   b.outlets.forEach(function (o) {
-    if ((o.rating || 3) <= 1 || !o.name) return;
-    if (o.rss) feeds.push({ url: o.rss, name: o.name, src: o.name, requireBeat: true });
-    else if (o.domain) feeds.push({ url: gnews(names.slice(0, 2).map(function (n) { return 'site:' + o.domain + ' ' + quoted(n); }).join(' OR ')), name: o.name, src: o.name });
+    if (Number(o.rating || 3) <= 1) return;
+    var f = outletFeed(b, o); if (f) feeds.push(f);
   });
 
   feeds.push({ url: bing(mainName), name: 'Bing/team' });
@@ -136,15 +146,38 @@ function generateFeeds(b) {
   return feeds;
 }
 
+function outletFeed(b, o) {
+  var names = [b.team.name].concat(b.team.nicknames);
+  if (o.rss) return { url: o.rss, name: o.name, src: o.name, requireBeat: true };
+  if (o.domain) return { url: gnews(names.slice(0, 2).map(function (n) { return 'site:' + o.domain + ' ' + quoted(n); }).join(' OR ')), name: o.name, src: o.name };
+  return null;
+}
+function feedMatchesOutlet(f, o) {
+  var u = ''; try { u = decodeURIComponent(f.url).toLowerCase(); } catch (e) { u = String(f.url).toLowerCase(); }
+  if (o.domain && u.indexOf(String(o.domain).toLowerCase().replace(/^www\./, '')) !== -1) return true;
+  var n = String(o.name).toLowerCase();
+  return (f.src && f.src.toLowerCase() === n) || (f.name && f.name.toLowerCase() === n);
+}
 function feedsFor(b) {
-  var feeds = (b.feeds && b.feeds.length) ? b.feeds : generateFeeds(b);
-  return feeds.filter(function (f) { return (f.rating || 3) > 1; });
+  if (!(b.feeds && b.feeds.length)) return generateFeeds(b);
+  // Hand-tuned list: outlets the publisher rated 1 drop out, and outlets it
+  // added that the list doesn't already search get their own feed.
+  var off = b.outlets.filter(function (o) { return Number(o.rating || 3) <= 1; });
+  var feeds = b.feeds.filter(function (f) { return !off.some(function (o) { return feedMatchesOutlet(f, o); }); });
+  b.outlets.forEach(function (o) {
+    if (Number(o.rating || 3) <= 1 || feeds.some(function (f) { return feedMatchesOutlet(f, o); })) return;
+    var f = outletFeed(b, o); if (f) feeds.push(f);
+  });
+  return feeds;
 }
 
+function subName(s) { return String(s.name || s).replace(/^\/?r\//i, '').trim(); }
 function redditFor(b) {
-  if (b.reddit && b.reddit.length) return b.reddit;
-  var out = b.subreddits.slice(0, 3).map(function (s) {
-    s = s.replace(/^\/?r\//i, '');
+  var offSubs = b.subreddits.filter(function (s) { return Number(s.rating || 3) <= 1; }).map(function (s) { return subName(s).toLowerCase(); });
+  if (b.reddit && b.reddit.length) return b.reddit.filter(function (r) { return !offSubs.some(function (s) { return r.url.toLowerCase().indexOf('/r/' + s + '/') !== -1; }); });
+  var out = b.subreddits.filter(function (s) { return Number(s.rating || 3) > 1; })
+    .sort(function (x, y) { return Number(y.rating || 3) - Number(x.rating || 3); }).slice(0, 3).map(function (s) {
+    s = subName(s);
     return { url: 'https://www.reddit.com/r/' + s + '/new.json?limit=40', name: 'Reddit/' + s };
   });
   out.push({ url: 'https://www.reddit.com/search.json?q=' + encodeURIComponent(quoted(b.team.name)) + '&sort=new&limit=25', name: 'Reddit/sitewide' });
@@ -171,7 +204,7 @@ function ownArticleRegex(b) {
 }
 function alumniNames(b) {
   var out = [];
-  b.watch.forEach(function (g) { if (g.alumni) out = out.concat(g.names); });
+  b.watch.forEach(function (g) { if (g.alumni && Number(g.rating || 3) > 1) out = out.concat(g.names); });
   return out;
 }
 
@@ -179,7 +212,7 @@ function alumniNames(b) {
 function watchListText(b) {
   var t = b.team;
   return 'PEOPLE TO WATCH — current/recent ' + t.short + ' roster, commits, targets, staff, and alumni. Use this to confirm identity (see NAME COLLISIONS above) and to recognize names you might otherwise miss:\n' +
-    b.watch.map(function (g) { return g.label + ': ' + g.names.join(', '); }).join('\n');
+    b.watch.filter(function (g) { return Number(g.rating || 3) > 1; }).map(function (g) { return g.label + ': ' + g.names.join(', '); }).join('\n');
 }
 
 function primary(b) { return b.team.short + ' ' + b.primarySports.join(' or '); }
@@ -206,6 +239,38 @@ function deepPrompt(b) {
     (b.lowPrioritySports.length ? ' Stories primarily about ' + b.lowPrioritySports.slice(0, -1).join(', ') + ', or ' + b.lowPrioritySports[b.lowPrioritySports.length - 1].replace(/ & diving$/, '') + ' stay rating 1.' : '') + '\n\n';
 }
 
+// The publisher's 1-5 importance ratings from the setup wizard, as a note for
+// the rater. Unrated (3) items add nothing, so a newsroom that never rated
+// anything gets exactly the base prompt.
+function weightNote(b) {
+  var out = [];
+  function bucket(items, nameOf) {
+    var by = {};
+    items.forEach(function (x) { var r = Number(x.rating || 3); if (r !== 3 && r > 1) (by[r] = by[r] || []).push(nameOf(x)); });
+    return by;
+  }
+  var o = bucket(b.outlets, function (x) { return x.name; });
+  if (o[5] || o[4] || o[2]) {
+    out.push('SOURCE IMPORTANCE (the publisher\'s own ratings of the outlets on this beat):' +
+      (o[5] ? '\n- Must-watch (5): ' + o[5].join(', ') + '. Treat their reporting as the most credible on this beat; a real development they report deserves its full rating.' : '') +
+      (o[4] ? '\n- High (4): ' + o[4].join(', ') + '. Credible, regular sources.' : '') +
+      (o[2] ? '\n- Low (2): ' + o[2].join(', ') + '. Rarely matters to us; rate their stories one point lower unless they break real news first.' : ''));
+  }
+  var g = bucket(b.watch, function (x) { return x.label; });
+  if (g[5] || g[4] || g[2]) {
+    out.push('PEOPLE PRIORITY (the publisher\'s own ratings of the PEOPLE TO WATCH groups):' +
+      (g[5] ? '\n- Must-watch (5): ' + g[5].join('; ') + '. Any genuine news about these people is core to us; rate it one point higher than you otherwise would, within the rules above.' : '') +
+      (g[4] ? '\n- High (4): ' + g[4].join('; ') + '. Important to us.' : '') +
+      (g[2] ? '\n- Low (2): ' + g[2].join('; ') + '. Routine coverage of these people caps at 2; only major news rates higher.' : ''));
+  }
+  var c = bucket([].concat(b.subreddits, b.podcasts, b.youtube), function (x) { return x.name; });
+  if (c[5] || c[4] || c[2]) {
+    out.push('COMMUNITY AND SHOW IMPORTANCE (subreddits, podcasts and YouTube channels the publisher rated):' +
+      (c[5] ? '\n- Must-watch (5): ' + c[5].join(', ') : '') + (c[4] ? '\n- High (4): ' + c[4].join(', ') : '') + (c[2] ? '\n- Low (2): ' + c[2].join(', ') : ''));
+  }
+  return out.length ? '\n\n' + out.join('\n\n') : '';
+}
+
 function lowPriorityRegex(b) {
   if (!b.lowPrioritySports.length) return null;
   var parts = b.lowPrioritySports.map(function (s) {
@@ -219,5 +284,5 @@ module.exports = {
   getBeat: getBeat, normalize: normalize, generateFeeds: generateFeeds, feedsFor: feedsFor, redditFor: redditFor,
   isRelevant: isRelevant, topicStopRegex: topicStopRegex, ownDomainRegex: ownDomainRegex, ownArticleRegex: ownArticleRegex,
   alumniNames: alumniNames, ratingPrompt: ratingPrompt, deepPrompt: deepPrompt, watchListText: watchListText,
-  lowPriorityRegex: lowPriorityRegex, nick: nick
+  lowPriorityRegex: lowPriorityRegex, nick: nick, weightNote: weightNote
 };

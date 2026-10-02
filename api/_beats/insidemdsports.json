@@ -659,5 +659,137 @@
   }
  ],
  "pastEventExample": "Maryland-Georgetown basketball game",
- "proLeagueExample": "NBA"
+ "proLeagueExample": "NBA",
+ "outlets": [
+  {
+   "name": "Testudo Times",
+   "domain": "testudotimes.com",
+   "kind": "fan"
+  },
+  {
+   "name": "The Diamondback",
+   "domain": "dbknews.com",
+   "kind": "student"
+  },
+  {
+   "name": "UMTerps.com",
+   "domain": "umterps.com",
+   "kind": "official"
+  },
+  {
+   "name": "Baltimore Sun",
+   "domain": "baltimoresun.com",
+   "kind": "local"
+  },
+  {
+   "name": "Washington Post",
+   "domain": "washingtonpost.com",
+   "kind": "local"
+  },
+  {
+   "name": "Baltimore Banner",
+   "domain": "thebaltimorebanner.com",
+   "kind": "local"
+  },
+  {
+   "name": "PressBox",
+   "domain": "pressboxonline.com",
+   "kind": "local"
+  },
+  {
+   "name": "WBAL-TV",
+   "domain": "wbaltv.com",
+   "kind": "local"
+  },
+  {
+   "name": "WJZ/CBS Baltimore",
+   "domain": "cbsnews.com",
+   "kind": "local"
+  },
+  {
+   "name": "WUSA9",
+   "domain": "wusa9.com",
+   "kind": "local"
+  },
+  {
+   "name": "WTOP",
+   "domain": "wtop.com",
+   "kind": "local"
+  },
+  {
+   "name": "On3",
+   "domain": "on3.com",
+   "kind": "recruiting"
+  },
+  {
+   "name": "Rivals",
+   "domain": "rivals.com",
+   "kind": "recruiting"
+  },
+  {
+   "name": "MaxPreps",
+   "domain": "maxpreps.com",
+   "kind": "recruiting"
+  },
+  {
+   "name": "ESPN",
+   "domain": "espn.com",
+   "kind": "national"
+  },
+  {
+   "name": "The Athletic",
+   "domain": "nytimes.com",
+   "kind": "national"
+  },
+  {
+   "name": "CBS Sports",
+   "domain": "cbssports.com",
+   "kind": "national"
+  },
+  {
+   "name": "Yahoo Sports",
+   "domain": "sports.yahoo.com",
+   "kind": "national"
+  },
+  {
+   "name": "Sports Illustrated",
+   "domain": "si.com",
+   "kind": "national"
+  },
+  {
+   "name": "FOX Sports",
+   "domain": "foxsports.com",
+   "kind": "national"
+  },
+  {
+   "name": "Big Ten Network",
+   "domain": "btn.com",
+   "kind": "national"
+  },
+  {
+   "name": "College Hoops Today (Rothstein)",
+   "domain": "collegehoopstoday.com",
+   "kind": "national"
+  },
+  {
+   "name": "Inside The Black And Gold",
+   "domain": "insidetheblackandgold.net",
+   "kind": "fan"
+  }
+ ],
+ "subreddits": [
+  "MarylandTerrapins",
+  "CFB",
+  "CollegeBasketball",
+  "CFBRecruiting",
+  "bigten"
+ ],
+ "podcasts": [
+  "Testudo Talk",
+  "Locked On Terps",
+  "Hear The Turtle",
+  "Under The Shell",
+  "Protect The Shell",
+  "Testudos and Touchdowns"
+ ]
 }
