@@ -86,7 +86,27 @@ async function requireRole(req, minRole, opts) {
 // alert_prefs (absence of a row falls back to the type's default). Returns []
 // when Supabase isn't configured — callers then keep their existing hardcoded
 // recipient.
+// Breaking-news emails also go to everyone on the digest list (ALERT_EMAIL +
+// ALERT_EMAIL_EXTRA),
+// so adding someone there is enough to get them every email, without
+// inviting them to the team first (Jeff, 2026-10-02).
+function withDigestList(alertType, emails) {
+  if (alertType !== 'breaking') return emails;
+  var extra = require('./_mailer').digestList();
+  var seen = {};
+  return emails.concat(extra).filter(function (e) {
+    var k = e.toLowerCase();
+    if (seen[k]) return false;
+    seen[k] = true;
+    return true;
+  });
+}
+
 async function recipientsFor(alertType, siteSlug) {
+  return withDigestList(alertType, await teamRecipientsFor(alertType, siteSlug));
+}
+
+async function teamRecipientsFor(alertType, siteSlug) {
   if (!isConfigured()) return [];
   try {
     var prefsMod = require('./alert-prefs');

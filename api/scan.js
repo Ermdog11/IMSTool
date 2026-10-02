@@ -470,11 +470,23 @@ module.exports = async function handler(req, res) {
     // stories purely on recency before they were ever rated.
     stories = stories.sort(function(a, b) { return a.age - b.age; }).slice(0, 110);
 
+    // X-only pass (api/x-scan.js's 30-min cron): rate just the X posts. It used
+    // to send all ~110 news stories through the Claude rating call every 30
+    // minutes alongside a couple of X posts, re-rating the same articles the
+    // 3x/day digest already covers. That was most of the Anthropic bill
+    // (Jeff, 2026-10-02). No X posts this run → no Claude call at all.
+    if (body.xOnly) {
+      stories = stories.filter(function(s) { return s.source && s.source.charAt(0) === '@'; });
+      if (!stories.length) {
+        return res.status(200).json({ content: [{ type: 'text', text: '[]' }], overflow: [], videos: [], sources: [] });
+      }
+    }
+
     // Pull in YouTube videos (already quality-filtered by youtube.js — subs, AI-spam,
     // content-farm) and let the same Claude pass rate them for news value. High-rated
     // videos surface in the main feed / digest; the rest stay in the YouTube tab.
     var videoCount = 0;
-    try {
+    if (!body.xOnly) try {
       var ytHandler = require('./youtube.js');
       var ytQuery = { batch: '4' };
       if (userBlocked.length) ytQuery.blocked = userBlocked.join(',');

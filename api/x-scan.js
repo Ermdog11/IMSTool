@@ -117,7 +117,7 @@ module.exports = async function handler(req, res) {
       var fakeRes = { status: function() { return this; }, json: function(d) { resolve(d); return this; } };
       // deep:false — these are short-form social posts, not articles needing
       // a full-text re-read; speed matters more than the deep-read pass here.
-      scanHandler({ body: { deep: false, xSearch: true, xStorylines: storylineTopics, xWatchHandles: watchHandles } }, fakeRes).catch(reject);
+      scanHandler({ body: { deep: false, xSearch: true, xOnly: true, xStorylines: storylineTopics, xWatchHandles: watchHandles } }, fakeRes).catch(reject);
     });
     if (scanResult.error) throw new Error('Scan failed: ' + scanResult.error);
 

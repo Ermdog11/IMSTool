@@ -58,7 +58,17 @@ async function upsertFromDraft(doc) {
       updated_at: new Date().toISOString()
     };
 
-    var up = await sb.from('content_items').upsert(row, { onConflict: 'site_id,draft_id' }).select('id').single();
+    // Find-then-write instead of upsert(onConflict): the unique index on
+    // (site_id, draft_id) is partial (WHERE draft_id IS NOT NULL), and
+    // Postgres can't match a partial index to a plain ON CONFLICT target, so
+    // every upsert failed with "no unique or exclusion constraint matching".
+    var existing = row.draft_id
+      ? await sb.from('content_items').select('id').eq('site_id', siteId).eq('draft_id', row.draft_id).maybeSingle()
+      : { data: null };
+    if (existing.error) throw new Error(existing.error.message);
+    var up = existing.data
+      ? await sb.from('content_items').update(row).eq('id', existing.data.id).select('id').single()
+      : await sb.from('content_items').insert(row).select('id').single();
     if (up.error) throw new Error(up.error.message);
     return { ok: true, id: up.data && up.data.id };
   } catch (e) {

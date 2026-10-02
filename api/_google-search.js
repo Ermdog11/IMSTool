@@ -47,12 +47,23 @@ function looksLikeHubPage(url) {
   return HUB_URL_PATTERNS.some(function(re) { return re.test(url); });
 }
 
-async function runOne(query, apiKey, engineId) {
+async function fetchResults(query, apiKey, engineId, withSort) {
   var url = 'https://www.googleapis.com/customsearch/v1?key=' + encodeURIComponent(apiKey) +
     '&cx=' + encodeURIComponent(engineId) + '&q=' + encodeURIComponent(query) +
-    '&num=10&dateRestrict=d1&sort=date'; // past 1 day — matches the 3x/day cron cadence
+    '&num=10&dateRestrict=d1' + (withSort ? '&sort=date' : ''); // past 1 day — matches the 3x/day cron cadence
   var r = await fetch(url);
-  var d = await r.json();
+  return r.json();
+}
+
+async function runOne(query, apiKey, engineId) {
+  var d = await fetchResults(query, apiKey, engineId, true);
+  // sort=date is only accepted by engines whose sites expose date metadata;
+  // otherwise Google rejects the whole request with "Request contains an
+  // invalid argument" (seen on every digest run, 2026-10-02). Retry once
+  // without it — dateRestrict alone still keeps results to the past day.
+  if (d.error && /invalid argument/i.test(d.error.message || '')) {
+    d = await fetchResults(query, apiKey, engineId, false);
+  }
   if (d.error) throw new Error('Google Search: ' + (d.error.message || JSON.stringify(d.error)));
   return (d.items || [])
     .filter(function(item) { return item.link && !looksLikeHubPage(item.link); })
