@@ -26,6 +26,8 @@ There is no build step, bundler, test suite, or linter in this repo. It's plain 
 
 **`vercel.json` is the control plane.** Function timeouts (`maxDuration`), all cron schedules, the clean-URL rewrites that make each News Monitor section a real bookmarkable path, and cache headers all live here. A new cron job or a new top-level section needs an entry here or it silently won't run / won't route.
 
+**Beat profile, not hard-coded teams.** Anything about which team or topic a newsroom covers (feeds, watchlist, relevance words, rating-prompt wording, own site) belongs in that newsroom's beat profile (`api/_beat.js`, saved at `site_settings.profile.beat`, seeded from `api/_beats/<slug>.json`), never in code. Maryland is just InsideMDSports' profile. If you change the rating prompt, change the template in `_beat.js`.
+
 **Multi-tenant-shaped, single-tenant today.** Supabase (Postgres + Auth) models one `sites` row per newsroom, with `memberships` giving each user a role (`publisher` / `editor` / `writer`) per site. Only one site (`insidemdsports`) exists in practice, and its slug is hardcoded as a default (`SITE_SLUG`) across several modules — that's intentional shortcut, not an oversight, until a second tenant is real. `api/_supabase.js` is the shared server-side client plus `requireUser`/`requireRole` auth helpers; it **fails open** when Supabase env vars aren't set (the whole app runs with login effectively disabled), which is deliberate and should be preserved in any new endpoint that touches user data.
 
 **Three places data lives, chosen by shape:**
