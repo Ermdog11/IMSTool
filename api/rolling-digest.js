@@ -258,9 +258,9 @@ module.exports = async function handler(req, res) {
             try {
               mailToBreaking = await mailer.sendMail({
                 to: recipients,
-                subject: '🚨 Breaking: ' + draft.headline,
+                subject: ((story.rating || 0) >= 5 ? '🚨 Breaking: ' : 'Major story: ') + draft.headline,
                 html: '<div style="font-family:Arial,sans-serif;max-width:600px">' +
-                  '<p style="color:#b91c1c;font-weight:700">Auto-drafted from a breaking story — review before sending.</p>' +
+                  '<p style="color:#b91c1c;font-weight:700">CoPublisher AI drafted this from a ' + ((story.rating || 0) >= 5 ? 'breaking' : 'major') + ' story. Review it before publishing.</p>' +
                   '<h2 style="margin:10px 0">' + draft.headline + '</h2>' +
                   doc.html +
                   (draft.factsToCheck.length ? '<p style="margin-top:14px"><b>Verify before publishing:</b></p><ul>' + draft.factsToCheck.map(function(f) { return '<li>' + f + '</li>'; }).join('') + '</ul>' : '') +
@@ -272,7 +272,7 @@ module.exports = async function handler(req, res) {
           }
 
           await Chat.postSystemMessage(sb, {
-            senderName: 'IMSTool', kind: 'breaking', tag: 'Breaking News Alert',
+            senderName: 'CoPublisher AI', kind: 'breaking', tag: 'Breaking News Alert',
             text: draft.headline,
             meta: { headline: draft.headline, sourceUrl: story.url || null, draftId: id, reviewUrl: reviewUrl }
           });
