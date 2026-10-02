@@ -43,11 +43,21 @@ module.exports = async function handler(req, res) {
       var audio = enc ? enc[1] : '';
       if (!audio) return null;
       var pub = tag(it, 'pubDate');
+      var guid = tag(it, 'guid');
+      // Episode identifiers, for turning one pasted sample embed code into the
+      // same embed for any other episode (editor.html buildPodcastEmbed): long
+      // numeric IDs in the audio URL (Amperwave/Castfire: /audio/8710434/) and
+      // the guid. Ordered so the same position means the same kind of ID.
+      var ids = [];
+      (audio.match(/\d{5,}/g) || []).forEach(function (n) { if (ids.indexOf(n) === -1) ids.push(n); });
+      if (guid && ids.indexOf(guid) === -1) ids.push(guid);
       return {
         title: tag(it, 'title').replace(/&amp;/g, '&').replace(/&#39;/g, "'").replace(/&quot;/g, '"'),
         date: pub ? new Date(pub).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '',
         audioUrl: audio,
         page: tag(it, 'link'),
+        guid: guid,
+        ids: ids,
         duration: (it.match(/<itunes:duration>([^<]+)<\/itunes:duration>/i) || [])[1] || ''
       };
     }).filter(Boolean);
