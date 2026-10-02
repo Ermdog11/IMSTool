@@ -192,6 +192,7 @@ module.exports = async function handler(req, res) {
     // itself will sometimes reword a headline slightly ("heading" -> "headed"), which
     // silently defeated the old exact-match check for months.
     var ownTitleWordSets = [];
+    var ownHeadlines = []; // readable slugs of our own recent articles, fed to the rating prompt as context
     var blocklistSource = 'not run';
     function titleWords(t) {
       return (String(t).toLowerCase().match(/[a-z0-9]+/g) || []).filter(function(w) { return w.length > 2; });
@@ -262,10 +263,11 @@ module.exports = async function handler(req, res) {
         if (cfg.scrapeSlugs) {
           var slugMatches = xml.match(/\/college\/maryland\/(?:article|longformarticle)\/[a-z0-9-]+-\d{6,}/g) || [];
           var freshSlugWords = {};
+          var ownSlugTexts = [];
           slugMatches.forEach(function(m) {
             var slug = m.replace(/.*\/(?:article|longformarticle)\//, '').replace(/-\d{6,}$/, '').replace(/-/g, ' ');
             var words = titleWords(slug);
-            if (words.length >= 3) freshSlugWords[words.join(' ')] = words;
+            if (words.length >= 3 && !freshSlugWords[words.join(' ')]) { freshSlugWords[words.join(' ')] = words; ownSlugTexts.push(slug); }
           });
           var freshCount = Object.keys(freshSlugWords).length;
           var scrapeOk = results[gi].value.status === 200 && freshCount >= 10;
@@ -273,6 +275,7 @@ module.exports = async function handler(req, res) {
             var blobMod = require('@vercel/blob');
             if (scrapeOk) {
               Object.keys(freshSlugWords).forEach(function(k) { ownTitleWordSets.push(new Set(freshSlugWords[k])); });
+              ownHeadlines = ownSlugTexts.slice(0, 40);
               blocklistSource = 'live (' + freshCount + ')';
               // Best-effort persist; don't let a Blob hiccup affect the scan itself.
               blobMod.put('own-outlet-blocklist.json', JSON.stringify(Object.keys(freshSlugWords).map(function(k) { return freshSlugWords[k]; })), {
@@ -283,6 +286,7 @@ module.exports = async function handler(req, res) {
               if (cached && cached.statusCode === 200) {
                 var cachedWords = await new Response(cached.stream).json();
                 (cachedWords || []).forEach(function(words) { ownTitleWordSets.push(new Set(words)); });
+                ownHeadlines = (cachedWords || []).slice(0, 40).map(function(words) { return words.join(' '); });
                 blocklistSource = 'cached fallback (' + (cachedWords || []).length + ') — live scrape returned status ' + results[gi].value.status + ' with ' + freshCount + ' links';
               } else {
                 blocklistSource = 'UNAVAILABLE — live scrape status ' + results[gi].value.status + ', no cached fallback';
@@ -555,7 +559,23 @@ module.exports = async function handler(req, res) {
     // every call) can be prompt-cached, and only the story list + flagged-junk note
     // (different every scan) gets sent fresh. Cuts real wall-clock time on every run
     // after the first cache write (Jeff, 2026-09-21: scans taking ~5 min).
-    var dynamicPrompt = flaggedNote + '\n\nStories:\n' + storyList;
+    // Every scan (dashboard, digests, X scan): tell the rater what
+    // InsideMDSports itself has already published, so stories we've already
+    // covered aren't re-flagged as breaking, real gaps rate up, and our own
+    // beat priorities shape the scores (Jeff, 2026-10-02). Reuses the 247
+    // landing-page scrape the own-outlet filter already does — no extra fetch.
+    var ownCoverageNote = '';
+    if (ownHeadlines.length) {
+      ownCoverageNote = '\n\nOUR OWN RECENT COVERAGE — the latest articles InsideMDSports has published (taken from article URLs, so wording is approximate):\n' +
+        ownHeadlines.map(function(h) { return '- ' + h; }).join('\n') +
+        '\n\nUse this to judge each story against what we have already done:\n' +
+        '- ALREADY COVERED: if a story is about something we already published, it is not breaking for us. Rate it on whether it adds a genuinely new fact beyond our article; if not, cap it at 2.\n' +
+        '- FOLLOW-UP TO OUR STORY: a genuinely new development on something we covered (a status change, a decision, a new quote that moves it forward) is a natural next story for us. Rate it one point higher than you otherwise would, up to the normal ceiling for that kind of event.\n' +
+        '- GAP: a real Maryland story other outlets have that we have NOT covered is valuable. Rate it at least 3 if it is genuine Maryland news, and note "not yet covered by us" at the end of its summary.\n' +
+        '- OUR BEAT: topics we publish on often (judge from the list above) are core beat. A borderline story on a core-beat topic can rate one point higher; a topic we never cover stays where the normal rules put it.\n' +
+        'All of the NOT BREAKING, FOLLOW-UP COVERAGE and LOW-PRIORITY SPORTS rules above still apply and take precedence.';
+    }
+    var dynamicPrompt = flaggedNote + ownCoverageNote + '\n\nStories:\n' + storyList;
 
     var cr = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
