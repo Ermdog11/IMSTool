@@ -564,6 +564,16 @@ module.exports = async function handler(req, res) {
     // covered aren't re-flagged as breaking, real gaps rate up, and our own
     // beat priorities shape the scores (Jeff, 2026-10-02). Reuses the 247
     // landing-page scrape the own-outlet filter already does — no extra fetch.
+    // Newsroom profile from the setup wizard (/setup): the publisher's own
+    // breaking rules, sports priorities and extra names. Best-effort — no
+    // profile means the built-in rules above apply unchanged.
+    var siteProfile = {};
+    try {
+      var SProf = require('./_supabase.js');
+      if (SProf.isConfigured()) siteProfile = await require('./_settings-store.js').getProfile(SProf.admin());
+    } catch (e) { siteProfile = {}; }
+    var profileNote = require('./_rating-rules.js').promptBlock(siteProfile);
+
     var ownCoverageNote = '';
     if (ownHeadlines.length) {
       ownCoverageNote = '\n\nOUR OWN RECENT COVERAGE — the latest articles InsideMDSports has published (taken from article URLs, so wording is approximate):\n' +
@@ -575,7 +585,7 @@ module.exports = async function handler(req, res) {
         '- OUR BEAT: topics we publish on often (judge from the list above) are core beat. A borderline story on a core-beat topic can rate one point higher; a topic we never cover stays where the normal rules put it.\n' +
         'All of the NOT BREAKING, FOLLOW-UP COVERAGE and LOW-PRIORITY SPORTS rules above still apply and take precedence.';
     }
-    var dynamicPrompt = flaggedNote + ownCoverageNote + '\n\nStories:\n' + storyList;
+    var dynamicPrompt = flaggedNote + ownCoverageNote + profileNote + '\n\nStories:\n' + storyList;
 
     var cr = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
@@ -685,7 +695,8 @@ module.exports = async function handler(req, res) {
 
     // Editorial rule: sports we almost never write about are always filler (rating 1),
     // regardless of how Claude rated them.
-    var LOW_PRIORITY_SPORTS = /\b(volleyball|tennis|golf|cross[ -]country|wrestling|softball|field hockey|swimming|swim (?:and|&) dive)\b/i;
+    // A publisher's own "never cover" sports from the setup wizard replace this default list.
+    var LOW_PRIORITY_SPORTS = require('./_rating-rules.js').ignoreSportsRegex(siteProfile) || /\b(volleyball|tennis|golf|cross[ -]country|wrestling|softball|field hockey|swimming|swim (?:and|&) dive)\b/i;
     parsed.forEach(function(item) {
       var t = ((item.headline || '') + ' ' + (item.summary || '')).toLowerCase();
       if (LOW_PRIORITY_SPORTS.test(t)) { item.rating = 1; item.lowPriority = true; }

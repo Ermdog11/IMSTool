@@ -205,11 +205,43 @@ async function saveFeedPrefs(sb, fields) {
   return { ok: true };
 }
 
+// Newsroom profile from the setup wizard (/setup): outlet, beat, sports
+// priorities, people to watch, what counts as breaking, podcast. Stored as
+// one jsonb blob so the wizard can grow without a migration per field.
+// Best-effort read — no column yet (schema.sql not re-run) or no row just
+// means {} and every caller keeps its built-in defaults.
+async function getProfile(sb) {
+  try {
+    var siteId = await resolveSiteId(sb);
+    var q = await sb.from('site_settings').select('profile').eq('site_id', siteId).single();
+    if (q.error || !q.data || !q.data.profile) return {};
+    return q.data.profile;
+  } catch (e) {
+    return {};
+  }
+}
+
+// Shallow-merges `fields` into the stored profile (each wizard step saves only
+// its own keys).
+async function saveProfile(sb, fields) {
+  var siteId = await resolveSiteId(sb);
+  var current = await getProfile(sb);
+  var next = Object.assign({}, current, fields || {}, { updatedAt: new Date().toISOString() });
+  var up = await sb.from('site_settings').upsert({
+    site_id: siteId, profile: next, updated_at: new Date().toISOString()
+  }, { onConflict: 'site_id' });
+  if (up.error) throw new Error(/profile/.test(up.error.message)
+    ? 'The profile column is missing. Run db/schema.sql in the Supabase SQL editor, then try again.'
+    : up.error.message);
+  return next;
+}
+
 module.exports = {
   getHouseStyle: getHouseStyle, saveHouseStyle: saveHouseStyle,
   getWebSearch: getWebSearch, saveWebSearch: saveWebSearch, deleteWebSearch: deleteWebSearch,
   getXSearch: getXSearch, saveXSearch: saveXSearch, deleteXSearch: deleteXSearch,
   getXWatchHandles: getXWatchHandles, saveXWatchHandles: saveXWatchHandles,
   getGoogleSearch: getGoogleSearch, saveGoogleSearch: saveGoogleSearch, deleteGoogleSearch: deleteGoogleSearch,
-  getFeedPrefs: getFeedPrefs, saveFeedPrefs: saveFeedPrefs
+  getFeedPrefs: getFeedPrefs, saveFeedPrefs: saveFeedPrefs,
+  getProfile: getProfile, saveProfile: saveProfile
 };

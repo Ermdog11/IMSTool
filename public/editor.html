@@ -708,7 +708,17 @@ var POD_HINTS={
   transistor:'Transistor: open an episode, choose Embed, copy the single-episode iframe and paste it above.',
   other:'Paste the embed code your podcast host gives for any one episode.'
 };
-function getPodcastSettings(){try{return JSON.parse(localStorage.getItem(LS_PODCAST)||'{}')||{};}catch(e){return {};}}
+// This browser's saved settings, else the newsroom's (from the setup wizard).
+function getPodcastSettings(){
+  var c={}; try{c=JSON.parse(localStorage.getItem(LS_PODCAST)||'{}')||{};}catch(e){}
+  return Object.keys(c).length?c:(window._profilePodcast||{});
+}
+(function(){
+  var f=window.IMSAuth?IMSAuth.authFetch:fetch;
+  f('/api/site-profile').then(function(r){return r.json();}).then(function(d){
+    if(d&&d.profile&&d.profile.podcast){ window._profilePodcast=d.profile.podcast; if(typeof loadPodcastSettingsForm==='function') loadPodcastSettingsForm(); }
+  }).catch(function(){});
+})();
 function podPlatformHint(){var el=document.getElementById('pod-platform-hint');if(el)el.textContent=POD_HINTS[document.getElementById('pod-platform').value]||'';}
 function loadPodcastSettingsForm(){
   var c=getPodcastSettings();

@@ -110,7 +110,7 @@
       "headers": [{ "key": "Cache-Control", "value": "no-cache, no-store, must-revalidate" }]
     },
     {
-      "source": "/:section(alerts|digest|social|chat|backlog|recruiting|trending|podcasts|youtube|bluesky|settings|analytics|roster|editor|login|house-style)",
+      "source": "/:section(alerts|digest|social|chat|backlog|recruiting|trending|podcasts|youtube|bluesky|settings|analytics|roster|editor|login|house-style|setup)",
       "headers": [{ "key": "Cache-Control", "value": "no-cache, no-store, must-revalidate" }]
     }
   ],
