@@ -69,6 +69,15 @@ function normalize(b) {
       .filter(function (x) { return x && x.name; });
   });
   b.outlets = (b.outlets || []).filter(function (o) { return o && o.name; });
+  // "Block all results from this source": its stories are dropped wherever
+  // they show up (Google News, Bing, anywhere), not just its own feed.
+  b.outlets.forEach(function (o) {
+    if (!o.blocked) return;
+    [o.name, o.domain].forEach(function (x) {
+      x = String(x || '').toLowerCase().trim();
+      if (x && b.excludeSources.indexOf(x) === -1) b.excludeSources.push(x);
+    });
+  });
   return b;
 }
 
@@ -137,7 +146,7 @@ function generateFeeds(b) {
 
   // The publisher's own list of outlets on this beat (from the wizard).
   b.outlets.forEach(function (o) {
-    if (Number(o.rating || 3) <= 1) return;
+    if (o.blocked || Number(o.rating || 3) <= 1) return;
     var f = outletFeed(b, o); if (f) feeds.push(f);
   });
 
@@ -162,10 +171,10 @@ function feedsFor(b) {
   if (!(b.feeds && b.feeds.length)) return generateFeeds(b);
   // Hand-tuned list: outlets the publisher rated 1 drop out, and outlets it
   // added that the list doesn't already search get their own feed.
-  var off = b.outlets.filter(function (o) { return Number(o.rating || 3) <= 1; });
+  var off = b.outlets.filter(function (o) { return o.blocked || Number(o.rating || 3) <= 1; });
   var feeds = b.feeds.filter(function (f) { return !off.some(function (o) { return feedMatchesOutlet(f, o); }); });
   b.outlets.forEach(function (o) {
-    if (Number(o.rating || 3) <= 1 || feeds.some(function (f) { return feedMatchesOutlet(f, o); })) return;
+    if (o.blocked || Number(o.rating || 3) <= 1 || feeds.some(function (f) { return feedMatchesOutlet(f, o); })) return;
     var f = outletFeed(b, o); if (f) feeds.push(f);
   });
   return feeds;
@@ -249,7 +258,7 @@ function weightNote(b) {
     items.forEach(function (x) { var r = Number(x.rating || 3); if (r !== 3 && r > 1) (by[r] = by[r] || []).push(nameOf(x)); });
     return by;
   }
-  var o = bucket(b.outlets, function (x) { return x.name; });
+  var o = bucket(b.outlets.filter(function (x) { return !x.blocked; }), function (x) { return x.name; });
   if (o[5] || o[4] || o[2]) {
     out.push('SOURCE IMPORTANCE (the publisher\'s own ratings of the outlets on this beat):' +
       (o[5] ? '\n- Must-watch (5): ' + o[5].join(', ') + '. Treat their reporting as the most credible on this beat; a real development they report deserves its full rating.' : '') +

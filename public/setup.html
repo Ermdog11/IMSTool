@@ -84,6 +84,14 @@ input:focus,select:focus,textarea:focus,button:focus-visible{outline:2px solid v
 .group .head{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
 .group .head > input{flex:1;min-width:160px;font-weight:600}
 .rlegend{font-size:12px;color:var(--muted);margin-top:6px}
+.ac{position:relative}
+.ac-list{position:absolute;left:0;right:0;top:100%;z-index:20;background:#fff;border:1px solid var(--border);border-radius:8px;box-shadow:0 8px 24px rgba(0,0,0,.12);margin-top:3px;overflow:hidden;display:none}
+.ac-list div{padding:9px 12px;cursor:pointer;display:flex;justify-content:space-between;gap:10px;font-size:14px}
+.ac-list div span{font-size:12px;color:var(--muted);white-space:nowrap}
+.ac-list div.on,.ac-list div:hover{background:#fff5f5}
+.blk{display:flex;gap:5px;align-items:center;margin:0;font-weight:400;font-size:12px;color:var(--text2);white-space:nowrap}
+.blk input{width:auto}
+.item.blocked .main,.item.blocked .rate{opacity:.4}
 @media (max-width:600px){.grid2{grid-template-columns:1fr}.rule{grid-template-columns:1fr}.seg{flex-wrap:wrap}}
 </style>
 </head>
@@ -109,8 +117,8 @@ input:focus,select:focus,textarea:focus,button:focus-visible{outline:2px solid v
         <div><label for="f-website">Your website</label><input id="f-website" placeholder="e.g. 247sports.com/college/maryland"></div>
       </div>
       <label for="f-team">What do you cover?</label>
-      <input id="f-team" placeholder="e.g. Maryland Terrapins athletics">
-      <div class="help">The team, school or beat your readers come to you for.</div>
+      <div class="ac"><input id="f-team" placeholder="Start typing a school or team, e.g. West Virginia" autocomplete="off"><div class="ac-list" id="team-ac"></div></div>
+      <div class="help">Pick your school or team from the list, or type your own beat (a high school league, a city).</div>
       <label>What kind of beat is it?</label>
       <div class="choices" id="f-level">
         <button type="button" class="choice" data-v="college"><b>College team</b><span>A school's athletics</span></button>
@@ -137,7 +145,7 @@ input:focus,select:focus,textarea:focus,button:focus-visible{outline:2px solid v
       <label for="b-figures">Key figures <span style="font-weight:400;color:var(--muted)">(head coaches, AD or GM, the biggest names)</span></label>
       <input id="b-figures" placeholder="e.g. Mike Locksley, Buzz Williams">
       <label>Sources that cover your beat</label>
-      <div class="rlegend">Rate each one: <b>5</b> must-watch · <b>4</b> high · <b>3</b> normal · <b>2</b> low · <b>1</b> don't watch</div>
+      <div class="rlegend">Rate each one: <b>5</b> must-watch · <b>4</b> high · <b>3</b> normal · <b>2</b> low · <b>1</b> don't watch its feed. <b>Block all results</b> hides that source's stories everywhere, even when they show up through Google News.</div>
       <div class="box" id="beat-outlets"></div>
       <div style="display:flex;gap:8px;margin-top:8px;flex-wrap:wrap"><input id="b-add-name" placeholder="Outlet name" style="flex:1;min-width:140px"><input id="b-add-domain" placeholder="Website, e.g. baltimoresun.com" style="flex:1;min-width:160px"><button type="button" class="btn ghost small" onclick="addOutlet()">Add</button></div>
       <div>
@@ -251,6 +259,7 @@ input:focus,select:focus,textarea:focus,button:focus-visible{outline:2px solid v
 <script src="/supabase-config.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="/_auth.js"></script>
+<script src="/teams.js"></script>
 <script>
 // Keep EVENTS/levels in sync with api/_rating-rules.js (same keys and defaults).
 var LEVELS=[['breaking','Breaking'],['major','Major'],['normal','Normal'],['low','Low'],['ignore','Ignore']];
@@ -291,6 +300,59 @@ var steps=[].slice.call(document.querySelectorAll('.step'));
 var cur=0, profile={}, sportState={}, level='college', maxReached=0;
 var beat={team:{},outlets:[],subreddits:[],podcasts:[],youtube:[],keyFigures:[],primarySports:[]}, groups=[];
 function stepKey(i){ return steps[i]&&steps[i].dataset.k; }
+// Preview mode (/setup?preview=1): everything works, nothing is saved. For
+// trying the wizard on another beat, or demoing it, without touching the live account.
+var PREVIEW=/[?&]preview=1/.test(location.search);
+var needsBuild=false;
+// --- "What do you cover?" autocomplete ---
+var acIdx=-1, acItems=[];
+function teamMatches(q){
+  q=q.toLowerCase().trim(); if(q.length<2) return [];
+  var words=q.split(/\s+/);
+  var scored=(window.TEAMS||[]).map(function(t){
+    var hay=(t[0]+' '+t[1]+' '+t[2]+' '+t[3]).toLowerCase();
+    if(!words.every(function(w){return hay.indexOf(w)!==-1;})) return null;
+    var name=t[0].toLowerCase(), sc=name.indexOf(q)===0?0:(' '+name).indexOf(' '+words[0])!==-1?1:2;
+    return {t:t,sc:sc};
+  }).filter(Boolean).sort(function(a,b){return a.sc-b.sc||a.t[0].length-b.t[0].length;});
+  return scored.slice(0,8).map(function(x){return x.t;});
+}
+function renderAc(){
+  var box=$('team-ac');
+  if(!acItems.length){ box.style.display='none'; return; }
+  box.innerHTML=acItems.map(function(t,i){ return '<div data-i="'+i+'" class="'+(i===acIdx?'on':'')+'">'+esc(t[0])+'<span>'+esc(t[3]||(t[4]==='pro'?'Pro':'College'))+'</span></div>'; }).join('');
+  box.style.display='block';
+}
+$('f-team').addEventListener('input',function(){ acItems=teamMatches(this.value); acIdx=acItems.length?0:-1; renderAc(); });
+$('f-team').addEventListener('keydown',function(e){
+  if($('team-ac').style.display!=='block') return;
+  if(e.key==='ArrowDown'){ acIdx=Math.min(acItems.length-1,acIdx+1); renderAc(); e.preventDefault(); }
+  else if(e.key==='ArrowUp'){ acIdx=Math.max(0,acIdx-1); renderAc(); e.preventDefault(); }
+  else if(e.key==='Enter'&&acIdx>=0){ pickTeam(acItems[acIdx]); e.preventDefault(); }
+  else if(e.key==='Escape'){ acItems=[]; renderAc(); }
+});
+$('team-ac').addEventListener('mousedown',function(e){ var d=e.target.closest('div[data-i]'); if(d){ e.preventDefault(); pickTeam(acItems[+d.dataset.i]); } });
+$('f-team').addEventListener('blur',function(){ setTimeout(function(){ acItems=[]; renderAc(); },150); });
+var pickedTeam=null;
+function pickTeam(t){
+  pickedTeam=t; $('f-team').value=t[0]; acItems=[]; renderAc();
+  setLevel(t[4]==='pro'?'pro':'college', true);
+}
+// A different team than the saved beat starts a fresh beat, so one newsroom's
+// sources and people never carry over to another.
+function sameTeam(text){
+  var a=String(text||'').toLowerCase().replace(/\s+athletics$/,'').trim(), t=beat.team||{};
+  if(!a||!t.name) return !t.name;
+  var n=t.name.toLowerCase();
+  return n===a || n.indexOf(a)===0 || a.indexOf(n)===0;
+}
+function startFreshBeat(){
+  var t=pickedTeam, hadBeat=!!(beat.team&&beat.team.name);
+  beat={team:t?{name:t[0],short:t[4]==='pro'?t[2]:t[1],nicknames:t[4]==='pro'?[]:[t[2]],school:t[1],conference:t[3],level:t[4]==='pro'?'pro':'college'}:{name:$('f-team').value.trim().replace(/\s+athletics$/i,'')},
+    outlets:[],subreddits:[],podcasts:[],youtube:[],keyFigures:[],primarySports:[]};
+  groups=[]; renderGroups(); renderBeatForm(); needsBuild=true;
+  if(!PREVIEW && hadBeat) $('notice').innerHTML='<div class="notice">You switched to <b>'+esc(beat.team.name)+'</b>. Finishing this setup changes what your live News Monitor watches. To try a different beat without changing anything, use <a href="/setup?preview=1">preview mode</a>.</div>';
+}
 
 function $(id){return document.getElementById(id);}
 function esc(s){var d=document.createElement('div');d.textContent=s==null?'':String(s);return d.innerHTML;}
@@ -308,6 +370,10 @@ function renderSteps(){
   $('nav').style.display=cur===steps.length-1?'none':'flex';
   $('next').textContent=cur===steps.length-2?'Finish':'Next →';
   if(cur===steps.length-1) renderSummary();
+  if(stepKey(cur)==='beat' && (needsBuild || !(beat.outlets||[]).length) && $('f-team').value.trim()){
+    needsBuild=false;
+    var bb=document.querySelector('[onclick="suggestBeat(this)"]'); if(bb && !bb.disabled) suggestBeat(bb);
+  }
   window.scrollTo(0,0);
 }
 function jump(i){ if(i>maxReached) return; saveStep(cur).then(function(){cur=i;renderSteps();}); }
@@ -374,9 +440,10 @@ function readBeatForm(){
 function renderOutlets(){
   var list=beat.outlets||[];
   $('beat-outlets').innerHTML=list.length?list.map(function(o,i){
-    return '<div class="item"><div class="main"><b>'+esc(o.name)+'</b>'+(o.kind?'<span class="tag">'+esc(o.kind)+'</span>':'')+
+    return '<div class="item'+(o.blocked?' blocked':'')+'"><div class="main"><b>'+esc(o.name)+'</b>'+(o.kind?'<span class="tag">'+esc(o.kind)+'</span>':'')+
       (o.checked==='feed'?'<span class="tag ok">feed ✓</span>':'')+
       '<div class="sub">'+esc(o.domain||'')+(o.why?' — '+esc(o.why):'')+'</div></div>'+rateHtml('outlets.'+i,o.rating)+
+      '<label class="blk" title="Never show any story from this source, wherever it turns up"><input type="checkbox" '+(o.blocked?'checked':'')+' onchange="beat.outlets['+i+'].blocked=this.checked;renderOutlets()"> Block all results</label>'+
       '<button type="button" class="x" title="Remove" onclick="beat.outlets.splice('+i+',1);renderOutlets()">×</button></div>';
   }).join(''):'<div class="help" style="margin:0">No sources yet. Click <b>Build my beat</b> or add one below.</div>';
 }
@@ -527,6 +594,7 @@ function addInviteRow(email,role){
 
 // --- saving ---
 async function saveProfile(fields, extra){
+  if(PREVIEW){ Object.assign(profile,fields||{}); return; }
   var body=Object.assign({profile:fields},extra||{});
   var d=await api('/api/site-profile',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
   if(d.error) throw new Error(d.error);
@@ -538,8 +606,8 @@ async function saveStep(i){
   try{
     if(k==='outlet'){
       if(!$('f-outlet').value.trim()||!$('f-team').value.trim()){ m.className='msg err'; m.textContent='Add your outlet name and what you cover to continue.'; return false; }
+      if(!sameTeam($('f-team').value) || !(beat.team&&beat.team.name)) startFreshBeat();
       await saveProfile({outletName:$('f-outlet').value.trim(),website:$('f-website').value.trim(),teamName:$('f-team').value.trim(),level:level});
-      if(!beat.team.name) beat.team.name=$('f-team').value.trim().replace(/\s+athletics$/i,'');
       renderBeatForm();
     } else if(k==='beat'){
       readBeatForm();
@@ -560,7 +628,9 @@ async function saveStep(i){
     } else if(k==='podcast'){
       var pod={platform:$('f-pod-platform').value,feedUrl:$('f-pod-feed').value.trim(),sampleEmbed:$('f-pod-sample').value.trim()};
       await saveProfile({podcast:pod});
-      try{ localStorage.setItem('ims_editor_podcast',JSON.stringify(pod)); }catch(e){}
+      if(!PREVIEW) try{ localStorage.setItem('ims_editor_podcast',JSON.stringify(pod)); }catch(e){}
+    } else if(PREVIEW && (k==='x'||k==='team'||k==='voice')){
+      // nothing to save in preview mode
     } else if(k==='x'){
       var handles=lines($('f-x').value).map(function(h){return h.replace(/^@/,'');}).slice(0,15);
       var x=await api('/api/x-watch-handles',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({handles:handles})});
@@ -590,6 +660,7 @@ async function saveStep(i){
   }
 }
 async function saveBeat(part, profileFields){
+  if(PREVIEW) return;
   var d=await api('/api/site-profile',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({beat:part,profile:profileFields||undefined})});
   if(d.error) throw new Error(d.error);
   if(d.profile) profile=d.profile;
@@ -614,6 +685,7 @@ function renderSummary(){
 
 // --- load existing settings ---
 async function load(){
+  if(PREVIEW) $('notice').innerHTML='<div class="notice"><b>Preview mode.</b> Try the setup on any beat. Nothing is saved, and your live News Monitor doesn\u2019t change. <a href="/setup">Leave preview</a></div>';
   if(window.IMSAuth){
     var s=await IMSAuth.guard();
     if(s && s.user && s.role && s.role!=='publisher'){
@@ -621,7 +693,7 @@ async function load(){
     }
   }
   try{
-    var d=await api('/api/site-profile');
+    var d=PREVIEW?{}:await api('/api/site-profile');
     profile=d.profile||{};
     if(d.houseStyle) $('f-style').value=d.houseStyle;
     if(d.beat) beat=Object.assign(beat,d.beat);
