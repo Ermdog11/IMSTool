@@ -121,14 +121,16 @@ button.btn:disabled{opacity:.6;cursor:default}
           <button class="btn" onclick="askEditorPre()">Send</button>
         </div>
       </div>
-      <label>Draft</label>
+      <div style="display:flex;align-items:flex-end;justify-content:space-between;gap:8px;flex-wrap:wrap">
+        <label style="margin:0">Draft</label>
+        <button class="btn ghost" id="pre-pod-latest" style="padding:5px 12px;font-size:12px" onclick="queueLatestEpisode(this)">🎙️ Add latest podcast episode</button>
+      </div>
+      <div id="pre-pod-status" class="hint" style="margin:4px 0 6px"></div>
       <textarea id="ed-draft" rows="16" placeholder="Paste the writer's draft here…"></textarea>
       <div class="row">
         <button class="btn" id="ed-go" onclick="runEdit()">Edit draft</button>
-        <button class="btn ghost" id="pre-pod-latest" onclick="queueLatestEpisode(this)">🎙️ Add latest episode</button>
         <span id="ed-status" style="font-size:12px;color:var(--muted)"></span>
       </div>
-      <div id="pre-pod-status" class="hint" style="margin-top:4px"></div>
       <div id="ed-progress-wrap" style="display:none;margin-top:8px;background:var(--border);border-radius:4px;height:5px;overflow:hidden;">
         <div id="ed-progress-bar" style="height:100%;width:0%;background:var(--red);transition:width .3s linear;"></div>
       </div>
@@ -747,7 +749,7 @@ async function embedLatestEpisode(btn){
 }
 async function queueLatestEpisode(btn){
   var st=document.getElementById('pre-pod-status');
-  if(window._queuedEpisode){ window._queuedEpisode=null; btn.textContent='🎙️ Add latest episode'; st.textContent=''; return; }
+  if(window._queuedEpisode){ window._queuedEpisode=null; btn.textContent='🎙️ Add latest podcast episode'; st.textContent=''; return; }
   var old=btn.textContent; btn.disabled=true; btn.textContent='Loading…';
   try{
     var eps=await fetchEpisodes();
