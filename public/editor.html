@@ -80,8 +80,12 @@ button.btn:disabled{opacity:.6;cursor:default}
 
   <div class="page active" id="page-0">
     <div class="card" id="copydesk-card">
-      <h2>Copydesk</h2>
-      <div class="hint">Paste a draft. Pick a mode below. Always review before publishing &mdash; the editor can be wrong on facts.</div>
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap">
+        <h2 style="margin:0">Copydesk</h2>
+        <button class="btn ghost" id="pre-pod-latest" style="padding:6px 14px;font-size:12.5px" onclick="queueLatestEpisode(this)">🎙️ Add latest podcast episode</button>
+      </div>
+      <div class="hint" style="margin-top:4px">Paste a draft. Pick a mode below. Always review before publishing &mdash; the editor can be wrong on facts.</div>
+      <div id="pre-pod-status" style="display:none;margin:0 0 12px;border:1px solid var(--border);border-radius:8px;padding:10px 12px;background:#fbfaf7"></div>
       <div class="row">
         <div style="flex:1;min-width:200px">
           <label>Writer</label>
@@ -121,11 +125,7 @@ button.btn:disabled{opacity:.6;cursor:default}
           <button class="btn" onclick="askEditorPre()">Send</button>
         </div>
       </div>
-      <div style="display:flex;align-items:flex-end;justify-content:space-between;gap:8px;flex-wrap:wrap">
-        <label style="margin:0">Draft</label>
-        <button class="btn ghost" id="pre-pod-latest" style="padding:5px 12px;font-size:12px" onclick="queueLatestEpisode(this)">🎙️ Add latest podcast episode</button>
-      </div>
-      <div id="pre-pod-status" class="hint" style="margin:4px 0 6px"></div>
+      <label>Draft</label>
       <textarea id="ed-draft" rows="16" placeholder="Paste the writer's draft here…"></textarea>
       <div class="row">
         <button class="btn" id="ed-go" onclick="runEdit()">Edit draft</button>
@@ -749,16 +749,17 @@ async function embedLatestEpisode(btn){
 }
 async function queueLatestEpisode(btn){
   var st=document.getElementById('pre-pod-status');
-  if(window._queuedEpisode){ window._queuedEpisode=null; btn.textContent='🎙️ Add latest podcast episode'; st.textContent=''; return; }
+  if(window._queuedEpisode){ window._queuedEpisode=null; btn.textContent='🎙️ Add latest podcast episode'; st.style.display='none'; st.innerHTML=''; return; }
   var old=btn.textContent; btn.disabled=true; btn.textContent='Loading…';
   try{
     var eps=await fetchEpisodes();
     if(!eps.length) throw new Error('No episodes found in your podcast feed.');
     var b=buildPodcastEmbed(eps[0],eps);
     window._queuedEpisode={name:'🎙️ '+eps[0].title,html:b.html};
-    btn.textContent='✓ Latest episode added';
-    st.textContent='"'+eps[0].title+'" will be embedded at the end of the edited article. Click again to remove it.';
-  }catch(e){ btn.textContent=old; st.textContent=e.message; }
+    btn.textContent='✓ Podcast added (click to remove)';
+    st.style.display='block';
+    st.innerHTML='<div style="font-size:12px;color:var(--muted);margin-bottom:6px">This embed goes at the end of your article. You\u2019ll see it in place, and it\u2019s included when you copy, save or send the article.</div>'+b.html;
+  }catch(e){ btn.textContent=old; st.style.display='block'; st.innerHTML='<span style="color:var(--red);font-size:12px">'+esc(e.message)+'</span>'; }
   btn.disabled=false;
 }
 function alertInline(id,msg){var el=document.getElementById(id);if(el)el.innerHTML='<div style="font-size:12px;color:var(--red)">'+esc(msg)+'</div>';}
