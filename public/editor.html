@@ -67,7 +67,8 @@ button.btn:disabled{opacity:.6;cursor:default}
 
 <div class="nav">
   <button class="active" id="nav-0" onclick="show(0)">Copydesk</button>
-  <button id="nav-1" onclick="show(1)">Writers &amp; style</button>
+  <button id="nav-4" onclick="show(4)">House style</button>
+  <button id="nav-1" onclick="show(1)">Writers</button>
   <button id="nav-2" onclick="show(2)">Inserts</button>
   <button id="nav-3" onclick="show(3)">Drafts</button>
   <button disabled title="Coming soon">Story ideas</button>
@@ -120,14 +121,16 @@ button.btn:disabled{opacity:.6;cursor:default}
           <button class="btn" onclick="askEditorPre()">Send</button>
         </div>
       </div>
-      <label>Draft</label>
+      <div style="display:flex;align-items:flex-end;justify-content:space-between;gap:8px;flex-wrap:wrap">
+        <label style="margin:0">Draft</label>
+        <button class="btn ghost" id="pre-pod-latest" style="padding:5px 12px;font-size:12px" onclick="queueLatestEpisode(this)">🎙️ Add latest podcast episode</button>
+      </div>
+      <div id="pre-pod-status" class="hint" style="margin:4px 0 6px"></div>
       <textarea id="ed-draft" rows="16" placeholder="Paste the writer's draft here…"></textarea>
       <div class="row">
         <button class="btn" id="ed-go" onclick="runEdit()">Edit draft</button>
-        <button class="btn ghost" id="pre-pod-latest" onclick="queueLatestEpisode(this)">🎙️ Add latest episode</button>
         <span id="ed-status" style="font-size:12px;color:var(--muted)"></span>
       </div>
-      <div id="pre-pod-status" class="hint" style="margin-top:4px"></div>
       <div id="ed-progress-wrap" style="display:none;margin-top:8px;background:var(--border);border-radius:4px;height:5px;overflow:hidden;">
         <div id="ed-progress-bar" style="height:100%;width:0%;background:var(--red);transition:width .3s linear;"></div>
       </div>
@@ -136,16 +139,6 @@ button.btn:disabled{opacity:.6;cursor:default}
   </div>
 
   <div class="page" id="page-1">
-    <div class="card">
-      <h2>House style guide</h2>
-      <div class="hint">The baseline every edit is measured against. Edit freely &mdash; this is your newsroom's rulebook.</div>
-      <textarea id="sg" rows="16"></textarea>
-      <div class="row">
-        <button class="btn" onclick="saveGuide()">Save style guide</button>
-        <span class="savedmsg" id="sg-saved" style="display:none">Saved</span>
-      </div>
-    </div>
-
     <div class="card">
       <h2>Writers</h2>
       <div class="hint">Add each staff writer, then give the tool ~15 of their published pieces so it can learn their voice. Paste article text, paste article URLs, or paste the writer's 247 author-page URL and it pulls the links itself. Fully paywalled pieces may come back partial &mdash; paste those directly. ~15 is plenty; more gets trimmed.</div>
@@ -180,6 +173,19 @@ button.btn:disabled{opacity:.6;cursor:default}
       <div class="row"><button class="btn" onclick="savePodcastSettings()">Save podcast settings</button><button class="btn ghost" onclick="testPodcastEmbed(this)">Preview latest episode</button><span class="savedmsg" id="pod-saved" style="display:none">Saved</span></div>
       <div id="pod-test" style="margin-top:10px"></div>
     </div>
+  </div>
+
+  <div class="page" id="page-4">
+    <div class="card">
+      <h2>House style guide</h2>
+      <div class="hint">The baseline every edit is measured against. Edit freely &mdash; this is your newsroom's rulebook. Share this page with your staff: <a href="/house-style">/house-style</a></div>
+      <textarea id="sg" rows="28"></textarea>
+      <div class="row">
+        <button class="btn" onclick="saveGuide()">Save style guide</button>
+        <span class="savedmsg" id="sg-saved" style="display:none">Saved</span>
+      </div>
+    </div>
+
   </div>
 
   <div class="page" id="page-3">
@@ -353,11 +359,14 @@ async function loadGuideFromServer(){
 }
 
 function setActive(i){
-  document.querySelectorAll('.page').forEach(function(p,x){p.classList.toggle('active',x===i);});
+  document.querySelectorAll('.page').forEach(function(p){p.classList.toggle('active',p.id==='page-'+i);});
   document.querySelectorAll('.nav button').forEach(function(b){b.classList.remove('active');});
   var n=document.getElementById('nav-'+i); if(n)n.classList.add('active');
 }
-function show(i){ setActive(i); if(i===2){renderPromos();loadPodcastSettingsForm();} if(i===3)loadDrafts(); try{history.pushState({t:i},'','#'+i);}catch(e){} }
+// House style has its own shareable URL (/house-style, rewritten to this page
+// in vercel.json); the other tabs keep their /editor#N hashes.
+function tabUrl(i){ return i===4 ? '/house-style' : '/editor'+(i?'#'+i:''); }
+function show(i){ setActive(i); if(i===2){renderPromos();loadPodcastSettingsForm();} if(i===3)loadDrafts(); try{history.pushState({t:i},'',tabUrl(i));}catch(e){} }
 window.addEventListener('popstate',function(e){ setActive((e.state&&e.state.t)||0); });
 
 async function saveGuide(){
@@ -740,7 +749,7 @@ async function embedLatestEpisode(btn){
 }
 async function queueLatestEpisode(btn){
   var st=document.getElementById('pre-pod-status');
-  if(window._queuedEpisode){ window._queuedEpisode=null; btn.textContent='🎙️ Add latest episode'; st.textContent=''; return; }
+  if(window._queuedEpisode){ window._queuedEpisode=null; btn.textContent='🎙️ Add latest podcast episode'; st.textContent=''; return; }
   var old=btn.textContent; btn.disabled=true; btn.textContent='Loading…';
   try{
     var eps=await fetchEpisodes();
@@ -1051,8 +1060,8 @@ loadPodcastSettingsForm();
 updateModeHint();
 (function(){
   var parts=(location.hash||'').replace('#','').split('/');
-  var i=parseInt(parts[0],10);
-  if(i>=1&&i<=3){
+  var i=/^\/house-style\/?$/.test(location.pathname) ? 4 : parseInt(parts[0],10);
+  if(i>=1&&i<=4){
     setActive(i);
     if(i===3) loadDrafts().then(function(){ if(parts[1]) openDraft(parts[1]); });
   }
