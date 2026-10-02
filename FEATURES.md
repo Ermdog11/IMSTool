@@ -63,7 +63,8 @@ Last updated: 2026-09-13
 
 | Feature | What it does for the customer |
 |---|---|
-| Setup wizard | A guided, nine-step setup at /setup: outlet and beat, core vs. occasional vs. skipped topics, people to watch (with AI suggestions), X accounts to follow (AI suggestions checked against X), what counts as breaking news (plain choices per story type), house style built from your own articles, podcast, X accounts and your own site, and team invites. Saves as you go; the next scan uses it. |
+| Build your beat | Type your team and CoPublisher drafts your whole beat: nicknames, conference, key figures, the outlets that cover you (feeds checked), subreddits, podcasts and YouTube channels. You rate each source and each group of people from 1 (don't watch) to 5 (must-watch), and the scanner weighs stories by your ratings. |
+| Setup wizard | A guided, ten-step setup at /setup: outlet and beat, core vs. occasional vs. skipped topics, people to watch (with AI suggestions), X accounts to follow (AI suggestions checked against X), what counts as breaking news (plain choices per story type), house style built from your own articles, podcast, X accounts and your own site, and team invites. Saves as you go; the next scan uses it. |
 
 ## In progress
 

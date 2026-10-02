@@ -5,6 +5,12 @@
 //   POST { action:'suggest-names', ... }         -> AI-suggested people to watch (publisher)
 //   POST { action:'suggest-x', teamName, level } -> AI-suggested X accounts, checked against
 //                                                   X when it's connected (publisher)
+//   POST { action:'suggest-beat', teamName, level, website, outletName }
+//                                                -> AI-drafted beat profile (team names,
+//                                                   outlets with checked feeds, communities,
+//                                                   key figures), each item with a suggested
+//                                                   1-5 importance (publisher)
+//   POST { beat: {...} }                         -> merge-save the beat profile (publisher)
 //   POST { action:'build-house-style', samples } -> AI-written house style guide from
 //                                                   sample articles, saved as the site's
 //                                                   house style (publisher)
@@ -13,6 +19,7 @@
 // returns an empty profile and saves are refused with a clear message.
 
 var S = require('./_supabase');
+var Beat = require('./_beat');
 var Store = require('./_settings-store');
 
 var MODEL = 'claude-sonnet-4-6';
@@ -140,6 +147,95 @@ async function suggestXAccounts(body, sb) {
   };
 }
 
+// Draft a beat profile for a new newsroom. Claude proposes; every outlet's
+// RSS feed is then fetched so a dead or made-up feed URL is dropped (the
+// outlet stays, searched through Google News by its domain instead).
+async function suggestBeat(body) {
+  var team = String(body.teamName || '').slice(0, 200);
+  if (!team) throw new Error('Tell us which team or beat you cover first.');
+  var level = String(body.level || 'college');
+  var out = await callClaude(
+    'A newsroom' + (body.outletName ? ' called ' + String(body.outletName).slice(0, 100) : '') + (body.website ? ' (' + String(body.website).slice(0, 200) + ')' : '') +
+    ' covers this beat: ' + team + ' (' + level + ').\n\n' +
+    'Draft the beat profile a news-monitoring tool needs to find every story about it:\n' +
+    '- team: the full name, the school or city, the short name used in headlines (e.g. "Maryland", "Ravens"), nicknames fans and headlines use, conference or league, home city.\n' +
+    '- primarySports: the sports this outlet would mainly cover, lowercase.\n' +
+    '- keyFigures: head coaches, the athletic director or general manager, and the biggest current names. Only people you are confident about.\n' +
+    '- outlets: up to 20 news sources that regularly cover this team: beat writers\' outlets, local newspapers and TV, the official team or athletics site, the student paper, fan sites, recruiting sites, and the national outlets most relevant to it. Give each its website domain and, only if you are confident of it, its RSS feed URL. Do not include the newsroom\'s own outlet.\n' +
+    '- subreddits, podcasts and youtube: where fans and media discuss this team.\n' +
+    '- nameCollisions: one sentence naming well-known people who share a name with someone on this beat, if any.\n' +
+    'For every outlet, subreddit, podcast and channel, give importance 1-5: 5 = must-watch, often first with news; 4 = important; 3 = useful; 2 = occasional; 1 = rarely relevant. ' +
+    'Your knowledge may be out of date; the publisher reviews everything. Leave something out rather than guess.',
+    {
+      name: 'beat_profile',
+      description: 'Return the drafted beat profile.',
+      input_schema: {
+        type: 'object',
+        properties: {
+          team: { type: 'object', properties: {
+            name: { type: 'string' }, school: { type: 'string' }, short: { type: 'string' },
+            nicknames: { type: 'array', items: { type: 'string' } }, conference: { type: 'string' }, city: { type: 'string' }
+          }, required: ['name', 'short'] },
+          primarySports: { type: 'array', items: { type: 'string' } },
+          keyFigures: { type: 'array', items: { type: 'string' } },
+          outlets: { type: 'array', items: { type: 'object', properties: {
+            name: { type: 'string' }, domain: { type: 'string' }, rss: { type: 'string' },
+            kind: { type: 'string', enum: ['beat', 'local', 'official', 'student', 'fan', 'recruiting', 'national'] },
+            importance: { type: 'integer', minimum: 1, maximum: 5 }, why: { type: 'string' }
+          }, required: ['name', 'domain', 'importance'] } },
+          subreddits: { type: 'array', items: { type: 'object', properties: { name: { type: 'string' }, importance: { type: 'integer' } }, required: ['name', 'importance'] } },
+          podcasts: { type: 'array', items: { type: 'object', properties: { name: { type: 'string' }, importance: { type: 'integer' } }, required: ['name', 'importance'] } },
+          youtube: { type: 'array', items: { type: 'object', properties: { name: { type: 'string' }, importance: { type: 'integer' } }, required: ['name', 'importance'] } },
+          nameCollisions: { type: 'string' }
+        },
+        required: ['team', 'outlets']
+      }
+    }, 5000);
+
+  function clamp(n) { n = parseInt(n, 10); return n >= 1 && n <= 5 ? n : 3; }
+  function cleanDomain(d) { return String(d || '').trim().toLowerCase().replace(/^https?:\/\//, '').replace(/^www\./, '').replace(/\/.*$/, ''); }
+  var outlets = (out.outlets || []).slice(0, 20).map(function (o) {
+    return { name: String(o.name || '').slice(0, 80), domain: cleanDomain(o.domain), rss: /^https?:\/\//.test(o.rss || '') ? String(o.rss) : '', kind: o.kind || '', rating: clamp(o.importance), why: String(o.why || '').slice(0, 160) };
+  }).filter(function (o) { return o.name && o.domain; });
+
+  // Check each suggested RSS feed actually returns a feed.
+  await Promise.all(outlets.map(async function (o) {
+    if (!o.rss) { o.checked = 'search'; return; }
+    try {
+      var c = new AbortController(); var t = setTimeout(function () { c.abort(); }, 6000);
+      var r = await fetch(o.rss, { signal: c.signal, headers: { 'User-Agent': 'Mozilla/5.0 CoPublisher' } }).finally(function () { clearTimeout(t); });
+      var txt = r.ok ? (await r.text()).slice(0, 3000) : '';
+      if (/<rss|<feed|<channel/i.test(txt)) o.checked = 'feed';
+      else { o.rss = ''; o.checked = 'search'; }
+    } catch (e) { o.rss = ''; o.checked = 'search'; }
+  }));
+
+  function community(arr) { return (arr || []).slice(0, 10).map(function (x) { return { name: String(x.name || '').replace(/^\/?r\//i, '').slice(0, 80), rating: clamp(x.importance) }; }).filter(function (x) { return x.name; }); }
+  var t = out.team || {};
+  var own = cleanDomain(body.website);
+  return {
+    beat: {
+      outletName: String(body.outletName || '').slice(0, 100),
+      team: { name: String(t.name || team).slice(0, 100), school: String(t.school || '').slice(0, 100), short: String(t.short || '').slice(0, 40),
+        nicknames: (t.nicknames || []).slice(0, 6).map(String), conference: String(t.conference || '').slice(0, 60), city: String(t.city || '').slice(0, 60), level: level },
+      primarySports: (out.primarySports || []).slice(0, 6).map(function (x) { return String(x).toLowerCase(); }),
+      keyFigures: (out.keyFigures || []).slice(0, 12).map(String),
+      outlets: outlets.filter(function (o) { return !own || o.domain !== own; }),
+      subreddits: community(out.subreddits), podcasts: community(out.podcasts), youtube: community(out.youtube),
+      nameCollisions: String(out.nameCollisions || '').slice(0, 500)
+    }
+  };
+}
+
+// The parts of the beat the wizard shows and edits (not the long feed lists).
+function wizardBeat(b) {
+  return {
+    outletName: b.outletName, team: b.team, primarySports: b.primarySports, keyFigures: b.keyFigures,
+    outlets: b.outlets, subreddits: b.subreddits, podcasts: b.podcasts, youtube: b.youtube,
+    watch: b.watch, nameCollisions: b.nameCollisions || '', hasHandTunedFeeds: !!(b.feeds && b.feeds.length)
+  };
+}
+
 async function buildHouseStyle(body) {
   var samples = String(body.samples || '').slice(0, 60000);
   if (samples.replace(/\s+/g, ' ').length < 1500) throw new Error('Paste at least two or three full articles so there is enough to learn from.');
@@ -166,14 +262,14 @@ module.exports = async function handler(req, res) {
   res.setHeader('Cache-Control', 'no-store');
 
   if (req.method === 'GET') {
-    if (!S.isConfigured()) return res.status(200).json({ profile: {}, houseStyle: null });
+    if (!S.isConfigured()) return res.status(200).json({ profile: {}, houseStyle: null, beat: wizardBeat(await Beat.getBeat(null)) });
     try { await S.requireUser(req); }
     catch (e) { return res.status(e.status || 401).json({ error: e.message }); }
     try {
       var sb = S.admin();
-      return res.status(200).json({ profile: await Store.getProfile(sb), houseStyle: await Store.getHouseStyle(sb) });
+      return res.status(200).json({ profile: await Store.getProfile(sb), houseStyle: await Store.getHouseStyle(sb), beat: wizardBeat(await Beat.getBeat(sb)) });
     } catch (e) {
-      return res.status(200).json({ profile: {}, houseStyle: null });
+      return res.status(200).json({ profile: {}, houseStyle: null, beat: null });
     }
   }
 
@@ -188,6 +284,17 @@ module.exports = async function handler(req, res) {
   try {
     if (body.action === 'suggest-names') return res.status(200).json(await suggestNames(body));
     if (body.action === 'suggest-x') return res.status(200).json(await suggestXAccounts(body, ctx.supabase));
+    if (body.action === 'suggest-beat') return res.status(200).json(await suggestBeat(body));
+    if (body.beat && typeof body.beat === 'object') {
+      // Merge into the SAVED beat (not the seed underneath it), so each wizard
+      // step only changes its own parts.
+      var curProfile = await Store.getProfile(ctx.supabase);
+      var nextBeat = Object.assign({}, curProfile.beat || {}, body.beat);
+      if (body.beat.team) nextBeat.team = Object.assign({}, (curProfile.beat || {}).team || {}, body.beat.team);
+      var fields = Object.assign({}, body.profile && typeof body.profile === 'object' ? body.profile : {}, { beat: nextBeat });
+      var savedB = await Store.saveProfile(ctx.supabase, fields);
+      return res.status(200).json({ ok: true, profile: savedB, beat: wizardBeat(await Beat.getBeat(ctx.supabase)) });
+    }
     if (body.action === 'build-house-style') {
       var built = await buildHouseStyle(body);
       await Store.saveHouseStyle(ctx.supabase, built.guide);
