@@ -124,8 +124,10 @@ button.btn:disabled{opacity:.6;cursor:default}
       <textarea id="ed-draft" rows="16" placeholder="Paste the writer's draft here…"></textarea>
       <div class="row">
         <button class="btn" id="ed-go" onclick="runEdit()">Edit draft</button>
+        <button class="btn ghost" id="pre-pod-latest" onclick="queueLatestEpisode(this)">🎙️ Add latest episode</button>
         <span id="ed-status" style="font-size:12px;color:var(--muted)"></span>
       </div>
+      <div id="pre-pod-status" class="hint" style="margin-top:4px"></div>
       <div id="ed-progress-wrap" style="display:none;margin-top:8px;background:var(--border);border-radius:4px;height:5px;overflow:hidden;">
         <div id="ed-progress-bar" style="height:100%;width:0%;background:var(--red);transition:width .3s linear;"></div>
       </div>
@@ -162,6 +164,21 @@ button.btn:disabled{opacity:.6;cursor:default}
       <div class="hint">Reusable blocks &mdash; newsletter sign-up, VIP pitch, related-coverage boxes, ad units. Define each once (raw HTML, paste straight from your CMS) with the tier it applies to and where it lands. On the editing page the writer or editor clicks to drop them into a piece.</div>
       <div id="promo-list"></div>
       <div class="row"><button class="btn ghost" onclick="addPromo()">+ Add insert</button></div>
+    </div>
+    <div class="card">
+      <h2>Podcast</h2>
+      <div class="hint">Lets writers drop your latest episode into any article with one click. Pick your podcast platform, then paste the embed code your platform gives you for <b>any one episode</b>. The editor reuses that exact format for every other episode, so embeds look the way your CMS expects. Leave the embed code empty to use a simple audio player with a listen link.</div>
+      <div class="row" style="flex-wrap:wrap;gap:10px">
+        <div style="flex:1;min-width:160px"><label for="pod-platform">Platform</label><select id="pod-platform" onchange="podPlatformHint()">
+          <option value="amperwave">Amperwave</option><option value="megaphone">Megaphone</option><option value="buzzsprout">Buzzsprout</option><option value="libsyn">Libsyn</option><option value="spreaker">Spreaker</option><option value="simplecast">Simplecast</option><option value="transistor">Transistor</option><option value="other">Other</option>
+        </select></div>
+        <div style="flex:2;min-width:240px"><label for="pod-feed">Podcast RSS feed URL</label><input id="pod-feed" placeholder="Leave blank to use the default feed"></div>
+      </div>
+      <label for="pod-sample">Sample embed code (one episode)</label>
+      <textarea id="pod-sample" rows="4" placeholder="Paste the embed code for any one episode, e.g. &lt;iframe src=&quot;…&quot;&gt;&lt;/iframe&gt;"></textarea>
+      <div class="hint" id="pod-platform-hint" style="margin-top:4px"></div>
+      <div class="row"><button class="btn" onclick="savePodcastSettings()">Save podcast settings</button><button class="btn ghost" onclick="testPodcastEmbed(this)">Preview latest episode</button><span class="savedmsg" id="pod-saved" style="display:none">Saved</span></div>
+      <div id="pod-test" style="margin-top:10px"></div>
     </div>
   </div>
 
@@ -340,7 +357,7 @@ function setActive(i){
   document.querySelectorAll('.nav button').forEach(function(b){b.classList.remove('active');});
   var n=document.getElementById('nav-'+i); if(n)n.classList.add('active');
 }
-function show(i){ setActive(i); if(i===2)renderPromos(); if(i===3)loadDrafts(); try{history.pushState({t:i},'','#'+i);}catch(e){} }
+function show(i){ setActive(i); if(i===2){renderPromos();loadPodcastSettingsForm();} if(i===3)loadDrafts(); try{history.pushState({t:i},'','#'+i);}catch(e){} }
 window.addEventListener('popstate',function(e){ setActive((e.state&&e.state.t)||0); });
 
 async function saveGuide(){
@@ -564,7 +581,8 @@ function renderEdit(d){
     inserts.map(function(p,i){
       return '<button class="btn ghost" style="margin:4px 6px 4px 0" data-ins="'+i+'" onclick="toggleInsert('+i+')">+ '+esc(p.name||('Insert '+(i+1)))+'</button>';
     }).join('')+
-    '<button class="btn ghost" style="margin:4px 6px 4px 0" onclick="loadPodcastEpisodes(this)">🎙️ Embed a podcast episode</button>'+
+    '<button class="btn ghost" style="margin:4px 6px 4px 0" onclick="embedLatestEpisode(this)">🎙️ Embed latest episode</button>'+
+    '<button class="btn ghost" style="margin:4px 6px 4px 0" onclick="loadPodcastEpisodes(this)">Choose an episode</button>'+
     '</div><div id="podcast-list" style="margin-top:8px"></div><div id="insert-added" style="margin-top:10px;"></div></div>';
 
   var src=(lastEdit&&lastEdit.sourceDraft)||'';
@@ -584,6 +602,7 @@ function renderEdit(d){
   window._hotlinkMap={};
   (d.relatedIndex||[]).forEach(function(r){ if(r.url) window._hotlinkMap[r.url]=r.headline; });
   initHotlinkPreviews();
+  if(window._queuedEpisode){ embedPodcast(window._queuedEpisode.name, window._queuedEpisode.html); }
 }
 
 // Delegated on #ed-result (not the article div itself) so it keeps working
@@ -651,32 +670,132 @@ function renderInsertControls(){
       '</div>';
     }).join('');
 }
+// ---- Podcast embeds -------------------------------------------------------
+// Settings live in localStorage, same as Inserts. The publisher pastes the
+// embed code their platform (Amperwave, Megaphone, …) gives for ANY one
+// episode; buildPodcastEmbed finds which feed episode that sample belongs to
+// (by an ID from its audio URL/guid, see api/podcast-episodes.js) and swaps in
+// the target episode's ID, so every embed matches the platform's own format.
+var LS_PODCAST='ims_editor_podcast';
+var POD_HINTS={
+  amperwave:'Amperwave: open any episode in your Amperwave dashboard, copy its embed/share player code, and paste it above.',
+  megaphone:'Megaphone: open an episode, choose Embed, copy the single-episode iframe and paste it above.',
+  buzzsprout:'Buzzsprout: open an episode, click Embed, copy the iframe code and paste it above.',
+  libsyn:'Libsyn: open an episode, copy its embed player code and paste it above.',
+  spreaker:'Spreaker: open an episode, choose Embed, copy the code and paste it above.',
+  simplecast:'Simplecast: open an episode, choose Embed, copy the iframe and paste it above.',
+  transistor:'Transistor: open an episode, choose Embed, copy the single-episode iframe and paste it above.',
+  other:'Paste the embed code your podcast host gives for any one episode.'
+};
+function getPodcastSettings(){try{return JSON.parse(localStorage.getItem(LS_PODCAST)||'{}')||{};}catch(e){return {};}}
+function podPlatformHint(){var el=document.getElementById('pod-platform-hint');if(el)el.textContent=POD_HINTS[document.getElementById('pod-platform').value]||'';}
+function loadPodcastSettingsForm(){
+  var c=getPodcastSettings();
+  var pl=document.getElementById('pod-platform'); if(!pl) return;
+  pl.value=c.platform||'amperwave';
+  document.getElementById('pod-feed').value=c.feedUrl||'';
+  document.getElementById('pod-sample').value=c.sampleEmbed||'';
+  podPlatformHint();
+}
+function savePodcastSettings(){
+  var c={platform:document.getElementById('pod-platform').value,feedUrl:document.getElementById('pod-feed').value.trim(),sampleEmbed:document.getElementById('pod-sample').value.trim()};
+  try{localStorage.setItem(LS_PODCAST,JSON.stringify(c));}catch(e){}
+  window._podEpisodes=null;
+  var m=document.getElementById('pod-saved'); if(m){m.style.display='inline';setTimeout(function(){m.style.display='none';},1500);}
+}
+async function fetchEpisodes(){
+  if(window._podEpisodes) return window._podEpisodes;
+  var c=getPodcastSettings();
+  var r=await fetch('/api/podcast-episodes'+(c.feedUrl?('?url='+encodeURIComponent(c.feedUrl)):''));
+  var d=await r.json();
+  if(d.error && !(d.episodes||[]).length) throw new Error(d.error);
+  window._podEpisodes=d.episodes||[];
+  return window._podEpisodes;
+}
+function buildPodcastEmbed(ep,episodes){
+  var c=getPodcastSettings(), sample=c.sampleEmbed||'';
+  if(sample){
+    for(var i=0;i<episodes.length;i++){
+      var ids=episodes[i].ids||[];
+      for(var k=0;k<ids.length;k++){
+        if(ids[k] && sample.indexOf(ids[k])!==-1){
+          var target=(ep.ids||[])[k];
+          if(target) return {html:sample.split(ids[k]).join(target), matched:true};
+        }
+      }
+    }
+  }
+  var listen=ep.page||ep.audioUrl;
+  return {matched:false, html:'<p><strong>🎙️ Listen: '+esc(ep.title)+'</strong></p>\n<p><audio controls preload="none" src="'+esc(ep.audioUrl)+'" style="width:100%"></audio></p>\n<p><a href="'+esc(listen)+'" target="_blank">Listen to the full episode</a></p>'};
+}
+async function embedLatestEpisode(btn){
+  var old=btn.textContent; btn.disabled=true; btn.textContent='Loading…';
+  try{
+    var eps=await fetchEpisodes();
+    if(!eps.length) throw new Error('No episodes found in your podcast feed.');
+    var b=buildPodcastEmbed(eps[0],eps);
+    embedPodcast('🎙️ '+eps[0].title,b.html);
+  }catch(e){ alertInline('podcast-list',e.message); }
+  btn.disabled=false; btn.textContent=old;
+}
+async function queueLatestEpisode(btn){
+  var st=document.getElementById('pre-pod-status');
+  if(window._queuedEpisode){ window._queuedEpisode=null; btn.textContent='🎙️ Add latest episode'; st.textContent=''; return; }
+  var old=btn.textContent; btn.disabled=true; btn.textContent='Loading…';
+  try{
+    var eps=await fetchEpisodes();
+    if(!eps.length) throw new Error('No episodes found in your podcast feed.');
+    var b=buildPodcastEmbed(eps[0],eps);
+    window._queuedEpisode={name:'🎙️ '+eps[0].title,html:b.html};
+    btn.textContent='✓ Latest episode added';
+    st.textContent='"'+eps[0].title+'" will be embedded at the end of the edited article. Click again to remove it.';
+  }catch(e){ btn.textContent=old; st.textContent=e.message; }
+  btn.disabled=false;
+}
+function alertInline(id,msg){var el=document.getElementById(id);if(el)el.innerHTML='<div style="font-size:12px;color:var(--red)">'+esc(msg)+'</div>';}
 async function loadPodcastEpisodes(btn){
   var box=document.getElementById('podcast-list');
   btn.disabled=true;var old=btn.textContent;btn.textContent='Loading episodes…';
   try{
-    var r=await fetch('/api/podcast-episodes');var d=await r.json();
-    if(d.error && !(d.episodes||[]).length){ box.innerHTML='<div style="font-size:12px;color:var(--red)">'+esc(d.error)+'</div>'; }
-    else{
-      box.innerHTML=(d.episodes||[]).slice(0,8).map(function(ep){
-        var html='<audio controls preload="none" src="'+esc(ep.audioUrl)+'" style="width:100%"></audio>';
-        var name='🎙️ '+ep.title;
-        return '<div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid var(--border);font-size:13px">'+
-          '<div style="flex:1"><div>'+esc(ep.title)+'</div><div style="font-size:11px;color:var(--muted)">'+esc(ep.date||'')+(ep.duration?' · '+esc(ep.duration):'')+'</div></div>'+
-          '<button class="btn ghost" style="padding:3px 9px;font-size:11px" onclick=\'embedPodcast('+JSON.stringify(name)+','+JSON.stringify(html)+')\'>Embed</button>'+
-        '</div>';
-      }).join('');
-    }
-  }catch(e){ box.innerHTML='<div style="font-size:12px;color:var(--red)">'+esc(e.message)+'</div>'; }
+    var eps=await fetchEpisodes();
+    window._podPick=eps.slice(0,8);
+    box.innerHTML=window._podPick.map(function(ep,i){
+      var dur=ep.duration&&/^\d+$/.test(ep.duration)?Math.round(ep.duration/60)+' min':(ep.duration||'');
+      return '<div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid var(--border);font-size:13px">'+
+        '<div style="flex:1"><div>'+esc(ep.title)+'</div><div style="font-size:11px;color:var(--muted)">'+esc(ep.date||'')+(dur?' · '+esc(dur):'')+'</div></div>'+
+        '<button class="btn ghost" style="padding:3px 9px;font-size:11px" onclick="embedPicked('+i+')">Embed</button>'+
+      '</div>';
+    }).join('');
+  }catch(e){ alertInline('podcast-list',e.message); }
   btn.disabled=false;btn.textContent=old;
+}
+function embedPicked(i){
+  var ep=window._podPick[i]; if(!ep) return;
+  var b=buildPodcastEmbed(ep,window._podEpisodes||[ep]);
+  embedPodcast('🎙️ '+ep.title,b.html);
+}
+async function testPodcastEmbed(btn){
+  savePodcastSettings();
+  var out=document.getElementById('pod-test');
+  var old=btn.textContent; btn.disabled=true; btn.textContent='Loading…';
+  try{
+    var eps=await fetchEpisodes();
+    if(!eps.length) throw new Error('No episodes found in your podcast feed.');
+    var b=buildPodcastEmbed(eps[0],eps);
+    var note=getPodcastSettings().sampleEmbed
+      ? (b.matched?'Matched your sample embed code, so the latest episode uses your platform’s player:':'Couldn’t match your sample embed code to an episode in this feed, so it falls back to the simple audio player. Check that the sample is from this show.')
+      : 'No sample embed code saved, so it uses the simple audio player:';
+    out.innerHTML='<div class="hint">'+esc(note)+' <b>'+esc(eps[0].title)+'</b></div><div style="border:1px solid var(--border);border-radius:6px;padding:10px;margin-top:6px">'+b.html+'</div>';
+  }catch(e){ out.innerHTML='<div style="font-size:12px;color:var(--red)">'+esc(e.message)+'</div>'; }
+  btn.disabled=false; btn.textContent=old;
 }
 function embedPodcast(name,html){
   window._availableInserts=window._availableInserts||[];
   window._availableInserts.push({name:name,tier:'both',placement:'end',html:html});
-  toggleInsert(window._availableInserts.length-1);
-  // reflect it as a pressed button
+  var idx=window._availableInserts.length-1;
+  toggleInsert(idx);
   var wrap=document.getElementById('insert-btns');
-  if(wrap){ var b=document.createElement('button'); b.className='btn ghost'; b.style.cssText='margin:4px 6px 4px 0;background:var(--red);color:#fff'; b.textContent='✓ '+name; b.setAttribute('data-ins',window._availableInserts.length-1); b.onclick=function(){toggleInsert(window._availableInserts.length-1);}; wrap.appendChild(b); }
+  if(wrap){ var b=document.createElement('button'); b.className='btn ghost'; b.style.cssText='margin:4px 6px 4px 0;background:var(--red);color:#fff'; b.textContent='✓ '+name; b.setAttribute('data-ins',idx); b.onclick=function(){toggleInsert(idx);}; wrap.appendChild(b); }
 }
 
 function renderInsertPreview(){
@@ -928,6 +1047,7 @@ document.getElementById('sg').value=getGuide();
 loadGuideFromServer();
 renderWriters();
 renderPromos();
+loadPodcastSettingsForm();
 updateModeHint();
 (function(){
   var parts=(location.hash||'').replace('#','').split('/');
