@@ -23,7 +23,7 @@ async function sendMail(opts) {
       auth: { user: GMAIL_USER, pass: GMAIL_APP_PASSWORD.replace(/\s/g, '') }
     });
     var info = await transporter.sendMail({
-      from: '"InsideMDSports Monitor" <' + GMAIL_USER + '>',
+      from: '"CoPublisher AI" <' + GMAIL_USER + '>',
       to: recipients.join(', '),
       subject: opts.subject,
       html: opts.html
@@ -37,7 +37,7 @@ async function sendMail(opts) {
   if (!SENDGRID_API_KEY || !FROM_EMAIL) throw new Error('No mail credentials: set GMAIL_USER + GMAIL_APP_PASSWORD (preferred) or SENDGRID_API_KEY + FROM_EMAIL');
   var sgMail = require('@sendgrid/mail');
   sgMail.setApiKey(SENDGRID_API_KEY);
-  var result = await sgMail.send({ to: recipients, from: FROM_EMAIL, subject: opts.subject, html: opts.html });
+  var result = await sgMail.send({ to: recipients, from: { email: FROM_EMAIL, name: 'CoPublisher AI' }, subject: opts.subject, html: opts.html });
   return { via: 'sendgrid', to: recipients, status: result[0] && result[0].statusCode };
 }
 
