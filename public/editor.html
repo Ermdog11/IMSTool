@@ -698,14 +698,27 @@ function renderInsertControls(){
 // (by an ID from its audio URL/guid, see api/podcast-episodes.js) and swaps in
 // the target episode's ID, so every embed matches the platform's own format.
 var LS_PODCAST='ims_editor_podcast';
+// Built-in embed players. For these platforms the episode's player can be
+// built straight from the RSS feed (the ID is in the audio URL, link or guid),
+// so no sample embed code is needed. Each returns null when it can't find the
+// ID, and the editor falls back to a pasted sample or the plain audio player.
+// Amperwave and Libsyn don't expose a usable player ID in the feed, so they
+// rely on the pasted sample.
+var POD_TEMPLATES={
+  megaphone:function(ep){ var m=/megaphone\.fm\/([A-Z0-9]+)\.mp3/i.exec(ep.audioUrl||''); return m?'<iframe src="https://playlist.megaphone.fm?e='+m[1]+'" width="100%" height="200" frameborder="0" scrolling="no"></iframe>':null; },
+  buzzsprout:function(ep){ var m=/buzzsprout\.com\/(\d+)\/(?:episodes\/)?(\d+)/i.exec((ep.audioUrl||'')+' '+(ep.page||'')); return m?'<iframe src="https://www.buzzsprout.com/'+m[1]+'/'+m[2]+'?client_source=small_player&iframe=true" loading="lazy" width="100%" height="200" frameborder="0" scrolling="no"></iframe>':null; },
+  spreaker:function(ep){ var m=/spreaker\.com\/(?:download\/)?episode\/(\d+)/i.exec((ep.audioUrl||'')+' '+(ep.page||'')); return m?'<iframe src="https://widget.spreaker.com/player?episode_id='+m[1]+'&theme=light" width="100%" height="200" frameborder="0"></iframe>':null; },
+  transistor:function(ep){ var m=/share\.transistor\.fm\/s\/([a-z0-9]+)/i.exec(ep.page||'')||/media\.transistor\.fm\/([a-z0-9]+)\//i.exec(ep.audioUrl||''); return m?'<iframe width="100%" height="180" frameborder="no" scrolling="no" seamless src="https://share.transistor.fm/e/'+m[1]+'"></iframe>':null; },
+  simplecast:function(ep){ var g=(ep.guid||'').trim(); return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(g)?'<iframe height="200px" width="100%" frameborder="no" scrolling="no" seamless src="https://player.simplecast.com/'+g+'?dark=false"></iframe>':null; }
+};
 var POD_HINTS={
-  amperwave:'Amperwave: open any episode in your Amperwave dashboard, copy its embed/share player code, and paste it above.',
-  megaphone:'Megaphone: open an episode, choose Embed, copy the single-episode iframe and paste it above.',
-  buzzsprout:'Buzzsprout: open an episode, click Embed, copy the iframe code and paste it above.',
-  libsyn:'Libsyn: open an episode, copy its embed player code and paste it above.',
-  spreaker:'Spreaker: open an episode, choose Embed, copy the code and paste it above.',
-  simplecast:'Simplecast: open an episode, choose Embed, copy the iframe and paste it above.',
-  transistor:'Transistor: open an episode, choose Embed, copy the single-episode iframe and paste it above.',
+  amperwave:'Amperwave: paste the embed player code from any one episode in your Amperwave dashboard. Amperwave’s feed doesn’t include its player ID, so this one sample is how the editor learns the format.',
+  megaphone:'Megaphone: built in. Episodes get the Megaphone player automatically. Only paste a sample if you want a different player style.',
+  buzzsprout:'Buzzsprout: built in. Episodes get the Buzzsprout player automatically. Only paste a sample if you want a different player style.',
+  libsyn:'Libsyn: paste the embed player code from any one episode. Libsyn’s feed doesn’t include its player ID.',
+  spreaker:'Spreaker: built in. Episodes get the Spreaker player automatically. Only paste a sample if you want a different player style.',
+  simplecast:'Simplecast: built in. Episodes get the Simplecast player automatically. Only paste a sample if you want a different player style.',
+  transistor:'Transistor: built in. Episodes get the Transistor player automatically. Only paste a sample if you want a different player style.',
   other:'Paste the embed code your podcast host gives for any one episode.'
 };
 // This browser's saved settings, else the newsroom's (from the setup wizard).
@@ -746,19 +759,25 @@ async function fetchEpisodes(){
 }
 function buildPodcastEmbed(ep,episodes){
   var c=getPodcastSettings(), sample=c.sampleEmbed||'';
+  // 1. The publisher's own sample embed code, re-pointed at this episode.
   if(sample){
     for(var i=0;i<episodes.length;i++){
       var ids=episodes[i].ids||[];
       for(var k=0;k<ids.length;k++){
         if(ids[k] && sample.indexOf(ids[k])!==-1){
           var target=(ep.ids||[])[k];
-          if(target) return {html:sample.split(ids[k]).join(target), matched:true};
+          if(target) return {html:sample.split(ids[k]).join(target), matched:true, method:'sample'};
         }
       }
     }
   }
+  // 2. The platform's built-in player.
+  var tpl=POD_TEMPLATES[c.platform||''];
+  var built=tpl&&tpl(ep);
+  if(built) return {html:built, matched:true, method:'template'};
+  // 3. Plain audio player with a listen link.
   var listen=ep.page||ep.audioUrl;
-  return {matched:false, html:'<p><strong>🎙️ Listen: '+esc(ep.title)+'</strong></p>\n<p><audio controls preload="none" src="'+esc(ep.audioUrl)+'" style="width:100%"></audio></p>\n<p><a href="'+esc(listen)+'" target="_blank">Listen to the full episode</a></p>'};
+  return {matched:false, method:'fallback', html:'<p><strong>🎙️ Listen: '+esc(ep.title)+'</strong></p>\n<p><audio controls preload="none" src="'+esc(ep.audioUrl)+'" style="width:100%"></audio></p>\n<p><a href="'+esc(listen)+'" target="_blank">Listen to the full episode</a></p>'};
 }
 async function embedLatestEpisode(btn){
   var old=btn.textContent; btn.disabled=true; btn.textContent='Loading…';
@@ -824,9 +843,12 @@ async function testPodcastEmbed(btn){
     var eps=await fetchEpisodes();
     if(!eps.length) throw new Error('No episodes found in your podcast feed.');
     var b=buildPodcastEmbed(eps[0],eps);
-    var note=getPodcastSettings().sampleEmbed
-      ? (b.matched?'Matched your sample embed code, so the latest episode uses your platform’s player:':'Couldn’t match your sample embed code to an episode in this feed, so it falls back to the simple audio player. Check that the sample is from this show.')
-      : 'No sample embed code saved, so it uses the simple audio player:';
+    var cfg=getPodcastSettings();
+    var note=b.method==='sample' ? 'Using your sample embed code, re-pointed at the latest episode:'
+      : b.method==='template' ? 'Using the built-in '+(cfg.platform||'')+' player for the latest episode:'
+      : cfg.sampleEmbed ? 'Couldn\u2019t match your sample embed code to an episode in this feed, so it falls back to the simple audio player. Check that the sample is from this show.'
+      : POD_TEMPLATES[cfg.platform||''] ? 'Couldn\u2019t find this platform\u2019s episode ID in your feed, so it uses the simple audio player. Paste a sample embed code to fix that:'
+      : 'This platform needs one sample embed code. Until then it uses the simple audio player:';
     out.innerHTML='<div class="hint">'+esc(note)+' <b>'+esc(eps[0].title)+'</b></div><div style="border:1px solid var(--border);border-radius:6px;padding:10px;margin-top:6px">'+b.html+'</div>';
   }catch(e){ out.innerHTML='<div style="font-size:12px;color:var(--red)">'+esc(e.message)+'</div>'; }
   btn.disabled=false; btn.textContent=old;
