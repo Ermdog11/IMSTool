@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>InsideMDSports — Content Editor</title>
 <style>
-:root{--red:#cf0315;--red-dark:#a80210;--gold:#ffd520;--dark:#111;--border:#e8e6e1;--bg:#f7f6f3;--bg2:#fff;--text:#1a1a1a;--text2:#555;--muted:#888;--green:#3B6D11;--blue:#0c447c;--blue-light:#e8f4ff;--amber-bg:#fff8e1;--amber:#8a6d00;}
+:root{--red:#cf0315;--red-dark:#a80210;--gold:#ffd520;--dark:#111;--border:#e8e6e1;--bg:#f7f6f3;--bg2:#fff;--text:#1a1a1a;--text2:#333;--muted:#4a4a4a;--green:#3B6D11;--blue:#0c447c;--blue-light:#e8f4ff;--amber-bg:#fff8e1;--amber:#8a6d00;}
 *{box-sizing:border-box;margin:0;padding:0}
 body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:var(--bg);color:var(--text);font-size:14px;line-height:1.5}
 a{color:var(--blue)}
@@ -82,7 +82,7 @@ button.btn:disabled{opacity:.6;cursor:default}
     <div class="card" id="copydesk-card">
       <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap">
         <h2 style="margin:0">Copydesk</h2>
-        <button class="btn ghost" id="pre-pod-latest" style="padding:6px 14px;font-size:12.5px" onclick="queueLatestEpisode(this)">🎙️ Add latest podcast episode</button>
+        <button class="btn ghost" id="pre-pod-latest" style="padding:6px 14px;font-size:12.5px" title="Tip: add it after the edit is complete to see exactly where the 1–10 position lands" onclick="queueLatestEpisode(this)">🎙️ Add latest podcast episode</button>
       </div>
       <div class="hint" style="margin-top:4px">Paste a draft. Pick a mode below. Always review before publishing &mdash; the editor can be wrong on facts.</div>
       <div id="pre-pod-status" style="display:none;margin:0 0 12px;border:1px solid var(--border);border-radius:8px;padding:10px 12px;background:#fbfaf7"></div>
@@ -808,6 +808,7 @@ async function queueLatestEpisode(btn){
     btn.textContent='✓ Podcast added (click to remove)';
     st.style.display='block';
     st.innerHTML='<div style="font-size:12px;color:var(--muted);margin-bottom:6px">Added the embed code for <b>'+esc(eps[0].title)+'</b> to your draft. It stays exactly as is when you edit, and it\u2019s included when you copy, save or send the article.</div>'+
+      '<div style="font-size:12.5px;color:var(--text);background:var(--amber-bg);border:1px solid #f0dc8a;border-radius:6px;padding:7px 9px;margin-bottom:8px"><b>Tip:</b> the 1\u201310 position is counted on the finished article, so it\u2019s easiest to add the podcast <b>after the edit is complete</b>. Run the edit, then use <b>Embed latest episode</b> in the Inserts card and slide it until it sits where you want.</div>'+
       '<label style="display:flex;align-items:center;gap:8px;margin:0 0 8px;font-size:12.5px">Where in the article: Top <input type="range" min="1" max="10" step="1" value="'+(window._podPos||getPodcastSettings().position||10)+'" oninput="window._podPos=+this.value;this.nextElementSibling.textContent=this.value" style="width:160px;padding:0"> <b>'+(window._podPos||getPodcastSettings().position||10)+'</b> Bottom</label>'+
       '<div style="font-size:12px;color:var(--muted);margin-bottom:6px">Preview:</div>'+b.html;
   }catch(e){ btn.textContent=old; st.style.display='block'; st.innerHTML='<span style="color:var(--red);font-size:12px">'+esc(e.message)+'</span>'; }
