@@ -36,6 +36,9 @@ function placementIndex(placement, count) {
   if (placement === 'top') return 0;
   if (placement === 'early') return Math.min(3, count);
   if (placement === 'middle') return Math.floor(count / 2);
+  // 'pos1'..'pos10': the podcast slider — 1 is the top, 10 the bottom.
+  var m = /^pos(\d{1,2})$/.exec(placement);
+  if (m) { var k = Math.max(1, Math.min(10, +m[1])); return Math.round((k - 1) / 9 * count); }
   return count; // 'end' (or anything unrecognized)
 }
 
