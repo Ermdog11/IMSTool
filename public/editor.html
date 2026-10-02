@@ -46,6 +46,7 @@ button.btn:disabled{opacity:.6;cursor:default}
 .notes li{margin:4px 0;font-size:13px;margin-left:18px}
 .ctx{background:var(--amber-bg);border:1px solid #f0e2a8;border-radius:6px;padding:10px 12px;font-size:12.5px;margin-top:8px}
 .ctx b{color:var(--amber)}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}
 .empty{color:var(--muted);font-size:13px;padding:16px;text-align:center}
 .spin{display:inline-block;width:14px;height:14px;border:2px solid rgba(255,255,255,.4);border-top-color:#fff;border-radius:50%;animation:sp .7s linear infinite;vertical-align:-2px;margin-right:6px}
 @keyframes sp{to{transform:rotate(360deg)}}
@@ -212,6 +213,14 @@ button.btn:disabled{opacity:.6;cursor:default}
         </div>
         <button class="btn ghost" style="margin-top:0" onclick="transcribeUrl()">Transcribe link</button>
         <button class="btn ghost" style="margin-top:0" onclick="transcribeLatestEpisode(this)">🎙️ Latest podcast episode</button>
+      </div>
+      <div style="margin-top:14px;padding-top:12px;border-top:1px solid var(--border)">
+        <label style="margin-top:0">Or transcribe live, as it plays</label>
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+          <button class="btn ghost" style="margin:0" onclick="startLive('tab')">🔴 Live from a browser tab</button>
+          <button class="btn ghost" style="margin:0" onclick="startLive('mic')">🎤 Live from microphone</button>
+        </div>
+        <div style="font-size:12.5px;color:var(--muted);margin-top:6px">For YouTube, a livestreamed press conference, Zoom or Twitch: open it in another tab, click <b>Live from a browser tab</b>, pick that tab and keep <b>Share tab audio</b> on. Text appears as it’s spoken, and when you stop you can get the full version with speakers labeled. Works best in Chrome or Edge.</div>
       </div>
       <div id="tr-status" style="display:none;margin-top:12px;font-size:13px"></div>
     </div>
@@ -1331,6 +1340,7 @@ async function transcribeFile(file){
 async function transcribeUrl(){
   var u=document.getElementById('tr-url').value.trim();
   if(!u) return trStatus('Paste a link first.',true);
+  if(/youtube\.com|youtu\.be|twitch\.tv|(^|\/\/)(www\.)?(x|twitter)\.com\//i.test(u)) return trStatus('That\u2019s a video page, not a media file. Open it in another tab, then click <b>Live from a browser tab</b> below, pick that tab, keep <b>Share tab audio</b> on, and press play.',true);
   try{ await trStart({url:u},u.split('/').pop().split('?')[0]||u); }catch(e){ trStatus(esc(e.message),true); }
 }
 async function transcribeLatestEpisode(btn){
@@ -1371,14 +1381,15 @@ function trTime(ms){
   var s=Math.floor((ms||0)/1000), h=Math.floor(s/3600), m=Math.floor(s%3600/60), x=s%60;
   return (h?h+':'+String(m).padStart(2,'0'):m)+':'+String(x).padStart(2,'0');
 }
-function trName(sp){ return trState.names[sp]||('Speaker '+sp); }
+function trName(sp){ return sp==null?'':(trState.names[sp]||('Speaker '+sp)); }
 function trUtterances(){
   var d=trState.data||{};
   return d.utterances&&d.utterances.length?d.utterances:[{speaker:'A',start:0,text:d.text||''}];
 }
 function renderTranscript(){
   var us=trUtterances(), speakers=[];
-  us.forEach(function(u){ if(speakers.indexOf(u.speaker)<0) speakers.push(u.speaker); });
+  us.forEach(function(u){ if(u.speaker!=null && speakers.indexOf(u.speaker)<0) speakers.push(u.speaker); });
+  var L=trState.live&&window._lastLive;
   var dur=trState.data.duration?' · '+trTime(trState.data.duration*1000):'';
   var h='<div class="card"><div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap">'+
     '<h2 style="margin:0">'+esc(trState.name||'Transcript')+'<span style="font-weight:400;font-size:13px;color:var(--muted)">'+dur+'</span></h2>'+
@@ -1388,6 +1399,7 @@ function renderTranscript(){
       return '<label style="margin:0;display:flex;align-items:center;gap:6px;font-weight:400">Speaker '+esc(sp)+' is '+
         '<input value="'+esc(trState.names[sp]||'').replace(/"/g,'&quot;')+'" placeholder="name" style="width:150px;padding:5px 7px" onchange="trState.names[\''+esc(sp)+'\']=this.value.trim();trSaveNames();renderTranscript()"></label>';
     }).join('')+'</div>'+
+    (L&&L.recording?'<div style="'+TIP_STYLE+'">'+(speakers.length?'Live speaker labels are a first pass.':'This live transcript has no speaker labels.')+' <button class="btn" style="margin:0 0 0 6px;padding:4px 10px;font-size:12.5px" onclick="labelLiveRecording()">Get the full speaker-labeled version</button> <a style="margin-left:6px;font-size:12.5px" download="'+esc(L.name.replace(/[^A-Za-z0-9]+/g,'-'))+'.'+(/mp4/.test(L.recType)?'m4a':'webm')+'" href="'+URL.createObjectURL(L.recording)+'">Save the recording</a></div>':'')+
     '<div class="hint" style="margin:0 0 6px">Click <b>Copy</b> to grab a quote, or <b>+ Draft</b> to drop it at the end of your Copydesk draft.</div>'+
     us.map(function(u,i){
       return '<div style="display:flex;gap:10px;padding:8px 0;border-top:1px solid var(--border)">'+
@@ -1399,19 +1411,144 @@ function renderTranscript(){
     }).join('')+'</div>';
   document.getElementById('tr-result').innerHTML=h;
 }
+// ── Live transcription (AssemblyAI real-time streaming) ─────────────────────
+// Mic, or any browser tab's audio via screen-share (a YouTube video, a
+// livestreamed press conference, a Zoom/Twitch stream). Audio is converted to
+// 16kHz PCM in an AudioWorklet and streamed over a websocket with a
+// short-lived token from /api/transcribe?action=live-token. The same audio is
+// recorded alongside, so when it stops one click turns it into the full
+// speaker-labeled transcript through the normal upload path.
+var live=null;
+var LIVE_WORKLET="class P extends AudioWorkletProcessor{constructor(){super();this.b=[];}process(i){var c=i[0]&&i[0][0];if(c){for(var k=0;k<c.length;k++){var s=Math.max(-1,Math.min(1,c[k]));this.b.push(s<0?s*32768:s*32767);}if(this.b.length>=1600){this.port.postMessage(new Int16Array(this.b).buffer,[]);this.b=[];}}return true;}}registerProcessor('pcm16',P);";
+async function startLive(kind){
+  if(live) return;
+  var stream;
+  try{
+    if(kind==='tab'){
+      stream=await navigator.mediaDevices.getDisplayMedia({video:true,audio:{echoCancellation:false,noiseSuppression:false},systemAudio:'include',preferCurrentTab:false});
+      if(!stream.getAudioTracks().length){
+        stream.getTracks().forEach(function(t){t.stop();});
+        return trStatus('No sound came through. Try again, pick the <b>Chrome Tab</b> option, and make sure <b>Share tab audio</b> is switched on.',true);
+      }
+    } else {
+      stream=await navigator.mediaDevices.getUserMedia({audio:{echoCancellation:true,noiseSuppression:true}});
+    }
+  }catch(e){ return trStatus(e.name==='NotAllowedError'?'Permission was blocked. Allow '+(kind==='tab'?'screen sharing':'the microphone')+' for this site and try again.':esc(e.message),true); }
+
+  trStatus('<span class="spin" style="border-color:var(--border);border-top-color:var(--muted)"></span> Connecting…');
+  var tok;
+  try{
+    var r=await trFetch('/api/transcribe?action=live-token');
+    var d=await r.json().catch(function(){return {};});
+    if(!r.ok||!d.token) throw new Error(d.error||('HTTP '+r.status));
+    tok=d.token;
+  }catch(e){ stream.getTracks().forEach(function(t){t.stop();}); return trStatus(esc(e.message),true); }
+
+  var audioOnly=new MediaStream(stream.getAudioTracks());
+  live={kind:kind,stream:stream,turns:[],partial:'',t0:Date.now(),chunks:[],name:(kind==='tab'?'Live tab audio':'Live mic')+' · '+new Date().toLocaleString([], {month:'short',day:'numeric',hour:'numeric',minute:'2-digit'})};
+  // Record alongside, for the speaker-labeled version afterward.
+  try{
+    var mt=['audio/webm;codecs=opus','audio/webm','audio/mp4'].filter(function(t){return window.MediaRecorder&&MediaRecorder.isTypeSupported(t);})[0];
+    if(mt){ live.rec=new MediaRecorder(audioOnly,{mimeType:mt}); live.recType=mt.split(';')[0]; live.rec.ondataavailable=function(e){ if(e.data&&e.data.size) live&&live.chunks.push(e.data); }; live.rec.start(5000); }
+  }catch(e){}
+
+  try{
+    live.ctx=new AudioContext({sampleRate:16000});
+    var url=URL.createObjectURL(new Blob([LIVE_WORKLET],{type:'application/javascript'}));
+    await live.ctx.audioWorklet.addModule(url);
+    live.src=live.ctx.createMediaStreamSource(audioOnly);
+    live.node=new AudioWorkletNode(live.ctx,'pcm16');
+    var mute=live.ctx.createGain(); mute.gain.value=0;
+    live.src.connect(live.node); live.node.connect(mute); mute.connect(live.ctx.destination);
+  }catch(e){ stopLive(); return trStatus('This browser can’t stream audio. Use Chrome or Edge. ('+esc(e.message)+')',true); }
+
+  // Speaker labels on live audio are newer; if the service refuses the
+  // option before the session even begins, reconnect without it.
+  var openWs=function(withSpeakers){
+    var began=false;
+    var ws=new WebSocket('wss://streaming.assemblyai.com/v3/ws?sample_rate=16000&encoding=pcm_s16le&format_turns=true'+(withSpeakers?'&speaker_labels=true':'')+'&token='+encodeURIComponent(tok));
+    live.ws=ws; ws.binaryType='arraybuffer';
+    ws.onopen=function(){ live.node.port.onmessage=function(e){ if(live&&live.ws&&live.ws.readyState===1) live.ws.send(e.data); }; renderLive(); };
+    ws.onmessage=function(e){
+      var m; try{m=JSON.parse(e.data);}catch(x){return;}
+      if(!live) return;
+      if(m.type==='Begin') began=true;
+      if(m.type==='Turn'){
+        var sp=m.speaker_label&&m.speaker_label!=='PENDING'&&m.speaker_label!=='UNKNOWN'?String(m.speaker_label):null;
+        if(m.end_of_turn && m.turn_is_formatted!==false){
+          var w=(m.words||[])[0];
+          var t={order:m.turn_order,speaker:sp,start:w?w.start:(Date.now()-live.t0),text:m.transcript};
+          var at=live.turns.findIndex(function(x){return x.order!=null&&x.order===m.turn_order;});
+          if(at>=0) live.turns[at]=t; else live.turns.push(t);
+          live.partial='';
+        } else if(!m.end_of_turn) live.partial=m.transcript||'';
+        renderLive();
+      }
+    };
+    ws.onerror=function(){};
+    ws.onclose=function(e){
+      if(!live||live.stopping||live.ws!==ws) return;
+      if(!began&&withSpeakers){ openWs(false); return; }
+      if(e.code!==1000) trStatus('The live connection closed'+(e.reason?' ('+esc(e.reason)+')':'')+'. What came through so far is kept below.',true);
+      stopLive();
+    };
+  };
+  openWs(true);
+  // Sharing stopped from the browser's own "Stop sharing" bar.
+  stream.getTracks().forEach(function(t){ t.onended=function(){ stopLive(); }; });
+  document.getElementById('tr-result').innerHTML='';
+}
+function stopLive(){
+  if(!live||live.stopping) return;
+  var L=live; L.stopping=true;
+  try{ if(L.ws&&L.ws.readyState===1) L.ws.send(JSON.stringify({type:'Terminate'})); }catch(e){}
+  setTimeout(function(){ try{L.ws&&L.ws.close();}catch(e){} },1500);
+  try{L.node&&L.node.disconnect(); L.src&&L.src.disconnect(); L.ctx&&L.ctx.close();}catch(e){}
+  L.stream.getTracks().forEach(function(t){ t.onended=null; t.stop(); });
+  var finish=function(){
+    live=null;
+    if(L.partial) L.turns.push({speaker:null,start:Date.now()-L.t0,text:L.partial});
+    L.recording=L.chunks.length?new Blob(L.chunks,{type:L.recType||'audio/webm'}):null;
+    window._lastLive=L;
+    document.getElementById('tr-status').style.display='none';
+    trState={id:null,data:{utterances:L.turns,duration:Math.round((Date.now()-L.t0)/1000)},names:{},name:L.name,live:true};
+    renderTranscript();
+  };
+  if(L.rec&&L.rec.state!=='inactive'){ L.rec.onstop=finish; try{L.rec.stop();}catch(e){finish();} } else finish();
+}
+function renderLive(){
+  if(!live) return;
+  var secs=Math.round((Date.now()-live.t0)/1000);
+  trStatus('<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap"><span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:var(--red);animation:pulse 1.2s infinite"></span>'+
+    '<b>Live</b> · '+(live.kind==='tab'?'tab audio':'microphone')+' · '+trTime(secs*1000)+
+    '<button class="btn" style="margin:0 0 0 auto" onclick="stopLive()">■ Stop</button></div>');
+  var h='<div class="card"><h2 style="margin:0 0 8px">Live transcript</h2>'+
+    (live.turns.length||live.partial?'':'<div class="hint" style="margin:0">Listening… text shows up here as people talk.</div>')+
+    live.turns.map(function(u){ return '<div style="display:flex;gap:10px;padding:6px 0;border-top:1px solid var(--border)"><div style="width:90px;flex-shrink:0;font-size:12px;color:var(--muted)">'+(u.speaker!=null?'<b style="color:var(--text)">Speaker '+esc(u.speaker)+'</b><br>':'')+trTime(u.start)+'</div><div style="flex:1;font-size:14px">'+esc(u.text)+'</div></div>'; }).join('')+
+    (live.partial?'<div style="display:flex;gap:10px;padding:6px 0;border-top:1px solid var(--border);color:var(--muted)"><div style="width:52px;flex-shrink:0;font-size:12px">…</div><div style="flex:1;font-size:14px">'+esc(live.partial)+'</div></div>':'')+
+    '</div>';
+  var out=document.getElementById('tr-result'); out.innerHTML=h;
+  clearTimeout(live.tick); live.tick=setTimeout(renderLive,1000);
+}
+function labelLiveRecording(){
+  var L=window._lastLive;
+  if(!L||!L.recording) return;
+  var ext=/mp4/.test(L.recType)?'m4a':'webm';
+  transcribeFile(new File([L.recording],L.name.replace(/[^A-Za-z0-9]+/g,'-')+'.'+ext,{type:L.recType||'audio/webm'}));
+}
 function trPlain(){
-  return trUtterances().map(function(u){ return '['+trTime(u.start)+'] '+trName(u.speaker)+': '+u.text; }).join('\n\n');
+  return trUtterances().map(function(u){ return '['+trTime(u.start)+'] '+(u.speaker!=null?trName(u.speaker)+': ':'')+u.text; }).join('\n\n');
 }
 function trFlash(btn,txt){ var o=btn.textContent; btn.textContent=txt; setTimeout(function(){btn.textContent=o;},1400); }
 function trCopyAll(btn){ navigator.clipboard.writeText(trPlain()).then(function(){trFlash(btn,'Copied ✓');}); }
-function trCopyOne(i,btn){ var u=trUtterances()[i]; navigator.clipboard.writeText('“'+u.text+'” — '+trName(u.speaker)).then(function(){trFlash(btn,'✓');}); }
+function trCopyOne(i,btn){ var u=trUtterances()[i]; navigator.clipboard.writeText('“'+u.text+'”'+(u.speaker!=null?' — '+trName(u.speaker):'')).then(function(){trFlash(btn,'✓');}); }
 function trAppend(text){
   var ta=document.getElementById('ed-draft');
   var pod=ta.value.match(/\n*<!-- podcast -->[\s\S]*?<!-- \/podcast -->\n*$/);
   var base=pod?ta.value.slice(0,pod.index):ta.value;
   ta.value=base.replace(/\s+$/,'')+(base.trim()?'\n\n':'')+text+(pod?'\n\n'+pod[0].trim()+'\n':'');
 }
-function trToDraft(i,btn){ var u=trUtterances()[i]; trAppend('“'+u.text+'” '+trName(u.speaker)+' said.'); trFlash(btn,'Added ✓'); }
+function trToDraft(i,btn){ var u=trUtterances()[i]; trAppend('“'+u.text+'”'+(u.speaker!=null?' '+trName(u.speaker)+' said.':'')); trFlash(btn,'Added ✓'); }
 function trAllToDraft(){ trAppend('TRANSCRIPT — '+(trState.name||'')+'\n\n'+trPlain()); show(0); }
 (function(){
   var dz=document.getElementById('tr-drop'); if(!dz) return;

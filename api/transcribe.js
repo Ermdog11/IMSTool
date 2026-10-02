@@ -9,6 +9,9 @@
 //                                          deletes the blob, starts a transcript -> { id }
 //   POST { action:'start', url }        -> starts a transcript from a direct audio/video
 //                                          link (e.g. a podcast episode's MP3) -> { id }
+//   GET  ?action=live-token             -> { token } short-lived (10 min to connect) token for
+//                                          AssemblyAI real-time streaming, so the browser can
+//                                          stream mic or shared-tab audio without seeing our key
 //   GET  ?id=<transcript id>            -> { status, text, utterances:[{speaker,start,end,text}],
 //                                            duration, error }
 //
@@ -95,6 +98,12 @@ module.exports = async function handler(req, res) {
   try {
     if (req.method === 'GET') {
       await auth(req);
+      if (req.query && req.query.action === 'live-token') {
+        var tr = await fetch('https://streaming.assemblyai.com/v3/token?expires_in_seconds=600&max_session_duration_seconds=10800', { headers: { authorization: aaiKey() } });
+        var td = await tr.json().catch(function () { return {}; });
+        if (!tr.ok || !td.token) return res.status(502).json({ error: 'AssemblyAI: ' + (td.error || ('HTTP ' + tr.status)) });
+        return res.status(200).json({ token: td.token });
+      }
       var id = String((req.query && req.query.id) || '');
       if (!/^[A-Za-z0-9_-]{6,80}$/.test(id)) return res.status(400).json({ error: 'Missing transcript id.' });
       var t = await aaiJson('/transcript/' + id, { headers: { authorization: aaiKey() } });
@@ -142,7 +151,7 @@ module.exports = async function handler(req, res) {
         var u = String(body.url).trim();
         if (!/^https?:\/\//i.test(u)) return res.status(400).json({ error: 'Paste a full link starting with http.' });
         if (/youtube\.com|youtu\.be|twitter\.com|x\.com\//i.test(u)) {
-          return res.status(400).json({ error: 'That\'s a page, not a media file. Download the audio or video and upload it, or paste a direct link to the .mp3/.mp4.' });
+          return res.status(400).json({ error: 'That\'s a video page, not a media file. Use Live from a browser tab instead, or paste a direct link to the .mp3/.mp4.' });
         }
         started = await startTranscript(u);
       } else {
