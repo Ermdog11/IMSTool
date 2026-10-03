@@ -994,6 +994,7 @@ function renderAlerts() {
       ${a.summary ? `<div class="asum">${a.summary}</div>` : ''}
       <div class="myrate" id="myrate-${idx}">${myRateHtml(a, idx)}</div>
       <div class="acard-actions">
+        <button class="aaction" onclick="writeIt(${idx}, this)" title="Draft an article from this story and open it in the Content Editor" style="font-weight:700;"><i class="ti ti-pencil"></i> Write it</button>
         <button class="aaction" onclick="getAngles(${idx})"><i class="ti ti-bulb"></i> Story angles</button>
         <button class="aaction" onclick="getAutoBrief(${idx})"><i class="ti ti-file-text"></i> Auto-brief</button>
         <button class="aaction" onclick="getSEO(${idx})"><i class="ti ti-search"></i> SEO</button>
@@ -1578,6 +1579,38 @@ function getSEO(idx) {
 function getSocial(idx) {
   const a = allAlerts[idx];
   callClaude(`You are the social media manager at InsideMDSports. Draft platform-specific posts for this story. Include a link placeholder [LINK]. Write in a sharp, direct sports news voice — not overly promotional.\n\nX/Twitter (280 chars max): \nFacebook (2-3 sentences): \nInstagram caption: \n\nStory: ${a.headline}\nSummary: ${a.summary || ''}`, `output-${idx}`, 'Social copy');
+}
+
+// "Write it": drafts an article from this alert server-side (same generator as
+// the automatic rating-4/5 breaking drafts), saves it to Editorial Desk drafts
+// and opens the Content Editor on it. A story that already has a draft just
+// opens that one. The tab is opened up front, synchronously, so popup blockers
+// don't eat it once the ~20-40s draft call returns.
+async function writeIt(idx, btn) {
+  const a = allAlerts[idx];
+  const out = document.getElementById(`output-${idx}`);
+  const tab = window.open('', '_blank');
+  if (tab) tab.document.write('<p style="font-family:sans-serif;padding:24px;">Writing a draft of “' + String(a.headline || '').replace(/</g,'&lt;') + '”… this takes about 30 seconds.</p>');
+  out.className = 'aaction-output visible';
+  out.innerHTML = '<h4>Write it</h4><i class="ti ti-loader spin"></i> Drafting the article…';
+  if (btn) btn.disabled = true;
+  try {
+    const res = await IMSAuth.authFetch('/api/write-story', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ alert: { headline: a.headline, summary: a.summary, source: a.source, time: a.time, category: a.category, url: a.url } })
+    });
+    const d = await res.json();
+    if (!res.ok || !d.id) throw new Error(d.error || 'Draft failed');
+    const href = '/editor#3/' + d.id;
+    if (tab) tab.location.href = href;
+    out.innerHTML = '<h4>Write it</h4>' + (d.existing ? 'This story already had a draft — ' : 'Draft ready — ') +
+      '<a href="' + href + '" target="_blank" rel="noopener">open it in the Content Editor</a>.';
+  } catch (e) {
+    if (tab) tab.close();
+    out.innerHTML = '<h4>Write it</h4>Couldn’t draft it — ' + String(e.message || e).replace(/</g,'&lt;');
+  } finally {
+    if (btn) btn.disabled = false;
+  }
 }
 
 function claimStory(idx) {

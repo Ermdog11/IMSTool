@@ -36,27 +36,12 @@ var QUERIES = [
   'Maryland Terrapins recruiting commitment transfer portal'
 ];
 
-// Known evergreen team-hub / roster / schedule / reference pages — not news
-// articles, but broad head-term queries rank them highly regardless of how
-// old the actual news on the page is.
-var HUB_URL_PATTERNS = [
-  /espn\.com\/(?:college-football|mens-college-basketball|womens-college-basketball)\/team\//i,
-  /cbssports\.com\/(?:college-football|college-basketball)\/teams\//i,
-  /sports\.yahoo\.com\/(?:ncaaf|ncaab)\/teams\//i,
-  /si\.com\/college\/maryland\/?$/i,
-  /sports-reference\.com/i,
-  /en\.wikipedia\.org\/wiki\//i,
-  /umterps\.com\/?$/i,
-  /umterps\.com\/sports\/[a-z-]+\/(?:roster|schedule)\/?$/i,
-  /247sports\.com\/college\/maryland\/?$/i,
-  /on3\.com\/teams\//i,
-  /rivals\.com\/team\//i,
-  /(?:^|\/)(?:teams|team)\/maryland-terrapins\/?$/i
-];
+// Evergreen hub/roster/schedule pages, video clips, box scores and stat
+// pages — see _static-pages.js.
+var isStaticPage = require('./_static-pages.js').isStaticPage;
 
-function looksLikeHubPage(url) {
-  return HUB_URL_PATTERNS.some(function(re) { return re.test(url); });
-}
+// Drop a result whose own publish date is older than this.
+var MAX_AGE_HOURS = 72;
 
 function hostnameOf(url) {
   try { return new URL(url).hostname.replace(/^www\./, ''); } catch (e) { return ''; }
@@ -72,16 +57,21 @@ async function runOne(query, apiKey) {
   if (!r.ok) throw new Error('Brave Search: ' + (d && (d.error && d.error.message || JSON.stringify(d)) || ('HTTP ' + r.status)));
   var items = (d.web && d.web.results) || [];
   return items
-    .filter(function(item) { return item.url && !looksLikeHubPage(item.url); })
+    .filter(function(item) { return item.url && !isStaticPage(item.url, item.title); })
     .map(function(item) {
+      // freshness=pd filters on when Brave last crawled the page, not when it
+      // was published, so a re-crawled old page passes. page_age is Brave's
+      // best guess at the real publish date when it has one.
+      var pub = item.page_age ? new Date(item.page_age).getTime() : NaN;
       return {
         title: item.title || '',
         url: item.url || '',
         source: hostnameOf(item.url || ''),
         snippet: (item.description || '').replace(/<\/?strong>/g, '').slice(0, 320),
-        age: 0 // freshness=pd already bounds this to the last day; no reliable per-item timestamp
+        age: isNaN(pub) ? 0 : Math.max(0, Math.round((Date.now() - pub) / 3600000))
       };
-    });
+    })
+    .filter(function(item) { return item.age <= MAX_AGE_HOURS; });
 }
 
 var SEEN_BLOB_KEY = 'web-search-seen.json';

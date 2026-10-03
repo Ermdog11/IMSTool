@@ -25,26 +25,27 @@ var QUERIES = [
   'Maryland Terrapins recruiting commitment transfer portal'
 ];
 
-// Same evergreen-hub shapes _web-search.js filters — a site-restricted
-// search can still return a team's own hub/roster/schedule page instead of
-// an article if the publisher's curated list includes broad sports sites.
-var HUB_URL_PATTERNS = [
-  /espn\.com\/(?:college-football|mens-college-basketball|womens-college-basketball)\/team\//i,
-  /cbssports\.com\/(?:college-football|college-basketball)\/teams\//i,
-  /sports\.yahoo\.com\/(?:ncaaf|ncaab)\/teams\//i,
-  /si\.com\/college\/maryland\/?$/i,
-  /sports-reference\.com/i,
-  /en\.wikipedia\.org\/wiki\//i,
-  /umterps\.com\/?$/i,
-  /umterps\.com\/sports\/[a-z-]+\/(?:roster|schedule)\/?$/i,
-  /247sports\.com\/college\/maryland\/?$/i,
-  /on3\.com\/teams\//i,
-  /rivals\.com\/team\//i,
-  /(?:^|\/)(?:teams|team)\/maryland-terrapins\/?$/i
-];
+// Evergreen hub/roster/schedule pages, video clips, box scores and stat
+// pages — see _static-pages.js.
+var isStaticPage = require('./_static-pages.js').isStaticPage;
 
-function looksLikeHubPage(url) {
-  return HUB_URL_PATTERNS.some(function(re) { return re.test(url); });
+// Drop a result whose own publish date is older than this.
+var MAX_AGE_HOURS = 72;
+
+var DATE_META_KEYS = ['article:published_time', 'og:published_time', 'datepublished', 'pubdate', 'publishdate', 'date', 'sailthru.date', 'parsely-pub-date', 'video:release_date', 'uploaddate'];
+
+function publishedMs(item) {
+  var pm = item.pagemap || {};
+  var tags = (pm.metatags || []).concat(pm.newsarticle || [], pm.videoobject || [], pm.article || []);
+  for (var i = 0; i < tags.length; i++) {
+    var t = tags[i] || {};
+    for (var k in t) {
+      if (DATE_META_KEYS.indexOf(k.toLowerCase()) === -1) continue;
+      var ms = new Date(t[k]).getTime();
+      if (!isNaN(ms)) return ms;
+    }
+  }
+  return NaN;
 }
 
 async function fetchResults(query, apiKey, engineId, withSort) {
@@ -66,16 +67,20 @@ async function runOne(query, apiKey, engineId) {
   }
   if (d.error) throw new Error('Google Search: ' + (d.error.message || JSON.stringify(d.error)));
   return (d.items || [])
-    .filter(function(item) { return item.link && !looksLikeHubPage(item.link); })
+    .filter(function(item) { return item.link && !isStaticPage(item.link, item.title); })
     .map(function(item) {
+      // dateRestrict goes by crawl date, so an old page re-crawled today
+      // passes. Use the page's own published-date meta tag when it has one.
+      var pub = publishedMs(item);
       return {
         title: item.title || '',
         url: item.link || '',
         source: (item.displayLink || '').replace(/^www\./, ''),
         snippet: (item.snippet || '').slice(0, 320),
-        age: 0 // Custom Search doesn't give a reliable published time; dateRestrict already bounds this to the last day
+        age: isNaN(pub) ? 0 : Math.max(0, Math.round((Date.now() - pub) / 3600000))
       };
-    });
+    })
+    .filter(function(item) { return item.age <= MAX_AGE_HOURS; });
 }
 
 var SEEN_BLOB_KEY = 'google-search-seen.json';

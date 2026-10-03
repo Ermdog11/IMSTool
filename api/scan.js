@@ -385,6 +385,16 @@ module.exports = async function handler(req, res) {
       return true;
     });
 
+    // Drop evergreen pages that only look new: single-play video clips, box
+    // scores, stat and player-profile pages, team hubs (see _static-pages.js).
+    // X posts are left alone; YouTube videos are added after this point.
+    var staticFiltered = 0;
+    stories = stories.filter(function(s) {
+      if (s.source && s.source.charAt(0) === '@') return true;
+      if (require('./_static-pages.js').isStaticPage(s.url, s.title)) { staticFiltered++; return false; }
+      return true;
+    });
+
     // Prefer a real (fetchable) publisher URL over a Google News redirect when the same
     // story appears from multiple feeds. Stable sort keeps age order within each group;
     // the "keep first" dedup below then keeps the real-URL copy.
@@ -455,7 +465,7 @@ module.exports = async function handler(req, res) {
     var fetchStatuses = results.map(function(r, i) {
       return allNames[i] + ':' + (r.status === 'fulfilled' ? r.value.status : 'FAILED');
     });
-    console.log('Stories:', stories.length, '| Reddit:', redditCount, '| Google:', googleCount, '| YouTube:', videoCount, '| WebSearch:', webSearchCount, (webSearchWarnings.length ? '(' + webSearchWarnings.join('; ') + ')' : ''), '| XSearch:', xSearchCount, (xSearchWarnings.length ? '(' + xSearchWarnings.join('; ') + ')' : ''), '| GoogleSiteSearch:', googleSearchCount, (googleSearchWarnings.length ? '(' + googleSearchWarnings.join('; ') + ')' : ''), '| Own-outlet filtered:', ownFiltered, '| Blocklist size:', ownTitleWordSets.length, '| Blocklist source:', blocklistSource, '| Fetches:', fetchStatuses.join(', '));
+    console.log('Stories:', stories.length, '| Reddit:', redditCount, '| Google:', googleCount, '| YouTube:', videoCount, '| WebSearch:', webSearchCount, (webSearchWarnings.length ? '(' + webSearchWarnings.join('; ') + ')' : ''), '| XSearch:', xSearchCount, (xSearchWarnings.length ? '(' + xSearchWarnings.join('; ') + ')' : ''), '| GoogleSiteSearch:', googleSearchCount, (googleSearchWarnings.length ? '(' + googleSearchWarnings.join('; ') + ')' : ''), '| Own-outlet filtered:', ownFiltered, '| Static pages filtered:', staticFiltered, '| Blocklist size:', ownTitleWordSets.length, '| Blocklist source:', blocklistSource, '| Fetches:', fetchStatuses.join(', '));
 
     if (!stories.length) {
       var diagMsg = 'No stories found. Fetch results: ' + fetchStatuses.join(', ');
