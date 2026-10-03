@@ -43,9 +43,9 @@ Paste this block into the tool's style or prompt box:
 - **Voiceover:**
   > Think of it as your own designated news spotter. It watches news sites, Google News, Reddit, podcasts, YouTube and the reporters you trust on X all day long, and rates every story so breaking news jumps to the top. It also watches your competition: every story a rival publishes on your beat shows up within fifteen minutes, flagged as a gap if you haven't covered it.
 
-### Scene 3a — Opps Spy alerts (coming soon)
+### Scene 3a — Opp Watch alerts (coming soon)
 - **Visual:** `23-opps-spy-notification.png` in a phone frame (a lock-screen notification). Highlight the notification, then the **"Draft it"** button. Show an amber **"Coming soon"** badge in the top-right corner for the whole scene.
-- **On-screen text:** "Opps Spy alerts" + **Coming soon** badge
+- **On-screen text:** "Opp Watch alerts" + **Coming soon** badge
 - **Voiceover:**
   > When a competitor beats you to a story, you'll know right away. Inside the Black and Gold just published? You haven't covered it yet. One tap, and CoPublisher drafts your own related story.
 
@@ -161,7 +161,7 @@ These are the things the script says the product does, matched to what it actual
 
 - **"So you never miss a story":** marketing language, not a guarantee; coverage depends on the sources and people set up for the beat.
 - **Roster watch:** official roster, coaching-staff and athletic-department pages are checked 3 times a week; added, removed and retitled people are emailed and logged with dates.
-- **Opps Spy alerts (Scene 3a):** Opps Spy already tracks competitors and emails you within about 15 minutes of a new story on your beat, marked as a gap when you haven't covered it. The phone notification with a one-tap "Draft it" button is not built yet; keep the "Coming soon" label. The headline in the notification is invented for the mockup.
+- **Opp Watch alerts (Scene 3a):** Opp Watch already tracks competitors and emails you within about 15 minutes of a new story on your beat, marked as a gap when you haven't covered it. The phone notification with a one-tap "Draft it" button is not built yet; keep the "Coming soon" label. The headline in the notification is invented for the mockup.
 - **House rules (Scene 5a2):** the house style guide is written from samples of your own articles in setup, and every edit is measured against it; the app already records what editors change before a story publishes. Automatically updating the house rules from those changes is not built yet, so keep the "Auto-updates coming soon" badge. The "3 suggested updates this week" line in the mockup is illustrative.
 - **Text alerts (Scene 4b):** not built yet. The scene is labeled "Coming soon"; keep that label. Today the same alert arrives by email with the draft attached.
 - **"Working 24 hours a day":** scheduled jobs run all day and night. X is checked every 30 minutes, competitors every 15 minutes, hot stories every 15 minutes, and full scans several times a day. The morning memo goes out at 7 a.m.
@@ -195,7 +195,7 @@ These are the things the script says the product does, matched to what it actual
 | `04-x-analytics.png` | X / Twitter card, 7- and 30-day tabs (2×) |
 | `05-suggestions.png` | Overall summary + suggestions (2×) |
 | `06-trends-charts.png` | Full Trends card: suggestions, traffic sources, charts (2×) |
-| `07-opps-spy.png` | Opps Spy competitor tracker (full screen) |
+| `07-opps-spy.png` | Opp Watch competitor tracker (full screen) |
 | `08-content-editor.png` | Content Editor: headline options + edited article (full screen) |
 | `09-content-editor-notes-seo.png` | Content Editor: notes, context, fact flags (full screen) |
 | `10-wizard-1-outlet.png` | Signup wizard step 1 (full screen) |
@@ -209,7 +209,7 @@ These are the things the script says the product does, matched to what it actual
 | `18-draft-social.png` | Draft social: posts styled on your best performers (2×) |
 | `24-before-after.png` | Writer's rough draft vs. the version edited in your site's voice, with the rules applied (full screen) |
 | `25-house-style.png` | House style tab: your rules + "Learning your newsroom's voice" panel (full screen) |
-| `23-opps-spy-notification.png` | Coming soon: Opps Spy phone notification with a "Draft it" button (3×) |
+| `23-opps-spy-notification.png` | Coming soon: Opp Watch phone notification with a "Draft it" button (3×) |
 | `20-text-alert-phone.png` | Coming soon: text alert conversation on a phone (3×) |
 | `21-roster-change-email.png` | Roster change alert email: assistant coach off, new player added (full screen) |
 | `22-roster-watch.png` | Roster watch page: roster, staff and dated change history (full screen) |

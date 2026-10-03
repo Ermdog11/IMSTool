@@ -238,7 +238,7 @@ body { padding-bottom: 40px; }
   <button class="nav-tab" id="tab-btn-10" onclick="switchTab(10)">Settings</button>
   <button class="nav-tab" id="tab-btn-11" onclick="switchTab(11)">📈 Analytics</button>
   <button class="nav-tab" id="tab-btn-12" onclick="switchTab(12)">🏈 Roster watch</button>
-  <button class="nav-tab" id="tab-btn-13" onclick="switchTab(13)">🕵️ Opps Spy</button>
+  <button class="nav-tab" id="tab-btn-13" onclick="switchTab(13)">👀 Opp Watch</button>
 </div>
 
 <!-- ALERTS TAB -->
@@ -767,10 +767,10 @@ body { padding-bottom: 40px; }
   </div>
 </div>
 
-<!-- OPPS SPY TAB -->
+<!-- OPP WATCH TAB -->
 <div class="page" id="page-13">
   <div style="padding:16px 0 8px;">
-    <h3 style="margin:0;font-size:1.1rem;">🕵️ Opps Spy</h3>
+    <h3 style="margin:0;font-size:1.1rem;">👀 Opp Watch</h3>
     <p style="color:var(--text2);font-size:.85rem;margin:4px 0 0;max-width:68ch;">Follow your closest competition. Every story they publish on your beat shows up here within 15 minutes, marked <b>Gap</b> when we haven't covered it. Choose who to follow, and who emails you when they publish, in <a href="/setup">setup → Your beat</a>.</p>
   </div>
   <div id="oppsCards" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:10px;margin:8px 0 16px;"></div>
@@ -3264,7 +3264,7 @@ async function loadSourceHealth() {
   } catch (e) { box.innerHTML = '<div style="font-size:12px;color:var(--hot);">Couldn\'t load source health — ' + e.message + '</div>'; }
 }
 
-// ---- Opps Spy (api/opps-spy.js) ----
+// ---- Opp Watch (api/opps-spy.js) ----
 var oppsData = { competitors: [], items: [] };
 function oppsAgo(t) {
   var m = Math.round((Date.now() - t) / 60000);
@@ -3284,7 +3284,7 @@ async function loadOppsSpy() {
     sel.value = cur;
     renderOpps();
   } catch (e) {
-    list.innerHTML = '<div class="empty" style="padding:12px;">Couldn\'t load Opps Spy — ' + oppsEsc(e.message) + '</div>';
+    list.innerHTML = '<div class="empty" style="padding:12px;">Couldn\'t load Opp Watch — ' + oppsEsc(e.message) + '</div>';
   }
 }
 function renderOpps() {

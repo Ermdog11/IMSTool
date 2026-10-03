@@ -1,4 +1,4 @@
-// /api/opps-spy — Opps Spy: follow your closest competition.
+// /api/opps-spy — Opp Watch: follow your closest competition.
 //
 // Competitors are the beat's outlets (setup wizard → Your beat) with
 // "Email me when they publish" or "Text me when they publish" checked.
@@ -6,7 +6,7 @@
 //   GET ?run=1   (cron, every 15 min) -> polls each competitor's feed, records
 //                new articles, emails the newsroom about the ones from outlets
 //                with email alerts on. No Claude calls: just feeds.
-//   GET          (News Monitor's Opps Spy tab) -> { competitors:[stats], items:[latest] }
+//   GET          (News Monitor's Opp Watch tab) -> { competitors:[stats], items:[latest] }
 //
 // Each article is checked against our own recent headlines (the same
 // own-outlet list scan.js keeps in Blob), so the tab can show what a rival
@@ -118,17 +118,17 @@ async function run(beat) {
   if (toEmail.length) {
     var esc = function (s) { return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;'); };
     var subject = toEmail.length === 1
-      ? 'Opps Spy: ' + toEmail[0].outlet.name + ' just published "' + toEmail[0].item.title.slice(0, 90) + '"'
-      : 'Opps Spy: ' + toEmail.length + ' new stories from your competition';
+      ? 'Opp Watch: ' + toEmail[0].outlet.name + ' just published "' + toEmail[0].item.title.slice(0, 90) + '"'
+      : 'Opp Watch: ' + toEmail.length + ' new stories from your competition';
     var html = '<div style="font-family:-apple-system,Segoe UI,sans-serif;max-width:620px">' +
-      '<p style="color:#555;font-size:13px">From your CoPublisher AI Opps Spy, which follows the outlets you picked in setup.</p>' +
+      '<p style="color:#555;font-size:13px">From your CoPublisher AI Opp Watch, which follows the outlets you picked in setup.</p>' +
       toEmail.map(function (f) {
         return '<div style="border-top:1px solid #eee;padding:10px 0"><div style="font-size:12px;color:#888">' + esc(f.outlet.name) +
           (f.item.covered ? ' · <span style="color:#3B6D11">we covered this</span>' : ' · <b style="color:#cf0315">we haven\'t covered this</b>') + '</div>' +
           '<a href="' + esc(f.item.url) + '" style="font-size:15px;font-weight:600;color:#111;text-decoration:none">' + esc(f.item.title) + '</a></div>';
       }).join('') +
-      '<p style="font-size:12px;color:#888;margin-top:14px">See everything on the Opps Spy tab: https://ims-tool.vercel.app/opps</p></div>';
-    try { await require('./_mailer').sendMail({ subject: subject, html: html }); } catch (e) { console.error('Opps Spy email failed:', e.message); }
+      '<p style="font-size:12px;color:#888;margin-top:14px">See everything on the Opp Watch tab: https://ims-tool.vercel.app/opps</p></div>';
+    try { await require('./_mailer').sendMail({ subject: subject, html: html }); } catch (e) { console.error('Opp Watch email failed:', e.message); }
   }
   return { competitors: comps.length, fresh: fresh.length, emailed: toEmail.length };
 }
@@ -175,7 +175,7 @@ module.exports = async function handler(req, res) {
       items: state.items.filter(function (i) { return names.indexOf(i.outlet) !== -1; }).slice(0, 120)
     });
   } catch (e) {
-    console.error('Opps Spy error:', e.message);
+    console.error('Opp Watch error:', e.message);
     return res.status(500).json({ error: e.message });
   }
 };

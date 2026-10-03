@@ -9,13 +9,23 @@
 *{box-sizing:border-box;margin:0;padding:0}
 body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:var(--bg);color:var(--text);font-size:14px;line-height:1.5}
 a{color:var(--blue)}
-.topbar{background:var(--dark);padding:0 20px;display:flex;align-items:center;justify-content:space-between;height:52px;position:sticky;top:0;z-index:100}
+.topbar{background:var(--dark);padding:0 20px;display:flex;align-items:center;justify-content:space-between;gap:10px;min-height:52px;position:sticky;top:0;z-index:100}
 .topbar-left{display:flex;align-items:center;gap:12px}
 .ims-logo{width:34px;height:34px;background:var(--red);border-radius:5px;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:11px;color:#fff}
 .site-name{color:#fff;font-size:15px;font-weight:600}
 .site-sub{color:#888;font-size:11px;margin-top:1px}
-.topbar a{color:#ccc;font-size:12px;text-decoration:none;border:.5px solid #555;padding:4px 12px;border-radius:20px}
-.topbar a:hover{color:#fff;border-color:#999}
+.topbar a:not(.topbar-left){color:#ccc;font-size:12px;text-decoration:none;border:.5px solid #555;padding:4px 12px;border-radius:20px;white-space:nowrap}
+.topbar a:not(.topbar-left):hover{color:#fff;border-color:#999}
+.topbar-slot{display:flex;align-items:center;gap:10px;min-width:0}
+/* Phones: the bar wraps instead of overflowing onto the tabs below it. */
+@media (max-width:640px){
+  .topbar{flex-wrap:wrap;padding:8px 12px;position:static}
+  .site-sub{display:none}
+  .topbar-slot{flex-wrap:wrap;gap:6px}
+  .topbar-slot span{max-width:52vw;overflow:hidden;text-overflow:ellipsis}
+  .nav{padding:0 8px}
+  .nav button{padding:10px 10px}
+}
 .nav{background:var(--nav);display:flex;flex-wrap:wrap;padding:0 20px}
 .nav button{font-size:12px;font-weight:600;padding:11px 16px;color:rgba(255,255,255,.7);border:none;background:transparent;cursor:pointer;border-bottom:2px solid transparent}
 .nav button.active{color:#fff;border-bottom-color:var(--nav-on)}
@@ -254,8 +264,9 @@ button.btn:disabled{opacity:.6;cursor:default}
       var bar = document.querySelector('.topbar');
       if (bar) {
         var slot = document.createElement('div');
-        slot.style.cssText = 'display:flex;align-items:center;gap:10px';
-        var back = bar.querySelector('a');
+        slot.className = 'topbar-slot';
+        // The back link, not the logo link (also an <a>) in front of it.
+        var back = bar.querySelector('a:not(.topbar-left)');
         if (back) slot.appendChild(back);
         IMSAuth.mountMenu(slot);
         bar.appendChild(slot);
