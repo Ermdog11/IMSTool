@@ -87,7 +87,7 @@ async function writeDigest(commits, pending, dateLabel) {
 }
 
 module.exports = async function handler(req, res) {
-  try { await require('./_supabase').requireUserOrCron(req); }
+  try { await require('./_supabase').requireUserOrCron(req, res); }
   catch (authErr) { return res.status(authErr.status || 401).json({ error: authErr.message || 'Not signed in' }); }
   var dateLabel = new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' });
   try {

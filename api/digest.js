@@ -53,7 +53,7 @@ const buildDigestEmailHTML = (alerts, date) => {
 };
 
 module.exports = async function handler(req, res) {
-  try { await require('./_supabase').requireUserOrCron(req); }
+  try { await require('./_supabase').requireUserOrCron(req, res); }
   catch (authErr) { return res.status(authErr.status || 401).json({ error: authErr.message || 'Not signed in' }); }
   var ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY;
 

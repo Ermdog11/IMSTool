@@ -3,7 +3,7 @@
 var channelCache = {}; // showName -> channelId (survives warm invocations)
 
 module.exports = async function handler(req, res) {
-  try { await require('./_supabase').requireUserOrCron(req); }
+  try { await require('./_supabase').requireUserOrCron(req, res); }
   catch (authErr) { return res.status(authErr.status || 401).json({ error: authErr.message || 'Not signed in' }); }
   var key = process.env.YOUTUBE_API_KEY;
   if (!key) return res.status(200).json({ hits: [], error: 'YOUTUBE_API_KEY not set' });

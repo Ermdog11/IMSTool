@@ -131,11 +131,15 @@ async function teamRecipientsFor(alertType, siteSlug) {
 //  - Vercel Cron sends "Authorization: Bearer $CRON_SECRET";
 //  - otherwise the caller must be a signed-in member.
 // Fails open like requireUser when Supabase isn't configured.
-async function requireUserOrCron(req) {
+// Also hooks the response into the health alerts (api/_health.js) so credit
+// outages and repeatedly failing scheduled jobs email the publisher.
+async function requireUserOrCron(req, res) {
   if (!req || !req.headers) return { internal: true };
   var secret = process.env.CRON_SECRET;
   var auth = req.headers.authorization || req.headers.Authorization || '';
-  if (secret && auth === 'Bearer ' + secret) return { cron: true };
+  var isCron = !!(secret && auth === 'Bearer ' + secret);
+  try { require('./_health').watch(req, res, isCron); } catch (e) {}
+  if (isCron) return { cron: true };
   if (!isConfigured()) return { open: true };
   return requireUser(req);
 }
