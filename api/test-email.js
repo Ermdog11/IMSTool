@@ -1,7 +1,7 @@
 var mailer = require('./_mailer.js');
 
 module.exports = async function handler(req, res) {
-  try { await require('./_supabase').requireUserOrCron(req); }
+  try { await require('./_supabase').requireUserOrCron(req, res); }
   catch (authErr) { return res.status(authErr.status || 401).json({ error: authErr.message || 'Not signed in' }); }
   try {
     var result = await mailer.sendMail({

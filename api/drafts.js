@@ -4,7 +4,7 @@ var { loadIndex, loadDraft, saveDraft, deleteDraft } = require('./_drafts');
 var { notifyPublisherOfSubmission } = require('./_notify');
 
 module.exports = async function handler(req, res) {
-  try { await require('./_supabase').requireUserOrCron(req); }
+  try { await require('./_supabase').requireUserOrCron(req, res); }
   catch (authErr) { return res.status(authErr.status || 401).json({ error: authErr.message || 'Not signed in' }); }
   try {
     if (req.method === 'GET') {
