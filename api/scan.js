@@ -57,6 +57,15 @@ module.exports = async function handler(req, res) {
 
     var redditFetches = B.redditFor(beat);
 
+    // Source health (api/_source-health.js): a feed that has been dead for a
+    // day is swapped for a Google News search of its site, or skipped if it
+    // can't be fixed (Reddit). Every scan reports back how each source did.
+    var SH = require('./_source-health.js');
+    var shState = await SH.load();
+    feedConfigs = SH.heal(feedConfigs, shState);
+    redditFetches = SH.heal(redditFetches, shState);
+    var feedStats = {};
+
     // Every external fetch gets its own timeout — without this, a single slow or
     // hanging RSS/Reddit source can block Promise.allSettled indefinitely (fetch()
     // has no default timeout), which drags the whole function past Vercel's
@@ -148,6 +157,8 @@ module.exports = async function handler(req, res) {
       try {
         var rj = await results[ri].value.json();
         var posts = (rj.data && rj.data.children) || [];
+        var rBefore = stories.length;
+        feedStats[redditFetches[ri].name] = { items: posts.length, before: rBefore };
         posts.forEach(function(p) {
           var d = p.data;
           if (!d || !d.title) return;
@@ -171,6 +182,7 @@ module.exports = async function handler(req, res) {
       var cfg = feedConfigs[gi - redditFetches.length];
       try {
         var xml = await results[gi].value.text();
+        feedStats[cfg.name] = { items: (xml.match(/<item[\s>]|<entry[\s>]/g) || []).length, before: stories.length };
         // Our-outlet blocklist: pull headline slugs out of our own landing page's
         // article URLs (…/article/some-headline-slug-289225568/) and record them. This
         // scrape intermittently 406s (bot detection) — when that happens the page body
@@ -285,6 +297,25 @@ module.exports = async function handler(req, res) {
         });
       } catch(e) { /* skip failed feed */ }
     }
+
+    // Report every source's outcome (status, items, stories kept) to source health.
+    try {
+      var keptAfter = {};
+      var names = redditFetches.map(function (f) { return f; }).concat(feedConfigs);
+      // stories were appended in fetch order, so a feed's kept count is the
+      // growth between its start and the next feed's start
+      var order = names.map(function (f) { return f.name; }).filter(function (n) { return feedStats[n]; });
+      order.forEach(function (n, k) {
+        var next = k + 1 < order.length ? feedStats[order[k + 1]].before : stories.length;
+        keptAfter[n] = Math.max(0, next - feedStats[n].before);
+      });
+      await SH.record(names.map(function (f, k) {
+        var r = results[k];
+        var st = feedStats[f.name] || {};
+        return { name: f.name, url: f.url, healedFrom: f.healedFrom, status: r && r.status === 'fulfilled' ? r.value.status : 'FAILED',
+          items: f.scrapeSlugs ? (ownHeadlines.length || 0) : (st.items || 0), kept: keptAfter[f.name] || 0 };
+      }));
+    } catch (e) { console.error('source health record failed:', e.message); }
 
     // Real, open-ended web search alongside the ~70 curated RSS queries above
     // — opt-in per caller (body.webSearch), set only by rolling-digest.js's
