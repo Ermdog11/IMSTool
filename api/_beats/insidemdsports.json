@@ -178,7 +178,7 @@
    "name": "GNews/nflnba"
   },
   {
-   "url": "https://www.insidetheblackandgold.net/feed/",
+   "url": "https://news.google.com/rss/search?q=site%3Ainsidetheblackandgold.net&hl=en-US&gl=US&ceid=US:en",
    "name": "ITBG",
    "src": "Inside The Black And Gold"
   },
@@ -211,12 +211,6 @@
    "url": "https://news.google.com/rss/search?q=site%3Afoxsports.com+%22Terps%22+OR+site%3Afoxsports.com+%22Locksley%22+OR+site%3Afoxsports.com+%22Buzz+Williams%22&hl=en-US&gl=US&ceid=US:en",
    "name": "FoxSports/names",
    "src": "FOX Sports"
-  },
-  {
-   "url": "https://collegehoopstoday.com/feed/",
-   "name": "Rothstein",
-   "src": "College Hoops Today (Rothstein)",
-   "requireBeat": true
   },
   {
    "url": "https://news.google.com/rss/search?q=site%3Acollegehoopstoday.com+%22Maryland%22&hl=en-US&gl=US&ceid=US:en",
@@ -391,6 +385,11 @@
    "src": "Google Alerts",
    "isAtom": true,
    "requireBeat": true
+  },
+  {
+   "url": "https://www.bing.com/news/search?q=site%3Ainsidetheblackandgold.net&format=rss",
+   "name": "Bing/ITBG",
+   "src": "Inside The Black And Gold"
   }
  ],
  "reddit": [
