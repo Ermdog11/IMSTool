@@ -720,6 +720,11 @@ body { padding-bottom: 40px; }
     </div>
   </div>
 
+  <div class="settings-card" id="bufferInsightsCard" style="display:none;">
+    <h3><i class="ti ti-share"></i> Social posts (Buffer) <span style="font-size:11px;font-weight:400;color:var(--text3);">beta</span></h3>
+    <div id="bufferInsights"></div>
+  </div>
+
   <div class="settings-card" id="facebookInsightsCard" style="display:none;">
     <h3><i class="ti ti-brand-facebook"></i> Facebook Page</h3>
     <div id="facebookInsights"></div>
@@ -2435,7 +2440,8 @@ const ANALYTICS_SOURCES = [
   { key:'gsc',    name:'Google Search Console',  gives:'Search queries, clicks, impressions, ranking — the SEO picture', setup:'Same Google Cloud OAuth client, Search Console scope.' },
   { key:'meta',   name:'Facebook / Instagram',  gives:'Reach and engagement for your own Page and IG account', setup:'Needs a Meta app with pages_read_engagement.' },
   { key:'chartbeat', name:'Chartbeat',          gives:'Real-time concurrents and engaged time per story', setup:'Needs your Chartbeat API key (paste it).' },
-  { key:'parsely', name:'Parse.ly',             gives:'Historical performance by post, author, section, tag', setup:'Needs your Parse.ly API secret (paste it).' }
+  { key:'parsely', name:'Parse.ly',             gives:'Historical performance by post, author, section, tag', setup:'Needs your Parse.ly API secret (paste it).' },
+  { key:'buffer',  name:'Buffer (beta)',        gives:'How your social posts sent through Buffer perform: reactions, comments, shares, clicks per post and per channel', setup:'Needs a personal API key from your Buffer account (Settings → API — paste it). Buffer labels these metrics experimental and updates them about once a day.' }
 ];
 let analyticsConnected = {};
 
@@ -2462,7 +2468,7 @@ async function renderAnalyticsConnections() {
   c.innerHTML = ANALYTICS_SOURCES.map(s => {
     const conn = analyticsConnected[s.key];
     const status = conn
-      ? `<span style="color:#15803d;font-size:11px;font-weight:600;">● Connected${conn.meta && conn.meta.host ? ' · ' + conn.meta.host : ''}</span>`
+      ? `<span style="color:#15803d;font-size:11px;font-weight:600;">● Connected${conn.meta && (conn.meta.host || conn.meta.organizationName) ? ' · ' + (conn.meta.host || conn.meta.organizationName) : ''}</span>`
       : '';
     const actionBtn = conn
       ? `<button class="pill" onclick="disconnectAnalytics('${s.key}')">Disconnect</button>`
@@ -2483,6 +2489,7 @@ async function renderAnalyticsConnections() {
 function connectAnalytics(key) {
   if (key === 'chartbeat') return connectChartbeat();
   if (key === 'meta') return connectMeta();
+  if (key === 'buffer') return connectBuffer();
   const s = ANALYTICS_SOURCES.find(x => x.key === key);
   alert(`${s.name}\n\nThis connection isn't wired up yet. ${s.setup}\n\nWhen you're ready to set it up, tell Claude and it'll walk you through the one-time registration, then this button will start the sign-in.`);
 }
@@ -2512,6 +2519,30 @@ async function connectChartbeat() {
   } catch (e) { alert('Chartbeat: ' + e.message); }
 }
 
+async function connectBuffer() {
+  const apiKey = prompt("Buffer API key — in Buffer, open Settings → API and create a personal API key, then paste it here:");
+  if (!apiKey) return;
+  const send = async (organizationId) => {
+    const r = await IMSAuth.authFetch('/api/analytics-connections', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ source: 'buffer', apiKey, organizationId })
+    });
+    return r.json();
+  };
+  try {
+    let d = await send();
+    if (d.needsOrganization) {
+      const list = d.organizations.map((o, i) => `${i + 1}. ${o.name}`).join('\n');
+      const pick = parseInt(prompt(`This Buffer account has more than one organization. Which one is this newsroom's?\n\n${list}\n\nType the number:`, '1'), 10);
+      const org = d.organizations[pick - 1];
+      if (!org) return;
+      d = await send(org.id);
+    }
+    if (d.error) { alert('Buffer: ' + d.error); return; }
+    renderAnalyticsConnections();
+  } catch (e) { alert('Buffer: ' + e.message); }
+}
+
 async function disconnectAnalytics(key) {
   if (!confirm('Disconnect ' + key + '? This removes the stored API key.')) return;
   try {
@@ -2528,7 +2559,7 @@ async function disconnectAnalytics(key) {
 function loadAnalyticsInsights() {
   const c = document.getElementById('analyticsInsights');
   if (!c) return;
-  const anyConnected = analyticsConnected.chartbeat || analyticsConnected.meta;
+  const anyConnected = analyticsConnected.chartbeat || analyticsConnected.meta || analyticsConnected.buffer;
 
   if (analyticsConnected.chartbeat) {
     c.innerHTML = '<div class="empty" style="padding:14px;"><i class="ti ti-loader spin"></i>Loading Chartbeat…</div>';
@@ -2541,6 +2572,12 @@ function loadAnalyticsInsights() {
   if (fb) {
     fb.style.display = analyticsConnected.meta ? '' : 'none';
     if (analyticsConnected.meta) refreshFacebookInsights();
+  }
+
+  const bf = document.getElementById('bufferInsightsCard');
+  if (bf) {
+    bf.style.display = analyticsConnected.buffer ? '' : 'none';
+    if (analyticsConnected.buffer) refreshBufferInsights();
   }
 
   if (anyConnected) { loadAnalyticsTrends(); loadAnalyticsSummary(); }
@@ -2569,7 +2606,52 @@ async function refreshFacebookInsights() {
   }
 }
 
-const SOURCE_LABELS = { chartbeat: 'Chartbeat', meta: 'Facebook' };
+function escapeHtml(v) { return String(v == null ? '' : v).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;'); }
+// Buffer: last 30 days of social posts sent through Buffer (api/buffer.js).
+const BUFFER_METRIC_LABELS = { postCount: 'Posts', reactions: 'Reactions', comments: 'Comments', shares: 'Shares', reposts: 'Reposts', clicks: 'Clicks', impressions: 'Impressions', reach: 'Reach', views: 'Views', engagementRate: 'Eng. rate', saves: 'Saves' };
+function bufferStats(m, big) {
+  return Object.keys(BUFFER_METRIC_LABELS).filter(k => m && m[k] != null && (m[k] > 0 || k === 'postCount'))
+    .map(k => `<div><div style="font-size:11px;color:var(--text3);">${BUFFER_METRIC_LABELS[k]}</div><strong style="font-size:${big ? 16 : 13}px;">${k === 'engagementRate' ? (Math.round(m[k] * 10) / 10) + '%' : Math.round(m[k]).toLocaleString()}</strong></div>`).join('');
+}
+async function refreshBufferInsights() {
+  const c = document.getElementById('bufferInsights');
+  if (!c) return;
+  c.innerHTML = '<div class="empty" style="padding:14px;"><i class="ti ti-loader spin"></i>Loading Buffer…</div>';
+  try {
+    const r = await IMSAuth.authFetch('/api/buffer');
+    const d = await r.json();
+    if (d.error) { c.innerHTML = `<div class="empty" style="padding:14px;">Buffer — ${escapeHtml(d.error)}</div>`; return; }
+    const esc = escapeHtml;
+    const updated = d.metricsUpdatedAt ? ' · numbers as of ' + new Date(d.metricsUpdatedAt).toLocaleString([], { weekday: 'short', hour: 'numeric', minute: '2-digit' }) : '';
+    let h = `<div style="font-size:12px;color:var(--text3);margin-bottom:8px;">${esc(d.organizationName || 'Buffer')} — last ${d.windowDays} days · ${d.postsSent} posts sent${updated}</div>`;
+    h += `<div style="display:flex;gap:20px;flex-wrap:wrap;margin-bottom:12px;">${bufferStats(d.totals, true) || '<span style="font-size:12px;color:var(--text3);">No totals yet.</span>'}</div>`;
+    if (d.bestHour || d.bestDay) {
+      h += `<div style="display:flex;gap:20px;flex-wrap:wrap;margin-bottom:12px;">
+        ${d.bestDay ? `<div><div style="font-size:11px;color:var(--text3);">Best day to post</div><strong style="font-size:16px;">${esc(d.bestDay.key)}</strong> <span style="font-size:11px;color:var(--text3);">${d.bestDay.avg} interactions/post</span></div>` : ''}
+        ${d.bestHour ? `<div><div style="font-size:11px;color:var(--text3);">Best hour (ET)</div><strong style="font-size:16px;">${esc(d.bestHour.key)}</strong> <span style="font-size:11px;color:var(--text3);">${d.bestHour.avg} interactions/post</span></div>` : ''}
+      </div>`;
+    }
+    if ((d.channels || []).length) {
+      h += '<div class="sdiv-label">By channel</div>' + d.channels.map(ch => `<div style="padding:6px 0;border-bottom:1px solid var(--border);">
+        <div style="font-size:12px;font-weight:600;margin-bottom:3px;">${esc(ch.name)} <span style="font-weight:400;color:var(--text3);">${esc(ch.service)}</span></div>
+        <div style="display:flex;gap:14px;flex-wrap:wrap;">${bufferStats(ch.metrics, false)}</div></div>`).join('');
+    }
+    if ((d.topPosts || []).length) {
+      h += '<div class="sdiv-label" style="margin-top:10px;">Top posts</div>' + d.topPosts.map(p => `<div style="display:flex;justify-content:space-between;gap:10px;padding:6px 0;border-bottom:1px solid var(--border);font-size:12px;">
+        <span style="flex:1;">${p.link ? `<a href="${esc(p.link)}" target="_blank" rel="noopener" style="color:inherit;">${esc(p.text || '(no text)')}</a>` : esc(p.text || '(no text)')}
+          <span style="color:var(--text3);"> · ${esc(p.channel || p.service || '')}${p.sentAt ? ' · ' + new Date(p.sentAt).toLocaleDateString([], { month: 'short', day: 'numeric' }) : ''}</span></span>
+        <span style="color:var(--text3);white-space:nowrap;">${p.engagement} interactions</span></div>`).join('');
+    } else {
+      h += '<div style="font-size:12px;color:var(--text3);margin-top:8px;">No measured posts in this window yet. Buffer adds metrics about a day after a post goes out.</div>';
+    }
+    if ((d.warnings || []).length) h += `<div style="font-size:11px;color:var(--text3);margin-top:8px;">Some data didn't load: ${esc(d.warnings.join(' · '))}</div>`;
+    c.innerHTML = h;
+  } catch (e) {
+    c.innerHTML = `<div class="empty" style="padding:14px;">Couldn't load Buffer — ${escapeHtml(e.message)}</div>`;
+  }
+}
+
+const SOURCE_LABELS = { chartbeat: 'Chartbeat', meta: 'Facebook', buffer: 'Buffer' };
 const HOUR_LABELS = ['12am','1am','2am','3am','4am','5am','6am','7am','8am','9am','10am','11am','12pm','1pm','2pm','3pm','4pm','5pm','6pm','7pm','8pm','9pm','10pm','11pm'];
 
 function renderTrendSection(t) {

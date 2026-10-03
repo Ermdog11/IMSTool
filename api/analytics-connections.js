@@ -19,7 +19,11 @@ var SOURCES = {
   // meta is OAuth-based (api/meta-oauth-start.js + meta-oauth-callback.js
   // write the connection directly) — listed here only so GET/disconnect
   // recognize it; the frontend never POSTs a manual paste for it.
-  meta: { required: [] }
+  meta: { required: [] },
+  // Personal API key from the newsroom's own Buffer account. The key is
+  // checked against Buffer before it's saved, and the organization it
+  // belongs to is stored alongside it (see the buffer branch below).
+  buffer: { required: ['apiKey'] }
 };
 
 module.exports = async function handler(req, res) {
@@ -68,6 +72,21 @@ module.exports = async function handler(req, res) {
 
   var fields = {};
   SOURCES[source].required.forEach(function(k) { fields[k] = String(body[k]).trim(); });
+
+  if (source === 'buffer') {
+    try {
+      var orgs = await require('./_buffer').getOrganizations(fields.apiKey);
+      if (!orgs.length) return res.status(400).json({ error: 'That Buffer key works, but its account has no organization.' });
+      var org = (body.organizationId && orgs.filter(function(o) { return o.id === body.organizationId; })[0]) || orgs[0];
+      if (orgs.length > 1 && !body.organizationId) {
+        return res.status(200).json({ needsOrganization: true, organizations: orgs.map(function(o) { return { id: o.id, name: o.name }; }) });
+      }
+      fields.organizationId = org.id;
+      fields.organizationName = org.name || '';
+    } catch (e) {
+      return res.status(400).json({ error: e.message });
+    }
+  }
 
   try {
     await Store.saveConnection(sb, siteId, source, fields, ctx.user.id);

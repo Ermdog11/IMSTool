@@ -9,7 +9,8 @@ var Crypto = require('./_crypto');
 var SECRET_FIELDS = {
   chartbeat: ['apiKey'],
   parsely: ['apiSecret'],
-  meta: ['pageAccessToken']
+  meta: ['pageAccessToken'],
+  buffer: ['apiKey']
 };
 
 function encryptFields(source, fields) {

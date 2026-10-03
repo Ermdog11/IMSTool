@@ -7,6 +7,7 @@
 var Store = require('./_analytics-store');
 var Chartbeat = require('./_chartbeat');
 var Meta = require('./_meta');
+var BufferApi = require('./_buffer');
 var Trends = require('./_trends');
 
 var LOOKBACK_DAYS = 30;
@@ -39,7 +40,18 @@ async function metaContext(sb, siteId) {
   return out;
 }
 
-// scope: 'all' | 'chartbeat' | 'meta'. Returns an array of whichever
+// Buffer keeps its own post history, so this reads the last 30 days live
+// rather than from snapshots (metrics refresh about once a day anyway).
+async function bufferContext(sb, siteId) {
+  var conn = await Store.getConnection(sb, siteId, 'buffer');
+  if (!conn || !conn.apiKey || !conn.organizationId) return null;
+  var out = { source: 'buffer', organizationName: conn.organizationName, note: 'Social posts sent through Buffer; Buffer refreshes metrics about once a day and labels them experimental.' };
+  try { out.last30Days = await BufferApi.fetchSummary(conn.apiKey, conn.organizationId); }
+  catch (e) { out.liveError = e.message; }
+  return out;
+}
+
+// scope: 'all' | 'chartbeat' | 'meta' | 'buffer'. Returns an array of whichever
 // requested sources are actually connected — never throws for a source
 // that isn't connected, just omits it.
 async function gatherContexts(sb, siteId, scope) {
@@ -51,6 +63,10 @@ async function gatherContexts(sb, siteId, scope) {
   if (scope === 'all' || scope === 'meta') {
     var mt = await metaContext(sb, siteId);
     if (mt) contexts.push(mt);
+  }
+  if (scope === 'all' || scope === 'buffer') {
+    var bf = await bufferContext(sb, siteId);
+    if (bf) contexts.push(bf);
   }
   return contexts;
 }
