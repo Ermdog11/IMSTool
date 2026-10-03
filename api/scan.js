@@ -508,7 +508,10 @@ module.exports = async function handler(req, res) {
         '- OUR BEAT: topics we publish on often (judge from the list above) are core beat. A borderline story on a core-beat topic can rate one point higher; a topic we never cover stays where the normal rules put it.\n' +
         'All of the NOT BREAKING, FOLLOW-UP COVERAGE and LOW-PRIORITY SPORTS rules above still apply and take precedence.';
     }
-    var dynamicPrompt = flaggedNote + ownCoverageNote + profileNote + B.weightNote(beat) + '\n\nStories:\n' + storyList;
+    // Editors' own 1-5 ratings (News Monitor cards and email links) teach the rater.
+    var editorNote = '';
+    try { editorNote = await require('./_story-ratings.js').promptNote(); } catch (e) {}
+    var dynamicPrompt = flaggedNote + ownCoverageNote + profileNote + B.weightNote(beat) + editorNote + '\n\nStories:\n' + storyList;
 
     var cr = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',

@@ -110,6 +110,11 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; b
 .aaction:hover { background: var(--red); color: #fff; border-color: var(--red); }
 .aaction-output { background: #f7f6f3; border-radius: 6px; padding: 10px 12px; margin-top: 8px; font-size: 12px; color: var(--text2); line-height: 1.6; display: none; }
 .aaction-output.visible { display: block; }
+.myrate { display: flex; align-items: center; gap: 4px; margin: 6px 0 2px; font-size: 11.5px; color: var(--text3); }
+.myrate button { font: inherit; font-size: 11.5px; font-weight: 700; width: 24px; height: 22px; border: 1px solid var(--border); border-radius: 5px; background: var(--bg2); color: var(--text2); cursor: pointer; padding: 0; }
+.myrate button:hover { border-color: var(--red); color: var(--red); }
+.myrate button.on { background: var(--red); border-color: var(--red); color: #fff; }
+.myrate .why { margin-left: 6px; color: var(--green); }
 .aaction-output h4 { font-size: 11px; font-weight: 700; color: var(--red); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 6px; }
 
 /* EMPTY / LOADING */
@@ -981,12 +986,13 @@ function renderAlerts() {
         <span class="tag ${isVideo ? 'tag-soc' : tagClass}">${isVideo ? 'YouTube' : catLabel}</span>
         ${a.sport ? `<span class="tag tag-gen">${a.sport}</span>` : ''}
         <span class="asrc">${isVideo ? (a.channel || a.source) : a.source}</span>
-        <span class="atime">${a.time}</span>
+        <span class="atime">${a.time || (typeof a.ageHours === 'number' ? a.ageHours + 'h ago' : '')}</span>
         ${a.followUp ? `<span class="tag" style="background:var(--red);color:#fff;" title="A new X/Twitter update on a story we're already covering">🔁 Following: ${a.followUp}</span>` : ''}
         ${a.watchedAccount ? `<span class="tag" style="background:var(--text3);color:#fff;" title="From a Maryland beat account you've specifically added to watch">👁 Watched account</span>` : ''}
       </div>
       ${a.trendingTopic && a.overflowCount ?`<div style="margin:4px 0 2px;"><a href="#" onclick="toggleOverflow(${idx},'${a.trendingTopic.replace(/'/g,"\\'")}',this);return false;" style="font-size:.78rem;color:var(--red);font-weight:600;text-decoration:none;">🔥 +${a.overflowCount} more ${a.trendingTopic} stories</a><div class="ovf-inline" id="ovf-${idx}" style="display:none;margin-top:6px;padding-left:10px;border-left:2px solid var(--red);"></div></div>` : ''}
       ${a.summary ? `<div class="asum">${a.summary}</div>` : ''}
+      <div class="myrate" id="myrate-${idx}">${myRateHtml(a, idx)}</div>
       <div class="acard-actions">
         <button class="aaction" onclick="getAngles(${idx})"><i class="ti ti-bulb"></i> Story angles</button>
         <button class="aaction" onclick="getAutoBrief(${idx})"><i class="ti ti-file-text"></i> Auto-brief</button>
@@ -2649,6 +2655,29 @@ async function refreshChartbeatInsights() {
 // ============================================================
 // ROSTER WATCH — current roster + dated add/drop history per team
 // ============================================================
+// ---- Your rating: editors rate stories 1-5; the scanner learns (api/story-ratings.js) ----
+var myRatings = {};
+function storyKey(a) { return String(a.url || '').split('?')[0] || String(a.headline || '').toLowerCase(); }
+function myRateHtml(a, idx) {
+  var mine = myRatings[storyKey(a)];
+  return '<span>Your rating:</span>' + [1, 2, 3, 4, 5].map(function (n) {
+    return '<button type="button" class="' + (mine === n ? 'on' : '') + '" title="Rate ' + n + ' — CoPublisher learns from your ratings" onclick="rateStory(' + idx + ',' + n + ')">' + n + '</button>';
+  }).join('') + (mine && mine !== a.rating ? '<span class="why">✓ It will learn from this</span>' : '');
+}
+async function loadMyRatings() {
+  try { var r = await fetch('/api/story-ratings'); var d = await r.json(); if (d.ratings) { myRatings = d.ratings; if (allAlerts.length) renderAlerts(); } } catch (e) {}
+}
+async function rateStory(idx, n) {
+  var a = allAlerts[idx]; if (!a) return;
+  myRatings[storyKey(a)] = n;
+  var el = document.getElementById('myrate-' + idx); if (el) el.innerHTML = myRateHtml(a, idx);
+  try {
+    var r = await fetch('/api/story-ratings', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ headline: a.headline, source: a.source, url: a.url, ai: a.rating, rating: n }) });
+    var d = await r.json(); if (d.error) throw new Error(d.error);
+  } catch (e) { if (el) el.insertAdjacentHTML('beforeend', '<span style="color:var(--hot);margin-left:6px;">Not saved: ' + e.message + '</span>'); }
+}
+loadMyRatings();
+
 // ---- Source health (api/source-health.js) ----
 async function loadSourceHealth() {
   var box = document.getElementById('sourceHealth');

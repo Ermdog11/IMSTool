@@ -175,6 +175,7 @@ module.exports = async function handler(req, res) {
                   (draft.factsToCheck.length ? '<p style="margin-top:14px"><b>Verify before publishing:</b></p><ul>' + draft.factsToCheck.map(function(f) { return '<li>' + f + '</li>'; }).join('') + '</ul>' : '') +
                   '<p style="margin-top:16px"><a href="' + reviewUrl + '" style="background:#2563eb;color:#fff;padding:8px 16px;border-radius:6px;text-decoration:none;">Open in Content Editor</a></p>' +
                   '<p style="color:#888;font-size:11px;margin-top:16px">Source: ' + (story.source || 'unknown') + (story.url ? ' · <a href="' + story.url + '">' + story.url + '</a>' : '') + '</p>' +
+                  require('./_story-ratings').emailLinks(story) +
                   '</div>'
               });
             } catch (e) { mailResult = { error: e.message }; }
