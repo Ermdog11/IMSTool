@@ -886,7 +886,12 @@ window.addEventListener('popstate', function (e) {
   }
   try { history.replaceState({ imsTab: start }, '', TAB_PATHS[start]); } catch (e) {}
   if (start !== 0) {
-    switchTab(start, true);
+    // Deferred until the whole script has run: switchTab() touches state
+    // declared further down (e.g. chatPollTimer, ANALYTICS_SOURCES), and
+    // calling it here threw "Cannot access … before initialization", which
+    // stopped the rest of the script, so a section opened by its own link
+    // (/analytics, /settings…) came up half-built.
+    setTimeout(function () { switchTab(start, true); }, 0);
     var b = document.getElementById('backBtn');
     if (b) b.style.display = 'inline-flex';
   }
