@@ -79,6 +79,7 @@ button.btn:disabled{opacity:.6;cursor:default}
 <div class="nav">
   <button class="active" id="nav-0" onclick="show(0)">Copydesk</button>
   <button id="nav-5" onclick="show(5)">Transcribe</button>
+  <button id="nav-6" onclick="show(6)">From social</button>
   <button id="nav-4" onclick="show(4)">House style</button>
   <button id="nav-1" onclick="show(1)">Writers</button>
   <button id="nav-2" onclick="show(2)">Inserts</button>
@@ -239,6 +240,31 @@ button.btn:disabled{opacity:.6;cursor:default}
       <h2 style="font-size:14px">Recent transcripts</h2>
       <div id="tr-recent"></div>
     </div>
+  </div>
+
+  <div class="page" id="page-6">
+    <div class="card">
+      <h2>Write from a social post</h2>
+      <div class="hint">Paste a post from Facebook, X, Instagram or anywhere: a screenshot, its text, or both. CoPublisher finds the angle for your readers (a former player on a list, a coach mentioned, a recruit with ties) and drafts the article in your house style. Check every tie it flags before you publish.</div>
+      <div id="fs-drop" style="border:2px dashed var(--border);border-radius:10px;padding:18px;text-align:center;background:#fbfaf7;cursor:pointer" onclick="document.getElementById('fs-file').click()">
+        <div style="font-size:15px;font-weight:600">📸 Add a screenshot of the post</div>
+        <div style="font-size:12.5px;color:var(--muted);margin-top:4px">Tap to choose one, drop it here, or paste it (Ctrl/Cmd+V)</div>
+        <input type="file" id="fs-file" accept="image/*" style="display:none" onchange="if(this.files[0])fsSetImage(this.files[0]);this.value=''">
+        <img id="fs-preview" alt="" style="display:none;max-width:100%;max-height:320px;margin:12px auto 0;border-radius:8px">
+        <div id="fs-clear" style="display:none;margin-top:6px"><a href="#" onclick="fsClearImage(event)">Remove screenshot</a></div>
+      </div>
+      <label>Post text (optional if you added a screenshot)</label>
+      <textarea id="fs-text" rows="4" placeholder="Paste the post's words here"></textarea>
+      <div class="row">
+        <div style="flex:1;min-width:200px"><label>Who posted it (optional)</label><input id="fs-poster" placeholder="e.g. OGMC on Facebook"></div>
+        <div style="flex:1;min-width:200px"><label>Link to the post (optional)</label><input id="fs-url" placeholder="https://…"></div>
+      </div>
+      <label>What you know (optional)</label>
+      <textarea id="fs-note" rows="2" placeholder="e.g. Chris Kelley played at our school; Gerald Dixon is our current GM"></textarea>
+      <button class="btn" id="fs-go" onclick="fsWrite()">Find the angle &amp; write it</button>
+      <div id="fs-status" style="display:none;margin-top:12px;font-size:13px"></div>
+    </div>
+    <div id="fs-result"></div>
   </div>
 
   <div class="page" id="page-3">
@@ -1578,10 +1604,64 @@ loadPodcastSettingsForm();
 updateModeHint();
 renderPreTabs();
 document.getElementById('ed-draft').addEventListener('input',function(){ if(!POD_BLOCK_RE.test(this.value)) window._podQueuedInfo=null; renderPreTabs(); });
+// ---- From social (api/write-from-post.js) ----
+// The screenshot is shrunk in the browser (max 1600px, JPEG) so it stays well
+// under Vercel's request-size limit and costs fewer image tokens.
+var fsImage=null;
+function fsSetImage(file){
+  if(!/^image\//.test(file.type||'')){ alert('That isn’t an image.'); return; }
+  var reader=new FileReader();
+  reader.onload=function(){
+    var im=new Image();
+    im.onload=function(){
+      var scale=Math.min(1,1600/Math.max(im.width,im.height));
+      var c=document.createElement('canvas'); c.width=Math.round(im.width*scale); c.height=Math.round(im.height*scale);
+      c.getContext('2d').drawImage(im,0,0,c.width,c.height);
+      var url=c.toDataURL('image/jpeg',0.85);
+      fsImage={ data:url.split(',')[1], mediaType:'image/jpeg' };
+      var p=document.getElementById('fs-preview'); p.src=url; p.style.display='block';
+      document.getElementById('fs-clear').style.display='block';
+    };
+    im.src=reader.result;
+  };
+  reader.readAsDataURL(file);
+}
+function fsClearImage(e){ if(e){e.preventDefault();e.stopPropagation();} fsImage=null; var p=document.getElementById('fs-preview'); p.style.display='none'; p.src=''; document.getElementById('fs-clear').style.display='none'; }
+document.addEventListener('paste',function(e){
+  if(!document.getElementById('page-6').classList.contains('active')) return;
+  var items=(e.clipboardData&&e.clipboardData.items)||[];
+  for(var k=0;k<items.length;k++){ if(items[k].type&&items[k].type.indexOf('image/')===0){ fsSetImage(items[k].getAsFile()); e.preventDefault(); return; } }
+});
+(function(){ var dz=document.getElementById('fs-drop'); if(!dz) return;
+  dz.addEventListener('dragover',function(e){e.preventDefault();});
+  dz.addEventListener('drop',function(e){e.preventDefault(); var f=e.dataTransfer.files&&e.dataTransfer.files[0]; if(f) fsSetImage(f);}); })();
+async function fsWrite(){
+  var text=document.getElementById('fs-text').value.trim();
+  if(!fsImage&&!text){ alert('Add a screenshot or paste the post’s text first.'); return; }
+  var btn=document.getElementById('fs-go'), st=document.getElementById('fs-status'), out=document.getElementById('fs-result');
+  btn.disabled=true; st.style.display='block'; st.textContent='Reading the post and finding your angle… about 30 seconds.'; out.innerHTML='';
+  try{
+    var f=window.IMSAuth?IMSAuth.authFetch:fetch;
+    var r=await f('/api/write-from-post',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({
+      image:fsImage, text:text, poster:document.getElementById('fs-poster').value.trim(),
+      url:document.getElementById('fs-url').value.trim(), note:document.getElementById('fs-note').value.trim() })});
+    var d=await r.json();
+    if(!r.ok||d.error) throw new Error(d.error||'Failed');
+    st.style.display='none';
+    var people=(d.people||[]).map(function(p){ return '<li><b>'+esc(p.name)+'</b>: '+esc(p.tie)+(p.confidence==='unsure'?' <span style="color:#b45309">(unconfirmed)</span>':p.confidence==='known'?' <span style="color:var(--muted)">(check it)</span>':'')+'</li>'; }).join('');
+    out.innerHTML='<div class="card"><h2 style="font-size:15px">'+(d.relevant?'The angle':'No story for your readers here')+'</h2>'+
+      '<div style="margin-bottom:8px">'+esc(d.angle)+'</div>'+
+      (people?'<div style="font-size:13px;font-weight:700;margin-top:6px">Connections found</div><ul style="margin:4px 0 8px 18px;padding:0;font-size:13.5px">'+people+'</ul>':'')+
+      (d.id?'<div style="margin-top:6px"><b>'+esc(d.headline)+'</b></div><button class="btn" onclick="show(3);loadDrafts().then(function(){openDraft(\''+d.id+'\');})">Open the draft</button>':'')+
+      '</div>';
+  }catch(e){ st.textContent='Couldn’t write it: '+e.message; }
+  finally{ btn.disabled=false; }
+}
+
 (function(){
   var parts=(location.hash||'').replace('#','').split('/');
   var i=/^\/house-style\/?$/.test(location.pathname) ? 4 : /^\/transcribe\/?$/.test(location.pathname) ? 5 : parseInt(parts[0],10);
-  if(i>=1&&i<=5){
+  if(i>=1&&i<=6){
     if(i===5) renderRecentTranscripts();
     setActive(i);
     if(i===3) loadDrafts().then(function(){ if(parts[1]) openDraft(parts[1]); });

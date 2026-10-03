@@ -26,6 +26,9 @@
     "api/records-suggest.js": {
       "maxDuration": 300
     },
+    "api/write-from-post.js": {
+      "maxDuration": 120
+    },
     "api/write-story.js": {
       "maxDuration": 120
     },
