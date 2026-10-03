@@ -706,7 +706,7 @@ body { padding-bottom: 40px; }
 
   <div class="settings-card">
     <h3><i class="ti ti-plug"></i> Connections</h3>
-    <div style="font-size:12px;color:var(--text3);margin-bottom:12px;line-height:1.5;">Chartbeat, Buffer and Facebook/Instagram can be connected now; the rest are coming. Only the publisher can connect or disconnect a source.</div>
+    <div style="font-size:12px;color:var(--text3);margin-bottom:12px;line-height:1.5;">Chartbeat, X, Buffer and Facebook/Instagram can be connected now; the rest are coming. Only the publisher can connect or disconnect a source.</div>
     <div id="analyticsConnections"></div>
   </div>
 
@@ -718,6 +718,11 @@ body { padding-bottom: 40px; }
     <div style="font-size:11px;color:var(--text3);margin-top:8px;line-height:1.6;">
       Real-time "story going hot" alerts are on — manage who gets them in Settings → Team &amp; alerts. Planned: per-writer views &amp; engaged time by story type · proactive nudges.
     </div>
+  </div>
+
+  <div class="settings-card" id="xInsightsCard" style="display:none;">
+    <h3><i class="ti ti-brand-x"></i> X / Twitter</h3>
+    <div id="xInsights"></div>
   </div>
 
   <div class="settings-card" id="bufferInsightsCard" style="display:none;">
@@ -1600,6 +1605,13 @@ async function loadSocialExamples() {
     const d = await r.json();
     if (d.examples) socialExamples = d.examples;
   } catch (e) { /* not connected or failed: draft without examples */ }
+  // The X account's own best tweets beat Buffer's X posts as examples (they
+  // cover every tweet, not only ones sent through Buffer).
+  try {
+    const r = await IMSAuth.authFetch('/api/x-analytics?examples=1');
+    const d = await r.json();
+    if ((d.examples || []).length) socialExamples.twitter = d.examples.map(t => ({ text: t.text, interactions: t.interactions }));
+  } catch (e) { /* X analytics not connected */ }
   return socialExamples;
 }
 const SOCIAL_SERVICE_LABEL = { twitter: 'X/Twitter', facebook: 'Facebook', instagram: 'Instagram', threads: 'Threads', bluesky: 'Bluesky', linkedin: 'LinkedIn', tiktok: 'TikTok' };
@@ -1614,7 +1626,7 @@ async function getSocial(idx) {
     ? '\n\nOUR BEST-PERFORMING RECENT POSTS (last 30 days, by interactions). Match what makes these work on each platform: length, how the hook opens, tone, emoji and hashtag use, how the link is framed. Do not copy them.\n' +
       services.map(k => `${SOCIAL_SERVICE_LABEL[k] || k}:\n` + ex[k].map(p => `- (${p.interactions} interactions) ${p.text}`).join('\n')).join('\n')
     : '';
-  callClaude(`You are the social media manager at InsideMDSports. Draft platform-specific posts for this story. Include a link placeholder [LINK]. Write in a sharp, direct sports news voice — not overly promotional.\n\nX/Twitter (280 chars max): \nFacebook (2-3 sentences): \nInstagram caption: \n\nStory: ${a.headline}\nSummary: ${a.summary || ''}${examples}`, `output-${idx}`, services.length ? 'Social copy · styled on your best Buffer posts' : 'Social copy');
+  callClaude(`You are the social media manager at InsideMDSports. Draft platform-specific posts for this story. Include a link placeholder [LINK]. Write in a sharp, direct sports news voice — not overly promotional.\n\nX/Twitter (280 chars max): \nFacebook (2-3 sentences): \nInstagram caption: \n\nStory: ${a.headline}\nSummary: ${a.summary || ''}${examples}`, `output-${idx}`, services.length ? 'Social copy · styled on your best-performing posts' : 'Social copy');
 }
 
 // "Write it": drafts an article from this alert server-side (same generator as
@@ -2468,6 +2480,7 @@ async function sendInvite() {
 const ANALYTICS_SOURCES = [
   { key:'chartbeat', name:'Chartbeat',          gives:'Real-time concurrents and engaged time per story', setup:'Needs your Chartbeat API key (paste it).' },
   { key:'buffer',  name:'Buffer (beta)',        gives:'How your social posts sent through Buffer perform: reactions, comments, shares, clicks per post and per channel', setup:'Needs a personal API key from your Buffer account (Settings → API — paste it). Buffer labels these metrics experimental and updates them about once a day.' },
+  { key:'x',       name:'X / Twitter',          gives:'Your own account\'s tweets: impressions, likes, reposts, replies, best tweets, best time to post — last 7 and 30 days', setup:'Uses your existing X connection (Settings → X / Twitter search). Each tweet is read once, ~6 hours after posting, about half a cent per tweet.' },
   { key:'meta',   name:'Facebook / Instagram',  gives:'Reach and engagement for your own Page and IG account', setup:'Needs a Meta app with pages_read_engagement.' },
   { key:'ga4',    name:'Google Analytics 4',     gives:'Page views, engaged time, real-time, traffic sources', setup:'Needs a Google Cloud OAuth client.' },
   { key:'yta',    name:'YouTube Analytics',      gives:'Views, watch time and traffic sources for your channel', setup:'Same Google Cloud OAuth client, YouTube scope.' },
@@ -2521,6 +2534,7 @@ function connectAnalytics(key) {
   if (key === 'chartbeat') return connectChartbeat();
   if (key === 'meta') return connectMeta();
   if (key === 'buffer') return connectBuffer();
+  if (key === 'x') return connectX();
   const s = ANALYTICS_SOURCES.find(x => x.key === key);
   alert(`${s.name}\n\nThis connection isn't wired up yet. ${s.setup}\n\nWhen you're ready to set it up, tell Claude and it'll walk you through the one-time registration, then this button will start the sign-in.`);
 }
@@ -2548,6 +2562,20 @@ async function connectChartbeat() {
     if (d.error) { alert('Chartbeat: ' + d.error); return; }
     renderAnalyticsConnections();
   } catch (e) { alert('Chartbeat: ' + e.message); }
+}
+
+async function connectX() {
+  const handle = prompt("Your newsroom's X handle:", '@terrapins247');
+  if (!handle) return;
+  try {
+    const r = await IMSAuth.authFetch('/api/analytics-connections', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ source: 'x', handle })
+    });
+    const d = await r.json();
+    if (d.error) { alert('X: ' + d.error); return; }
+    renderAnalyticsConnections();
+  } catch (e) { alert('X: ' + e.message); }
 }
 
 async function connectBuffer() {
@@ -2590,7 +2618,7 @@ async function disconnectAnalytics(key) {
 function loadAnalyticsInsights() {
   const c = document.getElementById('analyticsInsights');
   if (!c) return;
-  const anyConnected = analyticsConnected.chartbeat || analyticsConnected.meta || analyticsConnected.buffer;
+  const anyConnected = analyticsConnected.chartbeat || analyticsConnected.meta || analyticsConnected.buffer || analyticsConnected.x;
 
   if (analyticsConnected.chartbeat) {
     c.innerHTML = '<div class="empty" style="padding:14px;"><i class="ti ti-loader spin"></i>Loading Chartbeat…</div>';
@@ -2603,6 +2631,12 @@ function loadAnalyticsInsights() {
   if (fb) {
     fb.style.display = analyticsConnected.meta ? '' : 'none';
     if (analyticsConnected.meta) refreshFacebookInsights();
+  }
+
+  const xc = document.getElementById('xInsightsCard');
+  if (xc) {
+    xc.style.display = analyticsConnected.x ? '' : 'none';
+    if (analyticsConnected.x) refreshXInsights();
   }
 
   const bf = document.getElementById('bufferInsightsCard');
@@ -2682,7 +2716,48 @@ async function refreshBufferInsights() {
   }
 }
 
-const SOURCE_LABELS = { chartbeat: 'Chartbeat', meta: 'Facebook', buffer: 'Buffer' };
+// X / Twitter: the newsroom's own account, last 7 and last 30 days (api/x-analytics.js).
+let xInsightsData = null, xInsightsWindow = 'last7';
+async function refreshXInsights() {
+  const c = document.getElementById('xInsights');
+  if (!c) return;
+  c.innerHTML = '<div class="empty" style="padding:14px;"><i class="ti ti-loader spin"></i>Loading X… (the first load reads up to 30 days of tweets and can take a minute)</div>';
+  try {
+    const r = await IMSAuth.authFetch('/api/x-analytics');
+    const d = await r.json();
+    if (d.error) { c.innerHTML = `<div class="empty" style="padding:14px;">X — ${escapeHtml(d.error)}</div>`; return; }
+    xInsightsData = d;
+    renderXInsights();
+  } catch (e) {
+    c.innerHTML = `<div class="empty" style="padding:14px;">Couldn't load X — ${escapeHtml(e.message)}</div>`;
+  }
+}
+function renderXInsights() {
+  const c = document.getElementById('xInsights'), d = xInsightsData;
+  if (!c || !d) return;
+  const w = d[xInsightsWindow] || {}, t = w.totals || {}, esc = escapeHtml;
+  const tab = (k, label) => `<button class="chip" onclick="xInsightsWindow='${k}';renderXInsights()" style="${xInsightsWindow === k ? 'background:var(--red);color:#fff;border-color:var(--red);' : ''}">${label}</button>`;
+  const stat = (label, v) => `<div><div style="font-size:11px;color:var(--text3);">${label}</div><strong style="font-size:16px;">${v == null ? '—' : Number(v).toLocaleString()}</strong></div>`;
+  let h = `<div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin-bottom:10px;">${tab('last7', 'Last 7 days')}${tab('last30', 'Last 30 days')}
+    <span style="font-size:11px;color:var(--text3);margin-left:6px;">${esc(d.handle ? '@' + d.handle : '')} · updated ${d.refreshedAt ? new Date(d.refreshedAt).toLocaleString([], { weekday: 'short', hour: 'numeric', minute: '2-digit' }) : '—'}</span></div>`;
+  h += `<div style="display:flex;gap:20px;flex-wrap:wrap;margin-bottom:12px;">${stat('Tweets', t.tweets)}${stat('Impressions', t.impressions)}${stat('Avg impressions / tweet', w.avgImpressionsPerTweet)}${stat('Likes', t.likes)}${stat('Reposts', t.reposts)}${stat('Replies', t.replies)}${stat('Bookmarks', t.bookmarks)}
+    <div><div style="font-size:11px;color:var(--text3);">Engagement rate</div><strong style="font-size:16px;">${t.engagementRatePct != null ? t.engagementRatePct + '%' : '—'}</strong></div></div>`;
+  if (w.bestDay || w.bestHour) {
+    h += `<div style="display:flex;gap:20px;flex-wrap:wrap;margin-bottom:12px;">
+      ${w.bestDay ? `<div><div style="font-size:11px;color:var(--text3);">Best day to tweet</div><strong style="font-size:16px;">${esc(w.bestDay.key)}</strong> <span style="font-size:11px;color:var(--text3);">${w.bestDay.avg.toLocaleString()} impressions/tweet</span></div>` : ''}
+      ${w.bestHour ? `<div><div style="font-size:11px;color:var(--text3);">Best hour (ET)</div><strong style="font-size:16px;">${esc(w.bestHour.key)}</strong> <span style="font-size:11px;color:var(--text3);">${w.bestHour.avg.toLocaleString()} impressions/tweet</span></div>` : ''}</div>`;
+  }
+  h += (w.topTweets || []).length
+    ? '<div class="sdiv-label">Top tweets</div>' + w.topTweets.map(x => `<div style="display:flex;justify-content:space-between;gap:10px;padding:6px 0;border-bottom:1px solid var(--border);font-size:12px;">
+        <span style="flex:1;"><a href="${esc(x.url)}" target="_blank" rel="noopener" style="color:inherit;">${esc(String(x.text || '').replace(/https:\/\/t\.co\/\S+/g, '').trim() || '(link only)')}</a>
+          <span style="color:var(--text3);"> · ${new Date(x.createdAt).toLocaleDateString([], { month: 'short', day: 'numeric' })}</span></span>
+        <span style="color:var(--text3);white-space:nowrap;">${x.impressions.toLocaleString()} impr · ${x.interactions.toLocaleString()} interactions</span></div>`).join('')
+    : '<div style="font-size:12px;color:var(--text3);">No tweets in this window yet.</div>';
+  h += `<div style="font-size:11px;color:var(--text3);margin-top:8px;">Tweets show up here about ${d.matureHours || 6} hours after they're posted (that's when their numbers are read). Original tweets only, no replies or reposts.${d.warning ? ' Refresh problem: ' + esc(d.warning) : ''}</div>`;
+  c.innerHTML = h;
+}
+
+const SOURCE_LABELS = { chartbeat: 'Chartbeat', meta: 'Facebook', buffer: 'Buffer', x: 'X / Twitter' };
 const HOUR_LABELS = ['12am','1am','2am','3am','4am','5am','6am','7am','8am','9am','10am','11am','12pm','1pm','2pm','3pm','4pm','5pm','6pm','7pm','8pm','9pm','10pm','11pm'];
 
 // ---- Trends charts (inline SVG, no library) ----

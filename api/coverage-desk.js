@@ -19,7 +19,7 @@ function num(v) { return v == null ? '—' : Number(v).toLocaleString('en-US'); 
 
 // Exact figures, straight from the data (no model in between).
 function glanceHtml(y) {
-  if (!y || (!y.site && !y.social)) return '';
+  if (!y || (!y.site && !y.social && !y.x)) return '';
   var cell = 'padding:4px 10px 4px 0;font-size:13px;';
   var h = '<div style="background:#f5f7fb;border-radius:8px;padding:12px 14px;margin:0 0 14px">' +
     '<div style="font-size:11px;font-weight:700;color:#888;text-transform:uppercase;letter-spacing:.04em;margin-bottom:6px">Yesterday at a glance &mdash; ' + esc(y.day) + '</div>';
@@ -50,6 +50,20 @@ function glanceHtml(y) {
         so.topPostsLast7Days.slice(0, 3).map(function (p) { return '<li>' + esc(String(p.text || '').replace(/https?:\/\/\S+/g, '').trim() || '(link only)') + ' <span style="color:#888">&mdash; ' + esc(p.channel) + ', ' + num(p.interactions) + ' interactions</span></li>'; }).join('') + '</ol>';
     }
     h += '<div style="font-size:11px;color:#888;margin-top:4px">' + esc(so.note) + '</div>';
+  }
+  var xx = y.x;
+  if (xx && xx.totals) {
+    h += '<div style="font-weight:600;font-size:13px;margin-top:10px">X ' + esc(xx.handle || '') + '</div>' +
+      '<div style="font-size:13px">' + num(xx.totals.tweets) + ' tweet' + (xx.totals.tweets === 1 ? '' : 's') + ', ' + num(xx.totals.impressions) + ' impressions, ' + num(xx.totals.interactions) + ' interactions' +
+      (xx.avgImpressionsPerTweetLast7Days != null ? ' <span style="color:#888">(7-day average ' + num(xx.avgImpressionsPerTweetLast7Days) + ' impressions per tweet)</span>' : '') + '.</div>';
+    if ((xx.topTweets || []).length) {
+      h += '<ol style="margin:4px 0 0 18px;padding:0;font-size:13px">' + xx.topTweets.slice(0, 3).map(function (t) {
+        return '<li><a href="' + esc(t.url) + '" style="color:inherit">' + esc(String(t.text).replace(/https?:\/\/\S+/g, '').trim() || '(link only)') + '</a> <span style="color:#888">&mdash; ' + num(t.impressions) + ' impressions, ' + num(t.interactions) + ' interactions</span></li>';
+      }).join('') + '</ol>';
+    }
+    h += '<div style="font-size:11px;color:#888;margin-top:4px">' + esc(xx.note) + '</div>';
+  } else if (xx && xx.note) {
+    h += '<div style="font-size:13px;color:#888;margin-top:10px">X: ' + esc(xx.note) + '</div>';
   }
   return h + '</div>';
 }
@@ -90,7 +104,7 @@ module.exports = async function handler(req, res) {
         if (site.data) yesterday = await require('./_yesterday-analytics').gatherYesterday(sb, site.data.id);
       } catch (e) { console.error('coverage-desk analytics failed (non-fatal):', e.message); }
     }
-    var hasNumbers = !!(yesterday && ((yesterday.site && yesterday.site.readings) || yesterday.social));
+    var hasNumbers = !!(yesterday && ((yesterday.site && yesterday.site.readings) || yesterday.social || (yesterday.x && yesterday.x.totals)));
 
     var newsList = alerts
       .sort(function (a, b) { return (b.rating || 0) - (a.rating || 0); })
@@ -107,12 +121,12 @@ module.exports = async function handler(req, res) {
       'GAPS — anything in the news below that matters to Terps readers that InsideMDSports has NOT already covered (compare against the recently-published list). Name the story and, if the source shows it, who already has it.\n' +
       'FOLLOW UPS — developing threads from roughly the last one to two weeks that deserve a check-in: a recruit deciding soon, an injury with no update, a pending decision, a story that said "more to come."\n' +
       (hasNumbers
-        ? "WHAT WORKED YESTERDAY — 3-5 bullets reading YESTERDAY'S NUMBERS below (the publisher also sees the raw figures in a box above your memo, so don't just repeat them): what pulled readers on the site and why it likely did (topic, timing, angle), what did or didn't land on social, any top site story that got no social push, and how yesterday compared with the prior week. End with 1-2 concrete actions for today drawn from this (e.g. a follow-up on a story that pulled readers, re-push a strong story on social, post at the hour that worked). Use ONLY the numbers given; never invent figures. If a source is missing or thin, say so in a few words rather than guessing.\n"
+        ? "WHAT WORKED YESTERDAY — 3-5 bullets reading YESTERDAY'S NUMBERS below (the publisher also sees the raw figures in a box above your memo, so don't just repeat them): what pulled readers on the site and why it likely did (topic, timing, angle), what did or didn't land on social (Buffer posts and the X account's own tweets), any top site story that got no social push, and how yesterday compared with the prior week. End with 1-2 concrete actions for today drawn from this (e.g. a follow-up on a story that pulled readers, re-push a strong story on social, post at the hour that worked). Use ONLY the numbers given; never invent figures. If a source is missing or thin, say so in a few words rather than guessing.\n"
         : 'WHAT WORKED — write exactly one line: "No analytics from yesterday yet (connect Chartbeat and Buffer under Analytics)." Do not invent numbers or name a top story.\n') +
       "EDITOR'S READ — one or two sentences: an honest take on where the beat is right now and the single thing you would focus on today.\n\n" +
       "TODAY'S RATED NEWS:\n" + (newsList || '(nothing notable in the scan)') + '\n\n' +
       'RECENTLY PUBLISHED BY INSIDEMDSPORTS:\n' + (ownList || '(unavailable this run)') + '\n\n' +
-      (hasNumbers ? "YESTERDAY'S NUMBERS (" + yesterday.day + ', Eastern; site readers are summed from readings every 3 hours, a ranking rather than exact pageviews):\n' + JSON.stringify({ site: yesterday.site, social: yesterday.social, errors: yesterday.errors }) + '\n\n' : '') +
+      (hasNumbers ? "YESTERDAY'S NUMBERS (" + yesterday.day + ', Eastern; site readers are summed from readings every 3 hours, a ranking rather than exact pageviews):\n' + JSON.stringify({ site: yesterday.site, social: yesterday.social, x: yesterday.x, errors: yesterday.errors }) + '\n\n' : '') +
       'Return ONLY clean HTML: <h3> for each section header, <ul><li> for bullets, <p> for the read. No preamble, no markdown fences.';
 
     var cr = await fetch('https://api.anthropic.com/v1/messages', {
@@ -137,7 +151,7 @@ module.exports = async function handler(req, res) {
     var mailResult = await mailer.sendMail({ subject: 'Coverage Desk — ' + today, html: html });
 
     console.log('Coverage Desk sent | alerts:', alerts.length, '| own index:', ownIndex.length, '| analytics:', hasNumbers, '| mail:', JSON.stringify(mailResult));
-    return res.status(200).json({ ok: true, alerts: alerts.length, ownIndex: ownIndex.length, analytics: hasNumbers ? { site: !!(yesterday.site && yesterday.site.readings), social: !!yesterday.social, errors: yesterday.errors } : null, mail: mailResult });
+    return res.status(200).json({ ok: true, alerts: alerts.length, ownIndex: ownIndex.length, analytics: hasNumbers ? { site: !!(yesterday.site && yesterday.site.readings), social: !!yesterday.social, x: !!(yesterday.x && yesterday.x.totals), errors: yesterday.errors } : null, mail: mailResult });
   } catch (e) {
     console.error('coverage-desk error:', e.message);
     return res.status(500).json({ error: e.message });

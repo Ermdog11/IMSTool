@@ -10,6 +10,7 @@
 
 var Store = require('./_analytics-store');
 var BufferApi = require('./_buffer');
+var XA = require('./_x-analytics');
 
 var TZ = 'America/New_York';
 
@@ -93,6 +94,27 @@ async function socialYesterday(sb, siteId, start, end) {
   };
 }
 
+// Yesterday's tweets from the newsroom's own X account (stored copy,
+// refreshed first). Tweets from the last few hours of yesterday may not have
+// matured into the store yet; the note says so.
+async function xYesterday(sb, siteId, start, end) {
+  var conn = await Store.getConnection(sb, siteId, 'x');
+  if (!conn || !conn.userId) return null;
+  var store, refreshError = null;
+  try { store = await XA.refresh(sb, siteId); } catch (e) { refreshError = e.message; store = await XA.readStore(siteId); }
+  if (!store) return { note: refreshError || 'No X data stored yet.' };
+  var tweets = XA.between(store, start.getTime(), end.getTime());
+  var tot = { tweets: tweets.length, impressions: 0, interactions: 0 };
+  tweets.forEach(function (t) { tot.impressions += t.impressions; tot.interactions += t.interactions; });
+  var sm = XA.summary(store);
+  return {
+    handle: conn.handle, totals: tot,
+    avgImpressionsPerTweetLast7Days: sm.last7.avgImpressionsPerTweet,
+    topTweets: tweets.sort(function (a, b) { return b.impressions - a.impressions; }).slice(0, 5),
+    note: 'Each tweet is read about ' + XA.MATURE_HOURS + ' hours after posting, so the last few hours of yesterday may not be counted yet.' + (refreshError ? ' (Refresh failed: ' + refreshError + ')' : '')
+  };
+}
+
 // For each of yesterday's top site stories, how many of yesterday's social
 // posts linked to it — "did well on the site but we barely pushed it".
 function crossLink(site, social) {
@@ -107,9 +129,10 @@ function crossLink(site, social) {
 
 async function gatherYesterday(sb, siteId) {
   var start = etMidnight(1), end = etMidnight(0);
-  var out = { day: etLabel(start.toISOString(), { weekday: 'long', month: 'long', day: 'numeric' }), site: null, social: null, errors: [] };
+  var out = { day: etLabel(start.toISOString(), { weekday: 'long', month: 'long', day: 'numeric' }), site: null, social: null, x: null, errors: [] };
   try { out.site = await siteYesterday(sb, siteId, start, end); } catch (e) { out.errors.push('Site: ' + e.message); }
   try { out.social = await socialYesterday(sb, siteId, start, end); } catch (e) { out.errors.push('Social: ' + e.message); }
+  try { out.x = await xYesterday(sb, siteId, start, end); } catch (e) { out.errors.push('X: ' + e.message); }
   crossLink(out.site, out.social);
   return out;
 }

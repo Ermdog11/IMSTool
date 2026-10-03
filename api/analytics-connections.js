@@ -23,7 +23,10 @@ var SOURCES = {
   // Personal API key from the newsroom's own Buffer account. The key is
   // checked against Buffer before it's saved, and the organization it
   // belongs to is stored alongside it (see the buffer branch below).
-  buffer: { required: ['apiKey'] }
+  buffer: { required: ['apiKey'] },
+  // The newsroom's own X account. No key of its own: it reads through the X
+  // credential the news scanner already uses (api/_x-analytics.js).
+  x: { required: ['handle'] }
 };
 
 module.exports = async function handler(req, res) {
@@ -65,6 +68,18 @@ module.exports = async function handler(req, res) {
 
   var missing = SOURCES[source].required.filter(function(k) { return !body[k] || !String(body[k]).trim(); });
   if (missing.length) return res.status(400).json({ error: 'Missing: ' + missing.join(', ') });
+
+  if (source === 'x') {
+    try {
+      var xCreds = await require('./_settings-store').getXSearch(sb);
+      if (!xCreds) return res.status(400).json({ error: 'Connect X first under Settings → X / Twitter search; X analytics reads through that connection.' });
+      var xu = await require('./_x-analytics').lookupUser(xCreds.bearerToken, body.handle);
+      await Store.saveConnection(sb, siteId, 'x', { handle: '@' + xu.username, username: xu.username, userId: xu.id }, ctx.user.id);
+      return res.status(200).json({ ok: true, handle: '@' + xu.username });
+    } catch (e) {
+      return res.status(400).json({ error: e.message });
+    }
+  }
 
   if (!Crypto.isConfigured()) {
     return res.status(503).json({ error: 'Analytics encryption key not set up yet (ANALYTICS_ENCRYPTION_KEY) — tell Claude to walk through generating one.' });

@@ -8,6 +8,7 @@ var Store = require('./_analytics-store');
 var Chartbeat = require('./_chartbeat');
 var Meta = require('./_meta');
 var BufferApi = require('./_buffer');
+var XA = require('./_x-analytics');
 var Trends = require('./_trends');
 
 var LOOKBACK_DAYS = 30;
@@ -53,7 +54,20 @@ async function bufferContext(sb, siteId) {
   return out;
 }
 
-// scope: 'all' | 'chartbeat' | 'meta' | 'buffer'. Returns an array of whichever
+// The newsroom's own X account, from the stored tweets (refreshed when stale).
+async function xContext(sb, siteId) {
+  var conn = await Store.getConnection(sb, siteId, 'x');
+  if (!conn || !conn.userId) return null;
+  var out = { source: 'x', handle: conn.handle, note: 'Own X account; each tweet\'s numbers were read about ' + XA.MATURE_HOURS + 'h after posting.' };
+  try {
+    var store;
+    try { store = await XA.refresh(sb, siteId); } catch (e) { out.refreshError = e.message; store = await XA.readStore(siteId); }
+    if (store) { var sm = XA.summary(store); out.last7Days = sm.last7; out.last30Days = sm.last30; }
+  } catch (e) { out.liveError = e.message; }
+  return out;
+}
+
+// scope: 'all' | 'chartbeat' | 'meta' | 'buffer' | 'x'. Returns an array of whichever
 // requested sources are actually connected — never throws for a source
 // that isn't connected, just omits it.
 async function gatherContexts(sb, siteId, scope) {
@@ -65,6 +79,10 @@ async function gatherContexts(sb, siteId, scope) {
   if (scope === 'all' || scope === 'meta') {
     var mt = await metaContext(sb, siteId);
     if (mt) contexts.push(mt);
+  }
+  if (scope === 'all' || scope === 'x') {
+    var xc = await xContext(sb, siteId);
+    if (xc) contexts.push(xc);
   }
   if (scope === 'all' || scope === 'buffer') {
     var bf = await bufferContext(sb, siteId);
