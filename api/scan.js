@@ -444,7 +444,7 @@ module.exports = async function handler(req, res) {
     var videoCount = 0;
     if (!body.xOnly) try {
       var ytHandler = require('./youtube.js');
-      var ytQuery = { batch: '4' };
+      var ytQuery = { batch: '3' }; // x up to 24 hourly refreshes = 72 of the ~90/day searches (see _yt-quota.js)
       if (userBlocked.length) ytQuery.blocked = userBlocked.join(',');
       var ytData = await new Promise(function(resolve) {
         ytHandler({ query: ytQuery }, { status: function() { return this; }, json: function(d) { resolve(d); return this; } }).catch(function() { resolve({}); });

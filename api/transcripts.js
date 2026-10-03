@@ -22,14 +22,21 @@ module.exports = async function handler(req, res) {
   var cutoff = Date.now() - 7 * 24 * 60 * 60 * 1000;
   var debug = [];
 
+  // Channel ids never change, so they're kept in Blob too: a cold start used
+  // to re-run one 100-unit search per show (see _yt-quota.js).
+  var Quota = require('./_yt-quota.js');
+  var storedIds = (await Quota.readJson('youtube/channel-ids.json')) || {};
+  Object.keys(storedIds).forEach(function(n) { if (!channelCache[n]) channelCache[n] = storedIds[n]; });
+  var newIds = false;
   async function getChannelId(name) {
     if (channelCache[name]) return channelCache[name];
+    if (!(await Quota.take(1))) return null;
     try {
       var r = await fetch('https://www.googleapis.com/youtube/v3/search?part=snippet&type=channel&maxResults=1&q=' + encodeURIComponent(name) + '&key=' + key);
       if (!r.ok) return null;
       var d = await r.json();
       var id = d.items && d.items[0] && d.items[0].id && d.items[0].id.channelId;
-      if (id) channelCache[name] = id;
+      if (id) { channelCache[name] = id; newIds = true; }
       return id || null;
     } catch(e) { return null; }
   }
@@ -75,6 +82,7 @@ module.exports = async function handler(req, res) {
 
     for (var s of shows) {
       var channelId = await getChannelId(s);
+      if (channelId && newIds) { newIds = false; await Quota.writeJson('youtube/channel-ids.json', channelCache); }
       if (!channelId) { debug.push({ show: s, error: 'channel not found' }); continue; }
       var videos = await getRecentVideos(channelId);
       debug.push({ show: s, videos: videos.length });

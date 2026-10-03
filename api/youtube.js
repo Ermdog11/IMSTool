@@ -1,8 +1,13 @@
-var searchRotation = 0;
-// Module-level cache survives warm invocations — the dashboard tab and scan.js both hit
-// this endpoint, and each search costs 100 quota units (10k/day free).
-var ytCache = { at: 0, payload: null };
-var YT_CACHE_MS = 15 * 60 * 1000;
+// Each search costs 100 of the key's ~100-searches-a-day quota, so results
+// are cached for an hour in Blob (shared by every instance, every open tab and
+// scan.js), searches are reserved against the shared daily budget in
+// _yt-quota.js, and when the budget is gone the last results are served
+// instead of an error. The rotation index lives in the same Blob doc so
+// consecutive refreshes walk through all 20 term groups.
+var Quota = require('./_yt-quota.js');
+var CACHE_PATH = 'youtube/cache.json';
+var ytCache = { at: 0, payload: null, rotation: 0 };
+var YT_CACHE_MS = 60 * 60 * 1000;
 
 module.exports = async function handler(req, res) {
   var key = process.env.YOUTUBE_API_KEY;
@@ -27,9 +32,17 @@ module.exports = async function handler(req, res) {
   }
 
   var noCache = req.query && (req.query.nocache || req.query.fresh);
-  if (!noCache && ytCache.payload && (Date.now() - ytCache.at) < YT_CACHE_MS) {
-    return res.status(200).json(applyBlocks(Object.assign({ cached: true }, ytCache.payload)));
+  if (!ytCache.payload || (Date.now() - ytCache.at) >= YT_CACHE_MS) {
+    var stored = await Quota.readJson(CACHE_PATH);
+    if (stored && stored.at > ytCache.at) ytCache = stored;
   }
+  function serveCached(note) {
+    var p = ytCache.payload || { videos: [] };
+    return res.status(200).json(applyBlocks(Object.assign({ cached: true, cachedAt: ytCache.at || null }, p, note ? { quotaNote: note } : {})));
+  }
+  // A manual refresh still waits at least 10 minutes between real searches.
+  var minAge = noCache ? 10 * 60 * 1000 : YT_CACHE_MS;
+  if (ytCache.payload && (Date.now() - ytCache.at) < minAge) return serveCached();
 
   var cutoff = new Date(Date.now() - 10 * 24 * 60 * 60 * 1000).toISOString();
 
@@ -62,8 +75,11 @@ module.exports = async function handler(req, res) {
   var batchSize = 7;
   var bReq = parseInt((req.query && req.query.batch) || '', 10);
   if (bReq >= 1 && bReq <= 12) batchSize = bReq;
-  var startIdx = (searchRotation * batchSize) % allTerms.length;
-  searchRotation++;
+  if (!(await Quota.take(batchSize))) {
+    return serveCached('YouTube search limit reached for today. Showing the last results; new searches resume after midnight Pacific.');
+  }
+  var rotation = ytCache.rotation || 0;
+  var startIdx = (rotation * batchSize) % allTerms.length;
   var terms = [];
   for (var i = 0; i < batchSize; i++) {
     terms.push(allTerms[(startIdx + i) % allTerms.length]);
@@ -132,10 +148,10 @@ module.exports = async function handler(req, res) {
 
     var videos = [];
     var seen = [];
-    var apiError = null;
+    var apiError = null, quotaHit = false;
 
     results.forEach(function(data) {
-      if (data.error) { apiError = data.error.message || 'YouTube API error'; return; }
+      if (data.error) { apiError = data.error.message || 'YouTube API error'; if (Quota.isQuotaError(data.error)) quotaHit = true; return; }
       (data.items || []).forEach(function(item) {
         var sn = item.snippet;
         if (!sn || !item.id || !item.id.videoId) return;
@@ -234,9 +250,14 @@ module.exports = async function handler(req, res) {
       delete v.videoId;
     });
 
-    if (!videos.length && apiError) return res.status(200).json({ videos: [], error: apiError });
+    if (quotaHit) await Quota.exhaust();
+    if (!videos.length && apiError) {
+      if (ytCache.payload) return serveCached(quotaHit ? 'YouTube search limit reached for today. Showing the last results; new searches resume after midnight Pacific.' : apiError);
+      return res.status(200).json({ videos: [], error: quotaHit ? 'YouTube search limit reached for today; new searches resume after midnight Pacific.' : apiError });
+    }
     var payload = { videos: videos, searched: terms };
-    ytCache = { at: Date.now(), payload: payload };
+    ytCache = { at: Date.now(), payload: payload, rotation: rotation + 1 };
+    await Quota.writeJson(CACHE_PATH, ytCache);
     return res.status(200).json(applyBlocks(payload));
   } catch(e) {
     return res.status(500).json({ videos: [], error: e.message });

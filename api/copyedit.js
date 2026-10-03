@@ -68,6 +68,7 @@ async function suggestVideos(query) {
   // NFL clips and memes.
   if (!/\b(maryland|terp|terrapin)/i.test(query)) query += ' Maryland Terrapins';
   try {
+    if (!(await require('./_yt-quota.js').take(1))) return [];
     var c = new AbortController();
     var t = setTimeout(function () { c.abort(); }, 8000);
     var u = 'https://www.googleapis.com/youtube/v3/search?part=snippet&type=video&maxResults=3&order=relevance&safeSearch=none' +

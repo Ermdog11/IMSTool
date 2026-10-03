@@ -1093,12 +1093,13 @@ async function scanYouTube() {
   try {
     const bq = allExcludedTerms().length ? '&blocked=' + encodeURIComponent(allExcludedTerms().join(',')) : '';
     const hq = getHiddenVideos().length ? '&hidden=' + encodeURIComponent(getHiddenVideos().join(',')) : '';
-    const res = await fetch('/api/youtube?batch=7&nocache=1' + bq + hq, { cache: 'no-store' });
+    const res = await fetch('/api/youtube?batch=4&nocache=1' + bq + hq, { cache: 'no-store' });
     const data = await res.json();
     if (data.error && !(data.videos || []).length) { c.innerHTML = '<div class="empty">' + data.error + '</div>'; }
     else {
       allVideos = (data.videos || []).filter(v => !isBlockedSource(v.source || v.channel) && !isHidden(v.url));
       loadYouTube();
+      if (data.quotaNote) c.insertAdjacentHTML('afterbegin', '<div class="empty" style="padding:8px;font-size:12px;">' + data.quotaNote + '</div>');
     }
   } catch (e) { c.innerHTML = '<div class="empty">Error — ' + e.message + '</div>'; }
   if (btn) { btn.disabled = false; btn.innerHTML = '<i class="ti ti-refresh"></i> Scan YouTube'; }

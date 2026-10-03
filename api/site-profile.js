@@ -184,7 +184,10 @@ async function verifyPodcasts(list) {
 }
 async function verifyYouTube(list) {
   var key = process.env.YOUTUBE_API_KEY;
-  if (!key) return;
+  if (!key || !list.length) return;
+  // 100 quota units per lookup out of the shared daily budget; without room,
+  // skip checking and keep the suggestions as is.
+  if (!(await require('./_yt-quota.js').take(list.length))) return;
   await Promise.all(list.map(async function (y) {
     try {
       var d = await fetchJson('https://www.googleapis.com/youtube/v3/search?part=snippet&type=channel&maxResults=3&q=' + encodeURIComponent(y.name) + '&key=' + key);
