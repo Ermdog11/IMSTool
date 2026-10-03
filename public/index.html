@@ -7,17 +7,17 @@
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@2.44.0/tabler-icons.min.css">
 <style>
 :root {
-  --red: #cf0315;
-  --red-dark: #a80210;
-  --red-light: #fff0f0;
-  --gold: #ffd520;
-  --gold-light: #fffae0;
-  --dark: #111111;
-  --dark2: #1e1e1e;
-  --dark3: #2a2a2a;
+  --red: #2563eb;
+  --red-dark: #1d4ed8;
+  --red-light: #eaf1ff;
+  --gold: #f59e0b;
+  --gold-light: #fff6e0;
+  --dark: #0f1b2d;
+  --dark2: #16263f;
+  --dark3: #1f3352;
   --gray: #888;
-  --border: #e8e6e1;
-  --bg: #f7f6f3;
+  --border: #e2e7ef;
+  --bg: #f5f7fb;
   --bg2: #ffffff;
   --text: #1a1a1a;
   --text2: #555;
@@ -28,7 +28,7 @@
   --blue: #0c447c;
   --purple-light: #f0eaff;
   --purple: #3c3489;
-}
+  --hot:#dc2626;--hot-dark:#b91c1c;--hot-light:#fef2f2;--nav:#16263f;--nav-on:#60a5fa;}
 * { box-sizing: border-box; margin: 0; padding: 0; }
 body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: var(--bg); color: var(--text); font-size: 14px; }
 
@@ -39,18 +39,18 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; b
 .site-name { color: #fff; font-size: 15px; font-weight: 600; }
 .site-sub { color: #888; font-size: 11px; margin-top: 1px; }
 .topbar-right { display: flex; align-items: center; gap: 10px; }
-.live-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--red); display: inline-block; margin-right: 5px; animation: pulse 2s infinite; }
+.live-dot { width: 7px; height: 7px; border-radius: 50%; background: #fff; display: inline-block; margin-right: 5px; animation: pulse 2s infinite; }
 @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
 .pill { font-size: 11px; font-weight: 500; padding: 3px 10px; border-radius: 20px; }
-.pill-live { background: var(--red); color: #fff; }
+.pill-live { background: var(--hot); color: #fff; }
 .pill-email { background: transparent; border: 0.5px solid #555; color: #ccc; cursor: pointer; }
 .pill-email:hover { border-color: #999; color: #fff; }
 
 /* NAV */
-.nav { background: var(--red); display: flex; flex-wrap: wrap; padding: 0 20px; }
+.nav { background: var(--nav); display: flex; flex-wrap: wrap; padding: 0 20px; }
 .nav-tab { font-size: 12px; font-weight: 600; padding: 10px 16px; color: rgba(255,255,255,0.7); border: none; background: transparent; cursor: pointer; border-bottom: 2px solid transparent; white-space: nowrap; transition: all 0.15s; }
 .nav-tab:hover { color: rgba(255,255,255,0.9); }
-.nav-tab.active { color: #fff; border-bottom-color: var(--gold); }
+.nav-tab.active { color: #fff; border-bottom-color: var(--nav-on); }
 
 /* LAYOUT */
 .page { display: none; padding: 16px 20px; max-width: 1200px; margin: 0 auto; }
@@ -84,12 +84,12 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; b
 .alerts { display: flex; flex-direction: column; gap: 8px; }
 .acard { background: var(--bg2); border: 1px solid var(--border); border-radius: 10px; padding: 13px 15px; transition: border-color 0.15s; box-shadow: 0 1px 2px rgba(0,0,0,0.04); }
 .acard:hover { border-color: #ccc; }
-.acard.r5 { border-left: 3px solid var(--red); border-radius: 0 10px 10px 0; }
+.acard.r5 { border-left: 3px solid var(--hot); border-radius: 0 10px 10px 0; }
 .acard.r4 { border-left: 3px solid var(--gold); border-radius: 0 10px 10px 0; }
 .acard-top { display: flex; justify-content: space-between; align-items: flex-start; gap: 10px; margin-bottom: 6px; }
 .acard-headline { font-size: 13px; font-weight: 600; color: var(--text); line-height: 1.4; flex: 1; }
 .rating { font-size: 10px; font-weight: 700; padding: 2px 8px; border-radius: 20px; flex-shrink: 0; }
-.r5-badge { background: var(--red-light); color: var(--red-dark); }
+.r5-badge { background: var(--hot-light); color: var(--hot-dark); }
 .r4-badge { background: var(--gold-light); color: #7a5200; }
 .r3-badge { background: var(--blue-light); color: var(--blue); }
 .r2-badge,.r1-badge { background: #f0f0f0; color: var(--text3); }
@@ -135,8 +135,8 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; b
 .chat-messages { flex: 1; overflow-y: auto; background: var(--bg2); border-radius: 10px 10px 0 0; padding: 14px; display: flex; flex-direction: column; gap: 10px; border: 1px solid var(--border); border-bottom: none; }
 .chat-msg { max-width: 85%; }
 .chat-msg.system { align-self: center; background: var(--bg); border-radius: 20px; padding: 5px 14px; font-size: 11px; color: var(--text3); }
-.chat-msg.alert-drop { align-self: stretch; background: var(--red-light); border: 1px solid #f7c1c1; border-radius: 8px; padding: 10px 12px; }
-.chat-msg.alert-drop .alert-headline { font-size: 12px; font-weight: 600; color: var(--red-dark); margin-bottom: 3px; }
+.chat-msg.alert-drop { align-self: stretch; background: var(--hot-light); border: 1px solid #f7c1c1; border-radius: 8px; padding: 10px 12px; }
+.chat-msg.alert-drop .alert-headline { font-size: 12px; font-weight: 600; color: var(--hot-dark); margin-bottom: 3px; }
 .chat-msg.alert-drop .alert-meta { font-size: 11px; color: var(--text3); }
 .chat-msg.me { align-self: flex-end; background: var(--red); color: #fff; border-radius: 12px 12px 2px 12px; padding: 8px 12px; font-size: 13px; }
 .chat-msg.other { align-self: flex-start; background: #f0f0f0; border-radius: 12px 12px 12px 2px; padding: 8px 12px; font-size: 13px; }
@@ -175,7 +175,7 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; b
 .param-value { font-size: 12px; font-weight: 600; color: var(--text); }
 .tag-cloud { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 6px; }
 .stag { font-size: 11px; padding: 3px 8px; border-radius: 20px; background: var(--bg); border: 1px solid var(--border); color: var(--text2); }
-.stag.red { background: var(--red-light); color: var(--red-dark); border-color: #f7c1c1; }
+.stag.red { background: var(--hot-light); color: var(--hot-dark); border-color: #f7c1c1; }
 .stag.gold { background: var(--gold-light); color: #7a5200; border-color: #fac775; }
 .stag.blue { background: var(--blue-light); color: var(--blue); border-color: #b5d4f4; }
 .stag.purple { background: var(--purple-light); color: var(--purple); border-color: #afa9ec; }
@@ -183,7 +183,7 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; b
 .stag.excluded { background: #f0ede8; color: #999; border-color: #ddd; text-decoration: line-through; opacity: 0.7; }
 .src-row { display: flex; align-items: center; gap: 8px; padding: 3px 0; font-size: 12px; color: var(--text2); }
 .src-row i { font-size: 14px; }
-.src-row.ex i { color: var(--red); }
+.src-row.ex i { color: var(--hot); }
 .pri-row { display: flex; justify-content: space-between; align-items: center; padding: 5px 0; border-bottom: 1px solid var(--border); font-size: 12px; color: var(--text2); }
 .pri-row:last-child { border-bottom: none; }
 .email-row { display: flex; gap: 8px; margin-top: 8px; }
@@ -195,9 +195,9 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; b
 .sdiv-label { font-size: 10px; font-weight: 700; color: var(--text3); text-transform: uppercase; letter-spacing: 0.05em; margin: 10px 0 6px; }
 
 /* BOTTOM BAR */
-.bottom-bar { background: var(--red); padding: 8px 20px; display: flex; justify-content: space-between; align-items: center; position: fixed; bottom: 0; left: 0; right: 0; z-index: 100; }
+.bottom-bar { background: var(--dark); padding: 8px 20px; display: flex; justify-content: space-between; align-items: center; position: fixed; bottom: 0; left: 0; right: 0; z-index: 100; }
 .bb-brand { font-size: 13px; font-weight: 700; color: #fff; letter-spacing: 0.5px; }
-.bb-tag { font-size: 11px; font-weight: 600; color: var(--gold); }
+.bb-tag { font-size: 11px; font-weight: 600; color: var(--nav-on); }
 body { padding-bottom: 40px; }
 </style>
 </head>
@@ -1914,7 +1914,7 @@ function saveEmail() {
   savedEmail = document.getElementById('emailInput').value.trim();
   const st = document.getElementById('emailStatus');
   if (savedEmail.includes('@')) { st.textContent = '✓ Saved — rating 5 alerts and 8 PM digest will send to ' + savedEmail; st.style.color = 'var(--green)'; }
-  else { st.textContent = 'Enter a valid email.'; st.style.color = 'var(--red)'; }
+  else { st.textContent = 'Enter a valid email.'; st.style.color = 'var(--hot)'; }
 }
 
 // ============================================================
@@ -2552,14 +2552,14 @@ async function askAnalyticsQuestion() {
       body: JSON.stringify({ source, question: q })
     });
     const d = await r.json();
-    if (d.error) { ans.innerHTML = `<div class="empty" style="padding:10px;color:var(--red);">${d.error}</div>`; }
+    if (d.error) { ans.innerHTML = `<div class="empty" style="padding:10px;color:var(--hot);">${d.error}</div>`; }
     else {
       const used = (d.sourcesUsed || []).map(s => SOURCE_LABELS[s] || s).join(', ');
       ans.innerHTML = `<div style="padding:10px;background:#f1efe9;border-radius:8px;font-size:13px;line-height:1.5;">${d.answer}</div>` +
         (used ? `<div style="font-size:11px;color:var(--text3);margin-top:4px;">Based on: ${used}</div>` : '');
     }
   } catch (e) {
-    ans.innerHTML = `<div class="empty" style="padding:10px;color:var(--red);">Couldn't get an answer — ${e.message}</div>`;
+    ans.innerHTML = `<div class="empty" style="padding:10px;color:var(--hot);">Couldn't get an answer — ${e.message}</div>`;
   }
   inp.disabled = false;
 }
@@ -2643,7 +2643,7 @@ function renderOpps() {
       '<div style="display:flex;gap:14px;margin:8px 0 6px;font-size:.8rem;color:var(--text2);">' +
         '<span><b style="font-size:1.15rem;color:var(--text);">' + c.last24 + '</b> today</span>' +
         '<span><b style="font-size:1.15rem;color:var(--text);">' + c.last7 + '</b> this week</span>' +
-        '<span><b style="font-size:1.15rem;color:' + (c.gaps7 ? 'var(--red)' : 'var(--text)') + ';">' + c.gaps7 + '</b> gaps</span></div>' +
+        '<span><b style="font-size:1.15rem;color:' + (c.gaps7 ? 'var(--hot)' : 'var(--text)') + ';">' + c.gaps7 + '</b> gaps</span></div>' +
       '<div style="font-size:.75rem;color:var(--text3);">' + (c.lastAt ? 'Last story ' + oppsAgo(c.lastAt) : (c.following ? 'No stories yet' : 'Starts within 15 minutes')) + '</div>' +
       (c.topics.length ? '<div style="margin-top:6px;display:flex;flex-wrap:wrap;gap:4px;">' + c.topics.map(function (t) { return '<span style="font-size:.72rem;background:var(--bg);border:1px solid var(--border);border-radius:10px;padding:1px 7px;">' + oppsEsc(t) + '</span>'; }).join('') + '</div>' : '') +
       '</div>';
@@ -2655,7 +2655,7 @@ function renderOpps() {
       '<div style="flex:1;min-width:0;"><div style="font-size:.75rem;color:var(--text3);">' + oppsEsc(i.outlet) + ' · ' + oppsAgo(i.at) + '</div>' +
       '<a href="' + oppsEsc(i.url) + '" target="_blank" rel="noopener" style="font-weight:600;color:var(--text);text-decoration:none;">' + oppsEsc(i.title) + '</a></div>' +
       (i.covered ? '<span style="font-size:.72rem;color:var(--green);background:var(--green-light);border-radius:10px;padding:2px 8px;white-space:nowrap;">We covered it</span>'
-        : '<span style="font-size:.72rem;color:#fff;background:var(--red);border-radius:10px;padding:2px 8px;white-space:nowrap;">Gap</span>') +
+        : '<span style="font-size:.72rem;color:#fff;background:var(--hot);border-radius:10px;padding:2px 8px;white-space:nowrap;">Gap</span>') +
       '</div>';
   }).join('') : '<div class="empty" style="padding:14px;">' + (gapsOnly ? 'No gaps. We\'ve covered everything they have.' : 'No stories yet. New ones appear within 15 minutes of publishing.') + '</div>';
 }

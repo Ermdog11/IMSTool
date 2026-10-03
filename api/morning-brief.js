@@ -37,7 +37,7 @@ module.exports = async function handler(req, res) {
     if (alerts.length === 0) {
       await mailer.sendMail({
         subject: 'InsideMDSports morning brief — ' + date,
-        html: '<div style="font-family:-apple-system,sans-serif;max-width:500px;margin:0 auto;padding:20px;"><div style="background:#cf0315;padding:12px 16px;border-radius:8px 8px 0 0;"><span style="color:white;font-weight:700;">InsideMDSports morning brief — ' + date + '</span></div><div style="background:white;padding:16px;border-radius:0 0 8px 8px;"><p style="color:#555;font-size:14px;">All quiet overnight. No significant Terps news since midnight.</p></div></div>'
+        html: '<div style="font-family:-apple-system,sans-serif;max-width:500px;margin:0 auto;padding:20px;"><div style="background:#0f1b2d;padding:12px 16px;border-radius:8px 8px 0 0;"><span style="color:white;font-weight:700;">InsideMDSports morning brief — ' + date + '</span></div><div style="background:white;padding:16px;border-radius:0 0 8px 8px;"><p style="color:#555;font-size:14px;">All quiet overnight. No significant Terps news since midnight.</p></div></div>'
       });
     } else {
       var itemsHTML = alerts.map(function(a) {
@@ -48,7 +48,7 @@ module.exports = async function handler(req, res) {
 
       await mailer.sendMail({
         subject: 'InsideMDSports morning brief — ' + alerts.length + ' overnight stories',
-        html: '<div style="font-family:-apple-system,sans-serif;max-width:500px;margin:0 auto;padding:20px;"><div style="background:#cf0315;padding:12px 16px;border-radius:8px 8px 0 0;"><span style="color:white;font-weight:700;">InsideMDSports morning brief — ' + date + '</span></div><div style="background:white;padding:16px;border-radius:0 0 8px 8px;"><p style="font-size:12px;color:#888;margin-bottom:12px;">Here\'s what happened overnight. ' + alerts.length + ' stories.</p>' + itemsHTML + '</div></div>'
+        html: '<div style="font-family:-apple-system,sans-serif;max-width:500px;margin:0 auto;padding:20px;"><div style="background:#0f1b2d;padding:12px 16px;border-radius:8px 8px 0 0;"><span style="color:white;font-weight:700;">InsideMDSports morning brief — ' + date + '</span></div><div style="background:white;padding:16px;border-radius:0 0 8px 8px;"><p style="font-size:12px;color:#888;margin-bottom:12px;">Here\'s what happened overnight. ' + alerts.length + ' stories.</p>' + itemsHTML + '</div></div>'
       });
     }
 

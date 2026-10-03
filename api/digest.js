@@ -26,7 +26,7 @@ const buildDigestEmailHTML = (alerts, date) => {
     var items = groups[title];
     if (!items.length) continue;
     sectionsHTML += '<div style="margin-bottom:20px;">';
-    sectionsHTML += '<div style="font-size:12px;font-weight:700;color:#888;text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px;border-bottom:2px solid #cf0315;padding-bottom:5px;">' + title + '</div>';
+    sectionsHTML += '<div style="font-size:12px;font-weight:700;color:#888;text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px;border-bottom:2px solid #2563eb;padding-bottom:5px;">' + title + '</div>';
     items.forEach(function(item) {
       sectionsHTML += '<div style="padding:10px 0;border-bottom:1px solid #e8e6e1;">';
       sectionsHTML += '<div style="font-size:14px;font-weight:600;color:#1a1a1a;margin-bottom:4px;">' + item.headline + '</div>';
@@ -39,7 +39,7 @@ const buildDigestEmailHTML = (alerts, date) => {
 
   return '<!DOCTYPE html><html><head></head><body style="font-family:-apple-system,sans-serif;background:#f7f6f3;margin:0;padding:20px;">' +
     '<div style="max-width:600px;margin:0 auto;background:white;border-radius:10px;overflow:hidden;">' +
-    '<div style="background:#cf0315;padding:16px 20px;">' +
+    '<div style="background:#0f1b2d;padding:16px 20px;">' +
     '<div style="color:white;font-size:16px;font-weight:700;">InsideMDSports</div>' +
     '<div style="color:rgba(255,255,255,0.8);font-size:12px;">Nightly digest &mdash; ' + date + '</div>' +
     '</div>' +

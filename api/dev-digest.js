@@ -95,7 +95,7 @@ module.exports = async function handler(req, res) {
 
     var html =
       '<div style="font-family:-apple-system,BlinkMacSystemFont,Arial,sans-serif;max-width:600px;margin:0 auto;color:#1a1a1a">' +
-      '<div style="background:#cf0315;padding:12px 16px;border-radius:8px 8px 0 0"><span style="color:#fff;font-weight:700">IMSTool build digest — ' + dateLabel + '</span></div>' +
+      '<div style="background:#0f1b2d;padding:12px 16px;border-radius:8px 8px 0 0"><span style="color:#fff;font-weight:700">IMSTool build digest — ' + dateLabel + '</span></div>' +
       '<div style="background:#fff;border:1px solid #e8e6e1;border-top:none;border-radius:0 0 8px 8px;padding:18px;font-size:14px;line-height:1.55">' +
       '<h3 style="margin:0 0 6px">What shipped</h3>' + digest.shipped +
       '<h3 style="margin:16px 0 6px">What\'s next</h3>' + digest.next +
