@@ -3098,6 +3098,19 @@ function loadQuestionBox() {
   sel.innerHTML = `<select id="analyticsQuestionSourceSel" style="font-size:12px;padding:5px 8px;border:1px solid var(--border);border-radius:6px;">${options.join('')}</select>`;
 }
 
+// Small, safe Markdown for AI answers: escapes everything, then turns blank
+// lines into paragraphs, "- " lines into bullets, and **bold** / *italic*.
+function mdLite(text) {
+  const inline = t => escapeHtml(t).replace(/\*\*([^*]+)\*\*/g, '<b>$1</b>').replace(/(^|[^*])\*([^*\n]+)\*/g, '$1<i>$2</i>');
+  return String(text || '').trim().split(/\n\s*\n/).map(block => {
+    const lines = block.split('\n').map(l => l.trim()).filter(Boolean);
+    if (lines.length && lines.every(l => /^[-•*]\s+/.test(l))) {
+      return '<ul style="margin:6px 0 6px 18px;padding:0;">' + lines.map(l => '<li style="margin-bottom:4px;">' + inline(l.replace(/^[-•*]\s+/, '')) + '</li>').join('') + '</ul>';
+    }
+    return '<p style="margin:0 0 8px;">' + lines.map(inline).join('<br>') + '</p>';
+  }).join('');
+}
+
 async function askAnalyticsQuestion() {
   const inp = document.getElementById('analyticsQuestionInput');
   const q = (inp.value || '').trim();
@@ -3116,7 +3129,7 @@ async function askAnalyticsQuestion() {
     if (d.error) { ans.innerHTML = `<div class="empty" style="padding:10px;color:var(--hot);">${d.error}</div>`; }
     else {
       const used = (d.sourcesUsed || []).map(s => SOURCE_LABELS[s] || s).join(', ');
-      ans.innerHTML = `<div style="padding:10px;background:#f1efe9;border-radius:8px;font-size:13px;line-height:1.5;">${d.answer}</div>` +
+      ans.innerHTML = `<div class="ai-answer" style="padding:10px 12px;background:#f1efe9;border-radius:8px;font-size:13px;line-height:1.5;">${mdLite(d.answer)}</div>` +
         (used ? `<div style="font-size:11px;color:var(--text3);margin-top:4px;">Based on: ${used}</div>` : '');
     }
   } catch (e) {

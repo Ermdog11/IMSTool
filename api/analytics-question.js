@@ -30,10 +30,14 @@ module.exports = async function handler(req, res) {
       return res.status(200).json({ answer: 'Nothing\'s connected yet for ' + (scope === 'all' ? 'any source' : scope) + ' — connect it above first.' });
     }
 
-    var sys = 'You are an audience-analytics analyst for InsideMDSports, a Maryland Terrapins sports site. ' +
+    var beat = await require('./_beat').getBeat(ctx.supabase);
+    var sys = 'You are an audience-analytics analyst for ' + beat.outletName + ', covering ' + beat.coverage + '. ' +
       'Answer the editor\'s question using ONLY the JSON data below — never invent numbers, trends, or claims beyond it. ' +
       'If the data doesn\'t cover what they asked, say so plainly instead of guessing. Be specific and cite real numbers ' +
-      'from the data when you have them. Keep it conversational and to the point — a few sentences, not a report. ' +
+      'from the data when you have them. Keep it short and easy to scan on a phone (Jeff, 2026-10-03: one big paragraph was too much text): ' +
+      'start with a one-sentence bottom line in **bold**, then at most 3-4 short points as "- " bullets (one per source or idea, ' +
+      'one or two sentences each, only the numbers that matter), and end with one "**Do next:**" line if there is a clear action. ' +
+      'Under 150 words total. Use blank lines between parts. ' +
       'A source with "trendsPending" hasn\'t built up enough history yet for time-based patterns; say so if relevant ' +
       'rather than fabricating a trend. A source with "timeOfDayMeaningful": false in its trends only has rolling ' +
       'multi-day totals, not real-time data, so there\'s no meaningful "best time" for it.\n\n' +
