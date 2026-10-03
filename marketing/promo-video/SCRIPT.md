@@ -1,8 +1,8 @@
 # CoPublisher AI — promo video script
 
 **For:** prospective partners and investors
-**Length:** about 3:00 (full cut), plus a 60-second cut
-**Mockups:** `mockups/01…18.png`. They are real screens from the app, filled with **sample data**: the players, outlets, headlines and numbers are invented. Keep the on-screen "Sample data" tag on any scene that shows product numbers.
+**Length:** about 3:30 (full cut), plus a 60-second cut
+**Mockups:** `mockups/01…19.png`. They are real screens from the app, filled with **sample data**: the players, outlets, headlines and numbers are invented. Keep the on-screen "Sample data" tag on any scene that shows product numbers.
 **Industry figures** in Scene 1 come from published research (sources at the bottom). Check each against its source before you publish the video.
 
 ---
@@ -17,7 +17,7 @@ Paste this block into the tool's style or prompt box:
 
 ---
 
-## Full cut (about 3:00)
+## Full cut (about 3:30)
 
 ### Scene 1 — What's at stake (0:00–0:20)
 - **Visual:** Motion graphics on navy. Three big stats animate in one at a time, each with a small source line under it. Then a clock ticking past midnight, and a rival's headline sliding in first.
@@ -47,36 +47,48 @@ Paste this block into the tool's style or prompt box:
   > On vacation? No problem. When news breaks, CoPublisher spots it as it arrives, writes the article in your newsroom's voice and sends it straight to your phone, with the facts to check before it goes live. One tap opens it, ready to publish. And every morning it tells you what happened overnight and what to do next.
 
 ### Scene 5 — From alert to article in one click (1:20–1:38)
-- **Visual:** `02-write-it-card.png`, highlighting the **"Write it"** button. Cut to `08-content-editor.png`; pan from the headline options to the edited article. Brief cut to `09-content-editor-notes-seo.png`, zooming in on the yellow **[VERIFY]** callout.
-- **On-screen text:** "Your voice. Your house style. Facts flagged."
+- **Visual:** `02-write-it-card.png`, highlighting the **"Write it"** button. Cut to `08-content-editor.png`; pan from the headline options to the edited article, highlighting the two blue **hotlinks** in the copy. Brief cut to `09-content-editor-notes-seo.png`, zooming in on the yellow **[VERIFY]** callout.
+- **On-screen text:** "Your voice. Automatic hotlinks. More page views."
 - **Voiceover:**
-  > Any story becomes a draft with one click: in your house style and each writer's voice, linked to your own past coverage, with three headline options and the SEO done. Anything uncertain is flagged, so speed never costs you accuracy.
+  > Any story becomes a draft with one click, in your house style and each writer's voice, with three headline options and the SEO done. It hotlinks the story to your own past coverage and can add a related-stories box, so every article keeps readers clicking deeper: more page views, with no time spent hunting for links. Anything uncertain is flagged, so speed never costs you accuracy.
 
-### Scene 6 — Your social media director (1:38–1:58)
+### Scene 5b — It learns you, and it compounds (1:38–2:00)
+- **Visual:** Motion graphic: a line that starts flat and curves upward like compound interest, labeled **"Your knowledge base"**. Article cards stack into it day by day ("Mon", "Tue", "Wed"…), each one adding a small step. Over the curve, short labels appear: **"Your voice"**, **"Your house style"**, **"Your archive"**, **"What your editors changed"**. End on `08-content-editor.png` with a soft glow.
+- **On-screen text:** "It learns your voice. Its knowledge grows every day. Like interest, it compounds."
+- **Voiceover:**
+  > And it learns you. CoPublisher studies your site's voice and each writer's style. Every article you publish goes into your newsroom's own private knowledge base, and every day it checks what actually went live and what your editors changed. It searches that archive as it works, to keep coverage consistent and add the right context and links. So the value compounds like interest: the more you publish, the better it knows your beat, your voice and your readers.
+
+### Scene 5c — Built-in transcription (2:00–2:15)
+- **Visual:** `19-transcription.png`. Highlight **"Live from a browser tab"** and **"Live from microphone"**, then pan down the transcript, highlighting the speaker labels (**Head coach**, **Reporter**) and the **+ Draft** buttons.
+- **On-screen text:** "Interviews. Podcasts. Live press conferences. Transcribed."
+- **Voiceover:**
+  > Transcription is built in. Drop in an interview or a podcast, or transcribe a press conference live as it streams, with every speaker labeled. Grab the quote you need and drop it straight into your story.
+
+### Scene 6 — Your social media director (2:15–2:35)
 - **Visual:** `18-draft-social.png`, highlighting the header **"Styled on your best-performing posts"**. Cut to `16-buffer-social.png`: push in on **By channel**, then **Top posts**, then **Best hour 8 PM**. Quick cut to `04-x-analytics.png` with the **Last 7 days / Last 30 days** tabs highlighted.
 - **On-screen text:** "Social posts written in the style that already works for you"
 - **Voiceover:**
   > Your social media director studies what already works. It reads your posts on X, Facebook, Instagram and Threads, learns which hooks, formats and posting times drive clicks, and writes new posts for every platform in that same style. Your brand shows up everywhere, consistently, without anyone working nights.
 
-### Scene 7 — Your product strategist (1:58–2:22)
+### Scene 7 — Your product strategist (2:35–2:59)
 - **Visual:** `06-trends-charts.png`. Start on **Suggestions** and highlight each title as it's read. Pan down to **"Where readers came from"** (highlight Search +3.5 pts and Social +4.8 pts), then the **8 pm** bar. Cut to `17-search-console.png`: highlight **Rising searches**, then **Page-1 opportunities**.
 - **On-screen text:** "Not just numbers. Next moves."
 - **Voiceover:**
   > Your product strategist turns analytics into decisions. It connects your site traffic, your social accounts and Google Search, and tells you what to do next: publish by seven-thirty, re-share the story that never got pushed, write the explainer people are searching for. Plain-English suggestions, each backed by your own data.
 
-### Scene 8 — Grow audience, brand and revenue (2:22–2:40)
+### Scene 8 — Grow audience, brand and revenue (2:59–3:15)
 - **Visual:** Motion graphic: three rising lines labeled **Audience**, **Brand** and **Revenue**, each with an icon: first to publish → more readers; consistent social → stronger brand; more readers and subscribers → more revenue. Small product thumbnails float in (`01`, `16`, `17`).
 - **On-screen text:** "First to publish. Everywhere your fans are. Every opportunity found."
 - **Voiceover:**
-  > Being first grows your audience. Showing up consistently on every platform grows your brand. And more readers, more subscribers and more search traffic grow your revenue. CoPublisher works on all three at once, every hour of every day.
+  > Being first grows your audience. Showing up consistently on every platform grows your brand. More readers, more page views, more subscribers and more search traffic grow your revenue. And the hours it saves your staff, spent on reporting instead of busywork, compound too. CoPublisher works on all of it at once, every hour of every day.
 
-### Scene 9 — Set up in minutes (2:40–2:52)
+### Scene 9 — Set up in minutes (3:15–3:24)
 - **Visual:** Quick sequence, about 3 seconds each: `10-wizard-1-outlet.png` → `11-wizard-2-beat-built.png` (highlight **"Build my beat"** and the line "Added 5 sources, 2 podcasts and 2 YouTube channels") → `12-wizard-3-sources-podcasts.png` → `13-wizard-4-done.png` (highlight **"You're all set"**).
 - **On-screen text:** "Name your beat. CoPublisher builds the rest."
 - **Voiceover:**
   > Getting started takes minutes. Name your team, and CoPublisher builds your beat for you: the sources, podcasts, YouTube channels and names that matter.
 
-### Scene 10 — Close (2:52–3:00)
+### Scene 10 — Close (3:24–3:30)
 - **Visual:** `01-news-feed.png` pulls back into a grid of all the screens, then cuts to the logo on navy.
 - **On-screen text:** "CoPublisher AI · Your newsroom, never off the clock." + contact line: `[your email / website]`
 - **Voiceover:**
@@ -91,8 +103,9 @@ Paste this block into the tool's style or prompt box:
 | 0:00–0:08 | Scene 1 stats graphic (+103%, +168%) | In digital news, speed is money, and the audience goes to whoever publishes first. |
 | 0:08–0:16 | Three role cards + "24/7" badge → logo | CoPublisher AI is your co-publisher, social media director and product strategist, working twenty-four hours a day. |
 | 0:16–0:26 | `01-news-feed.png` → `07-opps-spy.png` | It's your designated news spotter, watching your beat and your competition and flagging every gap. |
-| 0:26–0:36 | `15-breaking-draft-phone.png` in a phone frame | On vacation? No problem. It writes the breaking story in your newsroom's voice and sends it to your phone, ready to publish. |
-| 0:36–0:46 | `18-draft-social.png` → `16-buffer-social.png` | It writes social posts in the style that already works for you, on every platform. |
+| 0:26–0:36 | `15-breaking-draft-phone.png` in a phone frame | On vacation? No problem. It writes the breaking story in your newsroom's voice and sends it to your phone. |
+| 0:36–0:41 | `19-transcription.png` → `08-content-editor.png` | Built-in transcription, automatic hotlinks, and a knowledge base that grows with every story. |
+| 0:41–0:46 | `18-draft-social.png` → `16-buffer-social.png` | Social posts in the style that already works for you. |
 | 0:46–0:54 | `06-trends-charts.png` → `17-search-console.png` | And it turns your analytics into next moves that grow audience, brand and revenue. |
 | 0:54–1:00 | Logo | CoPublisher AI. Your newsroom, never off the clock. |
 
@@ -117,6 +130,9 @@ These are the things the script says the product does, matched to what it actual
 - **"Sends it straight to your phone":** breaking and major stories (rated 4–5) are auto-drafted and emailed with an "Open in Content Editor" button. They also drop into Team Chat. Texts aren't available yet.
 - **Social platforms:** Facebook, Instagram and Threads numbers cover posts sent through Buffer; X covers every tweet on your own account.
 - **"Your newsroom's voice":** breaking drafts follow your house style guide; the Content Editor also matches each writer's own voice when a writer profile is set up.
+- **Knowledge base / "compounds":** every article saved, submitted or edited is stored and searchable for that newsroom; a daily check finds the published version and notes what editors changed; the Content Editor searches the archive for consistency, context and internal links. Writer style profiles currently learn from writing samples; feeding the full archive and editors' changes into them is the next step, so present that part as "keeps learning", not as a finished feature.
+- **Transcription:** files up to 1GB (audio or video), direct links, the latest podcast episode, or live from a microphone or a browser tab (e.g. a streamed press conference), with speakers labeled.
+- **Page views:** internal hotlinks and the related-stories box are built in; the script doesn't claim a specific page-view increase, and you shouldn't add one without your own numbers.
 - **Search:** Google Search Console needs access to a property that covers your article pages.
 
 ---
@@ -150,5 +166,6 @@ These are the things the script says the product does, matched to what it actual
 | `16-buffer-social.png` | Social posts card: Facebook, Instagram, Threads via Buffer (2×) |
 | `17-search-console.png` | Google Search Console card: clicks, rising searches, opportunities (2×) |
 | `18-draft-social.png` | Draft social: posts styled on your best performers (2×) |
+| `19-transcription.png` | Transcribe: live from a tab or mic, plus a labeled press-conference transcript (full screen) |
 
 Full-screen shots are 1920×1080; the 2× and 3× crops are higher resolution, for zooming in.

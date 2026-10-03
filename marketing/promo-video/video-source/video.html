@@ -1,0 +1,163 @@
+<!doctype html>
+<html><head><meta charset="utf-8">
+<style>
+  html,body{margin:0;padding:0;background:#0f1b2d;overflow:hidden}
+  #stage{position:relative;width:1920px;height:1080px;overflow:hidden;background:#0f1b2d;font-family:"Helvetica Neue",Helvetica,Arial,"Liberation Sans",sans-serif;color:#fff}
+  .win{position:absolute;overflow:hidden;background:#f5f7fb;border-radius:14px;box-shadow:0 30px 80px rgba(0,0,0,.45)}
+  .chrome{position:absolute;left:0;right:0;top:0;height:34px;background:#e9edf3;display:flex;align-items:center;gap:8px;padding-left:16px;z-index:3}
+  .chrome i{width:12px;height:12px;border-radius:50%;display:inline-block}
+  .chrome span{margin-left:18px;font-size:14px;color:#55607a;background:#fff;border-radius:6px;padding:3px 14px}
+  .layer{position:absolute;left:0;top:0;transform-origin:0 0}
+  .layer img{display:block}
+  .box{position:absolute;border-radius:10px;box-shadow:0 0 0 9999px rgba(15,27,45,.0)}
+  .cap{position:absolute;left:160px;right:160px;bottom:46px;text-align:center;font-size:36px;line-height:1.3;font-weight:500;text-shadow:0 2px 12px rgba(0,0,0,.5)}
+  .ost{position:absolute;left:160px;top:34px;font-size:30px;font-weight:700;letter-spacing:.2px;background:rgba(37,99,235,.95);padding:10px 20px;border-radius:10px}
+  .tag{position:absolute;left:24px;bottom:16px;font-size:16px;color:#9fb0cc;background:rgba(255,255,255,.08);padding:4px 10px;border-radius:6px}
+  .phone{position:absolute;border-radius:48px;background:#0b0f18;padding:16px;box-shadow:0 30px 80px rgba(0,0,0,.5)}
+  .phone .scr{position:relative;overflow:hidden;border-radius:34px;background:#fff}
+  .center{position:absolute;left:0;right:0;text-align:center}
+  .card3{position:absolute;width:440px;height:300px;border-radius:22px;background:#16263f;border:2px solid #2563eb;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px}
+  .card3 .ic{font-size:84px}
+  .card3 .nm{font-size:38px;font-weight:700;text-align:center;line-height:1.15}
+  .stat{position:absolute;left:0;right:0;text-align:center}
+  .stat .n{font-size:150px;font-weight:800;color:#60a5fa;letter-spacing:-2px}
+  .stat .l{font-size:44px;font-weight:600;margin-top:-6px}
+  .stat .s{font-size:20px;color:#9fb0cc;margin-top:10px}
+</style></head>
+<body><div id="stage"></div>
+<script>
+const M = '../mockups/';
+const IMG = {
+ '01':[1920,1080],'02':[2320,460],'04':[2320,688],'06':[2320,2894],'07':[1920,1080],'08':[1920,1080],'09':[1920,1080],
+ '10':[1920,1080],'11':[1920,1080],'12':[1920,1080],'13':[1920,1080],'14':[1920,1080],'15':[1290,2796],'16':[2320,918],
+ '17':[2320,1512],'18':[2320,652],'19':[1920,1080]};
+const FILE = {'01':'01-news-feed','02':'02-write-it-card','04':'04-x-analytics','06':'06-trends-charts','07':'07-opps-spy','08':'08-content-editor','09':'09-content-editor-notes-seo','10':'10-wizard-1-outlet','11':'11-wizard-2-beat-built','12':'12-wizard-3-sources-podcasts','13':'13-wizard-4-done','14':'14-coverage-desk-email','15':'15-breaking-draft-phone','16':'16-buffer-social','17':'17-search-console','18':'18-draft-social','19':'19-transcription'};
+const ease = x => x<0?0:x>1?1:x<.5?2*x*x:1-Math.pow(-2*x+2,2)/2;
+const clamp = (x,a,b)=>Math.max(a,Math.min(b,x));
+const lerp = (a,b,t)=>a+(b-a)*t;
+
+// shot: {img, dur, from:[x,y,w], to:[x,y,w], boxes:[[x,y,w,h,at]], sample:true}
+// scene: {title, vo, shots|graphic, dur}
+const SCENES = [
+ {dur:20, graphic:'stakes', title:'Speed is money',
+  vo:"In digital news, speed is money. Breaking news is now the fastest-growing source of Google traffic, and that audience goes to whoever publishes first. Every story you're late on is readers, subscribers and revenue handed to someone else."},
+ {dur:14, graphic:'team', title:'',
+  vo:"CoPublisher AI is like adding three people to your staff: a co-publisher, a social media director and a product strategist. Working twenty-four hours a day."},
+ {dur:20, title:'Your designated news spotter', vo:"It's your designated news spotter. It watches your whole beat all day long and rates every story, so breaking news jumps to the top. And it watches your competition: every rival story shows up within fifteen minutes, flagged as a gap if you haven't covered it.",
+  shots:[{img:'01',dur:10,from:[0,0,1920],to:[360,300,1220],boxes:[[1428,341,100,24,2.2],[380,331,1160,160,5]],sample:true},
+         {img:'07',dur:10,from:[200,90,1500],to:[360,190,1220],boxes:[[380,206,868,114,1.5],[1484,378,48,24,4.5],[1484,436,48,24,5.2],[1484,610,48,24,5.9]],sample:true}]},
+ {dur:24, title:'On vacation? No problem.', vo:"On vacation? No problem. When news breaks, CoPublisher spots it, writes the story in your newsroom's voice and sends it straight to your phone, with the facts to check first. One tap opens it, ready to publish. And every morning it tells you what happened and what to do next.",
+  shots:[{img:'15',dur:18,phone:true,from:[0,0,1290],to:[0,240,1290],boxes:[[44,262,1206,124,3],[44,1058,1160,214,7.5],[44,1320,614,128,10.5]]},
+         {img:'14',dur:6,from:[560,20,800],to:[560,420,800],boxes:[[820,318,108,24,1.2],[655,522,180,30,3.6]],sample:true}]},
+ {dur:20, title:'One click: alert to article', vo:"One click turns any story into a draft in your house style, with headline options and SEO done. It hotlinks your own past coverage and adds related stories, so readers keep clicking deeper. More page views, no time spent hunting for links.",
+  shots:[{img:'02',dur:5,from:[0,-170,2320],to:[0,-40,1700],boxes:[[30,240,135,52,1.5]],sample:true},
+         {img:'08',dur:15,from:[400,100,1120],to:[400,420,1120],boxes:[[430,153,1060,215,1.5],[464,572,184,26,6.5],[784,694,180,26,7.3]]}]},
+ {dur:24, graphic:'compound', title:'It learns you. It compounds.',
+  vo:"And it learns you: your site's voice and each writer's style. Every article goes into your newsroom's private knowledge base, and every day it checks what went live and what your editors changed. So its value compounds like interest. The more you publish, the better it knows your beat, your voice and your readers."},
+ {dur:15, title:'Built-in transcription', vo:"Transcription is built in. Drop in an interview or podcast, or transcribe a press conference live as it streams, with every speaker labeled. Grab the quote and drop it into your story.",
+  shots:[{img:'19',dur:15,from:[300,80,1320],to:[380,380,1160],boxes:[[445,421,406,42,2],[444,660,100,300,7],[1410,660,64,300,10]]}]},
+ {dur:20, title:'Your social media director', vo:"Your social media director studies what already works on X, Facebook, Instagram and Threads, then writes new posts for every platform in that same style. Your brand shows up everywhere, consistently.",
+  shots:[{img:'18',dur:7,from:[0,-120,2320],to:[0,120,1700],boxes:[[52,322,736,40,1.5]],sample:true},
+         {img:'16',dur:13,from:[0,0,1700],to:[0,330,1700],boxes:[[26,286,820,392,2],[26,690,2280,196,7]],sample:true}]},
+ {dur:24, title:'Your product strategist', vo:"Your product strategist turns analytics into next moves. Publish by seven-thirty. Re-share the story that never got pushed. Write the explainer people are searching for. Plain-English suggestions, backed by your own data.",
+  shots:[{img:'06',dur:12,from:[0,140,2320],to:[0,700,2320],boxes:[[30,295,2266,470,1.5],[30,910,1210,268,8]],sample:true},
+         {img:'17',dur:12,from:[0,0,1800],to:[0,760,1800],boxes:[[26,894,2272,182,3.5],[26,1098,2272,200,7.5]],sample:true}]},
+ {dur:16, graphic:'grow', title:'Audience. Brand. Revenue.',
+  vo:"Being first grows your audience. Showing up everywhere grows your brand. More readers, page views and subscribers grow your revenue. And the hours it saves your staff compound too."},
+ {dur:12, title:'Set up in minutes', vo:"Getting started takes minutes. Name your team, and CoPublisher builds your beat: the sources, podcasts, YouTube channels and names that matter.",
+  shots:[{img:'10',dur:3,from:[480,40,960],to:[480,40,960]},
+         {img:'11',dur:4,from:[480,40,960],to:[480,300,960],boxes:[[590,376,138,40,0.6],[588,764,744,147,2.4]]},
+         {img:'13',dur:5,from:[480,40,960],to:[480,60,960],boxes:[[590,200,150,42,1]]}]},
+ {dur:9, graphic:'close', title:'', vo:"CoPublisher AI. Your newsroom, never off the clock."},
+];
+let T0=[];{let a=0;SCENES.forEach(s=>{T0.push(a);a+=s.dur;});}
+const TOTAL = SCENES.reduce((a,s)=>a+s.dur,0);
+
+function sentences(vo){ return vo.match(/[^.!?]+[.!?]+["”]?/g).map(s=>s.trim()); }
+function captionAt(vo, t, dur){
+  const ss=sentences(vo), lens=ss.map(s=>s.length+12), tot=lens.reduce((a,b)=>a+b,0);
+  const usable=dur-0.6; let acc=0.3;
+  for(let i=0;i<ss.length;i++){ const d=usable*lens[i]/tot; if(t<acc+d) return {text:ss[i], a:clamp(Math.min((t-acc)/0.25,(acc+d-t)/0.25),0,1)}; acc+=d; }
+  return {text:ss[ss.length-1],a:clamp((dur-t)/0.3,0,1)};
+}
+
+function shotHTML(sh, lt){
+  const [iw,ih]=IMG[sh.img]; const p=ease(clamp(lt/sh.dur,0,1));
+  const cam=[lerp(sh.from[0],sh.to[0],p), lerp(sh.from[1],sh.to[1],p), lerp(sh.from[2],sh.to[2],p)];
+  let W,H,left,top,wrapOpen,wrapClose;
+  if(sh.phone){ W=420;H=870;left=(1920-W)/2-16;top=(1080-180-H)/2+20-16;
+    wrapOpen=`<div class="phone" style="left:${left}px;top:${top}px"><div class="scr" style="width:${W}px;height:${H}px">`; wrapClose='</div></div>'; }
+  else { W=1600;H=800;left=160;top=110;
+    wrapOpen=`<div class="win" style="left:${left}px;top:${top}px;width:${W}px;height:${H+34}px"><div class="chrome"><i style="background:#ff5f57"></i><i style="background:#febc2e"></i><i style="background:#28c840"></i><span>copublisher.ai</span></div><div style="position:absolute;left:0;top:34px;width:${W}px;height:${H}px;overflow:hidden">`; wrapClose='</div></div>'; }
+  const sc=W/cam[2];
+  let boxes='';
+  (sh.boxes||[]).forEach(b=>{ const a=clamp((lt-b[4])/0.4,0,1); if(a<=0) return;
+    boxes+=`<div class="box" style="left:${b[0]-6}px;top:${b[1]-6}px;width:${b[2]+12}px;height:${b[3]+12}px;border:${(4/sc).toFixed(2)}px solid rgba(37,99,235,${a});background:rgba(37,99,235,${0.10*a})"></div>`; });
+  const fade=clamp(Math.min(lt/0.35,(sh.dur-lt)/0.35),0,1);
+  return `<div style="opacity:${fade}">${wrapOpen}<div class="layer" style="transform:translate(${-cam[0]*sc}px,${-cam[1]*sc}px) scale(${sc})"><img src="${M+FILE[sh.img]}.png" width="${iw}" height="${ih}">${boxes}</div>${wrapClose}</div>`;
+}
+
+function graphicHTML(kind, t, dur){
+  const f=(a,b)=>clamp((t-a)/(b-a),0,1);
+  if(kind==='stakes'){
+    const stats=[['+103%','Breaking news traffic from Google','Define Media Group, 2025'],['+168%','From Google Discover','Define Media Group, 2025'],['97%','of publishers call newsroom automation important','Reuters Institute, 2026']];
+    const per=dur/3.2; const i=Math.min(2,Math.floor(t/per)); const lt=t-i*per; const a=clamp(Math.min(lt/0.4,(per-lt)/0.4),0,1)*(i===2?1:1);
+    const s=stats[i];
+    return `<div class="stat" style="top:${300-10*ease(f(i*per,i*per+0.6))}px;opacity:${i===2?clamp(lt/0.4,0,1)*clamp((dur-t)/0.4,0,1):a}"><div class="n">${s[0]}</div><div class="l">${s[1]}</div><div class="s">Source: ${s[2]}</div></div>`;
+  }
+  if(kind==='team'){
+    const cards=[['📰','Co-Publisher'],['📣','Social Media<br>Director'],['📈','Product<br>Strategist']];
+    let h='';cards.forEach((c,i)=>{const a=ease(f(0.6+i*0.9,1.4+i*0.9));h+=`<div class="card3" style="left:${190+i*530}px;top:${250+40*(1-a)}px;opacity:${a}"><div class="ic">${c[0]}</div><div class="nm">${c[1]}</div></div>`;});
+    const b=ease(f(4.8,5.6));
+    h+=`<div class="center" style="top:630px;opacity:${b}"><span style="display:inline-block;font-size:64px;font-weight:800;background:#2563eb;padding:10px 34px;border-radius:16px;transform:rotate(-3deg) scale(${0.8+0.2*b})">24 / 7</span></div>`;
+    h+=`<div class="center" style="top:120px;font-size:46px;font-weight:700;opacity:${ease(f(0,0.6))}">Three new teammates. One subscription.</div>`;
+    return h;
+  }
+  if(kind==='compound'){
+    // compound-interest curve with article blocks stacking
+    const x0=260,y0=760,w=1400,hgt=520; const p=ease(f(0.5,dur-4));
+    let pts=[];for(let i=0;i<=60;i++){const x=i/60; if(x>p) break; pts.push([x0+x*w, y0-hgt*(Math.pow(1.045,x*60)-1)/(Math.pow(1.045,60)-1)]);}
+    const path=pts.map((q,i)=>(i?'L':'M')+q[0].toFixed(1)+','+q[1].toFixed(1)).join(' ');
+    const days=['Mon','Tue','Wed','Thu','Fri','Sat','Sun','Mon','Tue','Wed'];
+    let blocks='';days.forEach((d,i)=>{const at=1+i*(dur-6)/days.length;const a=f(at,at+0.5);if(a<=0)return;const x=x0+((i+0.5)/days.length)*w;
+      blocks+=`<div style="position:absolute;left:${x-44}px;top:${y0+24}px;width:88px;opacity:${a};text-align:center"><div style="height:${18+i*5}px;background:#2563eb;border-radius:6px 6px 2px 2px;margin-top:${60-i*5}px"></div><div style="font-size:18px;color:#9fb0cc;margin-top:6px">${d}</div></div>`;});
+    const labels=[['Your voice',3],['Your house style',6.5],['Your archive',10],['What your editors changed',13.5]];
+    let lab='';labels.forEach((l,i)=>{const a=ease(f(l[1],l[1]+0.6));lab+=`<div style="position:absolute;left:${x0+40}px;top:${250+i*64}px;font-size:32px;font-weight:600;opacity:${a};transform:translateX(${-20*(1-a)}px)">✓ ${l[0]}</div>`;});
+    const end=pts[pts.length-1]||[x0,y0];
+    return `<svg width="1920" height="1080" style="position:absolute;left:0;top:0"><line x1="${x0}" y1="${y0}" x2="${x0+w}" y2="${y0}" stroke="#2b3d5c" stroke-width="2"/><path d="${path}" fill="none" stroke="#60a5fa" stroke-width="6" stroke-linecap="round"/><circle cx="${end[0]}" cy="${end[1]}" r="10" fill="#60a5fa"/></svg>
+      <div style="position:absolute;left:${x0+w-420}px;top:${y0-hgt-20}px;font-size:28px;color:#9fb0cc;opacity:${ease(f(2,3))}">Your knowledge base</div>${lab}${blocks}`;
+  }
+  if(kind==='grow'){
+    const items=[['Audience','Be first',0.5],['Brand','Be everywhere',4.5],['Revenue','More readers, page views, subscribers',8.5]];
+    let h='';items.forEach((it,i)=>{const a=ease(f(it[2],it[2]+0.8));const x=210+i*540;
+      const bh=120+i*120;
+      h+=`<div style="position:absolute;left:${x}px;top:${300}px;width:420px;opacity:${a};text-align:center">
+        <div style="height:360px;position:relative"><div style="position:absolute;bottom:0;left:150px;width:120px;height:${bh*a}px;background:linear-gradient(#60a5fa,#2563eb);border-radius:12px 12px 4px 4px"></div></div>
+        <div style="font-size:52px;font-weight:800;margin-top:18px">${it[0]}</div><div style="font-size:26px;color:#9fb0cc;margin-top:6px">${it[1]}</div></div>`;});
+    return h;
+  }
+  if(kind==='close'){
+    const a=ease(f(0.3,1.3));
+    return `<div class="center" style="top:360px;opacity:${a}"><div style="display:inline-flex;align-items:center;gap:26px"><div style="width:120px;height:120px;border-radius:26px;background:#2563eb;display:flex;align-items:center;justify-content:center;font-size:56px;font-weight:800">CP</div><div style="font-size:96px;font-weight:800;letter-spacing:-1px">CoPublisher AI</div></div>
+      <div style="font-size:44px;color:#c9d6ea;margin-top:34px;opacity:${ease(f(1.5,2.4))}">Your newsroom, never off the clock.</div>
+      <div style="font-size:26px;color:#7f93b4;margin-top:40px;opacity:${ease(f(2.5,3.3))}">[your website] · [your email]</div></div>`;
+  }
+  return '';
+}
+
+function render(t){
+  let si=SCENES.length-1; for(let i=0;i<SCENES.length;i++){ if(t<T0[i]+SCENES[i].dur){si=i;break;} }
+  const s=SCENES[si], lt=t-T0[si];
+  let h='';
+  if(s.graphic){ h+=graphicHTML(s.graphic, lt, s.dur); }
+  else { let acc=0; for(const sh of s.shots){ if(lt<acc+sh.dur){ h+=shotHTML(sh, lt-acc); if(sh.sample) h+='<div class="tag">Sample data</div>'; break;} acc+=sh.dur; } }
+  if(s.title){ const a=clamp(Math.min(lt/0.4,(s.dur-lt)/0.4),0,1); h+=`<div class="ost" style="opacity:${a}">${s.title}</div>`; }
+  const c=captionAt(s.vo, lt, s.dur);
+  if(s.graphic!=='close') h+=`<div class="cap" style="opacity:${c.a}">${c.text}</div>`;
+  const sceneFade=clamp(Math.min(lt/0.3,(s.dur-lt)/0.3),0,1);
+  document.getElementById('stage').innerHTML=`<div style="position:absolute;inset:0;opacity:${sceneFade}">${h}</div>`;
+}
+window.TOTAL=TOTAL; window.render=render;
+// preload
+window.ready=Promise.all(Object.keys(FILE).map(k=>new Promise(r=>{const i=new Image();i.onload=r;i.onerror=r;i.src=M+FILE[k]+'.png';})));
+</script></body></html>
