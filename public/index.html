@@ -706,7 +706,7 @@ body { padding-bottom: 40px; }
 
   <div class="settings-card">
     <h3><i class="ti ti-plug"></i> Connections</h3>
-    <div style="font-size:12px;color:var(--text3);margin-bottom:12px;line-height:1.5;">Each connection needs a one-time setup (an app registration with that provider). Nothing is connected yet.</div>
+    <div style="font-size:12px;color:var(--text3);margin-bottom:12px;line-height:1.5;">Chartbeat, Buffer and Facebook/Instagram can be connected now; the rest are coming. Only the publisher can connect or disconnect a source.</div>
     <div id="analyticsConnections"></div>
   </div>
 
@@ -2434,14 +2434,15 @@ async function sendInvite() {
 // ============================================================
 // ANALYTICS — connections skeleton (data wiring comes later)
 // ============================================================
+// Sources that are wired up first, then the ones still to come.
 const ANALYTICS_SOURCES = [
+  { key:'chartbeat', name:'Chartbeat',          gives:'Real-time concurrents and engaged time per story', setup:'Needs your Chartbeat API key (paste it).' },
+  { key:'buffer',  name:'Buffer (beta)',        gives:'How your social posts sent through Buffer perform: reactions, comments, shares, clicks per post and per channel', setup:'Needs a personal API key from your Buffer account (Settings → API — paste it). Buffer labels these metrics experimental and updates them about once a day.' },
+  { key:'meta',   name:'Facebook / Instagram',  gives:'Reach and engagement for your own Page and IG account', setup:'Needs a Meta app with pages_read_engagement.' },
   { key:'ga4',    name:'Google Analytics 4',     gives:'Page views, engaged time, real-time, traffic sources', setup:'Needs a Google Cloud OAuth client.' },
   { key:'yta',    name:'YouTube Analytics',      gives:'Views, watch time and traffic sources for your channel', setup:'Same Google Cloud OAuth client, YouTube scope.' },
   { key:'gsc',    name:'Google Search Console',  gives:'Search queries, clicks, impressions, ranking — the SEO picture', setup:'Same Google Cloud OAuth client, Search Console scope.' },
-  { key:'meta',   name:'Facebook / Instagram',  gives:'Reach and engagement for your own Page and IG account', setup:'Needs a Meta app with pages_read_engagement.' },
-  { key:'chartbeat', name:'Chartbeat',          gives:'Real-time concurrents and engaged time per story', setup:'Needs your Chartbeat API key (paste it).' },
-  { key:'parsely', name:'Parse.ly',             gives:'Historical performance by post, author, section, tag', setup:'Needs your Parse.ly API secret (paste it).' },
-  { key:'buffer',  name:'Buffer (beta)',        gives:'How your social posts sent through Buffer perform: reactions, comments, shares, clicks per post and per channel', setup:'Needs a personal API key from your Buffer account (Settings → API — paste it). Buffer labels these metrics experimental and updates them about once a day.' }
+  { key:'parsely', name:'Parse.ly',             gives:'Historical performance by post, author, section, tag', setup:'Needs your Parse.ly API secret (paste it).' }
 ];
 let analyticsConnected = {};
 
