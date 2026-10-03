@@ -193,6 +193,25 @@ input:focus,select:focus,textarea:focus,button:focus-visible{outline:2px solid v
       <div style="margin-top:10px"><button type="button" class="btn ghost small" onclick="addGroup()">+ Add a group</button> <span class="help" id="names-count"></span></div>
     </section>
 
+    <!-- roster watch -->
+    <section class="step" data-k="roster" data-title="Roster watch">
+      <h1>Catch roster and staff changes first</h1>
+      <p class="lead">CoPublisher checks official pages three times a week and emails you the moment a name is added, comes off, or gets a new title. That is often the first public sign of a transfer, a new coach, or <span id="rw-example">an athletic director</span> leaving, before anyone has reported it. Skip this step if you don't want it.</p>
+      <div id="rw-fill-wrap">
+        <label for="rw-site">Official athletics site</label>
+        <div style="display:flex;gap:8px"><input id="rw-site" placeholder="e.g. umterps.com"><button type="button" class="btn ghost small" onclick="rwFill()">Fill in the pages</button></div>
+        <div class="help" id="rw-fill-msg">Builds the page addresses for your core sports, using the pattern most college athletics sites follow.</div>
+      </div>
+      <label>Teams</label>
+      <div class="help" style="margin-top:0">For each team, paste its roster page and its coaches or staff page. Leave either one blank to skip it. Coaches and staff are checked for new names, missing names and title changes.</div>
+      <div id="rw-teams"></div>
+      <div style="margin-top:8px"><button type="button" class="btn ghost small" onclick="rwAddTeam()">+ Add a team</button></div>
+      <label for="rw-dept-url" id="rw-dept-label">Athletic department</label>
+      <div class="help" id="rw-dept-help" style="margin-top:0"></div>
+      <input id="rw-dept-url" placeholder="">
+      <label class="blk" style="margin-top:8px"><input type="checkbox" id="rw-dept-on" checked> <span id="rw-dept-on-text">Watch this page</span></label>
+    </section>
+
     <!-- 3: rules -->
     <section class="step" data-k="rules" data-title="What's breaking">
       <h1>What counts as breaking news for you?</h1>
@@ -366,8 +385,8 @@ function sameTeam(text){
 function startFreshBeat(){
   var t=pickedTeam, hadBeat=!!(beat.team&&beat.team.name);
   beat={team:t?{name:t[0],short:t[4]==='pro'?t[2]:t[1],nicknames:t[4]==='pro'?[]:[t[2]],school:t[1],conference:t[3],level:t[4]==='pro'?'pro':'college'}:{name:$('f-team').value.trim().replace(/\s+athletics$/i,'')},
-    outlets:[],subreddits:[],podcasts:[],youtube:[],keyFigures:[],keyTerms:[],primarySports:[]};
-  groups=[]; termPool={}; termPoolLoaded=false; renderGroups(); renderBeatForm(); needsBuild=true;
+    outlets:[],subreddits:[],podcasts:[],youtube:[],keyFigures:[],keyTerms:[],primarySports:[],rosterWatch:{teams:[],department:{url:'',enabled:true}}};
+  groups=[]; termPool={}; termPoolLoaded=false; renderGroups(); renderBeatForm(); renderRw(); needsBuild=true;
   if(!PREVIEW && hadBeat) $('notice').innerHTML='<div class="notice">You switched to <b>'+esc(beat.team.name)+'</b>. Finishing this setup changes what your live News Monitor watches. To try a different beat without changing anything, use <a href="/setup?preview=1">preview mode</a>.</div>';
 }
 
@@ -411,6 +430,7 @@ document.querySelectorAll('#f-level .choice').forEach(function(b){
 function setLevel(v, resetSports){
   level=v||'college';
   document.querySelectorAll('#f-level .choice').forEach(function(b){b.classList.toggle('on',b.dataset.v===level);});
+  rwLabels();
   if(resetSports || !Object.keys(sportState).length){
     sportState={}; var d=SPORTS[level]||SPORTS.college;
     ['core','secondary','ignore'].forEach(function(k){ d[k].forEach(function(n){sportState[n]=k;}); });
@@ -427,6 +447,77 @@ function renderSports(){
   });
 }
 function addSport(){ var v=$('f-sport-add').value.trim(); if(!v) return; sportState[v]='core'; $('f-sport-add').value=''; renderSports(); }
+// --- roster watch step ---
+// The department page is the athletic department's staff directory for a
+// college or high school beat, and the front office for a pro team.
+var RW_TEXT={
+  college:{label:'Athletic department',example:'an athletic director',ph:'e.g. umterps.com/staff-directory',
+    help:'The staff directory for the whole athletic department. A change here can be the first sign of a new athletic director, a compliance, NIL or strength hire, or a staffer leaving.'},
+  pro:{label:'Front office',example:'a general manager',ph:'The front office page on the team\u2019s official site',
+    help:'The page that lists the team\u2019s front office: owner, president, general manager, scouts and executives. A change here can be the first sign of a general manager or executive leaving, or a new hire.'},
+  local:{label:'Staff directory',example:'a department head',ph:'The staff or leadership page you want watched',
+    help:'A staff or leadership page for the organization you cover. A change here can be the first sign of a hire or a departure.'}
+};
+function rwText(){ return RW_TEXT[level==='pro'?'pro':level==='local'?'local':'college']; }
+function rwSlug(v){ return String(v||'').toLowerCase().replace(/['\u2019]/g,'').replace(/[^a-z0-9]+/g,'-').replace(/^-+|-+$/g,''); }
+function rwModel(){
+  var rw=beat.rosterWatch=beat.rosterWatch||{};
+  rw.teams=rw.teams||[]; rw.department=rw.department||{url:'',enabled:true};
+  return rw;
+}
+function rwLabels(){
+  if(!$('rw-dept-label')) return;
+  var t=rwText();
+  $('rw-dept-label').textContent=t.label; $('rw-dept-help').textContent=t.help; $('rw-dept-url').placeholder=t.ph;
+  $('rw-example').textContent=t.example; $('rw-dept-on-text').textContent='Watch the '+t.label.toLowerCase()+' page';
+  $('rw-fill-wrap').style.display=(level==='pro'||level==='local')?'none':'';
+}
+function rwLink(u,text){ u=String(u||'').trim(); if(!u) return ''; if(!/^https?:\/\//i.test(u)) u='https://'+u; return '<a href="'+esc(u).replace(/"/g,'&quot;')+'" target="_blank" rel="noopener">'+text+' \u2197</a>'; }
+function renderRw(){
+  var rw=rwModel();
+  $('rw-teams').innerHTML=rw.teams.length?rw.teams.map(function(t,i){
+    var links=[rwLink(t.url,'roster'),rwLink(t.staffUrl,'coaches and staff')].filter(Boolean).join(' \u00b7 ');
+    return '<div class="box rw-team" style="margin-bottom:8px"><div style="display:flex;gap:8px;align-items:center">'+
+      '<input class="rw-label" placeholder="Team, e.g. Maryland Football" value="'+esc(t.label||'').replace(/"/g,'&quot;')+'" style="flex:1">'+
+      '<button type="button" class="x" title="Remove" onclick="rwRemove('+i+')">\u00d7</button></div>'+
+      '<div class="grid2" style="margin-top:6px">'+
+      '<input class="rw-url" placeholder="Roster page address" value="'+esc(t.url||'').replace(/"/g,'&quot;')+'" onchange="rwSync()">'+
+      '<input class="rw-staff" placeholder="Coaches and staff page address" value="'+esc(t.staffUrl||'').replace(/"/g,'&quot;')+'" onchange="rwSync()"></div>'+
+      (links?'<div class="help" style="margin:6px 0 0">Check that these open the right page: '+links+'</div>':'')+'</div>';
+  }).join(''):'<div class="help" style="margin:0 0 6px">No teams yet. Add one below'+((level==='pro'||level==='local')?'.':', or use Fill in the pages above.')+'</div>';
+  $('rw-dept-url').value=rw.department.url||''; $('rw-dept-on').checked=rw.department.enabled!==false;
+  rwLabels();
+}
+// Form -> model. A team keeps the id it was first saved with, so renaming it
+// later doesn't start its history over.
+function readRw(){
+  var rw=rwModel(), rows=[].slice.call(document.querySelectorAll('.rw-team'));
+  rw.teams=rows.map(function(row,i){
+    var old=rw.teams[i]||{}, label=row.querySelector('.rw-label').value.trim();
+    return {label:label,slug:old.slug||rwSlug(label),url:row.querySelector('.rw-url').value.trim(),staffUrl:row.querySelector('.rw-staff').value.trim()};
+  });
+  rw.department={url:$('rw-dept-url').value.trim(),enabled:$('rw-dept-on').checked};
+  return rw;
+}
+function rwSync(){ readRw(); renderRw(); }
+function rwAddTeam(){ readRw().teams.push({label:'',url:'',staffUrl:''}); renderRw(); }
+function rwRemove(i){ readRw().teams.splice(i,1); renderRw(); }
+function rwFill(){
+  var d=domainOf($('rw-site').value), msg=$('rw-fill-msg');
+  if(!d||d.indexOf('.')===-1){ msg.textContent='Type the official athletics site first, e.g. umterps.com.'; return; }
+  var rw=readRw(), short=(beat.team&&beat.team.short)||'';
+  var sports=Object.keys(sportState).filter(function(n){return sportState[n]==='core';});
+  if(!sports.length) sports=(beat.primarySports||[]).slice();
+  var added=0;
+  sports.forEach(function(sp){
+    var label=(short?short+' ':'')+sp.replace(/\b[a-z]/g,function(c){return c.toUpperCase();}), path=rwSlug(sp);
+    if(!path || rw.teams.some(function(t){return (t.label||'').toLowerCase()===label.toLowerCase();})) return;
+    rw.teams.push({label:label,url:'https://'+d+'/sports/'+path+'/roster',staffUrl:'https://'+d+'/sports/'+path+'/coaches'}); added++;
+  });
+  if(!rw.department.url) rw.department={url:'https://'+d+'/staff-directory',enabled:true};
+  renderRw();
+  msg.textContent=(added?'Added '+added+' team'+(added===1?'':'s')+'. ':'')+'These addresses follow the usual pattern, so open each link to make sure it lands on the right page, and fix any that don\u2019t.';
+}
 // --- 1-5 ratings (shared) ---
 var RATE_LABEL={1:"Don't watch",2:'Low',3:'Normal',4:'High',5:'Must-watch'};
 function rateHtml(path,r){
@@ -719,6 +810,10 @@ async function saveStep(i){
       var w=groups.map(function(g){return {label:(g.label||'People').trim(),names:(g.names||[]).slice(0,200),rating:g.rating||3,alumni:!!g.alumni};}).filter(function(g){return g.names.length;});
       // The groups replace the old flat name list, so names aren't listed twice.
       await saveBeat({watch:w},{watchNames:[]});
+    } else if(k==='roster'){
+      var rw=readRw();
+      rw.teams=rw.teams.filter(function(t){return t.label && (t.url||t.staffUrl);});
+      await saveBeat({rosterWatch:rw}); renderRw();
     } else if(k==='rules'){
       await saveProfile({rules:readRules(),alwaysBreaking:$('f-always').value.trim(),neverBreaking:$('f-never').value.trim()});
     } else if(k==='voice'){
@@ -774,6 +869,8 @@ function renderSummary(){
     ['Beat',(beat.team&&beat.team.name||'—')+((beat.outlets||[]).length?' · '+beat.outlets.filter(function(o){return (o.rating||3)>1;}).length+' sources watched':'')],
     ['Must-watch sources',(beat.outlets||[]).filter(function(o){return o.rating==5;}).map(function(o){return o.name;}).join(', ')||'—'],
     ['People watched',groups.reduce(function(n,g){return n+((g.rating||3)>1?(g.names||[]).length:0);},0)+' names in '+groups.filter(function(g){return (g.rating||3)>1;}).length+' groups'],
+    ['Roster watch',(function(){ var rw=rwModel(), n=rw.teams.filter(function(t){return t.url||t.staffUrl;}).length, dep=rw.department.url&&rw.department.enabled!==false;
+      return (n||dep)?(n+' team'+(n===1?'':'s')+(dep?' and the '+rwText().label.toLowerCase()+' page':'')):'Off'; })()],
     ['Breaking news',breaking.join('; ')||'—'],
     ['Podcast',profile.podcast&&profile.podcast.platform?profile.podcast.platform:'None'],
     ['X accounts',(profile.xHandles||[]).map(function(h){return '@'+h;}).join(', ')||'None']
@@ -807,7 +904,7 @@ async function load(){
   var inGroups={}; groups.forEach(function(g){g.names.forEach(function(n){inGroups[n.toLowerCase()]=1;});});
   var loose=(profile.watchNames||[]).filter(function(n){return !inGroups[String(n).toLowerCase()];});
   if(loose.length) groups.push({label:'Other people to watch',names:loose,rating:3});
-  renderGroups(); renderBeatForm();
+  renderGroups(); renderBeatForm(); renderRw();
   renderRules(profile.rules);
   $('f-always').value=profile.alwaysBreaking||''; $('f-never').value=profile.neverBreaking||'';
   var pod=profile.podcast||{};
