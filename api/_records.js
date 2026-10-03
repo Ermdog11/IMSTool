@@ -121,7 +121,7 @@ var TOOL = {
     properties: {
       eligible: { type: 'boolean', description: 'True when a public body (public university, state or city agency, stadium authority, etc.) likely holds records behind this story that are obtainable under a public-records law.' },
       reason: { type: 'string', description: 'One or two plain sentences for the newsroom: why it is or is not requestable, and from whom.' },
-      agency: { type: 'string', description: 'The public body the request goes to, by its full official name (e.g. "University of Maryland, College Park"). Empty when not eligible.' },
+      agency: { type: 'string', description: 'The public body the request goes to, by its full official name (e.g. "The Ohio State University"). Empty when not eligible.' },
       law: { type: 'string', description: 'The law the request is made under, with citation. Empty when not eligible.' },
       records: { type: 'array', items: { type: 'string' }, description: 'The specific documents to request, each one line.' },
       subject: { type: 'string', description: 'Email subject line.' },
