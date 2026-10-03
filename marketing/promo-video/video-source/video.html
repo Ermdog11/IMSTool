@@ -30,8 +30,8 @@ const M = '../mockups/';
 const IMG = {
  '01':[1920,1080],'02':[2320,460],'04':[2320,688],'06':[2320,2894],'07':[1920,1080],'08':[1920,1080],'09':[1920,1080],
  '10':[1920,1080],'11':[1920,1080],'12':[1920,1080],'13':[1920,1080],'14':[1920,1080],'15':[1290,2796],'16':[2320,918],
- '17':[2320,1512],'18':[2320,652],'19':[1920,1080],'20':[1290,2796],'21':[1920,1080],'22':[1920,1080]};
-const FILE = {'01':'01-news-feed','02':'02-write-it-card','04':'04-x-analytics','06':'06-trends-charts','07':'07-opps-spy','08':'08-content-editor','09':'09-content-editor-notes-seo','10':'10-wizard-1-outlet','11':'11-wizard-2-beat-built','12':'12-wizard-3-sources-podcasts','13':'13-wizard-4-done','14':'14-coverage-desk-email','15':'15-breaking-draft-phone','16':'16-buffer-social','17':'17-search-console','18':'18-draft-social','19':'19-transcription','20':'20-text-alert-phone','21':'21-roster-change-email','22':'22-roster-watch'};
+ '17':[2320,1512],'18':[2320,652],'19':[1920,1080],'20':[1290,2796],'21':[1920,1080],'22':[1920,1080],'23':[1290,2796]};
+const FILE = {'01':'01-news-feed','02':'02-write-it-card','04':'04-x-analytics','06':'06-trends-charts','07':'07-opps-spy','08':'08-content-editor','09':'09-content-editor-notes-seo','10':'10-wizard-1-outlet','11':'11-wizard-2-beat-built','12':'12-wizard-3-sources-podcasts','13':'13-wizard-4-done','14':'14-coverage-desk-email','15':'15-breaking-draft-phone','16':'16-buffer-social','17':'17-search-console','18':'18-draft-social','19':'19-transcription','20':'20-text-alert-phone','21':'21-roster-change-email','22':'22-roster-watch','23':'23-opps-spy-notification'};
 const ease = x => x<0?0:x>1?1:x<.5?2*x*x:1-Math.pow(-2*x+2,2)/2;
 const clamp = (x,a,b)=>Math.max(a,Math.min(b,x));
 const lerp = (a,b,t)=>a+(b-a)*t;
@@ -46,11 +46,13 @@ const SCENES = [
  {dur:20, title:'Your designated news spotter', vo:"It's your designated news spotter. It watches your whole beat all day long and rates every story, so breaking news jumps to the top. And it watches your competition: every rival story shows up within fifteen minutes, flagged as a gap if you haven't covered it.",
   shots:[{img:'01',dur:10,from:[0,0,1920],to:[360,300,1220],boxes:[[1428,341,100,24,2.2],[380,331,1160,160,5]],sample:true},
          {img:'07',dur:10,from:[200,90,1500],to:[360,190,1220],boxes:[[380,206,868,114,1.5],[1484,378,48,24,4.5],[1484,436,48,24,5.2],[1484,610,48,24,5.9]],sample:true}]},
+ {dur:14, title:'Opps Spy alerts', badge:'Coming soon', vo:"When a competitor beats you to a story, you'll know right away. Inside the Black and Gold just published? You haven't covered it yet. One tap, and CoPublisher drafts your own related story.",
+  shots:[{img:'23',dur:14,phone:true,from:[0,0,1290],to:[0,120,1290],boxes:[[42,775,1210,458,1.5],[42,1262,590,140,7.5]]}]},
  {dur:17, title:'Roster watch', vo:"It even watches the official roster and coaching staff pages. When an assistant coach disappears from the staff page, or a new player is added to the roster, you get an alert, often before anyone reports it. Every change is logged and dated in one place.",
   shots:[{img:'21',dur:8,from:[560,20,800],to:[600,120,720],boxes:[[656,214,440,30,2.2],[656,285,272,30,4.2]]},
          {img:'22',dur:9,from:[370,260,1180],to:[385,400,1000],boxes:[[392,462,1092,48,2],[392,538,1136,52,5]],sample:true}]},
  {dur:24, title:'On vacation? No problem.', vo:"On vacation? No problem. When news breaks, CoPublisher spots it, writes the story in your newsroom's voice and sends it straight to your phone, with the facts to check first. One tap opens it, ready to publish. And every morning it tells you what happened and what to do next.",
-  shots:[{img:'15',dur:18,phone:true,from:[0,0,1290],to:[0,240,1290],boxes:[[44,262,1206,124,3],[44,1058,1160,214,7.5],[44,1320,614,128,10.5]]},
+  shots:[{img:'15',dur:18,phone:true,from:[0,0,1290],to:[0,120,1290],boxes:[[44,262,1206,124,3],[44,1058,1160,214,7.5],[44,1320,614,128,10.5]]},
          {img:'14',dur:6,from:[560,20,800],to:[560,420,800],boxes:[[820,318,108,24,1.2],[655,522,180,30,3.6]],sample:true}]},
  {dur:15, title:'It texts you', badge:'Coming soon', vo:"Coming soon, it texts you. Hey Jeff, news just broke: DeJuan Williams has been ruled out for today's game. Want a draft and social posts? Reply yes, and they're ready to review.",
   shots:[{img:'20',dur:15,phone:true,from:[0,0,1290],to:[0,60,1290],boxes:[[42,490,1030,336,1.2],[838,856,414,130,8],[42,1016,1030,270,10.5]]}]},

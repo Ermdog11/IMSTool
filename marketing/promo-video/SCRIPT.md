@@ -1,8 +1,8 @@
 # CoPublisher AI — promo video script
 
 **For:** prospective partners and investors
-**Length:** about 4:10 (full cut), plus a 60-second cut
-**Mockups:** `mockups/01…22.png`. They are real screens from the app, filled with **sample data**: the players, outlets, headlines and numbers are invented. Keep the on-screen "Sample data" tag on any scene that shows product numbers.
+**Length:** about 4:25 (full cut), plus a 60-second cut
+**Mockups:** `mockups/01…23.png`. They are real screens from the app, filled with **sample data**: the players, outlets, headlines and numbers are invented. Keep the on-screen "Sample data" tag on any scene that shows product numbers.
 **Industry figures** in Scene 1 come from published research (sources at the bottom). Check each against its source before you publish the video.
 
 ---
@@ -17,7 +17,7 @@ Paste this block into the tool's style or prompt box:
 
 ---
 
-## Full cut (about 4:10)
+## Full cut (about 4:25)
 
 ### Scene 1 — What's at stake
 - **Visual:** Motion graphics on navy. Three big stats animate in one at a time, each with a small source line under it. Then a clock ticking past midnight, and a rival's headline sliding in first.
@@ -39,6 +39,12 @@ Paste this block into the tool's style or prompt box:
 - **On-screen text:** "Always watching: your beat and your competition"
 - **Voiceover:**
   > Think of it as your own designated news spotter. It watches news sites, Google News, Reddit, podcasts, YouTube and the reporters you trust on X all day long, and rates every story so breaking news jumps to the top. It also watches your competition: every story a rival publishes on your beat shows up within fifteen minutes, flagged as a gap if you haven't covered it.
+
+### Scene 3a — Opps Spy alerts (coming soon)
+- **Visual:** `23-opps-spy-notification.png` in a phone frame (a lock-screen notification). Highlight the notification, then the **"Draft it"** button. Show an amber **"Coming soon"** badge in the top-right corner for the whole scene.
+- **On-screen text:** "Opps Spy alerts" + **Coming soon** badge
+- **Voiceover:**
+  > When a competitor beats you to a story, you'll know right away. Inside the Black and Gold just published? You haven't covered it yet. One tap, and CoPublisher drafts your own related story.
 
 ### Scene 3b — Roster watch
 - **Visual:** `21-roster-change-email.png`, highlighting **"Off the page: Marcus Hale (Assistant Coach – Wide Receivers)"**, then **"Added: Tyrese Gaines (#17 · WR · Fr.)"**. Cut to `22-roster-watch.png`; push in on the coaches and staff list and the dated **History**.
@@ -140,6 +146,7 @@ These are the things the script says the product does, matched to what it actual
 
 - **"So you never miss a story":** marketing language, not a guarantee; coverage depends on the sources and people set up for the beat.
 - **Roster watch:** official roster, coaching-staff and athletic-department pages are checked 3 times a week; added, removed and retitled people are emailed and logged with dates.
+- **Opps Spy alerts (Scene 3a):** Opps Spy already tracks competitors and emails you within about 15 minutes of a new story on your beat, marked as a gap when you haven't covered it. The phone notification with a one-tap "Draft it" button is not built yet; keep the "Coming soon" label. The headline in the notification is invented for the mockup.
 - **Text alerts (Scene 4b):** not built yet. The scene is labeled "Coming soon"; keep that label. Today the same alert arrives by email with the draft attached.
 - **"Working 24 hours a day":** scheduled jobs run all day and night. X is checked every 30 minutes, competitors every 15 minutes, hot stories every 15 minutes, and full scans several times a day. The morning memo goes out at 7 a.m.
 - **"Sends it straight to your phone":** breaking and major stories (rated 4–5) are auto-drafted and emailed with an "Open in Content Editor" button. They also drop into Team Chat. Texts aren't available yet.
@@ -181,6 +188,7 @@ These are the things the script says the product does, matched to what it actual
 | `16-buffer-social.png` | Social posts card: Facebook, Instagram, Threads via Buffer (2×) |
 | `17-search-console.png` | Google Search Console card: clicks, rising searches, opportunities (2×) |
 | `18-draft-social.png` | Draft social: posts styled on your best performers (2×) |
+| `23-opps-spy-notification.png` | Coming soon: Opps Spy phone notification with a "Draft it" button (3×) |
 | `20-text-alert-phone.png` | Coming soon: text alert conversation on a phone (3×) |
 | `21-roster-change-email.png` | Roster change alert email: assistant coach off, new player added (full screen) |
 | `22-roster-watch.png` | Roster watch page: roster, staff and dated change history (full screen) |
