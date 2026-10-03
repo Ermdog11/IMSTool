@@ -262,7 +262,7 @@ body { padding-bottom: 40px; }
     </div>
     <div style="display:flex;gap:8px;flex-wrap:wrap;">
       <button class="scan-btn" style="background:#fff;color:var(--fg);border:1px solid var(--border);" onclick="openExcludeSettings()"><i class="ti ti-ban"></i> Exclude sources</button>
-      <button class="scan-btn" id="scanBtn" onclick="runScan()"><i class="ti ti-refresh"></i> Scan now</button>
+      <button class="scan-btn" id="scanBtn" onclick="runScan(true)" title="Refresh the newsroom's shared scan (if it's more than 5 minutes old)"><i class="ti ti-refresh"></i> Scan now</button>
     </div>
   </div>
   <div class="filters">
@@ -1660,7 +1660,14 @@ function finishScanProgress() {
 
 let scanInProgress = false;
 
-async function runScan() {
+// Every tab shares the newsroom's latest server scan (api/_latest-scan.js)
+// instead of running its own: within 30 minutes of the last scan this is an
+// instant read that costs nothing, and when it's stale only one tab's request
+// runs the next scan while the others keep showing the stored one. "Scan now"
+// (force) only re-scans if the shared one is over 5 minutes old.
+let lastSharedScanAt = null;
+const SHARED_RETRY_MS = 60 * 1000;
+async function runScan(force) {
   // Reentrancy guard — this is the actual fix for the status "bouncing up and
   // down": startCountdown()'s 1-second timer calls runScan() once the 30-min
   // countdown hits zero, but lastScanTime (which the countdown is based on)
@@ -1679,8 +1686,9 @@ async function runScan() {
   btn.disabled = true;
   btn.innerHTML = '<i class="ti ti-loader spin"></i> Scanning...';
   dot.style.background = '#cf0315';
-  txt.innerHTML = '<strong>Scanning now</strong> — checking all sources, names, and channels...';
-  document.getElementById('alertsContainer').innerHTML = '<div class="empty"><i class="ti ti-loader spin"></i>Searching news, Reddit, social, podcasts, recruiting boards...</div>';
+  txt.innerHTML = '<strong>Checking for news</strong> — loading your newsroom\'s latest scan (a fresh scan takes about 2 minutes)...';
+  // Keep the current stories on screen while checking; most checks are instant.
+  if (!allAlerts.length) document.getElementById('alertsContainer').innerHTML = '<div class="empty"><i class="ti ti-loader spin"></i>Searching news, Reddit, social, podcasts, recruiting boards...</div>';
   startScanProgress();
 
   try {
@@ -1688,10 +1696,25 @@ async function runScan() {
     const res = await fetch('/api/scan', {
       method: 'POST',
       headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({ flagged: getFlagged(), blockedSources: allExcludedTerms() })
+      body: JSON.stringify({ shared: true, force: !!force, flagged: getFlagged(), blockedSources: allExcludedTerms() })
     });
     const data = await res.json();
     if (data.error) throw new Error(typeof data.error === 'string' ? data.error : data.error.message || 'API error');
+    // Someone else's tab is mid-scan and there's nothing stored yet: check back shortly.
+    if (data.refreshing && !data.content) {
+      document.getElementById('alertsContainer').innerHTML = '<div class="empty"><i class="ti ti-loader spin"></i>A scan for your newsroom is already running. Results in a minute or two…</div>';
+      txt.innerHTML = '<strong>Scanning</strong> — started from another open tab';
+      lastScanTime = Date.now() - SCAN_MS + SHARED_RETRY_MS;
+      startCountdown();
+      finishScanProgress();
+      scanInProgress = false;
+      btn.disabled = false;
+      btn.innerHTML = '<i class="ti ti-refresh"></i> Scan now';
+      return;
+    }
+    const scanAtServer = data.scannedAt || Date.now();
+    const isNewScan = scanAtServer !== lastSharedScanAt;
+    lastSharedScanAt = scanAtServer;
 
     // Extract JSON array from Claude's response text
     const text = (data.content || []).map(i => i.type === 'text' ? i.text : '').join('\n');
@@ -1704,30 +1727,34 @@ async function runScan() {
     results = results.filter(a => !isBlockedSource(a.source) && !isHidden(a.url));
     // Newest day first; within each day, highest rated first (Jeff, 2026-10-03).
     // Low-priority sports (volleyball, tennis, golf, etc.) sink to the bottom of their day.
-    const scanAt = Date.now();
+    const scanAt = scanAtServer; // ages in the result are relative to when the shared scan ran
     results.forEach(a => { if (!a.publishedAt) a.publishedAt = scanAt - alertAgeHours(a) * 3600000; });
     allAlerts = sortByDayThenRating(results);
     overflowAlerts = (data.overflow || [])
       .filter(s => !EXCLUDED.some(ex => (s.source||'').toLowerCase().includes(ex.toLowerCase())))
       .filter(s => !isBlockedSource(s.source) && !isHidden(s.url));
     allVideos = (data.videos || []).filter(v => !isBlockedSource(v.source || v.channel) && !isHidden(v.url));
-    lastScanTime = Date.now();
+    // Countdown runs from when the shared scan actually happened; while another
+    // tab is refreshing it, check again in a minute.
+    lastScanTime = data.refreshing ? Date.now() - SCAN_MS + SHARED_RETRY_MS : scanAtServer;
 
     document.getElementById('m-total').textContent = allAlerts.length;
     document.getElementById('m-r5').textContent = allAlerts.filter(a => a.rating === 5).length;
     document.getElementById('m-r4').textContent = allAlerts.filter(a => a.rating === 4).length;
     document.getElementById('m-rec').textContent = allAlerts.filter(a => a.category === 'recruiting').length;
-    document.getElementById('m-last').textContent = new Date().toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'});
+    document.getElementById('m-last').textContent = new Date(scanAtServer).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'});
 
     dot.style.background = '#3B6D11';
-    txt.innerHTML = `<strong>Active</strong> — ${allAlerts.length} stories found · next scan in 30 min`;
+    txt.innerHTML = data.refreshing
+      ? `<strong>Active</strong> — ${allAlerts.length} stories · a fresh scan is running, updating shortly`
+      : `<strong>Active</strong> — ${allAlerts.length} stories · scanned ${new Date(scanAtServer).toLocaleTimeString([],{hour:'numeric',minute:'2-digit'})} · shared by your whole newsroom`;
     startCountdown();
     renderAlerts();
     renderTrending();
     loadYouTube();
 
-    // Auto-drop rating 4+ alerts to team chat
-    allAlerts.filter(a => a.rating >= 4).forEach(a => {
+    // Auto-drop rating 4+ alerts to team chat (once per scan, not on every re-read of the same one)
+    if (isNewScan) allAlerts.filter(a => a.rating >= 4).forEach(a => {
       addChatMessage(`🚨 ${a.rating === 5 ? 'BREAKING' : 'ALERT'}: ${a.headline} · ${a.source} · ${a.time} · Rating ${a.rating}/5`, 'alert-drop');
     });
 
@@ -2711,6 +2738,8 @@ async function rateStory(idx, n) {
   } catch (e) { if (el) el.insertAdjacentHTML('beforeend', '<span style="color:var(--hot);margin-left:6px;">Not saved: ' + e.message + '</span>'); }
 }
 loadMyRatings();
+// Show the newsroom's latest shared scan as soon as the page opens (free when it's fresh).
+runScan();
 
 // ---- Source health (api/source-health.js) ----
 async function loadSourceHealth() {

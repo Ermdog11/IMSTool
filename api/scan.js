@@ -20,6 +20,27 @@ module.exports = async function handler(req, res) {
     }
   }
 
+  // Shared scan for News Monitor tabs (see _latest-scan.js): serve the
+  // newsroom's stored scan while it's fresh (30 min; 5 min for "Scan now"),
+  // and when it's stale let only one tab run the next one.
+  var Latest = require('./_latest-scan.js');
+  var shareable = !body.xOnly && !body.hours && !(req.query && req.query.hours);
+  if (body.shared) {
+    var latest = await Latest.load();
+    var maxAge = (body.force ? 5 : 30) * 60 * 1000;
+    var sharedCopy = latest && Object.assign({}, latest.response, { scannedAt: latest.at, shared: true });
+    if (latest && Date.now() - latest.at < maxAge) return res.status(200).json(sharedCopy);
+    if (!(await Latest.claim())) {
+      if (sharedCopy) return res.status(200).json(Object.assign(sharedCopy, { refreshing: true }));
+      return res.status(200).json({ refreshing: true });
+    }
+    var sendJson = res.json;
+    res.json = function (d) {
+      if (d && d.error) Latest.release().catch(function () {});
+      return sendJson.apply(this, arguments);
+    };
+  }
+
   // Full scan: fetch Reddit + Google News RSS, then ask Claude to rate them
   // Window widened from 36h → 66h so a Friday-night story is still in the pool
   // Monday morning. News older than this is dropped before rating. Overridable
@@ -735,7 +756,9 @@ module.exports = async function handler(req, res) {
       }
     });
 
-    return res.status(200).json({ content: [{ type: 'text', text: JSON.stringify(final) }], overflow: overflowStories, videos: ratedVideos, sources: fetchStatuses });
+    var scanResponse = { content: [{ type: 'text', text: JSON.stringify(final) }], overflow: overflowStories, videos: ratedVideos, sources: fetchStatuses };
+    if (shareable) await Latest.save(scanResponse);
+    return res.status(200).json(Object.assign({ scannedAt: Date.now() }, scanResponse));
 
   } catch(e) {
     console.error('Scan error:', e.message);
