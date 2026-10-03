@@ -330,7 +330,7 @@ function wizardBeat(b) {
   return {
     outletName: b.outletName, team: b.team, primarySports: b.primarySports, keyFigures: b.keyFigures, keyTerms: b.keyTerms,
     outlets: b.outlets, subreddits: b.subreddits, podcasts: b.podcasts, youtube: b.youtube,
-    watch: b.watch, nameCollisions: b.nameCollisions || '', hasHandTunedFeeds: !!(b.feeds && b.feeds.length)
+    watch: b.watch, rosterWatch: b.rosterWatch, nameCollisions: b.nameCollisions || '', hasHandTunedFeeds: !!(b.feeds && b.feeds.length)
   };
 }
 

@@ -129,10 +129,20 @@ create table if not exists public.roster_events (
   team_slug     text not null,
   team_label    text not null,
   player_name   text not null,
-  change_type   text not null check (change_type in ('added', 'removed')),
+  change_type   text not null check (change_type in ('added', 'removed', 'title_changed')),
   detected_at   timestamptz not null default now(),
   created_at    timestamptz not null default now()
 );
+-- Staff and department watching (coaches pages, the athletic department or
+-- front office directory): `detail` holds the person's title, or
+-- "old title → new title" for a title change; `watch_kind` is the page type
+-- ('players', 'staff' or 'department'). Added after the table first shipped,
+-- so they are applied as alters to keep this file safe to re-run.
+alter table public.roster_events add column if not exists detail text;
+alter table public.roster_events add column if not exists watch_kind text not null default 'players';
+alter table public.roster_events drop constraint if exists roster_events_change_type_check;
+alter table public.roster_events add constraint roster_events_change_type_check
+  check (change_type in ('added', 'removed', 'title_changed'));
 create index if not exists roster_events_site_team_idx on public.roster_events (site_id, team_slug, detected_at desc);
 
 -- Audience analytics connections ------------------------------------------

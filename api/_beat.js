@@ -17,7 +17,11 @@
 //   feeds:[{url,name,src?,requireBeat?,isAtom?}]  (explicit list; generated when absent),
 //   reddit:[{url,name}], watch:[{label, names[], alumni?}],
 //   keyTerms:[{term, kind:'person'|'place'|'term', era:'current'|'historic', figure?}]
-//     (the wizard's ranked "key names and terms", up to 100)
+//     (the wizard's ranked "key names and terms", up to 100),
+//   rosterWatch:{teams:[{label, slug, url, staffUrl}], department:{url, enabled}}
+//     (official pages Roster Watch checks for changes: each team's player roster and
+//     its coaches/staff page, plus the athletic department staff directory for a
+//     college beat or the front office page for a pro beat; see api/_roster.js)
 //
 // `rating` (1-5) on outlets, feeds and watch groups is the publisher's own
 // importance score from the setup wizard; see weightNote().
@@ -78,6 +82,20 @@ function normalize(b) {
       .filter(function (x) { return x && x.name; });
   });
   b.outlets = (b.outlets || []).filter(function (o) { return o && o.name; });
+  // Roster Watch pages. Only well-formed web addresses survive; a team needs a
+  // name and at least one page.
+  var rw = b.rosterWatch || {};
+  var webUrl = function (u) { u = String(u || '').trim(); if (u && !/^https?:\/\//i.test(u)) u = 'https://' + u; return /^https?:\/\/[^\s/]+\.[^\s]+$/i.test(u) ? u : ''; };
+  var dept = rw.department || {};
+  b.rosterWatch = {
+    teams: (Array.isArray(rw.teams) ? rw.teams : []).map(function (x) {
+      x = x || {};
+      var o = { label: String(x.label || '').trim().slice(0, 80), url: webUrl(x.url), staffUrl: webUrl(x.staffUrl) };
+      if (x.slug) o.slug = String(x.slug).toLowerCase().replace(/[^a-z0-9-]/g, '').slice(0, 60);
+      return o;
+    }).filter(function (x) { return x.label && (x.url || x.staffUrl); }).slice(0, 20),
+    department: { url: webUrl(dept.url), enabled: dept.enabled !== false }
+  };
   // "Block all results from this source": its stories are dropped wherever
   // they show up (Google News, Bing, anywhere), not just its own feed.
   b.outlets.forEach(function (o) {
