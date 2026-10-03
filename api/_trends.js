@@ -83,12 +83,36 @@ function chartSeries(snapshots, visitsOf) {
   var byDay = bucketBy(snapshots, localDayName, visitsOf);
   var weekAgo = Date.now() - 7 * 24 * 60 * 60 * 1000;
   return {
+    sources: sourceShares(snapshots, weekAgo),
     hourly: Array.from({ length: 24 }, function(_, h) { return Object.assign({ hour: h }, avg(byHour[h]) || { avg: null, samples: 0 }); }),
     daily: DAY_ORDER.map(function(d) { return Object.assign({ day: d }, avg(byDay[d]) || { avg: null, samples: 0 }); }),
     recent: snapshots.filter(function(s) { return new Date(s.captured_at).getTime() >= weekAgo; })
       .map(function(s) { var v = visitsOf(s); return { at: s.captured_at, visits: typeof v === 'number' ? v : null }; })
       .filter(function(p) { return p.visits != null; })
   };
+}
+
+// Share of readers by traffic source (search, social, …) across the
+// snapshots since `sinceMs`, compared with the 7 days before that. Null when
+// no snapshot has source data yet (older snapshots didn't record it).
+function sumSources(list) {
+  var tot = {}, all = 0;
+  list.forEach(function(s) {
+    var src = s.metrics && s.metrics.sources;
+    if (!src) return;
+    Object.keys(src).forEach(function(k) { tot[k] = (tot[k] || 0) + (src[k] || 0); all += src[k] || 0; });
+  });
+  return all ? { tot: tot, all: all } : null;
+}
+function sourceShares(snapshots, sinceMs) {
+  var cur = sumSources(snapshots.filter(function(s) { return new Date(s.captured_at).getTime() >= sinceMs; }));
+  if (!cur) return null;
+  var prev = sumSources(snapshots.filter(function(s) { var t = new Date(s.captured_at).getTime(); return t < sinceMs && t >= sinceMs - 7 * 86400000; }));
+  return Object.keys(cur.tot).map(function(k) {
+    var share = Math.round(cur.tot[k] / cur.all * 1000) / 10;
+    var prevShare = prev && prev.tot[k] != null ? Math.round(prev.tot[k] / prev.all * 1000) / 10 : null;
+    return { source: k, sharePct: share, previousSharePct: prevShare };
+  }).sort(function(a, b) { return b.sharePct - a.sharePct; });
 }
 
 function computeTrends(source, snapshots) {

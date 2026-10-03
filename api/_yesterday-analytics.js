@@ -49,15 +49,30 @@ async function siteYesterday(sb, siteId, start, end) {
       var k = p.path || p.title; if (!k) return;
       if (!pages[k]) pages[k] = { title: p.title || p.path, path: p.path || '', readers: 0, readings: 0 };
       pages[k].readers += p.visits || 0; pages[k].readings++;
+      if (p.sources) {
+        pages[k].fromSearch = (pages[k].fromSearch || 0) + (p.sources.search || 0);
+        pages[k].fromSocial = (pages[k].fromSocial || 0) + (p.sources.social || 0);
+      }
     });
   });
   var avg = avgVisits(yday), priorAvg = avgVisits(prior);
+  // Where readers came from: share by source yesterday vs the prior week.
+  function shares(list) {
+    var tot = {}, all = 0;
+    list.forEach(function (s) { var src = s.metrics && s.metrics.sources; if (src) Object.keys(src).forEach(function (k) { tot[k] = (tot[k] || 0) + src[k]; all += src[k]; }); });
+    if (!all) return null;
+    var out = {}; Object.keys(tot).forEach(function (k) { out[k] = Math.round(tot[k] / all * 1000) / 10; }); return out;
+  }
+  var srcY = shares(yday), srcP = shares(prior);
+  var sources = srcY ? Object.keys(srcY).map(function (k) { return { source: k, sharePct: srcY[k], priorWeekSharePct: srcP && srcP[k] != null ? srcP[k] : null }; })
+    .sort(function (a, b) { return b.sharePct - a.sharePct; }) : null;
   return {
     readings: yday.length,
     avgReaders: avg,
     priorWeekAvgReaders: priorAvg,
     changeVsWeekPct: (avg != null && priorAvg) ? Math.round((avg - priorAvg) / priorAvg * 100) : null,
     peak: peak.at ? { readers: peak.visits, at: etLabel(peak.at, { hour: 'numeric', minute: '2-digit' }) } : null,
+    trafficSources: sources,
     topStories: Object.keys(pages).map(function (k) { return pages[k]; })
       .sort(function (a, b) { return b.readers - a.readers; }).slice(0, 8)
   };

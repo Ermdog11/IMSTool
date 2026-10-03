@@ -2925,9 +2925,29 @@ function lineChartSvg(points) {
   });
   return `<svg viewBox="0 0 ${W} ${H}" width="100%" role="img" style="display:block;max-width:${W}px;">${g}</svg>`;
 }
+const TRAFFIC_SOURCE_NAMES = { search: 'Search (Google etc.)', social: 'Social', links: 'Other sites', direct: 'Direct', internal: 'Within the site', ai: 'AI tools', email: 'Email', newsletter: 'Newsletter' };
+// One row per source: share of readers in the last 7 days, prior week in grey.
+function sourceSharesHtml(rows) {
+  const max = Math.max(...rows.map(r => r.sharePct), 1);
+  return rows.map(r => {
+    const name = TRAFFIC_SOURCE_NAMES[r.source] || r.source;
+    const delta = r.previousSharePct != null ? Math.round((r.sharePct - r.previousSharePct) * 10) / 10 : null;
+    return `<div style="display:flex;align-items:center;gap:10px;padding:3px 0;font-size:12px;" data-tip="${name}<br><b>${r.sharePct}%</b> of readers${r.previousSharePct != null ? `<br>${r.previousSharePct}% the week before` : ''}">
+      <span style="width:150px;color:var(--text2);">${name}</span>
+      <span style="flex:1;max-width:340px;background:${CH_GRID};border-radius:4px;height:10px;position:relative;">
+        <span style="position:absolute;left:0;top:0;bottom:0;width:${(r.sharePct / max * 100).toFixed(1)}%;background:${CH_ACCENT};border-radius:4px;"></span></span>
+      <span style="width:120px;font-weight:600;color:var(--text);">${r.sharePct}%${delta != null && Math.abs(delta) >= 0.5 ? ` <span style="font-weight:400;color:var(--text3);">${delta > 0 ? '+' : ''}${delta} pts</span>` : ''}</span>
+    </div>`;
+  }).join('');
+}
 function trendCharts(series) {
   if (!series) return '';
   let h = '';
+  if ((series.sources || []).length) {
+    h += chartWrap('Where readers came from, last 7 days', sourceSharesHtml(series.sources),
+      series.sources.map(r => [TRAFFIC_SOURCE_NAMES[r.source] || r.source, r.sharePct + '%' + (r.previousSharePct != null ? ' (prior week ' + r.previousSharePct + '%)' : '')]),
+      'Change is in percentage points vs the 7 days before.');
+  }
   const hourLbl = hr => HOUR_LABELS[hr];
   if ((series.recent || []).length >= 2) {
     h += chartWrap('Readers on site, last 7 days', lineChartSvg(series.recent),

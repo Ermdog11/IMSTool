@@ -15,6 +15,7 @@ var mailer = require('./_mailer');
 var S = require('./_supabase');
 
 function esc(v) { return String(v == null ? '' : v).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); }
+var SOURCE_NAMES = { search: 'Search (Google etc.)', social: 'Social', links: 'Other sites', direct: 'Direct', internal: 'Within the site', ai: 'AI tools', email: 'Email', newsletter: 'Newsletter' };
 function num(v) { return v == null ? '—' : Number(v).toLocaleString('en-US'); }
 
 // Exact figures, straight from the data (no model in between).
@@ -30,9 +31,15 @@ function glanceHtml(y) {
       (site.changeVsWeekPct != null ? ' <span style="color:#888;font-weight:400">(' + (site.changeVsWeekPct >= 0 ? '+' : '') + site.changeVsWeekPct + '% vs prior week)</span>' : '') + '</td></tr>' +
       (site.peak ? '<tr><td style="' + cell + '">Peak</td><td style="' + cell + 'font-weight:600">' + num(site.peak.readers) + ' <span style="color:#888;font-weight:400">at ' + esc(site.peak.at) + '</span></td></tr>' : '') +
       '</table>';
+    if ((site.trafficSources || []).length) {
+      h += '<div style="font-size:13px;margin-top:4px">Where readers came from: ' + site.trafficSources.filter(function (s) { return s.sharePct >= 1; }).map(function (s) {
+        return esc(SOURCE_NAMES[s.source] || s.source) + ' ' + s.sharePct + '%' + (s.priorWeekSharePct != null ? ' <span style="color:#888">(' + s.priorWeekSharePct + '% prior week)</span>' : '');
+      }).join(', ') + '</div>';
+    }
     if ((site.topStories || []).length) {
       h += '<ol style="margin:4px 0 0 18px;padding:0;font-size:13px">' + site.topStories.slice(0, 5).map(function (st) {
         return '<li>' + esc(st.title) + ' <span style="color:#888">&mdash; ' + num(st.readers) + ' readers across ' + st.readings + ' reading' + (st.readings === 1 ? '' : 's') +
+          (st.fromSearch || st.fromSocial ? ', ' + num(st.fromSearch || 0) + ' from search, ' + num(st.fromSocial || 0) + ' from social' : '') +
           (st.socialPostsYesterday === 0 ? ', <b style="color:#b45309">no social posts</b>' : st.socialPostsYesterday ? ', ' + st.socialPostsYesterday + ' social post' + (st.socialPostsYesterday === 1 ? '' : 's') : '') + '</span></li>';
       }).join('') + '</ol>';
     }
@@ -132,7 +139,7 @@ module.exports = async function handler(req, res) {
       'GAPS — anything in the news below that matters to Terps readers that InsideMDSports has NOT already covered (compare against the recently-published list). Name the story and, if the source shows it, who already has it.\n' +
       'FOLLOW UPS — developing threads from roughly the last one to two weeks that deserve a check-in: a recruit deciding soon, an injury with no update, a pending decision, a story that said "more to come."\n' +
       (hasNumbers
-        ? "WHAT WORKED YESTERDAY — 3-5 bullets reading YESTERDAY'S NUMBERS below (the publisher also sees the raw figures in a box above your memo, so don't just repeat them): what pulled readers on the site and why it likely did (topic, timing, angle), what did or didn't land on social (Buffer posts and the X account's own tweets), any top site story that got no social push, and how yesterday compared with the prior week, and what people searched on Google to find us (Search Console; preliminary numbers). End with 1-2 concrete actions for today drawn from this (e.g. a follow-up on a story that pulled readers, re-push a strong story on social, post at the hour that worked). Use ONLY the numbers given; never invent figures. If a source is missing or thin, say so in a few words rather than guessing.\n"
+        ? "WHAT WORKED YESTERDAY — 3-5 bullets reading YESTERDAY'S NUMBERS below (the publisher also sees the raw figures in a box above your memo, so don't just repeat them): what pulled readers on the site and why it likely did (topic, timing, angle), what did or didn't land on social (Buffer posts and the X account's own tweets), any top site story that got no social push, and how yesterday compared with the prior week, where readers came from (search vs social vs direct, and any shift vs the prior week), and what people searched on Google to find us (Search Console; preliminary numbers). End with 1-2 concrete actions for today drawn from this (e.g. a follow-up on a story that pulled readers, re-push a strong story on social, post at the hour that worked). Use ONLY the numbers given; never invent figures. If a source is missing or thin, say so in a few words rather than guessing.\n"
         : 'WHAT WORKED — write exactly one line: "No analytics from yesterday yet (connect Chartbeat and Buffer under Analytics)." Do not invent numbers or name a top story.\n') +
       "EDITOR'S READ — one or two sentences: an honest take on where the beat is right now and the single thing you would focus on today.\n\n" +
       "TODAY'S RATED NEWS:\n" + (newsList || '(nothing notable in the scan)') + '\n\n' +

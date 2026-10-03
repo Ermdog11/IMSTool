@@ -24,9 +24,17 @@ async function snapshotChartbeat(sb, site, report) {
     return;
   }
   var live = await Chartbeat.fetchLive(conn.apiKey, conn.host);
+  // Traffic sources (site-wide and per story, when Chartbeat reports them)
+  // feed the Trends "where readers came from" view and the morning memo.
   await Store.saveSnapshot(sb, site.id, 'chartbeat', {
     visits: live.visits,
-    pages: live.pages.map(function(p) { return { path: p.path, title: p.title, visits: p.visits }; })
+    sources: Chartbeat.trafficSources(live.metrics),
+    pages: live.pages.map(function(p) {
+      var row = { path: p.path, title: p.title, visits: p.visits };
+      var src = Chartbeat.trafficSources(p.extra);
+      if (src) row.sources = src;
+      return row;
+    })
   });
   report.push({ site: site.slug, source: 'chartbeat', status: 'captured', visits: live.visits, pages: live.pages.length });
 }

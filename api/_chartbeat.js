@@ -152,4 +152,16 @@ async function fetchLive(apiKey, host) {
   return { visits: visits || 0, pages: pages, metrics: metrics, warnings: warnings.filter(Boolean) };
 }
 
-module.exports = { fetchLive: fetchLive };
+// Where readers came from, out of whatever scalars Chartbeat returned:
+// search (Google etc.), social, links (other sites), direct, internal (from
+// another page on the site), plus AI-assistant referrals if reported.
+var SOURCE_KEYS = /^(search|social|links|direct|internal|ai|ai_?referr?als?|email|newsletter)$/i;
+function trafficSources(metrics) {
+  var out = {};
+  Object.keys(metrics || {}).forEach(function(k) {
+    if (SOURCE_KEYS.test(k) && typeof metrics[k] === 'number') out[k.toLowerCase()] = metrics[k];
+  });
+  return Object.keys(out).length ? out : null;
+}
+
+module.exports = { fetchLive: fetchLive, trafficSources: trafficSources };
