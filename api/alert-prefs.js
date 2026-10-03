@@ -15,7 +15,8 @@ var ALERT_TYPES = [
   { key: 'digest_nightly',  label: 'Nightly digest (8 PM)',          defaultOn: 'all' },
   { key: 'digest_rolling',  label: 'Rolling updates (3×/day)',       defaultOn: 'all' },
   { key: 'roster_change',   label: 'Roster changes',                 defaultOn: 'all' },
-  { key: 'hot_story',       label: 'A story goes hot (real-time spike)', defaultOn: 'all' }
+  { key: 'hot_story',       label: 'A story goes hot (real-time spike)', defaultOn: 'all' },
+  { key: 'records',         label: 'Public-records request suggestions', defaultOn: 'editors' }
 ];
 var VALID = ALERT_TYPES.map(function (t) { return t.key; });
 
@@ -24,6 +25,7 @@ function defaultFor(typeKey, role) {
   if (!t) return false;
   if (t.defaultOn === 'all') return true;
   if (t.defaultOn === 'publisher') return role === 'publisher';
+  if (t.defaultOn === 'editors') return role === 'publisher' || role === 'editor';
   return false;
 }
 

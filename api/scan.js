@@ -756,6 +756,12 @@ module.exports = async function handler(req, res) {
       }
     });
 
+    // Public-records priority (1 coach hires/firings/contracts, 2 sponsorship
+    // and game/event deals, 3 other business news; see _records.js): drives
+    // the card's Request records button and the records-suggest cron.
+    var Records = require('./_records.js');
+    final.forEach(function(it) { it.recordsTier = Records.classify(it); });
+
     var scanResponse = { content: [{ type: 'text', text: JSON.stringify(final) }], overflow: overflowStories, videos: ratedVideos, sources: fetchStatuses };
     if (shareable) await Latest.save(scanResponse);
     return res.status(200).json(Object.assign({ scannedAt: Date.now() }, scanResponse));

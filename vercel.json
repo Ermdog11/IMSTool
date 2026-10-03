@@ -21,7 +21,10 @@
       "maxDuration": 120
     },
     "api/records-request.js": {
-      "maxDuration": 60
+      "maxDuration": 120
+    },
+    "api/records-suggest.js": {
+      "maxDuration": 300
     },
     "api/write-story.js": {
       "maxDuration": 120
@@ -185,6 +188,10 @@
     {
       "path": "/api/x-scan",
       "schedule": "*/30 * * * *"
+    },
+    {
+      "path": "/api/records-suggest",
+      "schedule": "20 */2 * * *"
     }
   ]
 }

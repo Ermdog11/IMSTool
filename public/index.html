@@ -1019,7 +1019,7 @@ function renderAlerts() {
         <button class="aaction" onclick="getAutoBrief(${idx})"><i class="ti ti-file-text"></i> Auto-brief</button>
         <button class="aaction" onclick="getSEO(${idx})"><i class="ti ti-search"></i> SEO</button>
         <button class="aaction" onclick="getSocial(${idx})"><i class="ti ti-brand-twitter"></i> Draft social</button>
-        ${recordsWorthy(a) ? `<button class="aaction" onclick="requestRecords(${idx}, this)" title="Draft a public-records (FOIA / state open-records) request for the contract or documents behind this story"><i class="ti ti-file-search"></i> Request records</button>` : ''}
+        ${recordsWorthy(a) ? `<button class="aaction" onclick="requestRecords(${idx}, this)" title="Draft a public-records (FOIA / state open-records) request for the contract or documents behind this story"${recordsWorthy(a) === 1 ? ' style="font-weight:700;"' : ''}><i class="ti ti-file-search"></i> ${recordsWorthy(a) === 1 ? '📄 ' : ''}Request records</button>` : ''}
         <button class="aaction" onclick="claimStory(${idx})"><i class="ti ti-hand-stop"></i> Claim</button>
         <button class="aaction" onclick="flagStory(${idx})" title="Flag as junk — trains the scanner to exclude similar stories" style="color:#c00;"><i class="ti ti-flag"></i> Flag</button>
         <button class="aaction" onclick="blockSource(${idx})" title="Block ${(a.source||'').replace(/"/g,'&quot;')} — hide this site from all future results" style="color:#c00;"><i class="ti ti-ban"></i> Block source</button>
@@ -1667,18 +1667,15 @@ async function writeIt(idx, btn) {
   }
 }
 
-// "Request records": stories about contracts, hires, schedules, money and
-// facilities usually have a document behind them that a public school must
-// release under public-records law. The button only appears on those stories;
-// api/records-request.js decides whether the records are actually obtainable
-// and drafts the letter, which a person reviews, edits and sends (or opens in
-// their own email). Nothing goes out without a click.
-function recordsWorthy(a) {
-  if (!a || a.kind === 'video' || ['social', 'podcast'].includes(a.category)) return false;
-  // Regex inline (not a top-level const): renderAlerts can run before this
-  // part of the script has executed.
-  return /\b(contracts?|extension|extended|buyouts?|salar(y|ies)|compensation|raises?|payouts?|budgets?|deficit|revenue|donations?|donors?|gifts?|fundrais\w*|facilit(y|ies)|stadium|arena|renovations?|construction|lawsuits?|sued|settlements?|investigations?|title ix|nil (deal|fund|collective|budget)|revenue.sharing|house settlement|athletic director|hired|hires|hiring|fired|firing|dismissed|terminat\w*|agreements?|memorandum|series|home-and-home|neutral.site|scheduled?|scheduling|guarantee|apparel|sponsorship|media rights|tv deal|realignment|exit fee|audit|expenses?|charter)\b/i.test((a.headline || '') + ' ' + (a.summary || ''));
-}
+// "Request records": stories about coach hires/firings/contracts/buyouts
+// (tier 1), sponsorship and game/event deals (tier 2) and other business news
+// (tier 3) usually have a document behind them that a public body must release
+// under public-records law. The scan tags each story's tier (recordsTier, from
+// api/_records.js) and the button only appears on those; api/records-request.js
+// decides whether the records are actually obtainable and drafts the letter,
+// which a person reviews, edits and sends (or opens in their own email).
+// Nothing goes out without a click.
+function recordsWorthy(a) { return (a && a.recordsTier) || 0; }
 const recordsDrafts = {};
 async function requestRecords(idx, btn) {
   const a = allAlerts[idx];
@@ -1716,6 +1713,8 @@ function renderRecordsDraft(idx) {
     ${d.records.length ? `<div style="margin-bottom:8px;"><b>Asks for:</b><ul style="margin:4px 0 0 18px;padding:0;">${d.records.map(r => '<li>' + escapeHtml(r) + '</li>').join('')}</ul></div>` : ''}
     <label style="font-size:11px;font-weight:700;">Records office email</label>
     <input id="rr-to-${idx}" type="email" value="${escapeHtml(d.to || '')}" placeholder="records office email address" style="${fld}">
+    ${d.to && /^https?:/.test(d.toSource || '') ? `<div style="margin:-4px 0 8px;color:var(--text3);">Found on <a href="${escapeHtml(d.toSource)}" target="_blank" rel="noopener">${escapeHtml(d.toSource.replace(/^https?:\/\//, '').slice(0, 70))}</a>. Worth a quick check before sending.</div>` : ''}
+    ${!d.to ? `<div style="margin:-4px 0 8px;color:var(--text3);">${d.portal ? 'This office takes requests through an online form: <a href="' + escapeHtml(d.portal) + '" target="_blank" rel="noopener">open the request portal</a> and paste the letter there.' : 'Couldn’t find a published records email for ' + escapeHtml(d.agency || 'this agency') + '. Check its website for “public records” or “FOIA” and paste the address here.'}</div>` : (d.portal ? `<div style="margin:-4px 0 8px;color:var(--text3);">They also take requests online: <a href="${escapeHtml(d.portal)}" target="_blank" rel="noopener">request portal</a>.</div>` : '')}
     <label style="font-size:11px;font-weight:700;">CC (you're always copied${me ? ' at ' + escapeHtml(me) : ''}; replies come to you)</label>
     <input id="rr-cc-${idx}" type="text" value="" placeholder="${me ? 'anyone else, optional' : 'your email (required, so the office can reply to you)'}" style="${fld}">
     <label style="font-size:11px;font-weight:700;">Subject</label>
