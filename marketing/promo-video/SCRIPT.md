@@ -27,9 +27,9 @@ Paste this block into the tool's style or prompt box:
   - "Breaking news traffic from Google: **+103%**" (source: Define Media Group, 2025)
   - "From Google Discover: **+168%**" (same source)
   - "**97%** of publishers say newsroom automation is important" (source: Reuters Institute, 2026)
-  - "**Big or small, get more of that pie.**"
+  - "**Big or small, get more of that pie.** So no revenue slips through the cracks."
 - **Voiceover:**
-  > Sports websites draw hundreds of billions of impressions a year, in a twelve-billion-dollar sports broadcasting and streaming ad market. And in digital news, speed is money. Breaking news is now the fastest-growing source of Google traffic, and that audience goes to whoever publishes first. Every story you're late on is readers and revenue handed to someone else. Whether you're a national network or a one-person team site, CoPublisher helps you get more of that pie.
+  > Sports websites draw hundreds of billions of impressions a year, in a twelve-billion-dollar sports broadcasting and streaming ad market. And in digital news, speed is money. Breaking news is now the fastest-growing source of Google traffic, and that audience goes to whoever publishes first. Every story you're late on is readers and revenue handed to someone else. Whether you're a national network or a one-person team site, CoPublisher helps you get more of that pie, so no revenue slips through the cracks.
 
 ### Scene 2 — Meet your 24/7 team
 - **Visual:** The CoPublisher AI logo, then three cards flipping in side by side, each with an icon: **Co-Publisher** (newspaper icon), **Social Media Director** (share icon), **Product Strategist** (chart icon). A "24/7" badge stamps across all three. Pull back to `01-news-feed.png`.
