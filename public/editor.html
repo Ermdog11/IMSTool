@@ -1219,7 +1219,7 @@ function renderDraftsList(drafts){
   var c=document.getElementById('drafts-list');
   if(!drafts.length){c.innerHTML='<div class="empty">No drafts yet &mdash; submit one from Copydesk.</div>';return;}
   c.innerHTML=drafts.map(function(d){
-    return '<div class="writer-item">'+
+    return '<div class="writer-item" id="draft-item-'+d.id+'" style="cursor:pointer" onclick="openDraft(\''+d.id+'\')">'+
       '<div class="whead" style="cursor:pointer" onclick="openDraft(\''+d.id+'\')"><b>'+esc(d.headline||'(no headline)')+'</b>'+
         '<span><span class="pill">'+esc(TIER_LABELS[d.tier]||d.tier)+'</span> <span class="pill">'+esc(d.status||'submitted')+'</span> '+
         '<button class="btn ghost" onclick="event.stopPropagation();deleteDraftItem(\''+d.id+'\')">Delete</button></span></div>'+
@@ -1236,9 +1236,26 @@ async function deleteDraftItem(id){
   }catch(e){}
 }
 
+// Preview-safe copy of a draft's HTML: drops scripts, inline event handlers
+// and javascript: links (embeds/iframes stay, so podcast players preview).
+function safeHtml(html){
+  var t=document.createElement('template'); t.innerHTML=String(html||'');
+  t.content.querySelectorAll('script,object,embed').forEach(function(n){n.remove();});
+  t.content.querySelectorAll('*').forEach(function(el){
+    Array.prototype.slice.call(el.attributes).forEach(function(at){
+      if(/^on/i.test(at.name)||(/^(href|src|action|formaction)$/i.test(at.name)&&/^\s*javascript:/i.test(at.value))) el.removeAttribute(at.name);
+    });
+  });
+  return t.innerHTML;
+}
+// The opened draft renders below the whole list, so on a phone it used to
+// appear off-screen ("nothing happens"): mark the tapped item and scroll to it.
 async function openDraft(id){
   var c=document.getElementById('draft-detail');
+  document.querySelectorAll('#drafts-list .writer-item').forEach(function(el){ el.style.outline=''; });
+  var item=document.getElementById('draft-item-'+id); if(item) item.style.outline='2px solid var(--blue)';
   c.innerHTML='<div class="card"><div class="empty">Loading&hellip;</div></div>';
+  c.scrollIntoView({behavior:'smooth',block:'start'});
   try{
     var r=await fetch('/api/drafts?id='+encodeURIComponent(id));
     var d=await r.json();
@@ -1246,10 +1263,14 @@ async function openDraft(id){
     c.innerHTML='<div class="card">'+
       '<h2>'+esc(d.headline||'(no headline)')+'</h2>'+
       '<div class="hint">'+esc(d.writerName||'')+' &middot; '+esc(TIER_LABELS[d.tier]||d.tier)+' &middot; last updated '+new Date(d.updatedAt).toLocaleString()+'</div>'+
+      '<label>Article</label>'+
+      '<div id="draft-preview" style="border:1px solid var(--border);border-radius:8px;padding:12px 14px;background:#fff;font-size:15px;line-height:1.6;max-height:520px;overflow:auto">'+(safeHtml(d.html)||'<i>(empty)</i>')+'</div>'+
+      ((d.factsToCheck||[]).length?'<label>Verify before publishing</label><ul style="margin:4px 0 0 18px;padding:0;font-size:13.5px">'+d.factsToCheck.map(function(f){return '<li>'+esc(f)+'</li>';}).join('')+'</ul>':'')+
+      ((d.notes||[]).length?'<label>Notes</label><ul style="margin:4px 0 0 18px;padding:0;font-size:13.5px;color:var(--muted)">'+d.notes.map(function(n){return '<li>'+esc(n)+'</li>';}).join('')+'</ul>':'')+
       '<label>Status</label>'+
       '<select id="draft-status">'+['draft','submitted','in review','ready to publish','published'].map(function(s){return '<option value="'+s+'"'+(d.status===s?' selected':'')+'>'+s+'</option>';}).join('')+'</select>'+
       '<label>Article HTML (edit freely, then Save or Send)</label>'+
-      '<textarea id="draft-html" rows="18">'+esc(d.html||'')+'</textarea>'+
+      '<textarea id="draft-html" rows="18" oninput="var p=document.getElementById(\'draft-preview\');if(p)p.innerHTML=safeHtml(this.value)">'+esc(d.html||'')+'</textarea>'+
       '<div class="row">'+
         '<button class="btn ghost" onclick="saveDraftEdit(\''+d.id+'\',false)">Save changes</button>'+
         '<button class="btn" onclick="saveDraftEdit(\''+d.id+'\',true)">Send to publisher</button>'+
@@ -1257,6 +1278,7 @@ async function openDraft(id){
         '<span id="draft-save-status" style="font-size:12px;color:var(--muted)"></span>'+
       '</div>'+
     '</div>';
+    c.scrollIntoView({behavior:'smooth',block:'start'});
   }catch(e){c.innerHTML='<div class="card"><div class="empty">Failed: '+esc(e.message)+'</div></div>';}
 }
 
