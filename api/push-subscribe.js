@@ -3,6 +3,8 @@
 var push = require('./_push.js');
 
 module.exports = async function handler(req, res) {
+  try { await require('./_supabase').requireUserOrCron(req); }
+  catch (authErr) { return res.status(authErr.status || 401).json({ error: authErr.message || 'Not signed in' }); }
   if (req.method !== 'POST') return res.status(405).json({ error: 'POST only' });
   var body = req.body || {};
 

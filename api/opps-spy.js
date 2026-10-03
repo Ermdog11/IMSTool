@@ -154,6 +154,8 @@ function stats(beat, state) {
 }
 
 module.exports = async function handler(req, res) {
+  try { await require('./_supabase').requireUserOrCron(req); }
+  catch (authErr) { return res.status(authErr.status || 401).json({ error: authErr.message || 'Not signed in' }); }
   res.setHeader('Cache-Control', 'no-store');
   try {
     var sb = S.isConfigured() ? S.admin() : null;

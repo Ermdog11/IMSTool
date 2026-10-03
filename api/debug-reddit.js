@@ -1,4 +1,6 @@
 module.exports = async function handler(req, res) {
+  try { await require('./_supabase').requireUserOrCron(req); }
+  catch (authErr) { return res.status(authErr.status || 401).json({ error: authErr.message || 'Not signed in' }); }
   var out = [];
   var urls = [
     'https://www.reddit.com/r/MarylandTerrapins/new.json?limit=25',

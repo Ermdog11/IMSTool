@@ -76,6 +76,8 @@ async function generateSummary(sb, site, report) {
 }
 
 module.exports = async function handler(req, res) {
+  try { await require('./_supabase').requireUserOrCron(req); }
+  catch (authErr) { return res.status(authErr.status || 401).json({ error: authErr.message || 'Not signed in' }); }
   if (!S.isConfigured()) return res.status(503).json({ error: 'Login not configured' });
   var sb = S.admin();
   var report = [];

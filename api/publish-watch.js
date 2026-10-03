@@ -12,6 +12,8 @@ var S = require('./_supabase');
 var SITE_SLUG = 'insidemdsports';
 
 module.exports = async function handler(req, res) {
+  try { await require('./_supabase').requireUserOrCron(req); }
+  catch (authErr) { return res.status(authErr.status || 401).json({ error: authErr.message || 'Not signed in' }); }
   if (!S.isConfigured()) return res.status(503).json({ error: 'Login not configured (Supabase)' });
 
   try {
