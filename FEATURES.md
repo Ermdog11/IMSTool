@@ -39,7 +39,7 @@ Last updated: 2026-09-13
 | Noise controls | Per-topic caps with an overflow view (demote, don't drop), low-priority-sport suppression, stat-page filtering (also old highlight clips, box scores and player pages that search engines show as new), "block this source" list. |
 | Own-outlet exclusion | Never shows the customer their own site's stories back to them — publisher lists their own domain(s), plus an "Exclude sources" control to add any other site or URL to filter out. |
 | Team chat | Real shared channel (persisted, not just your own browser) — message the team, high-rated alerts and auto-drafted breaking stories drop in automatically. |
-| Story backlog | Auto-generates story angles from the current news. |
+| Story backlog | Auto-generates story ideas from the current news. Each idea has **Write it** (drafts it and opens it in the Content Editor) and **Fewer like this** (hides it and steers future batches away from similar ideas, for the whole newsroom). |
 | Desktop notifications | Optional browser push for breaking news. |
 | Real section URLs | Every section is its own bookmarkable, shareable address; browser back/forward works. |
 | Your ratings teach it | Rate any story 1–5 right on its card or with one tap in any email. CoPublisher learns from every correction, including which outlets your team trusts more or less, and rates future stories the way your newsroom would. |

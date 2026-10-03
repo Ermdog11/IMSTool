@@ -1653,16 +1653,22 @@ async function getSocial(idx) {
 // don't eat it once the ~20-40s draft call returns.
 async function writeIt(idx, btn) {
   const a = allAlerts[idx];
-  const out = document.getElementById(`output-${idx}`);
+  return writeDraft({ headline: a.headline, summary: a.summary, source: a.source, time: a.time, category: a.category, url: a.url },
+    document.getElementById(`output-${idx}`), btn);
+}
+
+// Shared by alert cards and story-idea cards: drafts the article server-side,
+// saves it to Editorial Desk drafts and opens the Content Editor on it.
+async function writeDraft(story, out, btn) {
   const tab = window.open('', '_blank');
-  if (tab) tab.document.write('<p style="font-family:sans-serif;padding:24px;">Writing a draft of “' + String(a.headline || '').replace(/</g,'&lt;') + '”… this takes about 30 seconds.</p>');
+  if (tab) tab.document.write('<p style="font-family:sans-serif;padding:24px;">Writing a draft of “' + String(story.headline || '').replace(/</g,'&lt;') + '”… this takes about 30 seconds.</p>');
   out.className = 'aaction-output visible';
   out.innerHTML = '<h4>Write it</h4><i class="ti ti-loader spin"></i> Drafting the article…';
   if (btn) btn.disabled = true;
   try {
     const res = await IMSAuth.authFetch('/api/write-story', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ alert: { headline: a.headline, summary: a.summary, source: a.source, time: a.time, category: a.category, url: a.url } })
+      body: JSON.stringify({ alert: story })
     });
     const d = await res.json();
     if (!res.ok || !d.id) throw new Error(d.error || 'Draft failed');
@@ -1675,98 +1681,6 @@ async function writeIt(idx, btn) {
     out.innerHTML = '<h4>Write it</h4>Couldn’t draft it — ' + String(e.message || e).replace(/</g,'&lt;');
   } finally {
     if (btn) btn.disabled = false;
-  }
-}
-
-// "Request records": stories about coach hires/firings/contracts/buyouts
-// (tier 1), sponsorship and game/event deals (tier 2) and other business news
-// (tier 3) usually have a document behind them that a public body must release
-// under public-records law. The scan tags each story's tier (recordsTier, from
-// api/_records.js) and the button only appears on those; api/records-request.js
-// decides whether the records are actually obtainable and drafts the letter,
-// which a person reviews, edits and sends (or opens in their own email).
-// Nothing goes out without a click.
-function recordsWorthy(a) { return (a && a.recordsTier) || 0; }
-const recordsDrafts = {};
-async function requestRecords(idx, btn) {
-  const a = allAlerts[idx];
-  const out = document.getElementById(`output-${idx}`);
-  out.className = 'aaction-output visible';
-  out.innerHTML = '<h4>Public records request</h4><i class="ti ti-loader spin"></i> Checking whether public-records law covers this and drafting a request…';
-  if (btn) btn.disabled = true;
-  try {
-    const res = await IMSAuth.authFetch('/api/records-request', {
-      method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ action: 'draft', alert: { headline: a.headline, summary: a.summary, source: a.source, url: a.url } })
-    });
-    const d = await res.json();
-    if (!res.ok || d.error) throw new Error(d.error || 'Draft failed');
-    recordsDrafts[idx] = d;
-    renderRecordsDraft(idx);
-  } catch (e) {
-    out.innerHTML = '<h4>Public records request</h4>Couldn’t draft it — ' + escapeHtml(e.message || e);
-  } finally {
-    if (btn) btn.disabled = false;
-  }
-}
-function renderRecordsDraft(idx) {
-  const d = recordsDrafts[idx], out = document.getElementById(`output-${idx}`);
-  if (!d.eligible) {
-    out.innerHTML = '<h4>Public records request</h4>' + escapeHtml(d.reason || 'These records don’t look obtainable under public-records law.');
-    return;
-  }
-  const me = (IMSAuth.state.user && IMSAuth.state.user.email) || '';
-  const canSend = !IMSAuth.state.configured || IMSAuth.isEditor();
-  const fld = 'width:100%;box-sizing:border-box;font:inherit;font-size:12px;padding:6px 8px;border:1px solid var(--border);border-radius:6px;background:#fff;color:var(--text);margin:2px 0 8px;';
-  out.innerHTML = `<h4>Public records request</h4>
-    <div style="margin-bottom:6px;">${escapeHtml(d.reason || '')}</div>
-    ${d.law ? `<div style="margin-bottom:6px;"><b>Law:</b> ${escapeHtml(d.law)}${d.agency ? ' · <b>To:</b> ' + escapeHtml(d.agency) : ''}</div>` : ''}
-    ${d.records.length ? `<div style="margin-bottom:8px;"><b>Asks for:</b><ul style="margin:4px 0 0 18px;padding:0;">${d.records.map(r => '<li>' + escapeHtml(r) + '</li>').join('')}</ul></div>` : ''}
-    <label style="font-size:11px;font-weight:700;">Records office email</label>
-    <input id="rr-to-${idx}" type="email" value="${escapeHtml(d.to || '')}" placeholder="records office email address" style="${fld}">
-    ${d.to && /^https?:/.test(d.toSource || '') ? `<div style="margin:-4px 0 8px;color:var(--text3);">Found on <a href="${escapeHtml(d.toSource)}" target="_blank" rel="noopener">${escapeHtml(d.toSource.replace(/^https?:\/\//, '').slice(0, 70))}</a>. Worth a quick check before sending.</div>` : ''}
-    ${!d.to ? `<div style="margin:-4px 0 8px;color:var(--text3);">${d.portal ? 'This office takes requests through an online form: <a href="' + escapeHtml(d.portal) + '" target="_blank" rel="noopener">open the request portal</a> and paste the letter there.' : 'Couldn’t find a published records email for ' + escapeHtml(d.agency || 'this agency') + '. Check its website for “public records” or “FOIA” and paste the address here.'}</div>` : (d.portal ? `<div style="margin:-4px 0 8px;color:var(--text3);">They also take requests online: <a href="${escapeHtml(d.portal)}" target="_blank" rel="noopener">request portal</a>.</div>` : '')}
-    <label style="font-size:11px;font-weight:700;">CC (you're always copied${me ? ' at ' + escapeHtml(me) : ''}; replies come to you)</label>
-    <input id="rr-cc-${idx}" type="text" value="" placeholder="${me ? 'anyone else, optional' : 'your email (required, so the office can reply to you)'}" style="${fld}">
-    <label style="font-size:11px;font-weight:700;">Subject</label>
-    <input id="rr-subject-${idx}" type="text" value="${escapeHtml(d.subject || '')}" style="${fld}">
-    <label style="font-size:11px;font-weight:700;">Letter — review and edit before sending</label>
-    <textarea id="rr-body-${idx}" rows="16" style="${fld}resize:vertical;line-height:1.5;">${escapeHtml(d.body || '')}</textarea>
-    ${d.response_note ? `<div style="margin-bottom:8px;color:var(--text3);">${escapeHtml(d.response_note)}</div>` : ''}
-    <div style="display:flex;gap:6px;flex-wrap:wrap;">
-      ${canSend ? `<button class="aaction" style="font-weight:700;" onclick="sendRecordsRequest(${idx}, this)"><i class="ti ti-send"></i> Send request</button>` : ''}
-      <button class="aaction" onclick="mailtoRecordsRequest(${idx})"><i class="ti ti-mail"></i> Open in my email</button>
-      <button class="aaction" onclick="navigator.clipboard.writeText(document.getElementById('rr-body-${idx}').value);this.innerHTML='<i class=&quot;ti ti-check&quot;></i> Copied'"><i class="ti ti-copy"></i> Copy letter</button>
-    </div>
-    <div id="rr-status-${idx}" style="margin-top:6px;"></div>`;
-}
-function mailtoRecordsRequest(idx) {
-  const v = id => document.getElementById(`rr-${id}-${idx}`).value.trim();
-  window.location.href = 'mailto:' + encodeURIComponent(v('to')) + '?subject=' + encodeURIComponent(v('subject')) +
-    (v('cc') ? '&cc=' + encodeURIComponent(v('cc')) : '') + '&body=' + encodeURIComponent(v('body'));
-}
-async function sendRecordsRequest(idx, btn) {
-  const a = allAlerts[idx], d = recordsDrafts[idx];
-  const v = id => document.getElementById(`rr-${id}-${idx}`).value.trim();
-  const status = document.getElementById(`rr-status-${idx}`);
-  if (!v('to')) { status.textContent = 'Enter the records office email address first.'; return; }
-  if (!confirm(`Send this records request to ${v('to')}?\n\nIt goes out under your name from the CoPublisher mailbox. You're CC'd, and replies come straight to you.`)) return;
-  btn.disabled = true;
-  status.innerHTML = '<i class="ti ti-loader spin"></i> Sending…';
-  try {
-    const res = await IMSAuth.authFetch('/api/records-request', {
-      method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ action: 'send', to: v('to'), cc: v('cc'), subject: v('subject'), body: v('body'),
-        agency: d.agency, law: d.law, responseNote: d.response_note,
-        alert: { headline: a.headline, summary: a.summary, source: a.source, url: a.url } })
-    });
-    const r = await res.json();
-    if (!res.ok || r.error) throw new Error(r.error || 'Send failed');
-    status.innerHTML = '<b>Sent</b> to ' + escapeHtml(r.request.to) + (r.request.cc.length ? ' (CC ' + escapeHtml(r.request.cc.join(', ')) + ')' : '') + '. ' + escapeHtml(d.response_note || '');
-    btn.innerHTML = '<i class="ti ti-check"></i> Sent';
-  } catch (e) {
-    status.textContent = 'Couldn’t send — ' + (e.message || e);
-    btn.disabled = false;
   }
 }
 
@@ -2117,23 +2031,51 @@ async function sendChat() {
 // ============================================================
 // STORY BACKLOG
 // ============================================================
+// Story ideas: each card has Write it (drafts the idea into the Content
+// Editor, same as an alert card) and Fewer like this (hides it and tells the
+// next batch to avoid similar ideas, newsroom-wide via /api/story-ideas).
+let backlogIdeas = [];
+function renderBacklog() {
+  const c = document.getElementById('backlogContainer');
+  if (!backlogIdeas.length) { c.innerHTML = '<div class="empty"><i class="ti ti-notebook"></i>No ideas left. Generate a new batch.</div>'; return; }
+  const pc = p => p === 1 ? 'background:#fff0f0;color:#a80210' : p === 2 ? 'background:#fffae0;color:#7a5200' : 'background:#f0f0f0;color:#555';
+  c.innerHTML = backlogIdeas.map((idea, i) => `
+    <div class="backlog-card" style="flex-wrap:wrap;">
+      <div class="backlog-priority" style="${pc(idea.priority)}">${escapeHtml(idea.priority || i + 1)}</div>
+      <div style="flex:1;min-width:0;">
+        <div class="backlog-title">${escapeHtml(idea.title)}</div>
+        <div class="backlog-meta">${escapeHtml(idea.angle || '')}</div>
+        <div class="acard-actions" style="margin-top:8px;">
+          <button class="aaction" style="font-weight:700;" onclick="writeIdea(${i}, this)" title="Draft this idea and open it in the Content Editor"><i class="ti ti-pencil"></i> Write it</button>
+          <button class="aaction" style="color:#c00;" onclick="dislikeIdea(${i})" title="Hide this idea and suggest fewer like it"><i class="ti ti-thumb-down"></i> Fewer like this</button>
+        </div>
+        <div class="aaction-output" id="idea-out-${i}"></div>
+      </div>
+    </div>`).join('');
+}
+function writeIdea(i, btn) {
+  const idea = backlogIdeas[i];
+  if (!idea) return;
+  writeDraft({ headline: idea.title, summary: (idea.angle || '') + (idea.basis ? ' Based on: ' + idea.basis : ''),
+    source: idea.source || 'Story idea', category: idea.category || '', url: idea.url || '' },
+    document.getElementById('idea-out-' + i), btn);
+}
+function dislikeIdea(i) {
+  const idea = backlogIdeas[i];
+  if (!idea) return;
+  backlogIdeas.splice(i, 1);
+  renderBacklog();
+  IMSAuth.authFetch('/api/story-ideas', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ dislike: { title: idea.title, angle: idea.angle || '' } }) }).catch(function () {});
+}
+
 function generateBacklogFromAlerts() {
   if (!allAlerts.length) return;
-  const c = document.getElementById('backlogContainer');
-  const ideas = allAlerts.slice(0,8).map((a, idx) => ({
-    title: `Story opportunity: ${a.headline}`,
-    meta: `${a.category} · From ${a.source} · Rating ${a.rating}/5`,
-    rating: a.rating
-  })).sort((a,b) => b.rating - a.rating);
-  c.innerHTML = ideas.map((idea, i) => `
-    <div class="backlog-card">
-      <div class="backlog-priority">${i+1}</div>
-      <div>
-        <div class="backlog-title">${idea.title}</div>
-        <div class="backlog-meta">${idea.meta}</div>
-      </div>
-    </div>
-  `).join('');
+  backlogIdeas = allAlerts.slice(0, 8).slice().sort((a, b) => (b.rating || 0) - (a.rating || 0)).map((a, i) => ({
+    title: a.headline, angle: `${a.category || 'news'} · From ${a.source} · Rating ${a.rating}/5`, priority: i + 1,
+    source: a.source, url: a.url, category: a.category, basis: a.summary || ''
+  }));
+  renderBacklog();
 }
 
 async function runCoverageDesk(btn) {
@@ -2151,25 +2093,23 @@ async function generateBacklog() {
   if (!allAlerts.length) { alert('Run a scan first.'); return; }
   const c = document.getElementById('backlogContainer');
   c.innerHTML = '<div class="empty"><i class="ti ti-loader spin"></i>Generating story ideas...</div>';
+  let fb = { disliked: [], beat: { outletName: 'our outlet', coverage: 'our beat', short: 'our team' } };
+  try { const r = await IMSAuth.authFetch('/api/story-ideas'); const d = await r.json(); if (d && d.beat) fb = d; } catch (e) { /* defaults */ }
+  const B = fb.beat;
+  const avoid = (fb.disliked || []).length
+    ? '\n\nThe editor marked these past ideas "fewer like this". Do not suggest anything similar in topic, type or angle:\n' + fb.disliked.slice(0, 25).map(x => '- ' + x.title + (x.angle ? ' — ' + x.angle : '')).join('\n')
+    : '';
   try {
     const res = await fetch("/api/scan", {
       method:"POST", headers:{"Content-Type":"application/json"},
-      body:JSON.stringify({model:"claude-sonnet-4-6",max_tokens:800,messages:[{role:"user",content:`You are the editor of InsideMDSports, a Maryland Terrapins sports site. Based on these recent alerts, suggest 6 specific story ideas a reporter could write today. Be concrete and Terps-specific. Return as JSON array with: title, angle (one sentence), priority (1-3, 1=highest).\n\nAlerts:\n${allAlerts.slice(0,8).map(a=>a.headline).join('\n')}\n\nNo markdown, just raw JSON array.`}]})
+      body:JSON.stringify({model:"claude-sonnet-4-6",max_tokens:900,messages:[{role:"user",content:`You are the editor of ${B.outletName}, covering ${B.coverage}. Based on these recent alerts, suggest 6 specific story ideas a reporter could write today. Be concrete and specific to ${B.short}, and only use facts the alerts actually state. Return as JSON array with: title, angle (one sentence), priority (1-3, 1=highest), basis (the alert headline it builds on).\n\nAlerts:\n${allAlerts.slice(0,8).map(a=>a.headline + (a.summary ? ' — ' + a.summary : '')).join('\n')}${avoid}\n\nNo markdown, just raw JSON array.`}]})
     });
     const data = await res.json();
     const text = data.content.map(i=>i.text||'').join('');
     const match = text.replace(/```json|```/g,'').match(/\[[\s\S]*\]/);
     if (!match) throw new Error('no json');
-    const ideas = JSON.parse(match[0]);
-    c.innerHTML = ideas.map((idea,i) => `
-      <div class="backlog-card">
-        <div class="backlog-priority" style="background:${idea.priority===1?'#fff0f0':idea.priority===2?'#fffae0':'#f0f0f0'};color:${idea.priority===1?'#a80210':idea.priority===2?'#7a5200':'#555'}">${idea.priority}</div>
-        <div>
-          <div class="backlog-title">${idea.title}</div>
-          <div class="backlog-meta">${idea.angle}</div>
-        </div>
-      </div>
-    `).join('');
+    backlogIdeas = JSON.parse(match[0]).filter(x => x && x.title);
+    renderBacklog();
   } catch(e) { c.innerHTML = '<div class="empty"><i class="ti ti-alert-triangle"></i>Failed — try again.</div>'; }
 }
 
