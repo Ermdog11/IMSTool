@@ -30,8 +30,8 @@ const M = '../mockups/';
 const IMG = {
  '01':[1920,1080],'02':[2320,460],'04':[2320,688],'06':[2320,2894],'07':[1920,1080],'08':[1920,1080],'09':[1920,1080],
  '10':[1920,1080],'11':[1920,1080],'12':[1920,1080],'13':[1920,1080],'14':[1920,1080],'15':[1290,2796],'16':[2320,918],
- '17':[2320,1512],'18':[2320,652],'19':[1920,1080],'20':[1290,2796],'21':[1920,1080],'22':[1920,1080],'23':[1290,2796]};
-const FILE = {'01':'01-news-feed','02':'02-write-it-card','04':'04-x-analytics','06':'06-trends-charts','07':'07-opps-spy','08':'08-content-editor','09':'09-content-editor-notes-seo','10':'10-wizard-1-outlet','11':'11-wizard-2-beat-built','12':'12-wizard-3-sources-podcasts','13':'13-wizard-4-done','14':'14-coverage-desk-email','15':'15-breaking-draft-phone','16':'16-buffer-social','17':'17-search-console','18':'18-draft-social','19':'19-transcription','20':'20-text-alert-phone','21':'21-roster-change-email','22':'22-roster-watch','23':'23-opps-spy-notification'};
+ '17':[2320,1512],'18':[2320,652],'19':[1920,1080],'20':[1290,2796],'21':[1920,1080],'22':[1920,1080],'23':[1290,2796],'24':[1920,1080],'25':[1920,1080]};
+const FILE = {'01':'01-news-feed','02':'02-write-it-card','04':'04-x-analytics','06':'06-trends-charts','07':'07-opps-spy','08':'08-content-editor','09':'09-content-editor-notes-seo','10':'10-wizard-1-outlet','11':'11-wizard-2-beat-built','12':'12-wizard-3-sources-podcasts','13':'13-wizard-4-done','14':'14-coverage-desk-email','15':'15-breaking-draft-phone','16':'16-buffer-social','17':'17-search-console','18':'18-draft-social','19':'19-transcription','20':'20-text-alert-phone','21':'21-roster-change-email','22':'22-roster-watch','23':'23-opps-spy-notification','24':'24-before-after','25':'25-house-style'};
 const ease = x => x<0?0:x>1?1:x<.5?2*x*x:1-Math.pow(-2*x+2,2)/2;
 const clamp = (x,a,b)=>Math.max(a,Math.min(b,x));
 const lerp = (a,b,t)=>a+(b-a)*t;
@@ -59,6 +59,10 @@ const SCENES = [
  {dur:20, title:'One click: alert to article', vo:"One click turns any story into a draft in your house style, with headline options and SEO done. It hotlinks your own past coverage and adds related stories, so readers keep clicking deeper. More page views, no time spent hunting for links.",
   shots:[{img:'02',dur:5,from:[0,-170,2320],to:[0,-40,1700],boxes:[[30,240,135,52,1.5]],sample:true},
          {img:'08',dur:15,from:[400,100,1120],to:[400,420,1120],boxes:[[430,153,1060,215,1.5],[464,572,184,26,6.5],[784,694,180,26,7.3]]}]},
+ {dur:15, title:"Edited in your site's voice", vo:"Hand it a rough draft, and it comes back in your site's voice: news first, AP style, full names on first reference, filler cut, quotes cleaned up and links added. And each writer still sounds like themselves.",
+  shots:[{img:'24',dur:10,from:[50,30,920],to:[950,30,920],boxes:[[973,56,877,279,6]]},{img:'24',dur:5,from:[40,0,1840],to:[40,60,1840],boxes:[[70,390,1702,36,1]]}]},
+ {dur:15, title:'Your house rules', badge:'Auto-updates coming soon', vo:"Those rules come from you. CoPublisher writes your house style from your own published articles, how you write and how you report. It watches what your editors change, and keeps your house rules current as your style evolves.",
+  shots:[{img:'25',dur:15,from:[380,100,1160],to:[380,250,1160],boxes:[[449,186,1022,113,1.5],[455,360,1010,40,7]]}]},
  {dur:24, graphic:'compound', title:'It learns you. It compounds.',
   vo:"And it learns you: your site's voice and each writer's style. Every article goes into your newsroom's private knowledge base, and every day it checks what went live and what your editors changed. So its value compounds like interest. The more you publish, the better it knows your beat, your voice and your readers."},
  {dur:15, title:'Built-in transcription', vo:"Transcription is built in. Drop in an interview or podcast, or transcribe a press conference live as it streams, with every speaker labeled. Grab the quote and drop it into your story.",

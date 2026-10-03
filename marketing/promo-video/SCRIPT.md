@@ -1,8 +1,8 @@
 # CoPublisher AI — promo video script
 
 **For:** prospective partners and investors
-**Length:** about 4:25 (full cut), plus a 60-second cut
-**Mockups:** `mockups/01…23.png`. They are real screens from the app, filled with **sample data**: the players, outlets, headlines and numbers are invented. Keep the on-screen "Sample data" tag on any scene that shows product numbers.
+**Length:** about 4:55 (full cut), plus a 60-second cut
+**Mockups:** `mockups/01…25.png`. They are real screens from the app, filled with **sample data**: the players, outlets, headlines and numbers are invented. Keep the on-screen "Sample data" tag on any scene that shows product numbers.
 **Industry figures** in Scene 1 come from published research (sources at the bottom). Check each against its source before you publish the video.
 
 ---
@@ -17,7 +17,7 @@ Paste this block into the tool's style or prompt box:
 
 ---
 
-## Full cut (about 4:25)
+## Full cut (about 4:55)
 
 ### Scene 1 — What's at stake
 - **Visual:** Motion graphics on navy. Three big stats animate in one at a time, each with a small source line under it. Then a clock ticking past midnight, and a rival's headline sliding in first.
@@ -69,6 +69,18 @@ Paste this block into the tool's style or prompt box:
 - **On-screen text:** "Your voice. Automatic hotlinks. More page views."
 - **Voiceover:**
   > Any story becomes a draft with one click, in your house style and each writer's voice, with three headline options and the SEO done. It hotlinks the story to your own past coverage and can add a related-stories box, so every article keeps readers clicking deeper: more page views, with no time spent hunting for links. Anything uncertain is flagged, so speed never costs you accuracy.
+
+### Scene 5a — Edited in your site's voice
+- **Visual:** `24-before-after.png`. Start close on the **Writer's draft** (lowercase, typos, "there is alot"), pan right to **Edited in your site's voice** and highlight it, then pull back to show the row of applied rules ("News first in the lede", "AP style", "Full name and role on first reference"…).
+- **On-screen text:** "Edited in your site's voice"
+- **Voiceover:**
+  > Hand it a rough draft, and it comes back in your site's voice: news first, AP style, full names on first reference, filler cut, quotes cleaned up and links added. And each writer still sounds like themselves.
+
+### Scene 5a2 — Your house rules
+- **Visual:** `25-house-style.png`, the House style tab. Highlight the **"Learning your newsroom's voice"** panel, then the **VOICE** line of the rules. Show an amber **"Auto-updates coming soon"** badge in the top-right corner.
+- **On-screen text:** "Your house rules" + **Auto-updates coming soon** badge
+- **Voiceover:**
+  > Those rules come from you. CoPublisher writes your house style from your own published articles, how you write and how you report. It watches what your editors change, and keeps your house rules current as your style evolves.
 
 ### Scene 5b — It learns you, and it compounds
 - **Visual:** Motion graphic: a line that starts flat and curves upward like compound interest, labeled **"Your knowledge base"**. Article cards stack into it day by day ("Mon", "Tue", "Wed"…), each one adding a small step. Over the curve, short labels appear: **"Your voice"**, **"Your house style"**, **"Your archive"**, **"What your editors changed"**. End on `08-content-editor.png` with a soft glow.
@@ -147,6 +159,7 @@ These are the things the script says the product does, matched to what it actual
 - **"So you never miss a story":** marketing language, not a guarantee; coverage depends on the sources and people set up for the beat.
 - **Roster watch:** official roster, coaching-staff and athletic-department pages are checked 3 times a week; added, removed and retitled people are emailed and logged with dates.
 - **Opps Spy alerts (Scene 3a):** Opps Spy already tracks competitors and emails you within about 15 minutes of a new story on your beat, marked as a gap when you haven't covered it. The phone notification with a one-tap "Draft it" button is not built yet; keep the "Coming soon" label. The headline in the notification is invented for the mockup.
+- **House rules (Scene 5a2):** the house style guide is written from samples of your own articles in setup, and every edit is measured against it; the app already records what editors change before a story publishes. Automatically updating the house rules from those changes is not built yet, so keep the "Auto-updates coming soon" badge. The "3 suggested updates this week" line in the mockup is illustrative.
 - **Text alerts (Scene 4b):** not built yet. The scene is labeled "Coming soon"; keep that label. Today the same alert arrives by email with the draft attached.
 - **"Working 24 hours a day":** scheduled jobs run all day and night. X is checked every 30 minutes, competitors every 15 minutes, hot stories every 15 minutes, and full scans several times a day. The morning memo goes out at 7 a.m.
 - **"Sends it straight to your phone":** breaking and major stories (rated 4–5) are auto-drafted and emailed with an "Open in Content Editor" button. They also drop into Team Chat. Texts aren't available yet.
@@ -188,6 +201,8 @@ These are the things the script says the product does, matched to what it actual
 | `16-buffer-social.png` | Social posts card: Facebook, Instagram, Threads via Buffer (2×) |
 | `17-search-console.png` | Google Search Console card: clicks, rising searches, opportunities (2×) |
 | `18-draft-social.png` | Draft social: posts styled on your best performers (2×) |
+| `24-before-after.png` | Writer's rough draft vs. the version edited in your site's voice, with the rules applied (full screen) |
+| `25-house-style.png` | House style tab: your rules + "Learning your newsroom's voice" panel (full screen) |
 | `23-opps-spy-notification.png` | Coming soon: Opps Spy phone notification with a "Draft it" button (3×) |
 | `20-text-alert-phone.png` | Coming soon: text alert conversation on a phone (3×) |
 | `21-roster-change-email.png` | Roster change alert email: assistant coach off, new player added (full screen) |
