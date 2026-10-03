@@ -480,7 +480,8 @@ function addOutlet(){
 function renderComm(k){
   var list=beat[k]||[];
   $('beat-'+k).innerHTML=list.length?list.map(function(x,i){
-    return '<div class="item"><div class="main"><b style="font-size:13px">'+(k==='subreddits'?'r/':'')+esc(x.name)+'</b></div>'+rateHtml(k+'.'+i,x.rating)+
+    var nm=(k==='subreddits'?'r/':'')+esc(x.name);
+    return '<div class="item"><div class="main"><b style="font-size:13px">'+(x.url?'<a href="'+esc(x.url).replace(/"/g,'&quot;')+'" target="_blank" rel="noopener" style="color:inherit">'+nm+'</a>':nm)+'</b></div>'+rateHtml(k+'.'+i,x.rating)+
       '<button type="button" class="x" title="Remove" onclick="beat.'+k+'.splice('+i+',1);renderComm(\''+k+'\')">×</button></div>';
   }).join(''):'<div class="help" style="margin:0">None yet</div>';
 }
@@ -516,7 +517,7 @@ async function suggestBeat(btn){
     if(!beat.nameCollisions&&b.nameCollisions) beat.nameCollisions=b.nameCollisions;
     renderBeatForm();
     var feeds=(b.outlets||[]).filter(function(o){return o.checked==='feed';}).length;
-    m.textContent='Added '+(b.outlets||[]).length+' sources'+(feeds?' ('+feeds+' with a working feed)':'')+'. Rate them, then continue.';
+    m.textContent='Added '+(b.outlets||[]).length+' sources'+(feeds?' ('+feeds+' with a working feed)':'')+', '+(b.podcasts||[]).length+' podcasts and '+(b.youtube||[]).length+' YouTube channels. Rate them, then continue.';
   }catch(e){ m.textContent=''; alert(e.message); }
   btn.disabled=false; btn.textContent=old;
 }

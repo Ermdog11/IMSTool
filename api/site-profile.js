@@ -154,6 +154,50 @@ async function suggestXAccounts(body, sb) {
 // Draft a beat profile for a new newsroom. Claude proposes; every outlet's
 // RSS feed is then fetched so a dead or made-up feed URL is dropped (the
 // outlet stays, searched through Google News by its domain instead).
+// Check each suggested podcast against Apple's podcast directory (free, no
+// key) and each YouTube channel against the YouTube API, so the wizard never
+// lists a show that doesn't exist. A match swaps in the real title and keeps
+// the feed or channel link. Lookups that fail outright (network, no API key)
+// leave the suggestion as is; only a clean "no such show" drops it.
+async function fetchJson(url, ms) {
+  var c = new AbortController(); var t = setTimeout(function () { c.abort(); }, ms || 6000);
+  try { var r = await fetch(url, { signal: c.signal }); return r.ok ? await r.json() : null; }
+  finally { clearTimeout(t); }
+}
+function looseMatch(a, b) {
+  var n = function (x) { return String(x || '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim(); };
+  a = n(a); b = n(b);
+  return !!a && !!b && (a === b || a.indexOf(b) !== -1 || b.indexOf(a) !== -1);
+}
+async function verifyPodcasts(list) {
+  await Promise.all(list.map(async function (p) {
+    try {
+      var d = await fetchJson('https://itunes.apple.com/search?media=podcast&entity=podcast&limit=5&term=' + encodeURIComponent(p.name));
+      if (!d) return;
+      var hit = (d.results || []).filter(function (r) { return looseMatch(r.collectionName, p.name); })[0];
+      if (!hit) { p.notFound = true; return; }
+      p.name = String(hit.collectionName).slice(0, 80);
+      if (hit.feedUrl) p.feed = hit.feedUrl;
+      if (hit.collectionViewUrl) p.url = hit.collectionViewUrl;
+    } catch (e) { /* lookup failed, keep the suggestion */ }
+  }));
+}
+async function verifyYouTube(list) {
+  var key = process.env.YOUTUBE_API_KEY;
+  if (!key) return;
+  await Promise.all(list.map(async function (y) {
+    try {
+      var d = await fetchJson('https://www.googleapis.com/youtube/v3/search?part=snippet&type=channel&maxResults=3&q=' + encodeURIComponent(y.name) + '&key=' + key);
+      if (!d) return;
+      var hit = (d.items || []).filter(function (r) { return looseMatch(r.snippet && r.snippet.channelTitle, y.name); })[0];
+      if (!hit) { y.notFound = true; return; }
+      y.name = String(hit.snippet.channelTitle).slice(0, 80);
+      y.channelId = hit.snippet.channelId;
+      y.url = 'https://www.youtube.com/channel/' + hit.snippet.channelId;
+    } catch (e) { /* lookup failed, keep the suggestion */ }
+  }));
+}
+
 async function suggestBeat(body) {
   var team = String(body.teamName || '').slice(0, 200);
   if (!team) throw new Error('Tell us which team or beat you cover first.');
@@ -166,7 +210,9 @@ async function suggestBeat(body) {
     '- primarySports: the sports this outlet would mainly cover, lowercase.\n' +
     '- keyFigures: head coaches, the athletic director or general manager, and the biggest current names. Only people you are confident about.\n' +
     '- outlets: up to 20 news sources that regularly cover this team: beat writers\' outlets, local newspapers and TV, the official team or athletics site, the student paper, fan sites, recruiting sites, and the national outlets most relevant to it. Give each its website domain and, only if you are confident of it, its RSS feed URL. Do not include the newsroom\'s own outlet.\n' +
-    '- subreddits, podcasts and youtube: where fans and media discuss this team.\n' +
+    '- subreddits: where fans discuss this team.\n' +
+    '- podcasts: the 4-6 biggest podcasts for this beat, by exact show title as it appears in Apple Podcasts: shows dedicated to this team (beat writers\' and fan-site shows, the official team podcast), then the national shows that cover it most (conference or sport-wide).\n' +
+    '- youtube: the 4-6 biggest YouTube channels for this beat, by exact channel name: the official team or athletics channel, beat outlets\' channels, the biggest fan and recruiting channels, then national channels that cover it most.\n' +
     '- nameCollisions: one sentence naming well-known people who share a name with someone on this beat, if any.\n' +
     'For every outlet, subreddit, podcast and channel, give importance 1-5: 5 = must-watch, often first with news; 4 = important; 3 = useful; 2 = occasional; 1 = rarely relevant. ' +
     'Your knowledge may be out of date; the publisher reviews everything. Leave something out rather than guess.',
@@ -192,7 +238,7 @@ async function suggestBeat(body) {
           youtube: { type: 'array', items: { type: 'object', properties: { name: { type: 'string' }, importance: { type: 'integer' } }, required: ['name', 'importance'] } },
           nameCollisions: { type: 'string' }
         },
-        required: ['team', 'outlets']
+        required: ['team', 'outlets', 'podcasts', 'youtube']
       }
     }, 5000);
 
@@ -215,6 +261,8 @@ async function suggestBeat(body) {
   }));
 
   function community(arr) { return (arr || []).slice(0, 10).map(function (x) { return { name: String(x.name || '').replace(/^\/?r\//i, '').slice(0, 80), rating: clamp(x.importance) }; }).filter(function (x) { return x.name; }); }
+  var podcasts = community(out.podcasts), youtube = community(out.youtube);
+  await Promise.all([verifyPodcasts(podcasts), verifyYouTube(youtube)]);
   var t = out.team || {};
   var own = cleanDomain(body.website);
   return {
@@ -225,7 +273,7 @@ async function suggestBeat(body) {
       primarySports: (out.primarySports || []).slice(0, 6).map(function (x) { return String(x).toLowerCase(); }),
       keyFigures: (out.keyFigures || []).slice(0, 12).map(String),
       outlets: outlets.filter(function (o) { return !own || o.domain !== own; }),
-      subreddits: community(out.subreddits), podcasts: community(out.podcasts), youtube: community(out.youtube),
+      subreddits: community(out.subreddits), podcasts: podcasts.filter(function (x) { return !x.notFound; }), youtube: youtube.filter(function (x) { return !x.notFound; }),
       nameCollisions: String(out.nameCollisions || '').slice(0, 500)
     }
   };
