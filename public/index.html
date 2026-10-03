@@ -1587,9 +1587,34 @@ function getSEO(idx) {
   callClaude(`You are an SEO editor at InsideMDSports. For this news story, provide: 1) A strong SEO headline (under 60 chars), 2) A meta description (under 155 chars), 3) 5 target keywords, 4) Suggested internal linking topics. Keep it Maryland Terrapins focused.\n\nStory: ${a.headline}\nSummary: ${a.summary || ''}`, `output-${idx}`, 'SEO suggestions');
 }
 
-function getSocial(idx) {
+// Draft social learns from what has actually worked: when Buffer is connected,
+// the newsroom's best-performing recent posts per platform (api/buffer.js
+// ?examples=1) go into the prompt as style examples. Fetched once per page
+// load; without Buffer it drafts exactly as before.
+let socialExamples = null;
+async function loadSocialExamples() {
+  if (socialExamples !== null) return socialExamples;
+  socialExamples = {};
+  try {
+    const r = await IMSAuth.authFetch('/api/buffer?examples=1');
+    const d = await r.json();
+    if (d.examples) socialExamples = d.examples;
+  } catch (e) { /* not connected or failed: draft without examples */ }
+  return socialExamples;
+}
+const SOCIAL_SERVICE_LABEL = { twitter: 'X/Twitter', facebook: 'Facebook', instagram: 'Instagram', threads: 'Threads', bluesky: 'Bluesky', linkedin: 'LinkedIn', tiktok: 'TikTok' };
+async function getSocial(idx) {
   const a = allAlerts[idx];
-  callClaude(`You are the social media manager at InsideMDSports. Draft platform-specific posts for this story. Include a link placeholder [LINK]. Write in a sharp, direct sports news voice — not overly promotional.\n\nX/Twitter (280 chars max): \nFacebook (2-3 sentences): \nInstagram caption: \n\nStory: ${a.headline}\nSummary: ${a.summary || ''}`, `output-${idx}`, 'Social copy');
+  const out = document.getElementById(`output-${idx}`);
+  out.className = 'aaction-output visible';
+  out.innerHTML = '<h4>Social copy</h4><i class="ti ti-loader spin"></i> Working...';
+  const ex = await loadSocialExamples();
+  const services = Object.keys(ex || {}).filter(k => (ex[k] || []).length);
+  const examples = services.length
+    ? '\n\nOUR BEST-PERFORMING RECENT POSTS (last 30 days, by interactions). Match what makes these work on each platform: length, how the hook opens, tone, emoji and hashtag use, how the link is framed. Do not copy them.\n' +
+      services.map(k => `${SOCIAL_SERVICE_LABEL[k] || k}:\n` + ex[k].map(p => `- (${p.interactions} interactions) ${p.text}`).join('\n')).join('\n')
+    : '';
+  callClaude(`You are the social media manager at InsideMDSports. Draft platform-specific posts for this story. Include a link placeholder [LINK]. Write in a sharp, direct sports news voice — not overly promotional.\n\nX/Twitter (280 chars max): \nFacebook (2-3 sentences): \nInstagram caption: \n\nStory: ${a.headline}\nSummary: ${a.summary || ''}${examples}`, `output-${idx}`, services.length ? 'Social copy · styled on your best Buffer posts' : 'Social copy');
 }
 
 // "Write it": drafts an article from this alert server-side (same generator as

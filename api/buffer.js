@@ -6,6 +6,7 @@
 var S = require('./_supabase');
 var Store = require('./_analytics-store');
 var Buffer_ = require('./_buffer');
+var exampleCache = {}; // per warm instance, 1h
 
 module.exports = async function handler(req, res) {
   res.setHeader('Cache-Control', 'no-store');
@@ -19,6 +20,15 @@ module.exports = async function handler(req, res) {
   try {
     var conn = await Store.getConnection(ctx.supabase, ctx.site.id, 'buffer');
     if (!conn || !conn.apiKey || !conn.organizationId) return res.status(400).json({ error: 'Buffer not connected yet.' });
+    // ?examples=1: just the best recent posts per platform, for Draft social.
+    if (req.query && req.query.examples) {
+      var key = ctx.site.id + ':' + conn.organizationId;
+      if (!exampleCache[key] || Date.now() - exampleCache[key].at > 60 * 60 * 1000) {
+        try { exampleCache[key] = { at: Date.now(), examples: await Buffer_.topExamples(conn.apiKey, conn.organizationId) }; }
+        catch (e) { return res.status(502).json({ error: e.message }); }
+      }
+      return res.status(200).json({ examples: exampleCache[key].examples });
+    }
     var summary;
     try { summary = await Buffer_.fetchSummary(conn.apiKey, conn.organizationId); }
     catch (e) { return res.status(502).json({ error: e.message }); }

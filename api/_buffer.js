@@ -66,14 +66,14 @@ function engagementOf(m) {
   return (m.reactions || 0) + (m.comments || 0) + (m.shares || 0) + (m.reposts || 0) + (m.clicks || 0) + (m.saves || 0) + (m.quotes || 0);
 }
 
-async function getSentPosts(apiKey, organizationId, sinceIso) {
-  var q = 'query($o: OrganizationId!, $since: DateTime, $after: String) {' +
-    ' posts(first: 100, after: $after, input: { organizationId: $o, filter: { status: [sent], dueAt: { start: $since } }, sort: [{ field: dueAt, direction: desc }] }) {' +
+async function getSentPosts(apiKey, organizationId, sinceIso, untilIso) {
+  var q = 'query($o: OrganizationId!, $since: DateTime, $until: DateTime, $after: String) {' +
+    ' posts(first: 100, after: $after, input: { organizationId: $o, filter: { status: [sent], dueAt: { start: $since, end: $until } }, sort: [{ field: dueAt, direction: desc }] }) {' +
     '  edges { node { id text sentAt dueAt externalLink channelId channelService metricsUpdatedAt metrics { type value unit } } }' +
     '  pageInfo { endCursor hasNextPage } } }';
   var posts = [], after = null;
   while (posts.length < MAX_POSTS) {
-    var d = await gql(apiKey, q, { o: organizationId, since: sinceIso, after: after });
+    var d = await gql(apiKey, q, { o: organizationId, since: sinceIso, until: untilIso || null, after: after });
     var res = d.posts || {};
     (res.edges || []).forEach(function (e) { if (e && e.node) posts.push(e.node); });
     if (!res.pageInfo || !res.pageInfo.hasNextPage || !res.pageInfo.endCursor) break;
@@ -164,4 +164,21 @@ async function fetchSummary(apiKey, organizationId) {
   };
 }
 
-module.exports = { getOrganizations: getOrganizations, getChannels: getChannels, fetchSummary: fetchSummary, engagementOf: engagementOf };
+// The newsroom's best-performing recent posts on each platform, as style
+// examples for the Draft social button: top 3 per network by interactions
+// over the last 30 days, measured posts only.
+async function topExamples(apiKey, organizationId) {
+  var posts = await getSentPosts(apiKey, organizationId, dayStartIso(LOOKBACK_DAYS * 86400000));
+  var byService = {};
+  posts.forEach(function (p) {
+    if (!p.metrics || !p.metrics.length || !p.text) return;
+    var m = metricsMap(p.metrics);
+    (byService[p.channelService] = byService[p.channelService] || []).push({ text: String(p.text).trim().slice(0, 600), interactions: engagementOf(m), metrics: m });
+  });
+  Object.keys(byService).forEach(function (k) {
+    byService[k] = byService[k].sort(function (a, b) { return b.interactions - a.interactions; }).slice(0, 3);
+  });
+  return byService;
+}
+
+module.exports = { topExamples: topExamples, getOrganizations: getOrganizations, getChannels: getChannels, getSentPosts: getSentPosts, metricsMap: metricsMap, fetchSummary: fetchSummary, engagementOf: engagementOf };
