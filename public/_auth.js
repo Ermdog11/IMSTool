@@ -34,6 +34,27 @@
     } catch (e) { return null; }
   }
 
+  // Every same-origin /api/ call carries the sign-in token automatically, so
+  // the many plain fetch('/api/...') calls in the pages don't each need
+  // changing. (Server routes reject callers who aren't signed in.)
+  var rawFetch = window.fetch.bind(window);
+  window.fetch = async function (input, init) {
+    try {
+      var url = typeof input === 'string' ? input : (input && input.url) || '';
+      var sameOrigin = url.indexOf('/api/') === 0 || url.indexOf(location.origin + '/api/') === 0;
+      if (sameOrigin && url.indexOf('/api/me') === -1) {
+        var t = await token();
+        if (t) {
+          init = Object.assign({}, init || {});
+          var h = init.headers || {};
+          if (typeof Headers !== 'undefined' && h instanceof Headers) { if (!h.has('Authorization')) h.set('Authorization', 'Bearer ' + t); }
+          else if (!h.Authorization) init.headers = Object.assign({}, h, { Authorization: 'Bearer ' + t });
+        }
+      }
+    } catch (e) { /* never block a request over auth plumbing */ }
+    return rawFetch(input, init);
+  };
+
   // fetch() wrapper that adds the bearer token when we have one.
   async function authFetch(url, opts) {
     opts = opts || {};
@@ -41,7 +62,7 @@
     if (t) {
       opts.headers = Object.assign({}, opts.headers, { Authorization: 'Bearer ' + t });
     }
-    return fetch(url, opts);
+    return rawFetch(url, opts);
   }
 
   // Call once on page load. Resolves when it's safe to render the page.

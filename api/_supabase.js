@@ -126,7 +126,22 @@ async function teamRecipientsFor(alertType, siteSlug) {
   } catch (e) { return []; }
 }
 
+// Gate for routes that run on a schedule AND/OR from the app:
+//  - an in-process call from another handler (no HTTP headers) is trusted;
+//  - Vercel Cron sends "Authorization: Bearer $CRON_SECRET";
+//  - otherwise the caller must be a signed-in member.
+// Fails open like requireUser when Supabase isn't configured.
+async function requireUserOrCron(req) {
+  if (!req || !req.headers) return { internal: true };
+  var secret = process.env.CRON_SECRET;
+  var auth = req.headers.authorization || req.headers.Authorization || '';
+  if (secret && auth === 'Bearer ' + secret) return { cron: true };
+  if (!isConfigured()) return { open: true };
+  return requireUser(req);
+}
+
 module.exports = {
+  requireUserOrCron: requireUserOrCron,
   admin: admin,
   isConfigured: isConfigured,
   bearerToken: bearerToken,

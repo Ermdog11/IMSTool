@@ -1,4 +1,6 @@
 module.exports = async function handler(req, res) {
+  try { await require('./_supabase').requireUserOrCron(req); }
+  catch (authErr) { return res.status(authErr.status || 401).json({ error: authErr.message || 'Not signed in' }); }
   var key = process.env.LISTEN_API_KEY;
   if (!key) return res.status(200).json({ error: 'LISTEN_API_KEY not set' });
 

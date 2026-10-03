@@ -1,4 +1,6 @@
 module.exports = async function handler(req, res) {
+  try { await require('./_supabase').requireUserOrCron(req); }
+  catch (authErr) { return res.status(authErr.status || 401).json({ error: authErr.message || 'Not signed in' }); }
   try {
     var xml = await fetch('https://news.google.com/rss/search?q=247sports+Maryland+Terrapins&hl=en-US&gl=US&ceid=US:en').then(function(r) { return r.text(); });
     var items = xml.match(/<item>[\s\S]*?<\/item>/g) || [];

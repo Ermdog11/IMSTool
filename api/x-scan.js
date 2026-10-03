@@ -93,6 +93,8 @@ function breakingMdToHtml(t) {
 }
 
 module.exports = async function handler(req, res) {
+  try { await require('./_supabase').requireUserOrCron(req); }
+  catch (authErr) { return res.status(authErr.status || 401).json({ error: authErr.message || 'Not signed in' }); }
   var ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY;
   if (!ANTHROPIC_API_KEY) return res.status(500).json({ error: 'Missing ANTHROPIC_API_KEY.' });
 
