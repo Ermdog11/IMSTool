@@ -23,9 +23,17 @@
   .stat .n{font-size:150px;font-weight:800;color:#60a5fa;letter-spacing:-2px}
   .stat .l{font-size:44px;font-weight:600;margin-top:-6px}
   .stat .s{font-size:20px;color:#9fb0cc;margin-top:10px}
+  body.v #stage{width:1080px;height:1920px}
+  body.v .cap{left:60px;right:60px;top:1560px;bottom:auto;font-size:46px;line-height:1.28}
+  body.v .ost{left:40px;top:60px;font-size:38px}
+  body.v .tag{left:40px;top:142px;bottom:auto}
+  body.v .center{padding:0 50px;box-sizing:border-box}
+  body.v .stat{left:50px;right:50px;top:auto}
 </style></head>
 <body><div id="stage"></div>
 <script>
+const V = /[?&]v=1/.test(location.search); if(V) document.body.classList.add('v');
+const SW = V?1080:1920, SH = V?1920:1080;
 const M = '../mockups/';
 const IMG = {
  '01':[1920,1080],'02':[2320,460],'04':[2320,688],'06':[2320,2894],'07':[1920,1080],'08':[1920,1080],'09':[1920,1080],
@@ -92,14 +100,33 @@ function captionAt(vo, t, dur){
   return {text:ss[ss.length-1],a:clamp((dur-t)/0.3,0,1)};
 }
 
+// Vertical mode: zoom in to legible size and let the camera follow each highlight box.
+function vCam(sh, lt, W, H){
+  const [iw,ih]=IMG[sh.img]; const p=ease(clamp(lt/sh.dur,0,1));
+  if(sh.phone){ const w=sh.from[2], h=w*H/W; return [lerp(sh.from[0],sh.to[0],p), clamp(lerp(sh.from[1],sh.to[1],p),0,Math.max(0,ih-h)), w]; }
+  const dpr=iw>2000?2:1, cw=Math.min(iw, W*dpr/1.6), ch=cw*H/W;
+  // Start left-aligned on the shot's region; for each highlight, move only as far as needed to bring it into view.
+  const need=(v,lo,len,span)=>len+80>span?lo-40:clamp(v,lo+len+40-span,lo-40);
+  let x=lerp(sh.from[0],sh.to[0],p), y=lerp(sh.from[1],sh.to[1],p);
+  (sh.boxes||[]).slice().sort((a,b)=>a[4]-b[4]).forEach(b=>{
+    const k=ease(clamp((lt-(b[4]-0.9))/0.9,0,1)); if(k<=0) return;
+    x=lerp(x,need(x,b[0],b[2],cw),k); y=lerp(y,need(y,b[1],b[3],ch),k); });
+  x=iw<=cw?(iw-cw)/2:clamp(x,0,iw-cw); y=ih<=ch?(ih-ch)/2:clamp(y,0,ih-ch);
+  return [x,y,cw];
+}
 function shotHTML(sh, lt){
   const [iw,ih]=IMG[sh.img]; const p=ease(clamp(lt/sh.dur,0,1));
-  const cam=[lerp(sh.from[0],sh.to[0],p), lerp(sh.from[1],sh.to[1],p), lerp(sh.from[2],sh.to[2],p)];
+  let cam=[lerp(sh.from[0],sh.to[0],p), lerp(sh.from[1],sh.to[1],p), lerp(sh.from[2],sh.to[2],p)];
   let W,H,left,top,wrapOpen,wrapClose;
-  if(sh.phone){ W=420;H=870;left=(1920-W)/2-16;top=(1080-180-H)/2+20-16;
+  if(V && sh.phone){ H=1300;W=Math.round(H*420/870);left=(1080-W)/2-16;top=170;
+    wrapOpen=`<div class="phone" style="left:${left}px;top:${top}px"><div class="scr" style="width:${W}px;height:${H}px">`; wrapClose='</div></div>'; }
+  else if(V){ W=1000;H=1300;left=40;top=180;
+    wrapOpen=`<div class="win" style="left:${left}px;top:${top}px;width:${W}px;height:${H+34}px"><div class="chrome"><i style="background:#ff5f57"></i><i style="background:#febc2e"></i><i style="background:#28c840"></i><span>copublisher.ai</span></div><div style="position:absolute;left:0;top:34px;width:${W}px;height:${H}px;overflow:hidden">`; wrapClose='</div></div>'; }
+  else if(sh.phone){ W=420;H=870;left=(1920-W)/2-16;top=(1080-180-H)/2+20-16;
     wrapOpen=`<div class="phone" style="left:${left}px;top:${top}px"><div class="scr" style="width:${W}px;height:${H}px">`; wrapClose='</div></div>'; }
   else { W=1600;H=800;left=160;top=110;
     wrapOpen=`<div class="win" style="left:${left}px;top:${top}px;width:${W}px;height:${H+34}px"><div class="chrome"><i style="background:#ff5f57"></i><i style="background:#febc2e"></i><i style="background:#28c840"></i><span>copublisher.ai</span></div><div style="position:absolute;left:0;top:34px;width:${W}px;height:${H}px;overflow:hidden">`; wrapClose='</div></div>'; }
+  if(V) cam=vCam(sh, lt, W, H);
   const sc=W/cam[2];
   let boxes='';
   (sh.boxes||[]).forEach(b=>{ const a=clamp((lt-b[4])/0.4,0,1); if(a<=0) return;
@@ -121,42 +148,42 @@ function graphicHTML(kind, t, dur){
     const per=dur/stats.length; const i=Math.min(stats.length-1,Math.floor(t/per)); const lt=t-i*per;
     const a=clamp(Math.min(lt/0.4,(per-lt)/0.4),0,1)*(i===stats.length-1?clamp((dur-t)/0.4,0,1)/Math.max(0.001,clamp((per-lt)/0.4,0,1)):1);
     const s=stats[i], last=i===stats.length-1;
-    return `<div class="stat" style="top:${260+12*(1-ease(clamp(lt/0.6,0,1)))}px;opacity:${clamp(a,0,1)}"><div class="n" style="font-size:${s[3]}px;${last?'color:#fff':''}">${s[0]}</div><div class="l" style="${last?'font-size:72px;font-weight:800;color:#60a5fa;margin-top:6px':''}">${s[1]}</div>${s[2]?`<div class="s" style="${last?'font-size:40px;color:#fff;font-weight:600;margin-top:22px':''}">${s[2]}</div>`:''}</div>`;
+    return `<div class="stat" style="top:${(V?720:260)+12*(1-ease(clamp(lt/0.6,0,1)))}px;opacity:${clamp(a,0,1)}"><div class="n" style="font-size:${V&&s[0].length>14?88:s[3]}px;${last?'color:#fff':''}">${s[0]}</div><div class="l" style="${last?'font-size:72px;font-weight:800;color:#60a5fa;margin-top:6px':''}">${s[1]}</div>${s[2]?`<div class="s" style="${last?'font-size:40px;color:#fff;font-weight:600;margin-top:22px':''}">${s[2]}</div>`:''}</div>`;
   }
   if(kind==='team'){
     const cards=[['📰','Co-Publisher'],['📣','Social Media<br>Director'],['📈','Product<br>Strategist']];
-    let h='';cards.forEach((c,i)=>{const a=ease(f(0.6+i*0.9,1.4+i*0.9));h+=`<div class="card3" style="left:${190+i*530}px;top:${250+40*(1-a)}px;opacity:${a}"><div class="ic">${c[0]}</div><div class="nm">${c[1]}</div></div>`;});
+    let h='';cards.forEach((c,i)=>{const a=ease(f(0.6+i*0.9,1.4+i*0.9));h+=`<div class="card3" style="left:${V?320:190+i*530}px;top:${(V?330+i*340:250)+40*(1-a)}px;opacity:${a}"><div class="ic">${c[0]}</div><div class="nm">${c[1]}</div></div>`;});
     const b=ease(f(4.8,5.6));
-    h+=`<div class="center" style="top:630px;opacity:${b}"><span style="display:inline-block;font-size:64px;font-weight:800;background:#2563eb;padding:10px 34px;border-radius:16px;transform:rotate(-3deg) scale(${0.8+0.2*b})">24 / 7</span></div>`;
-    h+=`<div class="center" style="top:120px;font-size:46px;font-weight:700;opacity:${ease(f(0,0.6))}">Three new teammates. One subscription.</div>`;
+    h+=`<div class="center" style="top:${V?1370:630}px;opacity:${b}"><span style="display:inline-block;font-size:64px;font-weight:800;background:#2563eb;padding:10px 34px;border-radius:16px;transform:rotate(-3deg) scale(${0.8+0.2*b})">24 / 7</span></div>`;
+    h+=`<div class="center" style="top:${V?170:120}px;font-size:46px;font-weight:700;opacity:${ease(f(0,0.6))}">Three new teammates. One subscription.</div>`;
     return h;
   }
   if(kind==='compound'){
     // compound-interest curve with article blocks stacking
-    const x0=260,y0=760,w=1400,hgt=520; const p=ease(f(0.5,dur-4));
+    const x0=V?90:260,y0=V?1330:760,w=V?900:1400,hgt=V?620:520; const p=ease(f(0.5,dur-4));
     let pts=[];for(let i=0;i<=60;i++){const x=i/60; if(x>p) break; pts.push([x0+x*w, y0-hgt*(Math.pow(1.045,x*60)-1)/(Math.pow(1.045,60)-1)]);}
     const path=pts.map((q,i)=>(i?'L':'M')+q[0].toFixed(1)+','+q[1].toFixed(1)).join(' ');
     const days=['Mon','Tue','Wed','Thu','Fri','Sat','Sun','Mon','Tue','Wed'];
     let blocks='';days.forEach((d,i)=>{const at=1+i*(dur-6)/days.length;const a=f(at,at+0.5);if(a<=0)return;const x=x0+((i+0.5)/days.length)*w;
-      blocks+=`<div style="position:absolute;left:${x-44}px;top:${y0+24}px;width:88px;opacity:${a};text-align:center"><div style="height:${18+i*5}px;background:#2563eb;border-radius:6px 6px 2px 2px;margin-top:${60-i*5}px"></div><div style="font-size:18px;color:#9fb0cc;margin-top:6px">${d}</div></div>`;});
+      blocks+=`<div style="position:absolute;left:${x-(V?36:44)}px;top:${y0+24}px;width:${V?72:88}px;opacity:${a};text-align:center"><div style="height:${18+i*5}px;background:#2563eb;border-radius:6px 6px 2px 2px;margin-top:${60-i*5}px"></div><div style="font-size:18px;color:#9fb0cc;margin-top:6px">${d}</div></div>`;});
     const labels=[['Your voice',3],['Your house style',6.5],['Your archive',10],['What your editors changed',13.5]];
-    let lab='';labels.forEach((l,i)=>{const a=ease(f(l[1],l[1]+0.6));lab+=`<div style="position:absolute;left:${x0+40}px;top:${250+i*64}px;font-size:32px;font-weight:600;opacity:${a};transform:translateX(${-20*(1-a)}px)">✓ ${l[0]}</div>`;});
+    let lab='';labels.forEach((l,i)=>{const a=ease(f(l[1],l[1]+0.6));lab+=`<div style="position:absolute;left:${x0+40}px;top:${(V?280+i*72:250+i*64)}px;font-size:${V?38:32}px;font-weight:600;opacity:${a};transform:translateX(${-20*(1-a)}px)">✓ ${l[0]}</div>`;});
     const end=pts[pts.length-1]||[x0,y0];
-    return `<svg width="1920" height="1080" style="position:absolute;left:0;top:0"><line x1="${x0}" y1="${y0}" x2="${x0+w}" y2="${y0}" stroke="#2b3d5c" stroke-width="2"/><path d="${path}" fill="none" stroke="#60a5fa" stroke-width="6" stroke-linecap="round"/><circle cx="${end[0]}" cy="${end[1]}" r="10" fill="#60a5fa"/></svg>
-      <div style="position:absolute;left:${x0+w-420}px;top:${y0-hgt-20}px;font-size:28px;color:#9fb0cc;opacity:${ease(f(2,3))}">Your knowledge base</div>${lab}${blocks}`;
+    return `<svg width="${SW}" height="${SH}" style="position:absolute;left:0;top:0"><line x1="${x0}" y1="${y0}" x2="${x0+w}" y2="${y0}" stroke="#2b3d5c" stroke-width="2"/><path d="${path}" fill="none" stroke="#60a5fa" stroke-width="6" stroke-linecap="round"/><circle cx="${end[0]}" cy="${end[1]}" r="10" fill="#60a5fa"/></svg>
+      <div style="position:absolute;left:${x0+w-(V?300:420)}px;top:${y0-hgt-(V?70:20)}px;font-size:28px;color:#9fb0cc;opacity:${ease(f(2,3))}">Your knowledge base</div>${lab}${blocks}`;
   }
   if(kind==='grow'){
     const items=[['Audience','Be first',0.5],['Brand','Be everywhere',4.5],['Revenue','More readers, page views, subscribers',8.5]];
-    let h='';items.forEach((it,i)=>{const a=ease(f(it[2],it[2]+0.8));const x=210+i*540;
+    let h='';items.forEach((it,i)=>{const a=ease(f(it[2],it[2]+0.8));const x=V?30+i*340:210+i*540;
       const bh=120+i*120;
-      h+=`<div style="position:absolute;left:${x}px;top:${300}px;width:420px;opacity:${a};text-align:center">
-        <div style="height:360px;position:relative"><div style="position:absolute;bottom:0;left:150px;width:120px;height:${bh*a}px;background:linear-gradient(#60a5fa,#2563eb);border-radius:12px 12px 4px 4px"></div></div>
+      h+=`<div style="position:absolute;left:${x}px;top:${V?560:300}px;width:${V?340:420}px;opacity:${a};text-align:center">
+        <div style="height:360px;position:relative"><div style="position:absolute;bottom:0;left:${V?110:150}px;width:120px;height:${bh*a}px;background:linear-gradient(#60a5fa,#2563eb);border-radius:12px 12px 4px 4px"></div></div>
         <div style="font-size:52px;font-weight:800;margin-top:18px">${it[0]}</div><div style="font-size:26px;color:#9fb0cc;margin-top:6px">${it[1]}</div></div>`;});
     return h;
   }
   if(kind==='close'){
     const a=ease(f(0.3,1.3));
-    return `<div class="center" style="top:360px;opacity:${a}"><div style="display:inline-flex;align-items:center;gap:26px"><div style="width:120px;height:120px;border-radius:26px;background:#2563eb;display:flex;align-items:center;justify-content:center;font-size:56px;font-weight:800">CP</div><div style="font-size:96px;font-weight:800;letter-spacing:-1px">CoPublisher AI</div></div>
+    return `<div class="center" style="top:${V?720:360}px;opacity:${a}"><div style="display:inline-flex;align-items:center;gap:26px"><div style="width:120px;height:120px;border-radius:26px;background:#2563eb;display:flex;align-items:center;justify-content:center;font-size:56px;font-weight:800">CP</div><div style="font-size:96px;font-weight:800;letter-spacing:-1px">CoPublisher AI</div></div>
       <div style="font-size:44px;color:#c9d6ea;margin-top:34px;opacity:${ease(f(1.5,2.4))}">Your newsroom, never off the clock.</div>
       <div style="font-size:26px;color:#7f93b4;margin-top:40px;opacity:${ease(f(2.5,3.3))}">[your website] · [your email]</div></div>`;
   }
@@ -170,7 +197,7 @@ function render(t){
   if(s.graphic){ h+=graphicHTML(s.graphic, lt, s.dur); }
   else { let acc=0; for(const sh of s.shots){ if(lt<acc+sh.dur){ h+=shotHTML(sh, lt-acc); if(sh.sample) h+='<div class="tag">Sample data</div>'; break;} acc+=sh.dur; } }
   if(s.title){ const a=clamp(Math.min(lt/0.4,(s.dur-lt)/0.4),0,1); h+=`<div class="ost" style="opacity:${a}">${s.title}</div>`; }
-  if(s.badge){ const a=clamp(Math.min(lt/0.4,(s.dur-lt)/0.4),0,1); h+=`<div style="position:absolute;right:160px;top:34px;font-size:28px;font-weight:800;background:#f59e0b;color:#0f1b2d;padding:10px 20px;border-radius:10px;opacity:${a}">${s.badge}</div>`; }
+  if(s.badge){ const a=clamp(Math.min(lt/0.4,(s.dur-lt)/0.4),0,1); h+=`<div style="position:absolute;right:${V?40:160}px;top:${V?62:34}px;font-size:28px;font-weight:800;background:#f59e0b;color:#0f1b2d;padding:10px 20px;border-radius:10px;opacity:${a}">${s.badge}</div>`; }
   const c=captionAt(s.vo, lt, s.dur);
   if(s.graphic!=='close') h+=`<div class="cap" style="opacity:${c.a}">${c.text}</div>`;
   const sceneFade=clamp(Math.min(lt/0.3,(s.dur-lt)/0.3),0,1);
