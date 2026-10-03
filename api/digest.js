@@ -32,6 +32,7 @@ const buildDigestEmailHTML = (alerts, date) => {
       sectionsHTML += '<div style="font-size:14px;font-weight:600;color:#1a1a1a;margin-bottom:4px;">' + item.headline + '</div>';
       if (item.summary) sectionsHTML += '<div style="font-size:12px;color:#555;line-height:1.5;">' + item.summary + '</div>';
       sectionsHTML += '<div style="font-size:11px;color:#888;margin-top:4px;">' + item.source + ' &middot; ' + item.time + '</div>';
+      sectionsHTML += require('./_story-ratings').emailLinks(item);
       sectionsHTML += '</div>';
     });
     sectionsHTML += '</div>';
