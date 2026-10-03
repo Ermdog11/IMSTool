@@ -40,6 +40,9 @@ Last updated: 2026-09-13
 | Story backlog | Auto-generates story angles from the current news. |
 | Desktop notifications | Optional browser push for breaking news. |
 | Real section URLs | Every section is its own bookmarkable, shareable address; browser back/forward works. |
+| Opps Spy | Follow your closest competition. Pick the outlets you compete with and every story they publish on your beat shows up within 15 minutes, flagged as a **Gap** when you haven't covered it, with how much they publish and what they're writing about. Get an email (texts coming) the moment they publish. |
+
+---
 
 ### Content Editor
 

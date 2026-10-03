@@ -233,6 +233,7 @@ body { padding-bottom: 40px; }
   <button class="nav-tab" id="tab-btn-10" onclick="switchTab(10)">Settings</button>
   <button class="nav-tab" id="tab-btn-11" onclick="switchTab(11)">📈 Analytics</button>
   <button class="nav-tab" id="tab-btn-12" onclick="switchTab(12)">🏈 Roster watch</button>
+  <button class="nav-tab" id="tab-btn-13" onclick="switchTab(13)">🕵️ Opps Spy</button>
 </div>
 
 <!-- ALERTS TAB -->
@@ -740,6 +741,21 @@ body { padding-bottom: 40px; }
   </div>
 </div>
 
+<!-- OPPS SPY TAB -->
+<div class="page" id="page-13">
+  <div style="padding:16px 0 8px;">
+    <h3 style="margin:0;font-size:1.1rem;">🕵️ Opps Spy</h3>
+    <p style="color:var(--text2);font-size:.85rem;margin:4px 0 0;max-width:68ch;">Follow your closest competition. Every story they publish on your beat shows up here within 15 minutes, marked <b>Gap</b> when we haven't covered it. Choose who to follow, and who emails you when they publish, in <a href="/setup">setup → Your beat</a>.</p>
+  </div>
+  <div id="oppsCards" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:10px;margin:8px 0 16px;"></div>
+  <div style="display:flex;gap:8px;align-items:center;margin-bottom:8px;flex-wrap:wrap;">
+    <b style="font-size:.95rem;">Latest from the competition</b>
+    <label style="font-size:.82rem;color:var(--text2);display:flex;gap:5px;align-items:center;margin-left:auto;"><input type="checkbox" id="oppsGapsOnly" onchange="renderOpps()"> Gaps only</label>
+    <select id="oppsOutlet" onchange="renderOpps()" style="font-size:.82rem;padding:4px 6px;border:1px solid var(--border);border-radius:6px;"><option value="">All outlets</option></select>
+  </div>
+  <div id="oppsList"><div class="empty"><i class="ti ti-eye"></i>Loading…</div></div>
+</div>
+
 <div class="bottom-bar">
   <span class="bb-brand">INSIDEMDSPORTS</span>
   <span class="bb-tag">TERPS NEWS MONITOR</span>
@@ -812,7 +828,7 @@ const SCAN_MS = 30 * 60 * 1000;
 // scan run on /alerts still feeds /digest, /podcasts, etc. without
 // re-fetching. vercel.json rewrites every path below back to this file.
 // ============================================================
-var TAB_PATHS = ['/alerts','/digest','/social','/chat','/backlog','/recruiting','/trending','/podcasts','/youtube','/bluesky','/settings','/analytics','/roster'];
+var TAB_PATHS = ['/alerts','/digest','/social','/chat','/backlog','/recruiting','/trending','/podcasts','/youtube','/bluesky','/settings','/analytics','/roster','/opps'];
 function pathToTab(p) {
   p = String(p || '/').replace(/\/+$/, '') || '/';
   if (p === '/' || p === '/index.html' || p === '/index') return 0;
@@ -830,6 +846,7 @@ function switchTab(idx, fromPop) {
   if (idx === 10) { renderBlockedSources(); renderOwnSites(); refreshPushStatus(); loadTeam(); loadScrapeSessionStatus(); loadSocialPromoStatus(); loadSearchSettingsStatus(); loadGoogleSearchSettingsStatus(); loadXSettingsStatus(); loadXWatchHandles(); }
   if (idx === 11) renderAnalyticsConnections();
   if (idx === 12) loadRosterWatch();
+  if (idx === 13) loadOppsSpy();
   window.scrollTo(0, 0);
   if (!fromPop) {
     try { history.pushState({ imsTab: idx }, '', TAB_PATHS[idx]); } catch (e) {}
@@ -2589,6 +2606,60 @@ async function refreshChartbeatInsights() {
 // ============================================================
 // ROSTER WATCH — current roster + dated add/drop history per team
 // ============================================================
+// ---- Opps Spy (api/opps-spy.js) ----
+var oppsData = { competitors: [], items: [] };
+function oppsAgo(t) {
+  var m = Math.round((Date.now() - t) / 60000);
+  return m < 60 ? m + 'm ago' : m < 1440 ? Math.round(m / 60) + 'h ago' : Math.round(m / 1440) + 'd ago';
+}
+function oppsEsc(s) { var d = document.createElement('div'); d.textContent = s == null ? '' : String(s); return d.innerHTML; }
+async function loadOppsSpy() {
+  var list = document.getElementById('oppsList');
+  try {
+    var fetcher = window.IMSAuth ? IMSAuth.authFetch : fetch;
+    var r = await fetcher('/api/opps-spy');
+    var d = await r.json();
+    if (d.error) throw new Error(d.error);
+    oppsData = d;
+    var sel = document.getElementById('oppsOutlet'), cur = sel.value;
+    sel.innerHTML = '<option value="">All outlets</option>' + d.competitors.map(function (c) { return '<option>' + oppsEsc(c.name) + '</option>'; }).join('');
+    sel.value = cur;
+    renderOpps();
+  } catch (e) {
+    list.innerHTML = '<div class="empty" style="padding:12px;">Couldn\'t load Opps Spy — ' + oppsEsc(e.message) + '</div>';
+  }
+}
+function renderOpps() {
+  var cards = document.getElementById('oppsCards'), list = document.getElementById('oppsList');
+  var comps = oppsData.competitors || [];
+  if (!comps.length) {
+    cards.innerHTML = '';
+    list.innerHTML = '<div class="empty" style="padding:18px;"><i class="ti ti-eye"></i>You aren\'t following any competitors yet. In <a href="/setup">setup → Your beat</a>, check <b>Email me when they publish</b> or <b>Text me</b> on the outlets you compete with most.</div>';
+    return;
+  }
+  cards.innerHTML = comps.map(function (c) {
+    return '<div style="background:var(--bg2);border:1px solid var(--border);border-radius:10px;padding:12px;">' +
+      '<div style="display:flex;justify-content:space-between;gap:6px;"><b>' + oppsEsc(c.name) + '</b><span style="font-size:.8rem;">' + (c.alertEmail ? '✉️' : '') + (c.alertText ? '💬' : '') + '</span></div>' +
+      '<div style="display:flex;gap:14px;margin:8px 0 6px;font-size:.8rem;color:var(--text2);">' +
+        '<span><b style="font-size:1.15rem;color:var(--text);">' + c.last24 + '</b> today</span>' +
+        '<span><b style="font-size:1.15rem;color:var(--text);">' + c.last7 + '</b> this week</span>' +
+        '<span><b style="font-size:1.15rem;color:' + (c.gaps7 ? 'var(--red)' : 'var(--text)') + ';">' + c.gaps7 + '</b> gaps</span></div>' +
+      '<div style="font-size:.75rem;color:var(--text3);">' + (c.lastAt ? 'Last story ' + oppsAgo(c.lastAt) : (c.following ? 'No stories yet' : 'Starts within 15 minutes')) + '</div>' +
+      (c.topics.length ? '<div style="margin-top:6px;display:flex;flex-wrap:wrap;gap:4px;">' + c.topics.map(function (t) { return '<span style="font-size:.72rem;background:var(--bg);border:1px solid var(--border);border-radius:10px;padding:1px 7px;">' + oppsEsc(t) + '</span>'; }).join('') + '</div>' : '') +
+      '</div>';
+  }).join('');
+  var gapsOnly = document.getElementById('oppsGapsOnly').checked, only = document.getElementById('oppsOutlet').value;
+  var items = (oppsData.items || []).filter(function (i) { return (!gapsOnly || !i.covered) && (!only || i.outlet === only); });
+  list.innerHTML = items.length ? items.map(function (i) {
+    return '<div style="display:flex;gap:10px;align-items:flex-start;padding:10px 12px;background:var(--bg2);border:1px solid var(--border);border-radius:8px;margin-bottom:6px;">' +
+      '<div style="flex:1;min-width:0;"><div style="font-size:.75rem;color:var(--text3);">' + oppsEsc(i.outlet) + ' · ' + oppsAgo(i.at) + '</div>' +
+      '<a href="' + oppsEsc(i.url) + '" target="_blank" rel="noopener" style="font-weight:600;color:var(--text);text-decoration:none;">' + oppsEsc(i.title) + '</a></div>' +
+      (i.covered ? '<span style="font-size:.72rem;color:var(--green);background:var(--green-light);border-radius:10px;padding:2px 8px;white-space:nowrap;">We covered it</span>'
+        : '<span style="font-size:.72rem;color:#fff;background:var(--red);border-radius:10px;padding:2px 8px;white-space:nowrap;">Gap</span>') +
+      '</div>';
+  }).join('') : '<div class="empty" style="padding:14px;">' + (gapsOnly ? 'No gaps. We\'ve covered everything they have.' : 'No stories yet. New ones appear within 15 minutes of publishing.') + '</div>';
+}
+
 async function loadRosterWatch() {
   const c = document.getElementById('rosterWatchContainer');
   try {
