@@ -82,6 +82,13 @@
    "enabled": true
   }
  },
+ "records": {
+  "public": true,
+  "agency": "University of Maryland, College Park",
+  "law": "Maryland Public Information Act (Md. Code Ann., Gen. Prov. §§ 4-101 et seq.)",
+  "email": "PublicInformationAct@umd.edu",
+  "mail": "PIA Office, 2101 Main Administration Building, University of Maryland, College Park, MD 20742"
+ },
  "ownSite": {
   "url": "https://247sports.com/college/maryland/",
   "articlePath": "/college/maryland/",

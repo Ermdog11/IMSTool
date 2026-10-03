@@ -20,6 +20,9 @@
     "api/site-profile.js": {
       "maxDuration": 120
     },
+    "api/records-request.js": {
+      "maxDuration": 60
+    },
     "api/write-story.js": {
       "maxDuration": 120
     },

@@ -1019,6 +1019,7 @@ function renderAlerts() {
         <button class="aaction" onclick="getAutoBrief(${idx})"><i class="ti ti-file-text"></i> Auto-brief</button>
         <button class="aaction" onclick="getSEO(${idx})"><i class="ti ti-search"></i> SEO</button>
         <button class="aaction" onclick="getSocial(${idx})"><i class="ti ti-brand-twitter"></i> Draft social</button>
+        ${recordsWorthy(a) ? `<button class="aaction" onclick="requestRecords(${idx}, this)" title="Draft a public-records (FOIA / state open-records) request for the contract or documents behind this story"><i class="ti ti-file-search"></i> Request records</button>` : ''}
         <button class="aaction" onclick="claimStory(${idx})"><i class="ti ti-hand-stop"></i> Claim</button>
         <button class="aaction" onclick="flagStory(${idx})" title="Flag as junk — trains the scanner to exclude similar stories" style="color:#c00;"><i class="ti ti-flag"></i> Flag</button>
         <button class="aaction" onclick="blockSource(${idx})" title="Block ${(a.source||'').replace(/"/g,'&quot;')} — hide this site from all future results" style="color:#c00;"><i class="ti ti-ban"></i> Block source</button>
@@ -1663,6 +1664,99 @@ async function writeIt(idx, btn) {
     out.innerHTML = '<h4>Write it</h4>Couldn’t draft it — ' + String(e.message || e).replace(/</g,'&lt;');
   } finally {
     if (btn) btn.disabled = false;
+  }
+}
+
+// "Request records": stories about contracts, hires, schedules, money and
+// facilities usually have a document behind them that a public school must
+// release under public-records law. The button only appears on those stories;
+// api/records-request.js decides whether the records are actually obtainable
+// and drafts the letter, which a person reviews, edits and sends (or opens in
+// their own email). Nothing goes out without a click.
+function recordsWorthy(a) {
+  if (!a || a.kind === 'video' || ['social', 'podcast'].includes(a.category)) return false;
+  // Regex inline (not a top-level const): renderAlerts can run before this
+  // part of the script has executed.
+  return /\b(contracts?|extension|extended|buyouts?|salar(y|ies)|compensation|raises?|payouts?|budgets?|deficit|revenue|donations?|donors?|gifts?|fundrais\w*|facilit(y|ies)|stadium|arena|renovations?|construction|lawsuits?|sued|settlements?|investigations?|title ix|nil (deal|fund|collective|budget)|revenue.sharing|house settlement|athletic director|hired|hires|hiring|fired|firing|dismissed|terminat\w*|agreements?|memorandum|series|home-and-home|neutral.site|scheduled?|scheduling|guarantee|apparel|sponsorship|media rights|tv deal|realignment|exit fee|audit|expenses?|charter)\b/i.test((a.headline || '') + ' ' + (a.summary || ''));
+}
+const recordsDrafts = {};
+async function requestRecords(idx, btn) {
+  const a = allAlerts[idx];
+  const out = document.getElementById(`output-${idx}`);
+  out.className = 'aaction-output visible';
+  out.innerHTML = '<h4>Public records request</h4><i class="ti ti-loader spin"></i> Checking whether public-records law covers this and drafting a request…';
+  if (btn) btn.disabled = true;
+  try {
+    const res = await IMSAuth.authFetch('/api/records-request', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'draft', alert: { headline: a.headline, summary: a.summary, source: a.source, url: a.url } })
+    });
+    const d = await res.json();
+    if (!res.ok || d.error) throw new Error(d.error || 'Draft failed');
+    recordsDrafts[idx] = d;
+    renderRecordsDraft(idx);
+  } catch (e) {
+    out.innerHTML = '<h4>Public records request</h4>Couldn’t draft it — ' + escapeHtml(e.message || e);
+  } finally {
+    if (btn) btn.disabled = false;
+  }
+}
+function renderRecordsDraft(idx) {
+  const d = recordsDrafts[idx], out = document.getElementById(`output-${idx}`);
+  if (!d.eligible) {
+    out.innerHTML = '<h4>Public records request</h4>' + escapeHtml(d.reason || 'These records don’t look obtainable under public-records law.');
+    return;
+  }
+  const me = (IMSAuth.state.user && IMSAuth.state.user.email) || '';
+  const canSend = !IMSAuth.state.configured || IMSAuth.isEditor();
+  const fld = 'width:100%;box-sizing:border-box;font:inherit;font-size:12px;padding:6px 8px;border:1px solid var(--border);border-radius:6px;background:#fff;color:var(--text);margin:2px 0 8px;';
+  out.innerHTML = `<h4>Public records request</h4>
+    <div style="margin-bottom:6px;">${escapeHtml(d.reason || '')}</div>
+    ${d.law ? `<div style="margin-bottom:6px;"><b>Law:</b> ${escapeHtml(d.law)}${d.agency ? ' · <b>To:</b> ' + escapeHtml(d.agency) : ''}</div>` : ''}
+    ${d.records.length ? `<div style="margin-bottom:8px;"><b>Asks for:</b><ul style="margin:4px 0 0 18px;padding:0;">${d.records.map(r => '<li>' + escapeHtml(r) + '</li>').join('')}</ul></div>` : ''}
+    <label style="font-size:11px;font-weight:700;">Records office email</label>
+    <input id="rr-to-${idx}" type="email" value="${escapeHtml(d.to || '')}" placeholder="records office email address" style="${fld}">
+    <label style="font-size:11px;font-weight:700;">CC (you're always copied${me ? ' at ' + escapeHtml(me) : ''}; replies come to you)</label>
+    <input id="rr-cc-${idx}" type="text" value="" placeholder="${me ? 'anyone else, optional' : 'your email (required, so the office can reply to you)'}" style="${fld}">
+    <label style="font-size:11px;font-weight:700;">Subject</label>
+    <input id="rr-subject-${idx}" type="text" value="${escapeHtml(d.subject || '')}" style="${fld}">
+    <label style="font-size:11px;font-weight:700;">Letter — review and edit before sending</label>
+    <textarea id="rr-body-${idx}" rows="16" style="${fld}resize:vertical;line-height:1.5;">${escapeHtml(d.body || '')}</textarea>
+    ${d.response_note ? `<div style="margin-bottom:8px;color:var(--text3);">${escapeHtml(d.response_note)}</div>` : ''}
+    <div style="display:flex;gap:6px;flex-wrap:wrap;">
+      ${canSend ? `<button class="aaction" style="font-weight:700;" onclick="sendRecordsRequest(${idx}, this)"><i class="ti ti-send"></i> Send request</button>` : ''}
+      <button class="aaction" onclick="mailtoRecordsRequest(${idx})"><i class="ti ti-mail"></i> Open in my email</button>
+      <button class="aaction" onclick="navigator.clipboard.writeText(document.getElementById('rr-body-${idx}').value);this.innerHTML='<i class=&quot;ti ti-check&quot;></i> Copied'"><i class="ti ti-copy"></i> Copy letter</button>
+    </div>
+    <div id="rr-status-${idx}" style="margin-top:6px;"></div>`;
+}
+function mailtoRecordsRequest(idx) {
+  const v = id => document.getElementById(`rr-${id}-${idx}`).value.trim();
+  window.location.href = 'mailto:' + encodeURIComponent(v('to')) + '?subject=' + encodeURIComponent(v('subject')) +
+    (v('cc') ? '&cc=' + encodeURIComponent(v('cc')) : '') + '&body=' + encodeURIComponent(v('body'));
+}
+async function sendRecordsRequest(idx, btn) {
+  const a = allAlerts[idx], d = recordsDrafts[idx];
+  const v = id => document.getElementById(`rr-${id}-${idx}`).value.trim();
+  const status = document.getElementById(`rr-status-${idx}`);
+  if (!v('to')) { status.textContent = 'Enter the records office email address first.'; return; }
+  if (!confirm(`Send this records request to ${v('to')}?\n\nIt goes out under your name from the CoPublisher mailbox. You're CC'd, and replies come straight to you.`)) return;
+  btn.disabled = true;
+  status.innerHTML = '<i class="ti ti-loader spin"></i> Sending…';
+  try {
+    const res = await IMSAuth.authFetch('/api/records-request', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'send', to: v('to'), cc: v('cc'), subject: v('subject'), body: v('body'),
+        agency: d.agency, law: d.law, responseNote: d.response_note,
+        alert: { headline: a.headline, summary: a.summary, source: a.source, url: a.url } })
+    });
+    const r = await res.json();
+    if (!res.ok || r.error) throw new Error(r.error || 'Send failed');
+    status.innerHTML = '<b>Sent</b> to ' + escapeHtml(r.request.to) + (r.request.cc.length ? ' (CC ' + escapeHtml(r.request.cc.join(', ')) + ')' : '') + '. ' + escapeHtml(d.response_note || '');
+    btn.innerHTML = '<i class="ti ti-check"></i> Sent';
+  } catch (e) {
+    status.textContent = 'Couldn’t send — ' + (e.message || e);
+    btn.disabled = false;
   }
 }
 

@@ -22,6 +22,10 @@
 //     (official pages Roster Watch checks for changes: each team's player roster and
 //     its coaches/staff page, plus the athletic department staff directory for a
 //     college beat or the front office page for a pro beat; see api/_roster.js)
+//   records:{public, agency, law, email, portal, mail, notes}
+//     (public-records requests from the alert cards, api/records-request.js:
+//     public=true for a public university or other government body; the
+//     records office's address so drafts are ready to send)
 //
 // `rating` (1-5) on outlets, feeds and watch groups is the publisher's own
 // importance score from the setup wizard; see weightNote().
@@ -95,6 +99,19 @@ function normalize(b) {
       return o;
     }).filter(function (x) { return x.label && (x.url || x.staffUrl); }).slice(0, 20),
     department: { url: webUrl(dept.url), enabled: dept.enabled !== false }
+  };
+  // Public-records office. public stays undefined when unknown (the drafting
+  // step then judges from the story and the school).
+  var rec = b.records || {};
+  var email = String(rec.email || '').trim();
+  b.records = {
+    public: rec.public === true ? true : rec.public === false ? false : undefined,
+    agency: String(rec.agency || '').trim().slice(0, 200),
+    law: String(rec.law || '').trim().slice(0, 300),
+    email: /^[^\s@<>]+@[^\s@<>]+\.[^\s@<>]+$/.test(email) ? email : '',
+    portal: webUrl(rec.portal),
+    mail: String(rec.mail || '').trim().slice(0, 300),
+    notes: String(rec.notes || '').trim().slice(0, 1000)
   };
   // "Block all results from this source": its stories are dropped wherever
   // they show up (Google News, Bing, anywhere), not just its own feed.
