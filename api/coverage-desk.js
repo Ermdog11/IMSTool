@@ -38,7 +38,9 @@ function glanceHtml(y) {
     }
     if ((site.topStories || []).length) {
       h += '<ol style="margin:4px 0 0 18px;padding:0;font-size:13px">' + site.topStories.slice(0, 5).map(function (st) {
-        return '<li>' + esc(st.title) + ' <span style="color:#888">&mdash; ' + num(st.readers) + ' readers across ' + st.readings + ' reading' + (st.readings === 1 ? '' : 's') +
+        // Chartbeat paths carry the host ("site.com/a/b"), so they link straight to the story.
+        var storyUrl = /^https?:\/\//i.test(st.path || '') ? st.path : /^[a-z0-9.-]+\.[a-z]{2,}\//i.test(st.path || '') ? 'https://' + st.path : '';
+        return '<li>' + (storyUrl ? '<a href="' + esc(storyUrl) + '" style="color:#2563eb">' + esc(st.title) + '</a>' : esc(st.title)) + ' <span style="color:#888">&mdash; ' + num(st.readers) + ' readers across ' + st.readings + ' reading' + (st.readings === 1 ? '' : 's') +
           (st.fromSearch || st.fromSocial ? ', ' + num(st.fromSearch || 0) + ' from search, ' + num(st.fromSocial || 0) + ' from social' : '') +
           (st.socialPostsYesterday === 0 ? ', <b style="color:#b45309">no social posts</b>' : st.socialPostsYesterday ? ', ' + st.socialPostsYesterday + ' social post' + (st.socialPostsYesterday === 1 ? '' : 's') : '') + '</span></li>';
       }).join('') + '</ol>';
@@ -54,7 +56,12 @@ function glanceHtml(y) {
       (chans.length ? ': ' + chans.map(function (c) { return esc(c) + ' (' + so.byChannel[c].posts + ')'; }).join(', ') : '') + '.</div>';
     if ((so.topPostsLast7Days || []).length) {
       h += '<div style="font-size:12px;color:#555;margin-top:4px">Best posts of the last 7 days:</div><ol style="margin:2px 0 0 18px;padding:0;font-size:13px">' +
-        so.topPostsLast7Days.slice(0, 3).map(function (p) { return '<li>' + esc(String(p.text || '').replace(/https?:\/\/\S+/g, '').trim() || '(link only)') + ' <span style="color:#888">&mdash; ' + esc(p.channel) + ', ' + num(p.interactions) + ' interactions</span></li>'; }).join('') + '</ol>';
+        so.topPostsLast7Days.slice(0, 3).map(function (p) {
+          var label = esc(String(p.text || '').replace(/https?:\/\/\S+/g, '').trim() || '(link only)');
+          // Links to the post itself on the social network (Buffer's externalLink).
+          return '<li>' + (p.postUrl ? '<a href="' + esc(p.postUrl) + '" style="color:#2563eb">' + label + '</a>' : label) +
+            ' <span style="color:#888">&mdash; ' + esc(p.channel) + ', ' + num(p.interactions) + ' interactions</span></li>';
+        }).join('') + '</ol>';
     }
     h += '<div style="font-size:11px;color:#888;margin-top:4px">' + esc(so.note) + '</div>';
   }
@@ -76,7 +83,7 @@ function glanceHtml(y) {
       (xx.avgImpressionsPerTweetLast7Days != null ? ' <span style="color:#888">(7-day average ' + num(xx.avgImpressionsPerTweetLast7Days) + ' impressions per tweet)</span>' : '') + '.</div>';
     if ((xx.topTweets || []).length) {
       h += '<ol style="margin:4px 0 0 18px;padding:0;font-size:13px">' + xx.topTweets.slice(0, 3).map(function (t) {
-        return '<li><a href="' + esc(t.url) + '" style="color:inherit">' + esc(String(t.text).replace(/https?:\/\/\S+/g, '').trim() || '(link only)') + '</a> <span style="color:#888">&mdash; ' + num(t.impressions) + ' impressions, ' + num(t.interactions) + ' interactions</span></li>';
+        return '<li><a href="' + esc(t.url) + '" style="color:#2563eb">' + esc(String(t.text).replace(/https?:\/\/\S+/g, '').trim() || '(link only)') + '</a> <span style="color:#888">&mdash; ' + num(t.impressions) + ' impressions, ' + num(t.interactions) + ' interactions</span></li>';
       }).join('') + '</ol>';
     }
     h += '<div style="font-size:11px;color:#888;margin-top:4px">' + esc(xx.note) + '</div>';

@@ -90,7 +90,8 @@ async function socialYesterday(sb, siteId, start, end) {
       channel: chName[p.channelId] || p.channelService, service: p.channelService,
       text: String(p.text || '').replace(/\s+/g, ' ').trim().slice(0, 160),
       sentAt: etLabel(p.sentAt || p.dueAt, { weekday: 'short', hour: 'numeric', minute: '2-digit' }),
-      links: links, metrics: m, interactions: BufferApi.engagementOf(m), measured: !!(p.metrics && p.metrics.length)
+      links: links, postUrl: /^https?:\/\//.test(p.externalLink || '') ? p.externalLink : null,
+      metrics: m, interactions: BufferApi.engagementOf(m), measured: !!(p.metrics && p.metrics.length)
     };
   }
   // Buffer refreshes metrics about once a day, so yesterday's posts may not
