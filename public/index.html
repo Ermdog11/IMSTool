@@ -753,12 +753,12 @@ body { padding-bottom: 40px; }
 <div class="page" id="page-12">
   <div style="padding:16px 0 8px;">
     <h3 style="margin:0;font-size:1.1rem;">🏈 Roster watch</h3>
-    <p style="color:var(--muted);font-size:.85rem;margin:4px 0 0;max-width:64ch;">Each team's roster page is checked 3×/week — you get an email the moment a name is added or drops off, often before a transfer or injury is reported anywhere. This page is the record: today's roster and every change caught, dated.</p>
+    <p style="color:var(--muted);font-size:.85rem;margin:4px 0 0;max-width:64ch;">Official pages are checked 3×/week: each team's roster, its coaches and staff, and the <span id="rosterDeptWord">athletic department</span> directory. You get an email the moment a name is added, drops off, or gets a new title, often before the move is reported anywhere. This page is the record: who is listed today and every change caught, dated. Choose the pages in <a href="/setup">setup → Roster watch</a>.</p>
   </div>
   <div class="scan-bar" style="margin-bottom:14px;">
     <div class="scan-indicator">
       <div class="scan-dot" style="background:#3B6D11;"></div>
-      <div class="scan-text" id="rosterStatusText"><strong>Watching</strong> — Football, Men's &amp; Women's Basketball, Men's &amp; Women's Lacrosse</div>
+      <div class="scan-text" id="rosterStatusText"><strong>Watching</strong></div>
     </div>
     <button class="scan-btn" id="rosterCheckBtn" onclick="runRosterCheckNow(this)"><i class="ti ti-refresh"></i> Check now</button>
   </div>
@@ -3211,54 +3211,109 @@ async function loadRosterWatch() {
     const fetcher = window.IMSAuth ? IMSAuth.authFetch : fetch;
     const r = await fetcher('/api/roster-view');
     const d = await r.json();
-    if (d.error) { c.innerHTML = `<div class="empty" style="padding:12px;">${d.error}</div>`; return; }
-    renderRosterWatch(d.teams || []);
+    if (d.error) { c.innerHTML = `<div class="empty" style="padding:12px;">${oppsEsc(d.error)}</div>`; return; }
+    renderRosterWatch(d);
   } catch (e) {
-    c.innerHTML = `<div class="empty" style="padding:12px;">Couldn't load roster watch — ${e.message}</div>`;
+    c.innerHTML = `<div class="empty" style="padding:12px;">Couldn't load roster watch — ${oppsEsc(e.message)}</div>`;
   }
 }
 
-function renderRosterWatch(teams) {
-  const c = document.getElementById('rosterWatchContainer');
-  if (!teams.length) { c.innerHTML = '<div class="empty"><i class="ti ti-users"></i>No teams configured.</div>'; return; }
+// People as chips ("Name — Title"); long lists fold away so a 400-person
+// directory doesn't bury the history underneath it.
+function rosterPeopleHtml(people, emptyText) {
+  if (!(people || []).length) return `<div class="empty" style="padding:10px;">${emptyText}</div>`;
+  const chip = p => `<span class="stag">${oppsEsc(p.name)}${p.jersey ? ' #' + oppsEsc(p.jersey) : ''}${p.title && p.jersey == null ? ' <span style="opacity:.65">— ' + oppsEsc(p.title) + '</span>' : ''}</span>`;
+  const grouped = people.some(p => p.group);
+  let body;
+  if (grouped) {
+    const order = [], by = {};
+    people.forEach(p => { const g = p.group || 'Other'; if (!by[g]) { by[g] = []; order.push(g); } by[g].push(p); });
+    body = order.map(g => `<div style="font-size:11px;font-weight:600;color:var(--text3);margin:8px 0 4px;">${oppsEsc(g)}</div><div class="tag-cloud">${by[g].map(chip).join('')}</div>`).join('');
+  } else {
+    body = `<div class="tag-cloud">${people.map(chip).join('')}</div>`;
+  }
+  return people.length > 40
+    ? `<details><summary style="cursor:pointer;font-size:12px;color:var(--text2);">Show all ${people.length} people</summary>${body}</details>`
+    : body;
+}
 
-  c.innerHTML = teams.map(t => {
-    const rosterChips = (t.roster || []).length
-      ? `<div class="tag-cloud">${t.roster.map(p => `<span class="stag">${p.name}${p.jersey ? ' #' + p.jersey : ''}</span>`).join('')}</div>`
-      : '<div class="empty" style="padding:10px;">No baseline yet — the next check will establish one.</div>';
-
-    const history = (t.history || []).slice(0, 25);
-    const historyList = history.length
-      ? history.map(h => `<div style="display:flex;justify-content:space-between;gap:10px;padding:5px 0;border-bottom:1px solid var(--border);font-size:12px;">
-          <span style="color:${h.changeType === 'added' ? '#15803d' : '#b91c1c'};font-weight:600;white-space:nowrap;">${h.changeType === 'added' ? '+ Added' : '− Off roster'}</span>
-          <span style="flex:1;">${h.playerName}</span>
-          <span style="color:var(--text3);white-space:nowrap;">${new Date(h.detectedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</span>
-        </div>`).join('')
-      : '<div style="font-size:12px;color:var(--text3);padding:6px 0;">No changes caught yet.</div>';
-
-    return `<div class="settings-card">
-      <div style="display:flex;justify-content:space-between;align-items:baseline;flex-wrap:wrap;gap:8px;">
-        <h3 style="margin:0;"><i class="ti ti-users"></i> ${t.label}</h3>
-        <a href="${t.url}" target="_blank" rel="noopener" style="font-size:11px;color:var(--text3);">official roster ↗</a>
-      </div>
-      <div style="font-size:11px;color:var(--text3);margin:4px 0 10px;">${t.checkedAt ? 'Last checked ' + new Date(t.checkedAt).toLocaleString() : 'Not checked yet'} · ${(t.roster || []).length} on roster</div>
-      ${rosterChips}
-      <div class="sdiv-label" style="margin-top:12px;">History</div>
-      ${historyList}
+function rosterHistoryHtml(history) {
+  const LBL = { added: ['#15803d', '+ Added'], removed: ['#b91c1c', '− Off the page'], title_changed: ['#1d4ed8', '✎ New title'] };
+  const list = (history || []).slice(0, 30);
+  if (!list.length) return '<div style="font-size:12px;color:var(--text3);padding:6px 0;">No changes caught yet.</div>';
+  return list.map(h => {
+    const l = LBL[h.changeType] || LBL.added;
+    const kind = h.kind === 'staff' ? ' <span style="color:var(--text3);">· staff</span>' : '';
+    return `<div style="display:flex;justify-content:space-between;gap:10px;padding:5px 0;border-bottom:1px solid var(--border);font-size:12px;">
+      <span style="color:${l[0]};font-weight:600;white-space:nowrap;">${l[1]}</span>
+      <span style="flex:1;">${oppsEsc(h.name)}${h.detail ? ' <span style="color:var(--text3);">(' + oppsEsc(h.detail) + ')</span>' : ''}${kind}</span>
+      <span style="color:var(--text3);white-space:nowrap;">${new Date(h.detectedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</span>
     </div>`;
   }).join('');
 }
 
+function rosterHref(u) { return oppsEsc(u).replace(/"/g, '&quot;'); }
+
+function rosterCheckedText(at, n, noun) {
+  return (at ? 'Last checked ' + new Date(at).toLocaleString() : 'Not checked yet') + ' · ' + n + ' ' + noun;
+}
+
+function renderRosterWatch(d) {
+  const c = document.getElementById('rosterWatchContainer');
+  const teams = d.teams || [], dept = d.department;
+  const deptWord = (d.departmentLabel || 'Athletic department');
+  const w = document.getElementById('rosterDeptWord'); if (w) w.textContent = deptWord.toLowerCase();
+  const st = document.getElementById('rosterStatusText');
+  if (st) st.innerHTML = '<strong>Watching</strong> — ' + (teams.map(t => oppsEsc(t.label)).concat(dept ? [oppsEsc(dept.label)] : []).join(', ') || 'nothing yet');
+  if (!teams.length && !dept) {
+    c.innerHTML = '<div class="empty"><i class="ti ti-users"></i>No pages chosen yet. Add your teams and your ' + oppsEsc(deptWord.toLowerCase()) + ' page in <a href="/setup">setup → Roster watch</a>.</div>';
+    return;
+  }
+
+  const teamCards = teams.map(t => {
+    const staff = t.staff;
+    return `<div class="settings-card">
+      <div style="display:flex;justify-content:space-between;align-items:baseline;flex-wrap:wrap;gap:8px;">
+        <h3 style="margin:0;"><i class="ti ti-users"></i> ${oppsEsc(t.label)}</h3>
+        ${t.url ? `<a href="${rosterHref(t.url)}" target="_blank" rel="noopener" style="font-size:11px;color:var(--text3);">official roster ↗</a>` : ''}
+      </div>
+      ${t.url ? `<div style="font-size:11px;color:var(--text3);margin:4px 0 10px;">${rosterCheckedText(t.checkedAt, (t.roster || []).length, 'on roster')}</div>
+      ${rosterPeopleHtml(t.roster, 'No baseline yet — the next check will establish one.')}` : ''}
+      ${staff ? `<div style="display:flex;justify-content:space-between;align-items:baseline;gap:8px;margin-top:12px;">
+        <div class="sdiv-label" style="margin:0;">Coaches and staff</div>
+        <a href="${rosterHref(staff.url)}" target="_blank" rel="noopener" style="font-size:11px;color:var(--text3);">official staff page ↗</a>
+      </div>
+      <div style="font-size:11px;color:var(--text3);margin:4px 0 8px;">${rosterCheckedText(staff.checkedAt, (staff.people || []).length, 'listed')}</div>
+      ${rosterPeopleHtml(staff.people, 'No baseline yet — the next check will establish one.')}` : ''}
+      <div class="sdiv-label" style="margin-top:12px;">History</div>
+      ${rosterHistoryHtml(t.history)}
+    </div>`;
+  }).join('');
+
+  const deptCard = dept ? `<div class="settings-card">
+      <div style="display:flex;justify-content:space-between;align-items:baseline;flex-wrap:wrap;gap:8px;">
+        <h3 style="margin:0;"><i class="ti ti-building"></i> ${oppsEsc(dept.label)}</h3>
+        <a href="${rosterHref(dept.url)}" target="_blank" rel="noopener" style="font-size:11px;color:var(--text3);">official page ↗</a>
+      </div>
+      <div style="font-size:11px;color:var(--text3);margin:4px 0 10px;">${rosterCheckedText(dept.checkedAt, (dept.people || []).length, 'listed')}</div>
+      ${rosterPeopleHtml(dept.people, 'No baseline yet — the next check will establish one.')}
+      <div class="sdiv-label" style="margin-top:12px;">History</div>
+      ${rosterHistoryHtml(dept.history)}
+    </div>` : '';
+
+  c.innerHTML = deptCard + teamCards;
+}
+
 async function runRosterCheckNow(btn) {
-  var old = btn.textContent;
-  btn.disabled = true; btn.textContent = 'Checking…';
+  var old = btn.innerHTML;
+  btn.disabled = true; btn.textContent = 'Checking… (can take a few minutes)';
   try {
     var r = await fetch('/api/roster-check');
     var d = await r.json();
-    btn.textContent = d.error ? ('Failed: ' + d.error) : `✓ Checked ${d.checked} team(s)`;
+    btn.textContent = d.error ? ('Failed: ' + d.error) : `✓ Checked ${d.checked} page(s), ${d.changesFound} with changes`;
     loadRosterWatch();
   } catch (e) { btn.textContent = 'Failed: ' + e.message; }
-  setTimeout(function () { btn.disabled = false; btn.textContent = old; }, 4000);
+  setTimeout(function () { btn.disabled = false; btn.innerHTML = old; }, 5000);
 }
 </script>
 </body>

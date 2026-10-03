@@ -44,6 +44,44 @@
  ],
  "nameCollisions": "e.g. Joe Smith the Chicago Cubs pitcher is NOT Maryland alum Joe Smith the former NBA player; Malik Washington the Miami Dolphins receiver is NOT the Maryland alum of the same name — Maryland's Malik Washington is the current QB",
  "proLeaguesText": "NFL/NBA",
+ "rosterWatch": {
+  "teams": [
+   {
+    "label": "Maryland Football",
+    "slug": "umd-football",
+    "url": "https://umterps.com/sports/football/roster",
+    "staffUrl": "https://umterps.com/sports/football/coaches"
+   },
+   {
+    "label": "Maryland Men's Basketball",
+    "slug": "umd-mbb",
+    "url": "https://umterps.com/sports/mens-basketball/roster",
+    "staffUrl": "https://umterps.com/sports/mens-basketball/coaches"
+   },
+   {
+    "label": "Maryland Women's Basketball",
+    "slug": "umd-wbb",
+    "url": "https://umterps.com/sports/womens-basketball/roster",
+    "staffUrl": "https://umterps.com/sports/womens-basketball/coaches"
+   },
+   {
+    "label": "Maryland Men's Lacrosse",
+    "slug": "umd-mlax",
+    "url": "https://umterps.com/sports/mens-lacrosse/roster",
+    "staffUrl": "https://umterps.com/sports/mens-lacrosse/coaches"
+   },
+   {
+    "label": "Maryland Women's Lacrosse",
+    "slug": "umd-wlax",
+    "url": "https://umterps.com/sports/womens-lacrosse/roster",
+    "staffUrl": "https://umterps.com/sports/womens-lacrosse/coaches"
+   }
+  ],
+  "department": {
+   "url": "https://umterps.com/staff-directory",
+   "enabled": true
+  }
+ },
  "ownSite": {
   "url": "https://247sports.com/college/maryland/",
   "articlePath": "/college/maryland/",

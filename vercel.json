@@ -42,7 +42,7 @@
       "maxDuration": 300
     },
     "api/roster-check.js": {
-      "maxDuration": 60
+      "maxDuration": 300
     },
     "api/coverage-desk.js": {
       "maxDuration": 300
@@ -148,8 +148,12 @@
       "schedule": "0 21 * * *"
     },
     {
-      "path": "/api/roster-check",
+      "path": "/api/roster-check?scope=teams",
       "schedule": "30 11 * * 1,3,5"
+    },
+    {
+      "path": "/api/roster-check?scope=department",
+      "schedule": "40 11 * * 1,3,5"
     },
     {
       "path": "/api/coverage-desk",
