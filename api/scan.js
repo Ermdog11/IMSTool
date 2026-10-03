@@ -630,6 +630,7 @@ module.exports = async function handler(req, res) {
               if (d.summary) item.summary = d.summary;
               if (d.category) item.category = d.category;
               if (d.sport) item.sport = d.sport;
+              if (typeof d.ourRecruit === 'boolean') item.ourRecruit = d.ourRecruit;
               item.deepened = true;
             });
           }
@@ -639,6 +640,13 @@ module.exports = async function handler(req, res) {
 
     // Drop stories Claude marked as having no connection to our beat
     parsed = parsed.filter(function(item) { return !item.irrelevant; });
+
+    // Recruiting stories only when they're clearly about our team recruiting
+    // the player (see B.recruitOnBeat): checked against the feed's own text.
+    parsed = parsed.filter(function(item) {
+      var orig = stories[item.idx - 1];
+      return B.recruitOnBeat(beat, item, orig ? (orig.title + ' ' + (orig.snippet || '')) : item.headline);
+    });
 
     // Final backstop for our own outlet: the deep-read pass resolves Google News
     // redirects to real publisher URLs, so a 247sports.com / insidemdsports.com link
