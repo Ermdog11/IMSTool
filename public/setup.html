@@ -156,7 +156,7 @@ input:focus,select:focus,textarea:focus,button:focus-visible{outline:2px solid v
         <span class="help" id="terms-msg" style="align-self:center;margin:0"></span>
       </div>
       <div class="box"><div class="tchips" id="b-terms"></div>
-        <input id="b-term-add" placeholder="Add a name or term and press Enter" style="margin-top:8px"></div>
+        <div class="ac" style="margin-top:8px"><input id="b-term-add" placeholder="Add a name or term, e.g. a player, coach or venue" autocomplete="off"><div class="ac-list" id="term-ac"></div></div></div>
       <div class="rlegend"><b style="color:var(--red)">Outlined</b> = key figure (head coach, AD or GM, a top star). <span style="background:#f6f5f1;padding:0 4px;border-radius:3px">Gray</span> = historical.</div>
       <label>Sources that cover your beat</label>
       <div class="rlegend">Rate each one: <b>5</b> must-watch · <b>4</b> high · <b>3</b> normal · <b>2</b> low · <b>1</b> don't watch its feed. <b>Block all results</b> hides that source's stories everywhere, even when they show up through Google News.</div>
@@ -364,7 +364,7 @@ function startFreshBeat(){
   var t=pickedTeam, hadBeat=!!(beat.team&&beat.team.name);
   beat={team:t?{name:t[0],short:t[4]==='pro'?t[2]:t[1],nicknames:t[4]==='pro'?[]:[t[2]],school:t[1],conference:t[3],level:t[4]==='pro'?'pro':'college'}:{name:$('f-team').value.trim().replace(/\s+athletics$/i,'')},
     outlets:[],subreddits:[],podcasts:[],youtube:[],keyFigures:[],keyTerms:[],primarySports:[]};
-  groups=[]; renderGroups(); renderBeatForm(); needsBuild=true;
+  groups=[]; termPool={}; termPoolLoaded=false; renderGroups(); renderBeatForm(); needsBuild=true;
   if(!PREVIEW && hadBeat) $('notice').innerHTML='<div class="notice">You switched to <b>'+esc(beat.team.name)+'</b>. Finishing this setup changes what your live News Monitor watches. To try a different beat without changing anything, use <a href="/setup?preview=1">preview mode</a>.</div>';
 }
 
@@ -518,7 +518,7 @@ function renderTerms(){
   var list=beat.keyTerms||[];
   $('b-terms').innerHTML=list.length?list.map(function(x,i){
     return '<span class="tchip'+(x.figure?' fig':'')+(x.era==='historic'?' hist':'')+'" title="'+esc(x.note||'').replace(/"/g,'&quot;')+'">'+esc(x.term)+
-      '<button type="button" title="Remove" onclick="beat.keyTerms.splice('+i+',1);renderTerms()">×</button></span>';
+      '<button type="button" title="Remove" onclick="addToPool([beat.keyTerms['+i+']]);beat.keyTerms.splice('+i+',1);renderTerms()">×</button></span>';
   }).join(''):'<span class="help" style="margin:0">No names yet.</span>';
   var cur=list.filter(function(x){return x.era!=='historic';}).length;
   $('terms-msg').textContent=list.length?(list.length+' names and terms · '+cur+' current, '+(list.length-cur)+' historical'):'';
@@ -527,17 +527,59 @@ function termsScratch(){
   if((beat.keyTerms||[]).length && !confirm('Clear all '+beat.keyTerms.length+' names and terms and start from scratch?')) return;
   beat.keyTerms=[]; renderTerms(); $('b-term-add').focus();
 }
+// Autocomplete for adding names: everything CoPublisher has suggested for this
+// beat (including ones removed from the list), the people-to-watch groups, and
+// the top-100 ranking, fetched quietly the first time the box is used.
+var termPool={}, termPoolLoaded=false, tAcItems=[], tAcIdx=-1;
+function addToPool(arr){ (arr||[]).forEach(function(x){ var t=typeof x==='string'?{term:x,kind:'person',era:'current'}:x; if(t&&t.term&&!termPool[t.term.toLowerCase()]) termPool[t.term.toLowerCase()]=t; }); }
+function poolFromBeat(){
+  addToPool(beat.keyTerms); addToPool(beat.keyFigures);
+  groups.forEach(function(g){ addToPool((g.names||[]).map(function(n){return {term:n.replace(/\s*\(.*?\)\s*/g,'').trim(),kind:'person',era:g.alumni?'historic':'current',note:g.label};})); });
+}
+async function loadTermPool(){
+  if(termPoolLoaded) return; termPoolLoaded=true;
+  var team=$('b-name').value.trim()||$('f-team').value.trim(); if(!team) return;
+  try{
+    var d=await api('/api/site-profile',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'suggest-terms',teamName:team,level:level,sports:lines($('b-sports').value)})});
+    addToPool(d.terms||[]); if(document.activeElement===$('b-term-add')) termAc();
+  }catch(e){}
+}
+function termAc(){
+  var q=$('b-term-add').value.toLowerCase().trim(), box=$('term-ac');
+  var have={}; (beat.keyTerms||[]).forEach(function(x){have[x.term.toLowerCase()]=1;});
+  tAcItems=q.length<2?[]:Object.keys(termPool).map(function(k){return termPool[k];}).filter(function(t){
+    var n=t.term.toLowerCase(); return !have[n] && (n.indexOf(q)!==-1 || (' '+n).indexOf(' '+q)!==-1);
+  }).sort(function(a,b){ return (a.term.toLowerCase().indexOf(q)===0?0:1)-(b.term.toLowerCase().indexOf(q)===0?0:1); }).slice(0,8);
+  tAcIdx=tAcItems.length?0:-1;
+  if(!tAcItems.length){ box.style.display='none'; return; }
+  box.innerHTML=tAcItems.map(function(t,i){ return '<div data-i="'+i+'" class="'+(i===tAcIdx?'on':'')+'">'+esc(t.term)+'<span>'+esc(t.note||(t.era==='historic'?'Historical':t.kind==='place'?'Place':t.kind==='term'?'Term':'Person'))+'</span></div>'; }).join('');
+  box.style.display='block';
+}
+function addTerm(t){
+  beat.keyTerms=mergeByKey(beat.keyTerms||[],[t],'term');
+  $('b-term-add').value=''; $('term-ac').style.display='none'; renderTerms();
+}
+$('b-term-add').addEventListener('focus',function(){ poolFromBeat(); loadTermPool(); });
+$('b-term-add').addEventListener('input',termAc);
+$('b-term-add').addEventListener('blur',function(){ setTimeout(function(){ $('term-ac').style.display='none'; },150); });
+$('term-ac').addEventListener('mousedown',function(e){ var d=e.target.closest('div[data-i]'); if(d){ e.preventDefault(); addTerm(tAcItems[+d.dataset.i]); } });
 $('b-term-add').addEventListener('keydown',function(e){
+  var open=$('term-ac').style.display==='block';
+  if(open&&e.key==='ArrowDown'){ tAcIdx=Math.min(tAcItems.length-1,tAcIdx+1); termAcHi(); e.preventDefault(); return; }
+  if(open&&e.key==='ArrowUp'){ tAcIdx=Math.max(0,tAcIdx-1); termAcHi(); e.preventDefault(); return; }
+  if(e.key==='Escape'){ $('term-ac').style.display='none'; return; }
   if(e.key!=='Enter') return; e.preventDefault();
-  lines(this.value).forEach(function(t){ beat.keyTerms=mergeByKey(beat.keyTerms||[],[{term:t,kind:'person',era:'current'}],'term'); });
-  this.value=''; renderTerms();
+  if(open&&tAcIdx>=0) return addTerm(tAcItems[tAcIdx]);
+  lines(this.value).forEach(function(t){ addTerm(termPool[t.toLowerCase()]||{term:t,kind:'person',era:'current'}); });
 });
+function termAcHi(){ document.querySelectorAll('#term-ac div').forEach(function(d,i){ d.classList.toggle('on',i===tAcIdx); }); }
 async function suggestTerms(btn){
   var team=$('b-name').value.trim()||$('f-team').value.trim();
   var old=btn.textContent; btn.disabled=true; btn.textContent='Ranking the top 100…'; $('terms-msg').textContent='This takes about 30 seconds.';
   try{
     var d=await api('/api/site-profile',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'suggest-terms',teamName:team,level:level,sports:lines($('b-sports').value)})});
     if(d.error) throw new Error(d.error);
+    addToPool(d.terms); termPoolLoaded=true;
     beat.keyTerms=mergeByKey(beat.keyTerms||[],d.terms||[],'term');
     renderTerms();
   }catch(e){ $('terms-msg').textContent=''; alert(e.message); }
