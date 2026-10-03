@@ -10,6 +10,10 @@
 //                                                   outlets with checked feeds, communities,
 //                                                   key figures), each item with a suggested
 //                                                   1-5 importance (publisher)
+//   POST { action:'suggest-terms', teamName, level, sports }
+//                                                -> the 100 most popular/relevant names and
+//                                                   terms for the beat, current and historical
+//                                                   combined, ranked (publisher)
 //   POST { beat: {...} }                         -> merge-save the beat profile (publisher)
 //   POST { action:'build-house-style', samples } -> AI-written house style guide from
 //                                                   sample articles, saved as the site's
@@ -227,10 +231,53 @@ async function suggestBeat(body) {
   };
 }
 
+// The beat's "key names and terms": the 100 most popular and relevant people,
+// places and terms, current and historical combined, ranked by how much they
+// drive coverage and reader interest today.
+async function suggestTerms(body) {
+  var team = String(body.teamName || '').slice(0, 200);
+  if (!team) throw new Error('Tell us which team or beat you cover first.');
+  var sports = (Array.isArray(body.sports) ? body.sports : []).slice(0, 10).join(', ');
+  var out = await callClaude(
+    'A newsroom covers this beat: ' + team + ' (' + String(body.level || 'college') + ')' + (sports ? ', focusing on ' + sports : '') + '.\n\n' +
+    'List the 100 most popular and relevant names and terms for this beat, current and historical combined, ranked by how much each one drives news coverage and reader interest today. ' +
+    'Include current coaches, executives and star players; top recruits or prospects; legendary players and coaches; venues; rivalries; nicknames, traditions and other terms fans and headlines use. ' +
+    'A current head coach outranks a long-retired legend unless the legend still drives coverage. ' +
+    'Mark each as a person, place or term; as current or historic; and set figure:true only for the handful of current people who matter most (head coaches, the athletic director or general manager, the biggest stars). ' +
+    'Only include names you are confident are connected to this team. Your knowledge may be out of date; the publisher reviews the list.',
+    {
+      name: 'key_terms',
+      description: 'Return the ranked list, most important first.',
+      input_schema: {
+        type: 'object',
+        properties: {
+          terms: { type: 'array', items: { type: 'object', properties: {
+            term: { type: 'string' },
+            kind: { type: 'string', enum: ['person', 'place', 'term'] },
+            era: { type: 'string', enum: ['current', 'historic'] },
+            figure: { type: 'boolean' },
+            note: { type: 'string', description: 'A few words: who or what this is' }
+          }, required: ['term', 'kind', 'era'] } }
+        },
+        required: ['terms']
+      }
+    }, 8000);
+  var seen = {};
+  return {
+    terms: (out.terms || []).map(function (x) {
+      return { term: String(x.term || '').trim().slice(0, 60), kind: x.kind || 'person', era: x.era === 'historic' ? 'historic' : 'current', figure: !!x.figure, note: String(x.note || '').slice(0, 80) };
+    }).filter(function (x) {
+      var k = x.term.toLowerCase();
+      if (!x.term || seen[k]) return false;
+      seen[k] = 1; return true;
+    }).slice(0, 100)
+  };
+}
+
 // The parts of the beat the wizard shows and edits (not the long feed lists).
 function wizardBeat(b) {
   return {
-    outletName: b.outletName, team: b.team, primarySports: b.primarySports, keyFigures: b.keyFigures,
+    outletName: b.outletName, team: b.team, primarySports: b.primarySports, keyFigures: b.keyFigures, keyTerms: b.keyTerms,
     outlets: b.outlets, subreddits: b.subreddits, podcasts: b.podcasts, youtube: b.youtube,
     watch: b.watch, nameCollisions: b.nameCollisions || '', hasHandTunedFeeds: !!(b.feeds && b.feeds.length)
   };
@@ -285,6 +332,7 @@ module.exports = async function handler(req, res) {
     if (body.action === 'suggest-names') return res.status(200).json(await suggestNames(body));
     if (body.action === 'suggest-x') return res.status(200).json(await suggestXAccounts(body, ctx.supabase));
     if (body.action === 'suggest-beat') return res.status(200).json(await suggestBeat(body));
+    if (body.action === 'suggest-terms') return res.status(200).json(await suggestTerms(body));
     if (body.beat && typeof body.beat === 'object') {
       // Merge into the SAVED beat (not the seed underneath it), so each wizard
       // step only changes its own parts.

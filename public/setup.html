@@ -84,6 +84,12 @@ input:focus,select:focus,textarea:focus,button:focus-visible{outline:2px solid v
 .group .head{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
 .group .head > input{flex:1;min-width:160px;font-weight:600}
 .rlegend{font-size:12px;color:var(--muted);margin-top:6px}
+.tchips{display:flex;flex-wrap:wrap;gap:6px}
+.tchip{display:inline-flex;align-items:center;gap:4px;font-size:12.5px;padding:4px 4px 4px 10px;border-radius:16px;background:#fff;border:1px solid var(--border)}
+.tchip.fig{border-color:var(--red);font-weight:600}
+.tchip.hist{background:#f6f5f1;color:var(--text2)}
+.tchip i{font-style:normal;font-size:10.5px;color:var(--muted)}
+.tchip button{font:inherit;border:0;background:none;color:var(--muted);cursor:pointer;font-size:14px;line-height:1;padding:0 4px}
 .ac{position:relative}
 .ac-list{position:absolute;left:0;right:0;top:100%;z-index:20;background:#fff;border:1px solid var(--border);border-radius:8px;box-shadow:0 8px 24px rgba(0,0,0,.12);margin-top:3px;overflow:hidden;display:none}
 .ac-list div{padding:9px 12px;cursor:pointer;display:flex;justify-content:space-between;gap:10px;font-size:14px}
@@ -142,8 +148,16 @@ input:focus,select:focus,textarea:focus,button:focus-visible{outline:2px solid v
         <div><label for="b-conf">Conference or league</label><input id="b-conf" placeholder="e.g. Big Ten"></div>
         <div><label for="b-sports">Main sports</label><input id="b-sports" placeholder="e.g. football, basketball"></div>
       </div>
-      <label for="b-figures">Key figures <span style="font-weight:400;color:var(--muted)">(head coaches, AD or GM, the biggest names)</span></label>
-      <input id="b-figures" placeholder="e.g. Mike Locksley, Buzz Williams">
+      <label>Key names and terms</label>
+      <div class="help" style="margin-top:0">The people, places and terms that matter most on your beat. Any story that mentions one counts as yours. Build the list yourself, or let CoPublisher rank the 100 most popular and relevant, current and historical combined.</div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin:8px 0">
+        <button type="button" class="btn ghost small" onclick="termsScratch()">Start from scratch</button>
+        <button type="button" class="btn ghost small" onclick="suggestTerms(this)">✨ Suggest the top 100</button>
+        <span class="help" id="terms-msg" style="align-self:center;margin:0"></span>
+      </div>
+      <div class="box"><div class="tchips" id="b-terms"></div>
+        <input id="b-term-add" placeholder="Add a name or term and press Enter" style="margin-top:8px"></div>
+      <div class="rlegend"><b style="color:var(--red)">Outlined</b> = key figure (head coach, AD or GM, a top star). <span style="background:#f6f5f1;padding:0 4px;border-radius:3px">Gray</span> = historical.</div>
       <label>Sources that cover your beat</label>
       <div class="rlegend">Rate each one: <b>5</b> must-watch · <b>4</b> high · <b>3</b> normal · <b>2</b> low · <b>1</b> don't watch its feed. <b>Block all results</b> hides that source's stories everywhere, even when they show up through Google News.</div>
       <div class="box" id="beat-outlets"></div>
@@ -349,7 +363,7 @@ function sameTeam(text){
 function startFreshBeat(){
   var t=pickedTeam, hadBeat=!!(beat.team&&beat.team.name);
   beat={team:t?{name:t[0],short:t[4]==='pro'?t[2]:t[1],nicknames:t[4]==='pro'?[]:[t[2]],school:t[1],conference:t[3],level:t[4]==='pro'?'pro':'college'}:{name:$('f-team').value.trim().replace(/\s+athletics$/i,'')},
-    outlets:[],subreddits:[],podcasts:[],youtube:[],keyFigures:[],primarySports:[]};
+    outlets:[],subreddits:[],podcasts:[],youtube:[],keyFigures:[],keyTerms:[],primarySports:[]};
   groups=[]; renderGroups(); renderBeatForm(); needsBuild=true;
   if(!PREVIEW && hadBeat) $('notice').innerHTML='<div class="notice">You switched to <b>'+esc(beat.team.name)+'</b>. Finishing this setup changes what your live News Monitor watches. To try a different beat without changing anything, use <a href="/setup?preview=1">preview mode</a>.</div>';
 }
@@ -429,13 +443,17 @@ function renderBeatForm(){
   var t=beat.team||{};
   $('b-name').value=t.name||''; $('b-short').value=t.short||''; $('b-nick').value=(t.nicknames||[]).join(', ');
   $('b-school').value=t.school||''; $('b-conf').value=t.conference||'';
-  $('b-sports').value=(beat.primarySports||[]).join(', '); $('b-figures').value=(beat.keyFigures||[]).join(', ');
+  $('b-sports').value=(beat.primarySports||[]).join(', ');
+  if(!(beat.keyTerms||[]).length && (beat.keyFigures||[]).length) beat.keyTerms=beat.keyFigures.map(function(n){return {term:n,kind:'person',era:'current',figure:true};});
+  renderTerms();
   renderOutlets(); ['subreddits','podcasts','youtube'].forEach(renderComm);
 }
 function readBeatForm(){
   beat.team=Object.assign({},beat.team,{name:$('b-name').value.trim(),short:$('b-short').value.trim(),nicknames:lines($('b-nick').value),school:$('b-school').value.trim(),conference:$('b-conf').value.trim(),level:level});
   beat.primarySports=lines($('b-sports').value).map(function(x){return x.toLowerCase();});
-  beat.keyFigures=lines($('b-figures').value);
+  // The key figures (used in the rating rules) are the flagged current people.
+  var figs=(beat.keyTerms||[]).filter(function(x){return x.figure && x.era!=='historic';}).map(function(x){return x.term;});
+  beat.keyFigures=figs.slice(0,8);
 }
 function renderOutlets(){
   var list=beat.outlets||[];
@@ -485,7 +503,7 @@ async function suggestBeat(btn){
     ['name','short','school','conference','city'].forEach(function(k){ if(!beat.team[k]&&t[k]) beat.team[k]=t[k]; });
     if(!(beat.team.nicknames||[]).length) beat.team.nicknames=t.nicknames||[];
     if(!(beat.primarySports||[]).length) beat.primarySports=b.primarySports||[];
-    beat.keyFigures=mergeByKey((beat.keyFigures||[]).map(function(x){return {n:x};}),(b.keyFigures||[]).map(function(x){return {n:x};}),'n').map(function(x){return x.n;});
+    beat.keyTerms=mergeByKey(beat.keyTerms||[],(b.keyFigures||[]).map(function(n){return {term:n,kind:'person',era:'current',figure:true};}),'term'); renderTerms();
     beat.outlets=mergeByKey(beat.outlets||[],b.outlets||[],'domain');
     ['subreddits','podcasts','youtube'].forEach(function(k){ beat[k]=mergeByKey(beat[k]||[],b[k]||[],'name'); });
     if(!beat.nameCollisions&&b.nameCollisions) beat.nameCollisions=b.nameCollisions;
@@ -493,6 +511,36 @@ async function suggestBeat(btn){
     var feeds=(b.outlets||[]).filter(function(o){return o.checked==='feed';}).length;
     m.textContent='Added '+(b.outlets||[]).length+' sources'+(feeds?' ('+feeds+' with a working feed)':'')+'. Rate them, then continue.';
   }catch(e){ m.textContent=''; alert(e.message); }
+  btn.disabled=false; btn.textContent=old;
+}
+// --- key names and terms ---
+function renderTerms(){
+  var list=beat.keyTerms||[];
+  $('b-terms').innerHTML=list.length?list.map(function(x,i){
+    return '<span class="tchip'+(x.figure?' fig':'')+(x.era==='historic'?' hist':'')+'" title="'+esc(x.note||'').replace(/"/g,'&quot;')+'">'+esc(x.term)+
+      '<button type="button" title="Remove" onclick="beat.keyTerms.splice('+i+',1);renderTerms()">×</button></span>';
+  }).join(''):'<span class="help" style="margin:0">No names yet.</span>';
+  var cur=list.filter(function(x){return x.era!=='historic';}).length;
+  $('terms-msg').textContent=list.length?(list.length+' names and terms · '+cur+' current, '+(list.length-cur)+' historical'):'';
+}
+function termsScratch(){
+  if((beat.keyTerms||[]).length && !confirm('Clear all '+beat.keyTerms.length+' names and terms and start from scratch?')) return;
+  beat.keyTerms=[]; renderTerms(); $('b-term-add').focus();
+}
+$('b-term-add').addEventListener('keydown',function(e){
+  if(e.key!=='Enter') return; e.preventDefault();
+  lines(this.value).forEach(function(t){ beat.keyTerms=mergeByKey(beat.keyTerms||[],[{term:t,kind:'person',era:'current'}],'term'); });
+  this.value=''; renderTerms();
+});
+async function suggestTerms(btn){
+  var team=$('b-name').value.trim()||$('f-team').value.trim();
+  var old=btn.textContent; btn.disabled=true; btn.textContent='Ranking the top 100…'; $('terms-msg').textContent='This takes about 30 seconds.';
+  try{
+    var d=await api('/api/site-profile',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'suggest-terms',teamName:team,level:level,sports:lines($('b-sports').value)})});
+    if(d.error) throw new Error(d.error);
+    beat.keyTerms=mergeByKey(beat.keyTerms||[],d.terms||[],'term');
+    renderTerms();
+  }catch(e){ $('terms-msg').textContent=''; alert(e.message); }
   btn.disabled=false; btn.textContent=old;
 }
 // --- people step: rated groups ---
@@ -612,7 +660,7 @@ async function saveStep(i){
     } else if(k==='beat'){
       readBeatForm();
       if(!beat.team.name){ m.className='msg err'; m.textContent='Add the team\u2019s full name to continue.'; return false; }
-      await saveBeat({outletName:$('f-outlet').value.trim(),team:beat.team,primarySports:beat.primarySports,keyFigures:beat.keyFigures,
+      await saveBeat({outletName:$('f-outlet').value.trim(),team:beat.team,primarySports:beat.primarySports,keyFigures:beat.keyFigures,keyTerms:(beat.keyTerms||[]).slice(0,150),
         outlets:beat.outlets,subreddits:beat.subreddits,podcasts:beat.podcasts,youtube:beat.youtube,nameCollisions:beat.nameCollisions||''});
     } else if(k==='topics'){
       var sp={core:[],secondary:[],ignore:[]}; Object.keys(sportState).forEach(function(n){sp[sportState[n]].push(n);});
