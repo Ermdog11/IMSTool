@@ -125,7 +125,7 @@ function buildEmailHTML(alerts, date, slot, overflowByTopic) {
         return (b.rating || 0) - (a.rating || 0) || hoursAgo(a.time) - hoursAgo(b.time);
       });
       daySections += '<div style="margin-bottom:18px;">';
-      daySections += '<div style="font-size:12px;font-weight:700;color:#888;text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px;border-bottom:2px solid #cf0315;padding-bottom:5px;">' + title + '</div>';
+      daySections += '<div style="font-size:12px;font-weight:700;color:#888;text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px;border-bottom:2px solid #2563eb;padding-bottom:5px;">' + title + '</div>';
       items.forEach(function(item) { daySections += itemHTML(item, overflowByTopic); });
       daySections += '</div>';
     });
@@ -141,7 +141,7 @@ function buildEmailHTML(alerts, date, slot, overflowByTopic) {
 
   return '<!DOCTYPE html><html><head></head><body style="font-family:-apple-system,sans-serif;background:#f7f6f3;margin:0;padding:20px;">' +
     '<div style="max-width:600px;margin:0 auto;background:white;border-radius:10px;overflow:hidden;">' +
-    '<div style="background:#cf0315;padding:16px 20px;">' +
+    '<div style="background:#0f1b2d;padding:16px 20px;">' +
     '<div style="color:white;font-size:16px;font-weight:700;">InsideMDSports</div>' +
     '<div style="color:rgba(255,255,255,0.8);font-size:12px;">' + SLOT_LABEL[slot] + ' update &mdash; ' + date + '</div>' +
     '</div>' +
@@ -264,7 +264,7 @@ module.exports = async function handler(req, res) {
                   '<h2 style="margin:10px 0">' + draft.headline + '</h2>' +
                   doc.html +
                   (draft.factsToCheck.length ? '<p style="margin-top:14px"><b>Verify before publishing:</b></p><ul>' + draft.factsToCheck.map(function(f) { return '<li>' + f + '</li>'; }).join('') + '</ul>' : '') +
-                  '<p style="margin-top:16px"><a href="' + reviewUrl + '" style="background:#cf0315;color:#fff;padding:8px 16px;border-radius:6px;text-decoration:none;">Open in Content Editor</a></p>' +
+                  '<p style="margin-top:16px"><a href="' + reviewUrl + '" style="background:#2563eb;color:#fff;padding:8px 16px;border-radius:6px;text-decoration:none;">Open in Content Editor</a></p>' +
                   '<p style="color:#888;font-size:11px;margin-top:16px">Source: ' + (story.source || 'unknown') + (story.url ? ' · <a href="' + story.url + '">' + story.url + '</a>' : '') + '</p>' +
                   '</div>'
               });

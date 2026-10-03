@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>InsideMDSports — Content Editor</title>
 <style>
-:root{--red:#cf0315;--red-dark:#a80210;--gold:#ffd520;--dark:#111;--border:#e8e6e1;--bg:#f7f6f3;--bg2:#fff;--text:#1a1a1a;--text2:#333;--muted:#4a4a4a;--green:#3B6D11;--blue:#0c447c;--blue-light:#e8f4ff;--amber-bg:#fff8e1;--amber:#8a6d00;}
+:root{--red:#2563eb;--red-dark:#1d4ed8;--gold:#f59e0b;--dark:#0f1b2d;--border:#e2e7ef;--bg:#f5f7fb;--bg2:#fff;--text:#1a1a1a;--text2:#333;--muted:#4a4a4a;--green:#3B6D11;--blue:#0c447c;--blue-light:#e8f4ff;--amber-bg:#fff8e1;--amber:#8a6d00;--hot:#dc2626;--red-light:#eaf1ff;--hot-dark:#b91c1c;--hot-light:#fef2f2;--nav:#16263f;--nav-on:#60a5fa;}
 *{box-sizing:border-box;margin:0;padding:0}
 body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:var(--bg);color:var(--text);font-size:14px;line-height:1.5}
 a{color:var(--blue)}
@@ -16,9 +16,9 @@ a{color:var(--blue)}
 .site-sub{color:#888;font-size:11px;margin-top:1px}
 .topbar a{color:#ccc;font-size:12px;text-decoration:none;border:.5px solid #555;padding:4px 12px;border-radius:20px}
 .topbar a:hover{color:#fff;border-color:#999}
-.nav{background:var(--red);display:flex;flex-wrap:wrap;padding:0 20px}
+.nav{background:var(--nav);display:flex;flex-wrap:wrap;padding:0 20px}
 .nav button{font-size:12px;font-weight:600;padding:11px 16px;color:rgba(255,255,255,.7);border:none;background:transparent;cursor:pointer;border-bottom:2px solid transparent}
-.nav button.active{color:#fff;border-bottom-color:var(--gold)}
+.nav button.active{color:#fff;border-bottom-color:var(--nav-on)}
 .nav button:disabled{opacity:.5;cursor:default}
 .wrap{max-width:1100px;margin:0 auto;padding:20px}
 .page{display:none}.page.active{display:block}
@@ -420,9 +420,9 @@ async function saveGuide(){
     var fetcher=window.IMSAuth?IMSAuth.authFetch:fetch;
     var r=await fetcher('/api/house-style',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({guide:guide})});
     var d=await r.json();
-    if(d.error){ m.textContent=d.error; m.style.color='var(--red)'; }
+    if(d.error){ m.textContent=d.error; m.style.color='var(--hot)'; }
     else { m.textContent='Saved'; m.style.color=''; }
-  }catch(e){ m.textContent='Saved locally only — '+e.message; m.style.color='var(--red)'; }
+  }catch(e){ m.textContent='Saved locally only — '+e.message; m.style.color='var(--hot)'; }
   m.style.display='inline';setTimeout(function(){m.style.display='none';m.textContent='Saved';},1500);
 }
 
@@ -898,7 +898,7 @@ async function queueLatestEpisode(btn){
     ta.scrollTop=ta.scrollHeight;
     window._podQueuedInfo={title:eps[0].title,html:b.html};
     renderPrePanel();
-  }catch(e){ btn.disabled=false; btn.textContent=old; btn.insertAdjacentHTML('afterend','<div style="color:var(--red);font-size:12px;margin-top:6px">'+esc(e.message)+'</div>'); }
+  }catch(e){ btn.disabled=false; btn.textContent=old; btn.insertAdjacentHTML('afterend','<div style="color:var(--hot);font-size:12px;margin-top:6px">'+esc(e.message)+'</div>'); }
 }
 function removeQueuedEpisode(){
   var ta=document.getElementById('ed-draft');
@@ -923,7 +923,7 @@ function promosPanel(){
     '<div style="font-size:12px;margin-top:6px"><a href="#" onclick="show(2);return false">Manage promos</a></div>';
 }
 function togglePromoQueued(name,on){ if(on) window._promoQueued[name]=1; else delete window._promoQueued[name]; renderPreTabs(); }
-function alertInline(id,msg){var el=document.getElementById(id);if(el)el.innerHTML='<div style="font-size:12px;color:var(--red)">'+esc(msg)+'</div>';}
+function alertInline(id,msg){var el=document.getElementById(id);if(el)el.innerHTML='<div style="font-size:12px;color:var(--hot)">'+esc(msg)+'</div>';}
 async function loadPodcastEpisodes(btn){
   var box=document.getElementById('podcast-list');
   btn.disabled=true;var old=btn.textContent;btn.textContent='Loading episodes…';
@@ -960,7 +960,7 @@ async function testPodcastEmbed(btn){
       : POD_TEMPLATES[cfg.platform||''] ? 'Couldn\u2019t find this platform\u2019s episode ID in your feed, so it uses the simple audio player. Paste a sample embed code to fix that:'
       : 'This platform needs one sample embed code. Until then it uses the simple audio player:';
     out.innerHTML='<div class="hint">'+esc(note)+' <b>'+esc(eps[0].title)+'</b></div><div style="border:1px solid var(--border);border-radius:6px;padding:10px;margin-top:6px">'+b.html+'</div>';
-  }catch(e){ out.innerHTML='<div style="font-size:12px;color:var(--red)">'+esc(e.message)+'</div>'; }
+  }catch(e){ out.innerHTML='<div style="font-size:12px;color:var(--hot)">'+esc(e.message)+'</div>'; }
   btn.disabled=false; btn.textContent=old;
 }
 function embedPodcast(name,html,pos){
@@ -1009,7 +1009,7 @@ function relatedBlockHtml(links){
 async function addRelatedLinks(btn){
   var cfg=getRelCfg();
   var st=document.getElementById('related-status');
-  var say=function(t,err){ if(st){ st.style.color=err?'var(--red)':'var(--muted)'; st.textContent=t; } };
+  var say=function(t,err){ if(st){ st.style.color=err?'var(--hot)':'var(--muted)'; st.textContent=t; } };
   var tmp=document.createElement('div'); tmp.innerHTML=window._articleBaseHtml||'';
   var article=tmp.innerText||tmp.textContent||'';
   var exclude=Array.prototype.map.call(tmp.querySelectorAll('a[href]'),function(a){return a.getAttribute('href');});
@@ -1071,7 +1071,7 @@ async function askEditorPre(){
         styleGuide:document.getElementById('sg').value, writerName:(wi!==''?((w[wi]&&w[wi].name)||''):'')})});
     var res=await r.json();
     wait.remove();
-    if(res.error){ log.innerHTML+='<div style="align-self:flex-start;color:var(--red);font-size:13px">'+esc(res.error)+'</div>'; }
+    if(res.error){ log.innerHTML+='<div style="align-self:flex-start;color:var(--hot);font-size:13px">'+esc(res.error)+'</div>'; }
     else{
       var sourcesHtml=(res.sources&&res.sources.length)
         ?'<div style="margin-top:5px;padding-top:5px;border-top:1px solid var(--border);font-size:11px;color:var(--muted)">Sources: '+
@@ -1082,7 +1082,7 @@ async function askEditorPre(){
       _preChatHistory.push({role:'assistant',text:res.reply||''});
       if(res.changed && res.edited) document.getElementById('ed-draft').value=res.edited;
     }
-  }catch(e){ wait.remove(); log.innerHTML+='<div style="align-self:flex-start;color:var(--red);font-size:13px">'+esc(e.message)+'</div>'; }
+  }catch(e){ wait.remove(); log.innerHTML+='<div style="align-self:flex-start;color:var(--hot);font-size:13px">'+esc(e.message)+'</div>'; }
   inp.disabled=false;inp.focus();
   log.scrollTop=log.scrollHeight;
 }
@@ -1106,7 +1106,7 @@ async function askEditor(){
         styleGuide:document.getElementById('sg').value, writerName:(wi!==''?((w[wi]&&w[wi].name)||''):'')})});
     var res=await r.json();
     wait.remove();
-    if(res.error){ log.innerHTML+='<div style="align-self:flex-start;color:var(--red);font-size:13px">'+esc(res.error)+'</div>'; }
+    if(res.error){ log.innerHTML+='<div style="align-self:flex-start;color:var(--hot);font-size:13px">'+esc(res.error)+'</div>'; }
     else{
       var sourcesHtml=(res.sources&&res.sources.length)
         ?'<div style="margin-top:5px;padding-top:5px;border-top:1px solid var(--border);font-size:11px;color:var(--muted)">Sources: '+
@@ -1123,7 +1123,7 @@ async function askEditor(){
         if(typeof renderInsertPreview==='function') renderInsertPreview();
       }
     }
-  }catch(e){ wait.remove(); log.innerHTML+='<div style="align-self:flex-start;color:var(--red);font-size:13px">'+esc(e.message)+'</div>'; }
+  }catch(e){ wait.remove(); log.innerHTML+='<div style="align-self:flex-start;color:var(--hot);font-size:13px">'+esc(e.message)+'</div>'; }
   inp.disabled=false;inp.focus();
   log.scrollTop=log.scrollHeight;
 }
@@ -1293,7 +1293,7 @@ function trFetch(url,opts){ return (window.IMSAuth?IMSAuth.authFetch:fetch)(url,
 function trStatus(html,isErr){
   var st=document.getElementById('tr-status');
   st.style.display='block';
-  st.innerHTML=isErr?'<span style="color:var(--red)">'+html+'</span>':html;
+  st.innerHTML=isErr?'<span style="color:var(--hot)">'+html+'</span>':html;
 }
 function trRecent(){ try{return JSON.parse(localStorage.getItem(LS_TR)||'[]');}catch(e){return [];} }
 function trRemember(id,name){

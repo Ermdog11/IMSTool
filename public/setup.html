@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>CoPublisher AI — Set up your newsroom</title>
 <style>
-:root{--red:#cf0315;--red-dark:#a80210;--gold:#ffd520;--dark:#111;--border:#e8e6e1;--bg:#f7f6f3;--bg2:#fff;--text:#1a1a1a;--text2:#555;--muted:#888;--green:#3B6D11;--green-bg:#eaf3de;--blue:#0c447c;--blue-light:#e8f4ff;--amber-bg:#fff8e1;--amber:#8a6d00;}
+:root{--red:#2563eb;--red-dark:#1d4ed8;--gold:#f59e0b;--dark:#0f1b2d;--border:#e2e7ef;--bg:#f5f7fb;--bg2:#fff;--text:#1a1a1a;--text2:#555;--muted:#888;--green:#3B6D11;--green-bg:#eaf3de;--blue:#0c447c;--blue-light:#e8f4ff;--amber-bg:#fff8e1;--amber:#8a6d00;--hot:#dc2626;--red-light:#eaf1ff;--hot-dark:#b91c1c;--hot-light:#fef2f2;--nav:#16263f;--nav-on:#60a5fa;}
 *{box-sizing:border-box;margin:0;padding:0}
 body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:var(--bg);color:var(--text);font-size:14px;line-height:1.5}
 a{color:var(--blue)}
@@ -33,7 +33,7 @@ input:focus,select:focus,textarea:focus,button:focus-visible{outline:2px solid v
 .choice{border:1.5px solid var(--border);border-radius:9px;padding:12px;cursor:pointer;background:#fff;text-align:left;font:inherit}
 .choice b{display:block;font-size:13.5px}
 .choice span{font-size:12px;color:var(--muted)}
-.choice.on{border-color:var(--red);background:#fff5f5}
+.choice.on{border-color:var(--red);background:var(--red-light)}
 .chips{display:flex;flex-wrap:wrap;gap:8px;margin-top:8px}
 .chip{font:inherit;font-size:13px;font-weight:600;padding:7px 12px;border-radius:20px;border:1.5px solid var(--border);background:#fff;cursor:pointer;color:var(--text2)}
 .chip[data-v="core"]{background:var(--red);border-color:var(--red);color:#fff}
@@ -46,7 +46,7 @@ input:focus,select:focus,textarea:focus,button:focus-visible{outline:2px solid v
 .seg{display:flex;border:1px solid var(--border);border-radius:8px;overflow:hidden}
 .seg button{font:inherit;font-size:12px;font-weight:600;padding:6px 9px;border:0;border-left:1px solid var(--border);background:#fff;color:var(--text2);cursor:pointer;white-space:nowrap}
 .seg button:first-child{border-left:0}
-.seg button.on[data-l="breaking"]{background:var(--red);color:#fff}
+.seg button.on[data-l="breaking"]{background:var(--hot);color:#fff}
 .seg button.on[data-l="major"]{background:#e8833a;color:#fff}
 .seg button.on[data-l="normal"]{background:var(--blue);color:#fff}
 .seg button.on[data-l="low"]{background:#9a9a9a;color:#fff}
@@ -58,7 +58,7 @@ input:focus,select:focus,textarea:focus,button:focus-visible{outline:2px solid v
 .btn.small{padding:7px 12px;font-size:12.5px}
 .btn:disabled{opacity:.6;cursor:default}
 .msg{font-size:12.5px;margin-top:8px}
-.msg.err{color:var(--red)}.msg.ok{color:var(--green)}
+.msg.err{color:var(--hot)}.msg.ok{color:var(--green)}
 .box{background:#fbfaf7;border:1px solid var(--border);border-radius:8px;padding:12px;margin-top:10px}
 .summary dt{font-size:12px;font-weight:700;color:var(--text2);margin-top:10px}
 .summary dd{font-size:13.5px}
@@ -94,7 +94,7 @@ input:focus,select:focus,textarea:focus,button:focus-visible{outline:2px solid v
 .ac-list{position:absolute;left:0;right:0;top:100%;z-index:20;background:#fff;border:1px solid var(--border);border-radius:8px;box-shadow:0 8px 24px rgba(0,0,0,.12);margin-top:3px;overflow:hidden;display:none}
 .ac-list div{padding:9px 12px;cursor:pointer;display:flex;justify-content:space-between;gap:10px;font-size:14px}
 .ac-list div span{font-size:12px;color:var(--muted);white-space:nowrap}
-.ac-list div.on,.ac-list div:hover{background:#fff5f5}
+.ac-list div.on,.ac-list div:hover{background:var(--red-light)}
 .spy{display:flex;gap:14px;flex-wrap:wrap;margin-top:4px}
 .spy label{display:flex;gap:5px;align-items:center;margin:0;font-weight:400;font-size:12px;color:var(--text2)}
 .spy input{width:auto}
