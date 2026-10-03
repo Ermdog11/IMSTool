@@ -9,6 +9,7 @@ var Chartbeat = require('./_chartbeat');
 var Meta = require('./_meta');
 var BufferApi = require('./_buffer');
 var XA = require('./_x-analytics');
+var GSC = require('./_gsc');
 var Trends = require('./_trends');
 
 var LOOKBACK_DAYS = 30;
@@ -67,7 +68,16 @@ async function xContext(sb, siteId) {
   return out;
 }
 
-// scope: 'all' | 'chartbeat' | 'meta' | 'buffer' | 'x'. Returns an array of whichever
+async function gscContext(sb, siteId) {
+  var conn = await Store.getConnection(sb, siteId, 'gsc');
+  if (!conn || !conn.siteUrl) return null;
+  var out = { source: 'gsc', property: conn.siteUrl + (conn.pathPrefix ? ' (pages containing ' + conn.pathPrefix + ')' : '') };
+  try { out.last28Days = await GSC.fetchSummary(conn.siteUrl, conn.pathPrefix); }
+  catch (e) { out.liveError = e.message; }
+  return out;
+}
+
+// scope: 'all' | 'chartbeat' | 'meta' | 'buffer' | 'x' | 'gsc'. Returns an array of whichever
 // requested sources are actually connected — never throws for a source
 // that isn't connected, just omits it.
 async function gatherContexts(sb, siteId, scope) {
@@ -79,6 +89,10 @@ async function gatherContexts(sb, siteId, scope) {
   if (scope === 'all' || scope === 'meta') {
     var mt = await metaContext(sb, siteId);
     if (mt) contexts.push(mt);
+  }
+  if (scope === 'all' || scope === 'gsc') {
+    var gc = await gscContext(sb, siteId);
+    if (gc) contexts.push(gc);
   }
   if (scope === 'all' || scope === 'x') {
     var xc = await xContext(sb, siteId);

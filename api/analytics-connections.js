@@ -26,7 +26,10 @@ var SOURCES = {
   buffer: { required: ['apiKey'] },
   // The newsroom's own X account. No key of its own: it reads through the X
   // credential the news scanner already uses (api/_x-analytics.js).
-  x: { required: ['handle'] }
+  x: { required: ['handle'] },
+  // Google Search Console: the app's one service account (GOOGLE_SERVICE_ACCOUNT_JSON)
+  // must have been added as a user on the property; nothing secret is stored here.
+  gsc: { required: ['siteUrl'] }
 };
 
 module.exports = async function handler(req, res) {
@@ -68,6 +71,23 @@ module.exports = async function handler(req, res) {
 
   var missing = SOURCES[source].required.filter(function(k) { return !body[k] || !String(body[k]).trim(); });
   if (missing.length) return res.status(400).json({ error: 'Missing: ' + missing.join(', ') });
+
+  if (source === 'gsc') {
+    try {
+      var GSC = require('./_gsc');
+      if (!GSC.isConfigured()) return res.status(400).json({ error: 'Search Console isn\'t set up on the server yet (GOOGLE_SERVICE_ACCOUNT_JSON).' });
+      var gscSites = await GSC.listSites();
+      var wanted = String(body.siteUrl).trim();
+      if (!gscSites.some(function(x) { return x.siteUrl === wanted; })) {
+        return res.status(400).json({ error: 'The app can\'t see ' + wanted + ' in Search Console yet. Add ' + GSC.serviceAccountEmail() + ' as a user on that property first.' });
+      }
+      var pathPrefix = String(body.pathPrefix || '').trim();
+      await Store.saveConnection(sb, siteId, 'gsc', { siteUrl: wanted, pathPrefix: pathPrefix }, ctx.user.id);
+      return res.status(200).json({ ok: true });
+    } catch (e) {
+      return res.status(400).json({ error: e.message });
+    }
+  }
 
   if (source === 'x') {
     try {

@@ -11,6 +11,7 @@
 var Store = require('./_analytics-store');
 var BufferApi = require('./_buffer');
 var XA = require('./_x-analytics');
+var GSC = require('./_gsc');
 
 var TZ = 'America/New_York';
 
@@ -129,10 +130,14 @@ function crossLink(site, social) {
 
 async function gatherYesterday(sb, siteId) {
   var start = etMidnight(1), end = etMidnight(0);
-  var out = { day: etLabel(start.toISOString(), { weekday: 'long', month: 'long', day: 'numeric' }), site: null, social: null, x: null, errors: [] };
+  var out = { day: etLabel(start.toISOString(), { weekday: 'long', month: 'long', day: 'numeric' }), site: null, social: null, x: null, search: null, errors: [] };
   try { out.site = await siteYesterday(sb, siteId, start, end); } catch (e) { out.errors.push('Site: ' + e.message); }
   try { out.social = await socialYesterday(sb, siteId, start, end); } catch (e) { out.errors.push('Social: ' + e.message); }
   try { out.x = await xYesterday(sb, siteId, start, end); } catch (e) { out.errors.push('X: ' + e.message); }
+  try {
+    var gconn = await Store.getConnection(sb, siteId, 'gsc');
+    if (gconn && gconn.siteUrl) out.search = await GSC.fetchYesterday(gconn.siteUrl, gconn.pathPrefix);
+  } catch (e) { out.errors.push('Search Console: ' + e.message); }
   crossLink(out.site, out.social);
   return out;
 }

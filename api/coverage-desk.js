@@ -19,7 +19,7 @@ function num(v) { return v == null ? '—' : Number(v).toLocaleString('en-US'); 
 
 // Exact figures, straight from the data (no model in between).
 function glanceHtml(y) {
-  if (!y || (!y.site && !y.social && !y.x)) return '';
+  if (!y || (!y.site && !y.social && !y.x && !y.search)) return '';
   var cell = 'padding:4px 10px 4px 0;font-size:13px;';
   var h = '<div style="background:#f5f7fb;border-radius:8px;padding:12px 14px;margin:0 0 14px">' +
     '<div style="font-size:11px;font-weight:700;color:#888;text-transform:uppercase;letter-spacing:.04em;margin-bottom:6px">Yesterday at a glance &mdash; ' + esc(y.day) + '</div>';
@@ -50,6 +50,17 @@ function glanceHtml(y) {
         so.topPostsLast7Days.slice(0, 3).map(function (p) { return '<li>' + esc(String(p.text || '').replace(/https?:\/\/\S+/g, '').trim() || '(link only)') + ' <span style="color:#888">&mdash; ' + esc(p.channel) + ', ' + num(p.interactions) + ' interactions</span></li>'; }).join('') + '</ol>';
     }
     h += '<div style="font-size:11px;color:#888;margin-top:4px">' + esc(so.note) + '</div>';
+  }
+  var gs = y.search;
+  if (gs && gs.web) {
+    h += '<div style="font-weight:600;font-size:13px;margin-top:10px">Google (Search Console)</div>' +
+      '<div style="font-size:13px">Search: ' + num(gs.web.clicks) + ' clicks from ' + num(gs.web.impressions) + ' impressions' +
+      (gs.discover && gs.discover.clicks ? ' · Discover: ' + num(gs.discover.clicks) + ' clicks' : '') +
+      (gs.googleNews && gs.googleNews.clicks ? ' · Google News: ' + num(gs.googleNews.clicks) + ' clicks' : '') + '</div>';
+    if ((gs.topQueries || []).length) {
+      h += '<div style="font-size:12px;color:#555;margin-top:4px">Top searches: ' + gs.topQueries.slice(0, 5).map(function (q) { return esc(q.query) + ' (' + num(q.clicks) + ')'; }).join(', ') + '</div>';
+    }
+    h += '<div style="font-size:11px;color:#888;margin-top:4px">' + esc(gs.note) + '</div>';
   }
   var xx = y.x;
   if (xx && xx.totals) {
@@ -104,7 +115,7 @@ module.exports = async function handler(req, res) {
         if (site.data) yesterday = await require('./_yesterday-analytics').gatherYesterday(sb, site.data.id);
       } catch (e) { console.error('coverage-desk analytics failed (non-fatal):', e.message); }
     }
-    var hasNumbers = !!(yesterday && ((yesterday.site && yesterday.site.readings) || yesterday.social || (yesterday.x && yesterday.x.totals)));
+    var hasNumbers = !!(yesterday && ((yesterday.site && yesterday.site.readings) || yesterday.social || (yesterday.x && yesterday.x.totals) || yesterday.search));
 
     var newsList = alerts
       .sort(function (a, b) { return (b.rating || 0) - (a.rating || 0); })
@@ -121,12 +132,12 @@ module.exports = async function handler(req, res) {
       'GAPS — anything in the news below that matters to Terps readers that InsideMDSports has NOT already covered (compare against the recently-published list). Name the story and, if the source shows it, who already has it.\n' +
       'FOLLOW UPS — developing threads from roughly the last one to two weeks that deserve a check-in: a recruit deciding soon, an injury with no update, a pending decision, a story that said "more to come."\n' +
       (hasNumbers
-        ? "WHAT WORKED YESTERDAY — 3-5 bullets reading YESTERDAY'S NUMBERS below (the publisher also sees the raw figures in a box above your memo, so don't just repeat them): what pulled readers on the site and why it likely did (topic, timing, angle), what did or didn't land on social (Buffer posts and the X account's own tweets), any top site story that got no social push, and how yesterday compared with the prior week. End with 1-2 concrete actions for today drawn from this (e.g. a follow-up on a story that pulled readers, re-push a strong story on social, post at the hour that worked). Use ONLY the numbers given; never invent figures. If a source is missing or thin, say so in a few words rather than guessing.\n"
+        ? "WHAT WORKED YESTERDAY — 3-5 bullets reading YESTERDAY'S NUMBERS below (the publisher also sees the raw figures in a box above your memo, so don't just repeat them): what pulled readers on the site and why it likely did (topic, timing, angle), what did or didn't land on social (Buffer posts and the X account's own tweets), any top site story that got no social push, and how yesterday compared with the prior week, and what people searched on Google to find us (Search Console; preliminary numbers). End with 1-2 concrete actions for today drawn from this (e.g. a follow-up on a story that pulled readers, re-push a strong story on social, post at the hour that worked). Use ONLY the numbers given; never invent figures. If a source is missing or thin, say so in a few words rather than guessing.\n"
         : 'WHAT WORKED — write exactly one line: "No analytics from yesterday yet (connect Chartbeat and Buffer under Analytics)." Do not invent numbers or name a top story.\n') +
       "EDITOR'S READ — one or two sentences: an honest take on where the beat is right now and the single thing you would focus on today.\n\n" +
       "TODAY'S RATED NEWS:\n" + (newsList || '(nothing notable in the scan)') + '\n\n' +
       'RECENTLY PUBLISHED BY INSIDEMDSPORTS:\n' + (ownList || '(unavailable this run)') + '\n\n' +
-      (hasNumbers ? "YESTERDAY'S NUMBERS (" + yesterday.day + ', Eastern; site readers are summed from readings every 3 hours, a ranking rather than exact pageviews):\n' + JSON.stringify({ site: yesterday.site, social: yesterday.social, x: yesterday.x, errors: yesterday.errors }) + '\n\n' : '') +
+      (hasNumbers ? "YESTERDAY'S NUMBERS (" + yesterday.day + ', Eastern; site readers are summed from readings every 3 hours, a ranking rather than exact pageviews):\n' + JSON.stringify({ site: yesterday.site, social: yesterday.social, x: yesterday.x, googleSearch: yesterday.search, errors: yesterday.errors }) + '\n\n' : '') +
       'Return ONLY clean HTML: <h3> for each section header, <ul><li> for bullets, <p> for the read. No preamble, no markdown fences.';
 
     var cr = await fetch('https://api.anthropic.com/v1/messages', {

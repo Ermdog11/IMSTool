@@ -706,7 +706,7 @@ body { padding-bottom: 40px; }
 
   <div class="settings-card">
     <h3><i class="ti ti-plug"></i> Connections</h3>
-    <div style="font-size:12px;color:var(--text3);margin-bottom:12px;line-height:1.5;">Chartbeat, X, Buffer and Facebook/Instagram can be connected now; the rest are coming. Only the publisher can connect or disconnect a source.</div>
+    <div style="font-size:12px;color:var(--text3);margin-bottom:12px;line-height:1.5;">Chartbeat, X, Search Console, Buffer and Facebook/Instagram can be connected now; the rest are coming. Only the publisher can connect or disconnect a source.</div>
     <div id="analyticsConnections"></div>
   </div>
 
@@ -718,6 +718,11 @@ body { padding-bottom: 40px; }
     <div style="font-size:11px;color:var(--text3);margin-top:8px;line-height:1.6;">
       Real-time "story going hot" alerts are on — manage who gets them in Settings → Team &amp; alerts. Planned: per-writer views &amp; engaged time by story type · proactive nudges.
     </div>
+  </div>
+
+  <div class="settings-card" id="gscInsightsCard" style="display:none;">
+    <h3><i class="ti ti-brand-google"></i> Google Search Console</h3>
+    <div id="gscInsights"></div>
   </div>
 
   <div class="settings-card" id="xInsightsCard" style="display:none;">
@@ -2481,10 +2486,10 @@ const ANALYTICS_SOURCES = [
   { key:'chartbeat', name:'Chartbeat',          gives:'Real-time concurrents and engaged time per story', setup:'Needs your Chartbeat API key (paste it).' },
   { key:'buffer',  name:'Buffer (beta)',        gives:'How your social posts sent through Buffer perform: reactions, comments, shares, clicks per post and per channel', setup:'Needs a personal API key from your Buffer account (Settings → API — paste it). Buffer labels these metrics experimental and updates them about once a day.' },
   { key:'x',       name:'X / Twitter',          gives:'Your own account\'s tweets: impressions, likes, reposts, replies, best tweets, best time to post — last 7 and 30 days', setup:'Uses your existing X connection (Settings → X / Twitter search). Each tweet is read once, ~6 hours after posting, about half a cent per tweet.' },
+  { key:'gsc',    name:'Google Search Console',  gives:'Google search clicks, impressions, top and rising searches, page-1 opportunities, plus Discover and Google News', setup:'Add the app\'s Google account as a user on your Search Console property (Connect shows the email), then pick the property.' },
   { key:'meta',   name:'Facebook / Instagram',  gives:'Reach and engagement for your own Page and IG account', setup:'Needs a Meta app with pages_read_engagement.' },
   { key:'ga4',    name:'Google Analytics 4',     gives:'Page views, engaged time, real-time, traffic sources', setup:'Needs a Google Cloud OAuth client.' },
   { key:'yta',    name:'YouTube Analytics',      gives:'Views, watch time and traffic sources for your channel', setup:'Same Google Cloud OAuth client, YouTube scope.' },
-  { key:'gsc',    name:'Google Search Console',  gives:'Search queries, clicks, impressions, ranking — the SEO picture', setup:'Same Google Cloud OAuth client, Search Console scope.' },
   { key:'parsely', name:'Parse.ly',             gives:'Historical performance by post, author, section, tag', setup:'Needs your Parse.ly API secret (paste it).' }
 ];
 let analyticsConnected = {};
@@ -2512,7 +2517,7 @@ async function renderAnalyticsConnections() {
   c.innerHTML = ANALYTICS_SOURCES.map(s => {
     const conn = analyticsConnected[s.key];
     const status = conn
-      ? `<span style="color:#15803d;font-size:11px;font-weight:600;">● Connected${conn.meta && (conn.meta.host || conn.meta.organizationName) ? ' · ' + (conn.meta.host || conn.meta.organizationName) : ''}</span>`
+      ? `<span style="color:#15803d;font-size:11px;font-weight:600;">● Connected${conn.meta && (conn.meta.host || conn.meta.organizationName) ? ' · ' + (conn.meta.host || conn.meta.organizationName) : conn.meta && (conn.meta.siteUrl || conn.meta.handle) ? ' · ' + (conn.meta.handle || conn.meta.siteUrl + (conn.meta.pathPrefix || '')) : ''}</span>`
       : '';
     const actionBtn = conn
       ? `<button class="pill" onclick="disconnectAnalytics('${s.key}')">Disconnect</button>`
@@ -2535,6 +2540,7 @@ function connectAnalytics(key) {
   if (key === 'meta') return connectMeta();
   if (key === 'buffer') return connectBuffer();
   if (key === 'x') return connectX();
+  if (key === 'gsc') return connectGsc();
   const s = ANALYTICS_SOURCES.find(x => x.key === key);
   alert(`${s.name}\n\nThis connection isn't wired up yet. ${s.setup}\n\nWhen you're ready to set it up, tell Claude and it'll walk you through the one-time registration, then this button will start the sign-in.`);
 }
@@ -2562,6 +2568,34 @@ async function connectChartbeat() {
     if (d.error) { alert('Chartbeat: ' + d.error); return; }
     renderAnalyticsConnections();
   } catch (e) { alert('Chartbeat: ' + e.message); }
+}
+
+async function connectGsc() {
+  try {
+    const r = await IMSAuth.authFetch('/api/search-console?setup=1');
+    const d = await r.json();
+    if (d.error && !d.configured) { alert('Search Console: ' + d.error); return; }
+    if (!d.configured) {
+      alert("Search Console needs a one-time server setup first: a Google service account whose key goes in the GOOGLE_SERVICE_ACCOUNT_JSON setting on Vercel. Ask Claude to walk you through it.");
+      return;
+    }
+    if (!(d.sites || []).length) {
+      alert(`Almost there. In Search Console, open your property → Settings → Users and permissions → Add user, and add:\n\n${d.serviceAccountEmail}\n\n(Restricted permission is enough.) Then click Connect here again.` + (d.error ? `\n\n(${d.error})` : ''));
+      return;
+    }
+    const list = d.sites.map((x, i) => `${i + 1}. ${x.siteUrl}`).join('\n');
+    const pick = d.sites.length === 1 ? 1 : parseInt(prompt(`Which Search Console property is this newsroom's?\n\n${list}\n\nType the number:`, '1'), 10);
+    const site = d.sites[pick - 1];
+    if (!site) return;
+    const pathPrefix = prompt("Only count pages under a section of that site? Enter the path (e.g. /college/maryland/), or leave blank for the whole property:", /247sports\.com/.test(site.siteUrl) ? '/college/maryland/' : '') || '';
+    const r2 = await IMSAuth.authFetch('/api/analytics-connections', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ source: 'gsc', siteUrl: site.siteUrl, pathPrefix })
+    });
+    const d2 = await r2.json();
+    if (d2.error) { alert('Search Console: ' + d2.error); return; }
+    renderAnalyticsConnections();
+  } catch (e) { alert('Search Console: ' + e.message); }
 }
 
 async function connectX() {
@@ -2618,7 +2652,7 @@ async function disconnectAnalytics(key) {
 function loadAnalyticsInsights() {
   const c = document.getElementById('analyticsInsights');
   if (!c) return;
-  const anyConnected = analyticsConnected.chartbeat || analyticsConnected.meta || analyticsConnected.buffer || analyticsConnected.x;
+  const anyConnected = analyticsConnected.chartbeat || analyticsConnected.meta || analyticsConnected.buffer || analyticsConnected.x || analyticsConnected.gsc;
 
   if (analyticsConnected.chartbeat) {
     c.innerHTML = '<div class="empty" style="padding:14px;"><i class="ti ti-loader spin"></i>Loading Chartbeat…</div>';
@@ -2631,6 +2665,12 @@ function loadAnalyticsInsights() {
   if (fb) {
     fb.style.display = analyticsConnected.meta ? '' : 'none';
     if (analyticsConnected.meta) refreshFacebookInsights();
+  }
+
+  const gc = document.getElementById('gscInsightsCard');
+  if (gc) {
+    gc.style.display = analyticsConnected.gsc ? '' : 'none';
+    if (analyticsConnected.gsc) refreshGscInsights();
   }
 
   const xc = document.getElementById('xInsightsCard');
@@ -2757,7 +2797,40 @@ function renderXInsights() {
   c.innerHTML = h;
 }
 
-const SOURCE_LABELS = { chartbeat: 'Chartbeat', meta: 'Facebook', buffer: 'Buffer', x: 'X / Twitter' };
+// Google Search Console: last 28 days vs the 28 before (api/search-console.js).
+async function refreshGscInsights() {
+  const c = document.getElementById('gscInsights');
+  if (!c) return;
+  c.innerHTML = '<div class="empty" style="padding:14px;"><i class="ti ti-loader spin"></i>Loading Search Console…</div>';
+  try {
+    const r = await IMSAuth.authFetch('/api/search-console');
+    const d = await r.json();
+    if (d.error) { c.innerHTML = `<div class="empty" style="padding:14px;">Search Console — ${escapeHtml(d.error)}</div>`; return; }
+    const esc = escapeHtml, n = v => v == null ? '—' : Number(v).toLocaleString();
+    const chg = v => v == null ? '' : ` <span style="font-size:11px;color:${v >= 0 ? 'var(--green)' : 'var(--hot)'};">${v >= 0 ? '▲' : '▼'} ${Math.abs(v)}%</span>`;
+    const stat = (label, v, extra) => `<div><div style="font-size:11px;color:var(--text3);">${label}</div><strong style="font-size:16px;">${v}</strong>${extra || ''}</div>`;
+    const w = d.web || {};
+    let h = `<div style="font-size:12px;color:var(--text3);margin-bottom:8px;">${esc(d.siteUrl)}${d.pathPrefix ? ' · pages under ' + esc(d.pathPrefix) : ''} · ${esc(d.window.start)} to ${esc(d.window.end)}, vs the 28 days before</div>
+      <div style="display:flex;gap:20px;flex-wrap:wrap;margin-bottom:12px;">
+        ${stat('Search clicks', n(w.clicks), chg(w.clicksChangePct))}${stat('Impressions', n(w.impressions), chg(w.impressionsChangePct))}
+        ${stat('Click rate', w.ctrPct != null ? w.ctrPct + '%' : '—')}${stat('Avg position', w.avgPosition || '—')}
+        ${stat('Discover clicks', n(d.discover && d.discover.clicks))}${stat('Google News clicks', n(d.googleNews && d.googleNews.clicks))}
+      </div>`;
+    const daily = (d.daily || []).map(x => ({ at: x.date + 'T12:00:00', visits: x.clicks }));
+    if (daily.length >= 2) h += chartWrap('Google search clicks per day', lineChartSvg(daily), (d.daily || []).map(x => [x.date, n(x.clicks) + ' clicks · ' + n(x.impressions) + ' impressions']));
+    const table = (title, rows, cols) => rows && rows.length ? `<div class="sdiv-label" style="margin-top:10px;">${title}</div>` + rows.map(x => `<div style="display:flex;justify-content:space-between;gap:10px;padding:5px 0;border-bottom:1px solid var(--border);font-size:12px;">${cols(x)}</div>`).join('') : '';
+    h += table('Top searches', d.topQueries, x => `<span style="flex:1;">${esc(x.query)}</span><span style="color:var(--text3);white-space:nowrap;">${n(x.clicks)} clicks · ${n(x.impressions)} impr · pos ${x.position}</span>`);
+    h += table('Rising searches', d.risingQueries, x => `<span style="flex:1;">${esc(x.query)}</span><span style="color:var(--text3);white-space:nowrap;">${n(x.clicks)} clicks (was ${n(x.previousClicks)})</span>`);
+    h += table('Page-1 opportunities — lots of impressions, ranking 5–20, few clicks', d.opportunities, x => `<span style="flex:1;">${esc(x.query)}</span><span style="color:var(--text3);white-space:nowrap;">${n(x.impressions)} impr · pos ${x.position} · ${x.ctrPct}% click rate</span>`);
+    h += table('Top pages', d.topPages, x => `<span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;"><a href="${esc(x.page)}" target="_blank" rel="noopener" style="color:inherit;">${esc(x.page.replace(/^https?:\/\/[^/]+/, ''))}</a></span><span style="color:var(--text3);white-space:nowrap;">${n(x.clicks)} clicks · pos ${x.position}</span>`);
+    h += `<div style="font-size:11px;color:var(--text3);margin-top:8px;">${esc(d.note)}${(d.warnings || []).length ? ' Some data didn\'t load: ' + esc(d.warnings.join(' · ')) : ''}</div>`;
+    c.innerHTML = h;
+  } catch (e) {
+    c.innerHTML = `<div class="empty" style="padding:14px;">Couldn't load Search Console — ${escapeHtml(e.message)}</div>`;
+  }
+}
+
+const SOURCE_LABELS = { chartbeat: 'Chartbeat', meta: 'Facebook', buffer: 'Buffer', x: 'X / Twitter', gsc: 'Search Console' };
 const HOUR_LABELS = ['12am','1am','2am','3am','4am','5am','6am','7am','8am','9am','10am','11am','12pm','1pm','2pm','3pm','4pm','5pm','6pm','7pm','8pm','9pm','10pm','11pm'];
 
 // ---- Trends charts (inline SVG, no library) ----

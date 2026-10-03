@@ -21,7 +21,7 @@ module.exports = async function handler(req, res) {
 
   var body = req.body || {};
   var question = (body.question || '').toString().trim().slice(0, 1000);
-  var scope = (body.source === 'chartbeat' || body.source === 'meta' || body.source === 'buffer' || body.source === 'x') ? body.source : 'all';
+  var scope = (body.source === 'chartbeat' || body.source === 'meta' || body.source === 'buffer' || body.source === 'x' || body.source === 'gsc') ? body.source : 'all';
   if (!question) return res.status(200).json({ error: 'Ask something first.' });
 
   try {
