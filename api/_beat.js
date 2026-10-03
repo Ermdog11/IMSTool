@@ -15,7 +15,9 @@
 //   ownSite:{url, articlePath, domains[]}, excludeSources[], relevanceWords[],
 //   topicStopwords[], outlets:[{name, domain, rss?, rating?}], subreddits[],
 //   feeds:[{url,name,src?,requireBeat?,isAtom?}]  (explicit list; generated when absent),
-//   reddit:[{url,name}], watch:[{label, names[], alumni?}]
+//   reddit:[{url,name}], watch:[{label, names[], alumni?}],
+//   keyTerms:[{term, kind:'person'|'place'|'term', era:'current'|'historic', figure?}]
+//     (the wizard's ranked "key names and terms", up to 100)
 //
 // `rating` (1-5) on outlets, feeds and watch groups is the publisher's own
 // importance score from the setup wizard; see weightNote().
@@ -44,6 +46,8 @@ function normalize(b) {
   b.coreBeatsText = b.coreBeatsText || b.primarySports.join(', ');
   b.lowPrioritySports = list(b.lowPrioritySports);
   b.keyFigures = list(b.keyFigures);
+  b.keyTerms = (b.keyTerms || []).map(function (x) { return typeof x === 'string' ? { term: x } : x; })
+    .filter(function (x) { return x && x.term; });
   b.proLeaguesText = b.proLeaguesText || (t.level === 'pro' ? 'other pro teams' : 'the pros');
   b.ownSite = b.ownSite || {};
   b.ownSite.domains = list(b.ownSite.domains);
@@ -56,6 +60,11 @@ function normalize(b) {
     b.relevanceWords = [t.name].concat(t.nicknames, b.keyFigures, people, b.primarySports.map(function (s) { return t.short + ' ' + s; }))
       .map(function (s) { return s.replace(/\s*\(.*?\)\s*/g, '').trim().toLowerCase(); }).filter(function (s) { return s.length > 3; });
   }
+  // Every key name and term marks a story as on-beat.
+  b.keyTerms.forEach(function (x) {
+    var w = String(x.term).replace(/\s*\(.*?\)\s*/g, '').trim().toLowerCase();
+    if (w.length > 3 && b.relevanceWords.indexOf(w) === -1) b.relevanceWords.push(w);
+  });
   b.topicStopwords = list(b.topicStopwords).length ? list(b.topicStopwords)
     : [t.short, t.school || '', t.conference || '', 'university', 'college', 'ncaa', 'the'].concat(t.nicknames).filter(Boolean).map(function (s) { return s.toLowerCase(); });
   b.watch = (b.watch || []).map(function (g) {
@@ -121,6 +130,9 @@ function generateFeeds(b) {
   b.watch.slice().sort(function (a, c) { return (c.rating || 3) - (a.rating || 3); }).forEach(function (g) {
     if ((g.rating || 3) <= 1) return;
     g.names.forEach(function (n) { var clean = n.replace(/\s*\(.*?\)\s*/g, '').trim(); if (clean && people.indexOf(clean) === -1) people.push(clean); });
+  });
+  b.keyTerms.forEach(function (x) {
+    if ((x.kind || 'person') === 'person' && x.era !== 'historic' && people.indexOf(x.term) === -1) people.push(x.term);
   });
   chunks(people.slice(0, 60), 6).forEach(function (c, i) { feeds.push({ url: gnews(orJoin(c)), name: 'GNews/people' + (i + 1), requireBeat: true }); });
 
@@ -271,6 +283,12 @@ function weightNote(b) {
       (g[5] ? '\n- Must-watch (5): ' + g[5].join('; ') + '. Any genuine news about these people is core to us; rate it one point higher than you otherwise would, within the rules above.' : '') +
       (g[4] ? '\n- High (4): ' + g[4].join('; ') + '. Important to us.' : '') +
       (g[2] ? '\n- Low (2): ' + g[2].join('; ') + '. Routine coverage of these people caps at 2; only major news rates higher.' : ''));
+  }
+  if (b.keyTerms.length) {
+    var cur = b.keyTerms.filter(function (x) { return x.era !== 'historic'; }).map(function (x) { return x.term; });
+    var past = b.keyTerms.filter(function (x) { return x.era === 'historic'; }).map(function (x) { return x.term; });
+    out.push('KEY NAMES AND TERMS (the publisher\'s list of what matters most on this beat, most important first). A story about any of these is on our beat:' +
+      (cur.length ? '\n- Current: ' + cur.join(', ') : '') + (past.length ? '\n- Historical (legends, past figures, traditions): ' + past.join(', ') : ''));
   }
   var c = bucket([].concat(b.subreddits, b.podcasts, b.youtube), function (x) { return x.name; });
   if (c[5] || c[4] || c[2]) {
