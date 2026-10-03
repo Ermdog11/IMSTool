@@ -441,6 +441,12 @@ body { padding-bottom: 40px; }
     <a class="pill" href="/setup" style="text-decoration:none;">Open the setup wizard</a>
   </div>
 
+  <div class="settings-card">
+    <h3><i class="ti ti-heart-rate-monitor"></i> Source health</h3>
+    <div style="font-size:12px;color:var(--text3);margin-bottom:10px;line-height:1.5;">Every scan checks every source. A source that stops working for a day is fixed automatically when it can be (by searching its site through Google News instead) or skipped when it can't, and you get one email about it. A source that goes quiet for two weeks is flagged too.</div>
+    <div id="sourceHealth"><div style="font-size:12px;color:var(--text3);">Loading…</div></div>
+  </div>
+
   <div class="notice"><i class="ti ti-user-check"></i> You are Jeff Ermann, publisher of InsideMDSports. Your content and IMS Radio are excluded from all alerts.</div>
 
   <div class="settings-card">
@@ -843,7 +849,7 @@ function switchTab(idx, fromPop) {
   if (idx === 7) loadPodcasts();
   if (idx === 8) loadYouTube();
   if (idx === 9) loadBluesky();
-  if (idx === 10) { renderBlockedSources(); renderOwnSites(); refreshPushStatus(); loadTeam(); loadScrapeSessionStatus(); loadSocialPromoStatus(); loadSearchSettingsStatus(); loadGoogleSearchSettingsStatus(); loadXSettingsStatus(); loadXWatchHandles(); }
+  if (idx === 10) { loadSourceHealth(); renderBlockedSources(); renderOwnSites(); refreshPushStatus(); loadTeam(); loadScrapeSessionStatus(); loadSocialPromoStatus(); loadSearchSettingsStatus(); loadGoogleSearchSettingsStatus(); loadXSettingsStatus(); loadXWatchHandles(); }
   if (idx === 11) renderAnalyticsConnections();
   if (idx === 12) loadRosterWatch();
   if (idx === 13) loadOppsSpy();
@@ -2643,6 +2649,29 @@ async function refreshChartbeatInsights() {
 // ============================================================
 // ROSTER WATCH — current roster + dated add/drop history per team
 // ============================================================
+// ---- Source health (api/source-health.js) ----
+async function loadSourceHealth() {
+  var box = document.getElementById('sourceHealth');
+  try {
+    var r = await fetch('/api/source-health'); var d = await r.json();
+    if (d.error) throw new Error(d.error);
+    var list = d.sources || [];
+    if (!list.length) { box.innerHTML = '<div style="font-size:12px;color:var(--text3);">No scans recorded yet. Status appears after the next scan.</div>'; return; }
+    var LBL = { dead: ['#dc2626', 'Not working'], failing: ['#f59e0b', 'Failing'], silent: ['#f59e0b', 'Quiet 14+ days'], healed: ['#2563eb', 'Fixed automatically'], new: ['#9ca3af', 'New'], ok: ['#3B6D11', 'Working'] };
+    var counts = {}; list.forEach(function (x) { counts[x.state] = (counts[x.state] || 0) + 1; });
+    var ago = function (t) { if (!t) return 'never'; var h = Math.round((Date.now() - t) / 3600000); return h < 1 ? 'just now' : h < 48 ? h + 'h ago' : Math.round(h / 24) + 'd ago'; };
+    var esc = function (t) { var e = document.createElement('div'); e.textContent = t == null ? '' : String(t); return e.innerHTML; };
+    box.innerHTML = '<div style="font-size:12px;margin-bottom:8px;">' + Object.keys(LBL).filter(function (k) { return counts[k]; }).map(function (k) { return '<span style="margin-right:12px;"><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:' + LBL[k][0] + ';margin-right:4px;"></span>' + counts[k] + ' ' + LBL[k][1].toLowerCase() + '</span>'; }).join('') + '</div>' +
+      '<div style="max-height:320px;overflow:auto;border:1px solid var(--border);border-radius:8px;">' + list.map(function (x) {
+        var l = LBL[x.state] || LBL.ok;
+        return '<div style="display:flex;gap:10px;align-items:center;padding:7px 10px;border-top:1px solid var(--border);font-size:12px;">' +
+          '<span style="width:8px;height:8px;border-radius:50%;background:' + l[0] + ';flex-shrink:0;"></span>' +
+          '<span style="flex:1;min-width:0;"><b>' + esc(x.name) + '</b>' + (x.healedTo ? ' <span style="color:var(--text3);">(now via Google News)</span>' : '') + '</span>' +
+          '<span style="color:var(--text3);white-space:nowrap;">' + l[1] + (x.state === 'dead' || x.state === 'failing' ? ' · ' + esc(x.lastStatus) : '') + ' · last story ' + ago(x.lastStoryAt) + '</span></div>';
+      }).join('') + '</div>';
+  } catch (e) { box.innerHTML = '<div style="font-size:12px;color:var(--hot);">Couldn\'t load source health — ' + e.message + '</div>'; }
+}
+
 // ---- Opps Spy (api/opps-spy.js) ----
 var oppsData = { competitors: [], items: [] };
 function oppsAgo(t) {
