@@ -5,6 +5,7 @@
 // ties; the story is "two former Terps land on the county's all-time top 10".
 //
 //   POST { image?: {data: <base64>, mediaType}, text?, url?, poster?, note? }
+//     (any one of image, text or url is enough; a url is read by _post-link.js)
 //     -> { relevant, angle, people:[{name, tie, confidence}], headline, id? }
 //
 // Claude reads the image itself (vision) and checks every name against the
@@ -68,7 +69,7 @@ module.exports = async function handler(req, res) {
   var note = String(body.note || '').trim().slice(0, 2000);
   var img = body.image && body.image.data ? body.image : null;
   var mediaType = img && /^image\/(jpeg|png|webp|gif)$/.test(img.mediaType) ? img.mediaType : 'image/jpeg';
-  if (!img && !text) return res.status(400).json({ error: 'Paste the post: a screenshot or its text' });
+  if (!img && !text && !url) return res.status(400).json({ error: 'Add the post: a link, a screenshot or its text' });
 
   var key = process.env.ANTHROPIC_API_KEY;
   if (!key) return res.status(500).json({ error: 'Missing ANTHROPIC_API_KEY' });
@@ -79,6 +80,14 @@ module.exports = async function handler(req, res) {
     var houseStyle = sb ? await Settings.getHouseStyle(sb) : null;
     var related = [];
     try { related = await relatedArticleIndex(); } catch (e) { /* links are optional */ }
+    // A pasted link is read too (X posts via the X API, other pages via their
+    // preview tags); its photo stands in when no screenshot was added.
+    var link = url ? await require('./_post-link.js').readPostLink(url, sb) : null;
+    if (link && link.image && !img) { img = link.image; mediaType = link.image.mediaType; }
+    if (!img && !text && !(link && link.text)) {
+      return res.status(400).json({ error: 'Couldn\u2019t read that link (Facebook and some other sites hide posts from apps). Take a screenshot of the post and add it instead.' });
+    }
+    if (!poster && link && link.author) poster = link.author;
     var t = beat.team, Sh = t.short;
     var today = new Date().toLocaleDateString('en-US', { timeZone: 'America/New_York', year: 'numeric', month: 'long', day: 'numeric' });
 
@@ -93,7 +102,9 @@ module.exports = async function handler(req, res) {
       Beat.watchListText(beat);
 
     var userText = (poster ? 'POSTED BY: ' + poster + '\n' : '') + (url ? 'POST URL: ' + url + '\n' : '') +
-      (text ? 'POST TEXT:\n' + text + '\n' : '') + (img ? '(The post\'s screenshot is attached.)\n' : '') +
+      (text ? 'POST TEXT:\n' + text + '\n' : '') +
+      (link && link.text ? 'POST AS READ FROM ITS LINK (' + link.via + (link.date ? ', posted ' + link.date : '') + '):\n' + link.text + '\n' : '') +
+      (img ? '(The post\'s ' + (link && link.image && img === link.image ? 'image' : 'screenshot') + ' is attached.)\n' : '') +
       (note ? '\nEDITOR\'S NOTE (trusted context from the newsroom):\n' + note + '\n' : '') +
       '\nRELATED ARTICLES (for internal links):\n' + (related.map(function (r, i) { return (i + 1) + '. ' + r.headline + '  ->  ' + r.url; }).join('\n') || '(none available)');
 
