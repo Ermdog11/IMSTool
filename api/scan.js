@@ -598,7 +598,7 @@ module.exports = async function handler(req, res) {
     // Re-attach URLs (and video metadata) by idx
     var withUrls = parsed.map(function(item) {
       var orig = stories[item.idx - 1];
-      var extra = { url: orig ? orig.url : '' };
+      var extra = { url: orig ? orig.url : '', ageHours: orig ? orig.age : null };
       if (orig && orig.kind === 'video') { extra.kind = 'video'; extra.thumbnail = orig.thumbnail || ''; extra.channel = orig.channel || ''; }
       if (orig && orig.followUp) extra.followUp = orig.followUp;
       if (orig && orig.watchedAccount) extra.watchedAccount = true;

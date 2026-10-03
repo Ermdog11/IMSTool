@@ -903,6 +903,33 @@ function isBball(s) { return ['basketball','mens-basketball','womens-basketball'
 // ============================================================
 // RENDER ALERTS
 // ============================================================
+// Hours since a story was published: the scanner's ageHours, else the "2h ago" text.
+function alertAgeHours(a) {
+  if (typeof a.ageHours === 'number') return a.ageHours;
+  const m = String(a.time || '').match(/(\d+)\s*(m|min|h|hr|d|day)/i);
+  if (!m) return 0;
+  const n = +m[1], u = m[2].toLowerCase();
+  return u.charAt(0) === 'm' ? n / 60 : u.charAt(0) === 'd' ? n * 24 : n;
+}
+function alertDayKey(a) {
+  const d = new Date(a.publishedAt || Date.now());
+  return d.getFullYear() * 10000 + (d.getMonth() + 1) * 100 + d.getDate();
+}
+function sortByDayThenRating(list) {
+  return list.slice().sort((a, b) =>
+    (alertDayKey(b) - alertDayKey(a)) ||
+    ((a.lowPriority ? 1 : 0) - (b.lowPriority ? 1 : 0)) ||
+    ((b.rating || 0) - (a.rating || 0)) ||
+    ((b.publishedAt || 0) - (a.publishedAt || 0)));
+}
+function alertDayLabel(a) {
+  const d = new Date(a.publishedAt || Date.now()), t = new Date();
+  const y = new Date(t); y.setDate(t.getDate() - 1);
+  if (d.toDateString() === t.toDateString()) return 'Today';
+  if (d.toDateString() === y.toDateString()) return 'Yesterday';
+  return d.toLocaleDateString([], { weekday: 'long', month: 'short', day: 'numeric' });
+}
+
 function renderAlerts() {
   const c = document.getElementById('alertsContainer');
   let filtered = allAlerts;
@@ -923,7 +950,14 @@ function renderAlerts() {
 
   if (!filtered.length) { c.innerHTML = '<div class="empty"><i class="ti ti-mood-empty"></i>No alerts in this category.</div>'; return; }
 
-  c.innerHTML = filtered.map((a, idx) => {
+  filtered = sortByDayThenRating(filtered);
+  let lastDay = null;
+  c.innerHTML = filtered.map((a, fi) => {
+    // Card actions look stories up in allAlerts, so use its index, not the filtered one.
+    const idx = allAlerts.indexOf(a);
+    const day = alertDayLabel(a);
+    const dayHeader = day !== lastDay ? `<div style="font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--text2);margin:${lastDay === null ? '2px' : '18px'} 0 8px;padding-bottom:5px;border-bottom:2px solid var(--red);">${day}</div>` : '';
+    lastDay = day;
     const isRec = a.category === 'recruiting';
     const cardClass = a.rating === 5 ? 'r5' : a.rating === 4 ? 'r4' : '';
     const ratingClass = `r${a.rating}-badge`;
@@ -931,7 +965,7 @@ function renderAlerts() {
     const tagClass = isRec ? 'tag-rec' : a.sport === 'football' ? 'tag-fb' : isBball(a.sport) ? 'tag-bk' : a.category === 'alumni' ? 'tag-alum' : ['social','podcast'].includes(a.category) ? 'tag-soc' : 'tag-gen';
     const catLabel = isRec ? 'Recruiting' : a.category === 'alumni' ? 'Alumni' : a.category === 'social' ? 'Social' : a.category === 'podcast' ? 'Podcast' : 'News';
     const isVideo = a.kind === 'video';
-    return `<div class="acard ${cardClass}" id="card-${idx}">
+    return dayHeader + `<div class="acard ${cardClass}" id="card-${idx}">
       <div class="acard-top">
              <div class="acard-headline">${isVideo ? '📺 ' : ''}${a.url ? `<a href="${a.url}" target="_blank" rel="noopener" style="color:inherit;text-decoration:underline;">${a.headline}</a>` : a.headline}</div>
         <span class="rating ${ratingClass}">${ratingLabel}</span>
@@ -1622,8 +1656,11 @@ async function runScan() {
     let results = JSON.parse(cleaned.substring(start, end + 1));
     results = results.filter(a => !EXCLUDED.some(ex => (a.source||'').toLowerCase().includes(ex.toLowerCase())));
     results = results.filter(a => !isBlockedSource(a.source) && !isHidden(a.url));
-    // Low-priority sports (volleyball, tennis, golf, etc.) always sink to the bottom
-    allAlerts = results.slice().sort((a, b) => (a.lowPriority ? 1 : 0) - (b.lowPriority ? 1 : 0));
+    // Newest day first; within each day, highest rated first (Jeff, 2026-10-03).
+    // Low-priority sports (volleyball, tennis, golf, etc.) sink to the bottom of their day.
+    const scanAt = Date.now();
+    results.forEach(a => { if (!a.publishedAt) a.publishedAt = scanAt - alertAgeHours(a) * 3600000; });
+    allAlerts = sortByDayThenRating(results);
     overflowAlerts = (data.overflow || [])
       .filter(s => !EXCLUDED.some(ex => (s.source||'').toLowerCase().includes(ex.toLowerCase())))
       .filter(s => !isBlockedSource(s.source) && !isHidden(s.url));
