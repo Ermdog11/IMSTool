@@ -8,8 +8,85 @@
 var S = require('./_supabase');
 var Context = require('./_analytics-context');
 
+// Suggested questions (GET): three chips under the question box, changing
+// daily (Jeff, 2026-10-03). Two come from an evergreen pool, rotated by the
+// date so every day shows a different pair; one or two are written fresh each
+// morning from the beat's latest top stories (the shared scan), so they track
+// what's happening ("How did our Locksley job-status coverage do on social vs
+// the site?"). Cached per day in Blob, so it's one small Claude call a day.
+var EVERGREEN = [
+  'What content is our audience clicking on most this week?',
+  'What\'s getting the most social media engagement right now?',
+  'What were our five best-performing social posts this week?',
+  'What time of day is best for us to publish?',
+  'Which day of the week gets us the most readers?',
+  'Which stories got big traffic but little social promotion?',
+  'Where are our readers coming from: search, social or direct?',
+  'What are people searching on Google to find us?',
+  'Which platform is growing fastest for us?',
+  'What topics should we write more about, based on reader interest?',
+  'Which headlines or post styles get the most engagement?',
+  'How does this week compare with last week?',
+  'Which of our stories kept readers engaged the longest?',
+  'What\'s our best time to post on X versus Facebook?',
+  'Which recent stories are worth re-sharing on social today?',
+  'Are we getting traffic from Google Discover or Google News?'
+];
+var SUGGEST_PATH = 'analytics-question-suggestions.json';
+
+async function suggestions(sb) {
+  var blob = require('@vercel/blob');
+  var day = new Date().toLocaleDateString('en-CA', { timeZone: 'America/New_York' });
+  try {
+    var got = await blob.get(SUGGEST_PATH, { access: 'private', useCache: false });
+    if (got && got.statusCode === 200) {
+      var cached = await new Response(got.stream).json();
+      if (cached && cached.day === day && (cached.questions || []).length === 3) return cached;
+    }
+  } catch (e) { /* regenerate */ }
+
+  var n = Math.floor(Date.parse(day) / 86400000);
+  var pick = [EVERGREEN[n % EVERGREEN.length], EVERGREEN[(n * 7 + 3) % EVERGREEN.length]];
+  if (pick[1] === pick[0]) pick[1] = EVERGREEN[(n + 1) % EVERGREEN.length];
+  var topical = [];
+  try {
+    var latest = await require('./_latest-scan').load();
+    var text = ((latest && latest.response && latest.response.content) || []).map(function (c) { return c.text || ''; }).join('');
+    var stories = JSON.parse(text || '[]').filter(function (a) { return (a.rating || 0) >= 3; })
+      .sort(function (a, b) { return (b.rating || 0) - (a.rating || 0); }).slice(0, 8).map(function (a) { return '- ' + a.headline; });
+    var beat = await require('./_beat').getBeat(sb);
+    if (stories.length && process.env.ANTHROPIC_API_KEY) {
+      var tool = { name: 'suggest', description: 'Return the questions.', input_schema: { type: 'object', properties: { questions: { type: 'array', items: { type: 'string' } } }, required: ['questions'] } };
+      var r = await fetch('https://api.anthropic.com/v1/messages', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'x-api-key': process.env.ANTHROPIC_API_KEY, 'anthropic-version': '2023-06-01' },
+        body: JSON.stringify({
+          model: 'claude-sonnet-4-6', max_tokens: 300, tools: [tool], tool_choice: { type: 'tool', name: 'suggest' },
+          messages: [{ role: 'user', content: 'You help the editor of ' + beat.outletName + ' (' + beat.coverage + ') use their audience analytics (site traffic, social posts and engagement, Google search). ' +
+            'Write 2 short questions (under 14 words each) the editor could ask their analytics TODAY about the biggest current storylines below, e.g. how that coverage performed on the site vs social, or what readers want next on it. ' +
+            'Questions only; no facts or numbers in them.\n\nTop current stories:\n' + stories.join('\n') }]
+        })
+      });
+      var d = await r.json();
+      var tu = (d.content || []).filter(function (b) { return b.type === 'tool_use'; })[0];
+      topical = ((tu && tu.input && tu.input.questions) || []).map(function (q) { return String(q).trim().slice(0, 140); }).filter(Boolean).slice(0, 1);
+    }
+  } catch (e) { /* evergreen only */ }
+  var questions = topical.concat(pick).slice(0, 3);
+  while (questions.length < 3) questions.push(EVERGREEN[(n + questions.length + 5) % EVERGREEN.length]);
+  var out = { day: day, questions: questions };
+  try { await blob.put(SUGGEST_PATH, JSON.stringify(out), { access: 'private', addRandomSuffix: false, allowOverwrite: true, contentType: 'application/json' }); } catch (e) {}
+  return out;
+}
+
 module.exports = async function handler(req, res) {
   res.setHeader('Cache-Control', 'no-store');
+  if (req.method === 'GET' && req.query && req.query.suggest) {
+    if (S.isConfigured()) {
+      try { await S.requireUser(req); } catch (e) { return res.status(e.status || 401).json({ error: e.message }); }
+    }
+    return res.status(200).json(await suggestions(S.isConfigured() ? S.admin() : null));
+  }
   if (req.method !== 'POST') return res.status(405).json({ error: 'POST only' });
   if (!S.isConfigured()) return res.status(503).json({ error: 'Login not configured' });
   var key = process.env.ANTHROPIC_API_KEY;

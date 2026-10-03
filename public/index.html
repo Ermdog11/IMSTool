@@ -703,6 +703,7 @@ body { padding-bottom: 40px; }
       <input id="analyticsQuestionInput" placeholder="Ask a question about your audience…" style="flex:1;font-size:13px;padding:8px 10px;border:1px solid var(--border);border-radius:6px" onkeydown="if(event.key==='Enter')askAnalyticsQuestion()">
       <button class="chip" onclick="askAnalyticsQuestion()">Ask</button>
     </div>
+    <div id="analyticsQuestionSuggestions" style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px;"></div>
     <div id="analyticsQuestionAnswer"></div>
   </div>
 
@@ -872,7 +873,7 @@ function switchTab(idx, fromPop) {
   if (idx === 8) loadYouTube();
   if (idx === 9) loadBluesky();
   if (idx === 10) { loadSourceHealth(); renderBlockedSources(); renderOwnSites(); refreshPushStatus(); loadTeam(); loadScrapeSessionStatus(); loadSocialPromoStatus(); loadSearchSettingsStatus(); loadGoogleSearchSettingsStatus(); loadXSettingsStatus(); loadXWatchHandles(); }
-  if (idx === 11) renderAnalyticsConnections();
+  if (idx === 11) { renderAnalyticsConnections(); loadAnalyticsSuggestions(); }
   if (idx === 12) loadRosterWatch();
   if (idx === 13) loadOppsSpy();
   window.scrollTo(0, 0);
@@ -3096,6 +3097,29 @@ function loadQuestionBox() {
   const options = [`<option value="all">Combined</option>`]
     .concat(connectedKeys.map(k => `<option value="${k}">${SOURCE_LABELS[k]}</option>`));
   sel.innerHTML = `<select id="analyticsQuestionSourceSel" style="font-size:12px;padding:5px 8px;border:1px solid var(--border);border-radius:6px;">${options.join('')}</select>`;
+}
+
+// Three suggested questions under the Ask box, new each day (one or two tied
+// to the beat's current top stories). Tap one to ask it.
+let analyticsSuggestionsLoaded = false;
+async function loadAnalyticsSuggestions() {
+  if (analyticsSuggestionsLoaded) return;
+  const box = document.getElementById('analyticsQuestionSuggestions');
+  if (!box) return;
+  try {
+    const r = await IMSAuth.authFetch('/api/analytics-question?suggest=1');
+    const d = await r.json();
+    const qs = (d && d.questions) || [];
+    if (!qs.length) return;
+    analyticsSuggestionsLoaded = true;
+    box.innerHTML = '<span style="font-size:11px;color:var(--text3);align-self:center;">Try:</span>' +
+      qs.map((q, i) => `<button class="chip" style="text-align:left;white-space:normal;" data-q="${escapeHtml(q)}" onclick="askSuggested(this)">${escapeHtml(q)}</button>`).join('');
+  } catch (e) { /* no suggestions, box stays empty */ }
+}
+function askSuggested(btn) {
+  const inp = document.getElementById('analyticsQuestionInput');
+  inp.value = btn.getAttribute('data-q');
+  askAnalyticsQuestion();
 }
 
 // Small, safe Markdown for AI answers: escapes everything, then turns blank
