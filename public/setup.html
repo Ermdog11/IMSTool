@@ -95,6 +95,9 @@ input:focus,select:focus,textarea:focus,button:focus-visible{outline:2px solid v
 .ac-list div{padding:9px 12px;cursor:pointer;display:flex;justify-content:space-between;gap:10px;font-size:14px}
 .ac-list div span{font-size:12px;color:var(--muted);white-space:nowrap}
 .ac-list div.on,.ac-list div:hover{background:#fff5f5}
+.spy{display:flex;gap:14px;flex-wrap:wrap;margin-top:4px}
+.spy label{display:flex;gap:5px;align-items:center;margin:0;font-weight:400;font-size:12px;color:var(--text2)}
+.spy input{width:auto}
 .blk{display:flex;gap:5px;align-items:center;margin:0;font-weight:400;font-size:12px;color:var(--text2);white-space:nowrap}
 .blk input{width:auto}
 .item.blocked .main,.item.blocked .rate{opacity:.4}
@@ -159,7 +162,7 @@ input:focus,select:focus,textarea:focus,button:focus-visible{outline:2px solid v
         <div class="ac" style="margin-top:8px"><input id="b-term-add" placeholder="Add a name or term, e.g. a player, coach or venue" autocomplete="off"><div class="ac-list" id="term-ac"></div></div></div>
       <div class="rlegend"><b style="color:var(--red)">Outlined</b> = key figure (head coach, AD or GM, a top star). <span style="background:#f6f5f1;padding:0 4px;border-radius:3px">Gray</span> = historical.</div>
       <label>Sources that cover your beat</label>
-      <div class="rlegend">Rate each one: <b>5</b> must-watch · <b>4</b> high · <b>3</b> normal · <b>2</b> low · <b>1</b> don't watch its feed. <b>Block all results</b> hides that source's stories everywhere, even when they show up through Google News.</div>
+      <div class="rlegend">Rate each one: <b>5</b> must-watch · <b>4</b> high · <b>3</b> normal · <b>2</b> low · <b>1</b> don't watch its feed. <b>Block all results</b> hides that source's stories everywhere, even when they show up through Google News. Check <b>Email me</b> or <b>Text me</b> on your closest competitors to follow them in <a href="/opps" target="_blank">Opps Spy</a>.</div>
       <div class="box" id="beat-outlets"></div>
       <div style="display:flex;gap:8px;margin-top:8px;flex-wrap:wrap"><input id="b-add-name" placeholder="Outlet name" style="flex:1;min-width:140px"><input id="b-add-domain" placeholder="Website, e.g. baltimoresun.com" style="flex:1;min-width:160px"><button type="button" class="btn ghost small" onclick="addOutlet()">Add</button></div>
       <div>
@@ -460,7 +463,11 @@ function renderOutlets(){
   $('beat-outlets').innerHTML=list.length?list.map(function(o,i){
     return '<div class="item'+(o.blocked?' blocked':'')+'"><div class="main"><b>'+esc(o.name)+'</b>'+(o.kind?'<span class="tag">'+esc(o.kind)+'</span>':'')+
       (o.checked==='feed'?'<span class="tag ok">feed ✓</span>':'')+
-      '<div class="sub">'+esc(o.domain||'')+(o.why?' — '+esc(o.why):'')+'</div></div>'+rateHtml('outlets.'+i,o.rating)+
+      '<div class="sub">'+esc(o.domain||'')+(o.why?' — '+esc(o.why):'')+'</div>'+
+      '<div class="spy">'+
+        '<label title="Email you each time they publish a story on your beat"><input type="checkbox" '+(o.alertEmail?'checked':'')+' onchange="beat.outlets['+i+'].alertEmail=this.checked"> ✉️ Email me when they publish</label>'+
+        '<label title="Text you each time they publish. Texts start once a texting service is connected; until then you get the email."><input type="checkbox" '+(o.alertText?'checked':'')+' onchange="beat.outlets['+i+'].alertText=this.checked"> 💬 Text me</label>'+
+      '</div></div>'+rateHtml('outlets.'+i,o.rating)+
       '<label class="blk" title="Never show any story from this source, wherever it turns up"><input type="checkbox" '+(o.blocked?'checked':'')+' onchange="beat.outlets['+i+'].blocked=this.checked;renderOutlets()"> Block all results</label>'+
       '<button type="button" class="x" title="Remove" onclick="beat.outlets.splice('+i+',1);renderOutlets()">×</button></div>';
   }).join(''):'<div class="help" style="margin:0">No sources yet. Click <b>Build my beat</b> or add one below.</div>';
