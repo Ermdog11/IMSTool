@@ -1,7 +1,7 @@
 # CoPublisher AI — promo video script
 
 **For:** prospective partners and investors
-**Length:** about 4:55 (full cut), plus a 60-second cut
+**Length:** about 5:05 (full cut), plus a 60-second cut
 **Mockups:** `mockups/01…25.png`. They are real screens from the app, filled with **sample data**: the players, outlets, headlines and numbers are invented. Keep the on-screen "Sample data" tag on any scene that shows product numbers.
 **Industry figures** in Scene 1 come from published research (sources at the bottom). Check each against its source before you publish the video.
 
@@ -17,16 +17,19 @@ Paste this block into the tool's style or prompt box:
 
 ---
 
-## Full cut (about 4:55)
+## Full cut (about 5:05)
 
 ### Scene 1 — What's at stake
-- **Visual:** Motion graphics on navy. Three big stats animate in one at a time, each with a small source line under it. Then a clock ticking past midnight, and a rival's headline sliding in first.
-- **On-screen text:**
+- **Visual:** Motion graphics on navy. Six cards animate in one at a time, each with a small source line under it, ending on the "pie" line.
+- **On-screen text, in order:**
+  - "**Hundreds of billions** of impressions a year on sports websites" (estimate: major sports networks each draw 100M+ visitors a month)
+  - "**$12B** global sports broadcasting & streaming ad market" (source: Visual Capitalist)
   - "Breaking news traffic from Google: **+103%**" (source: Define Media Group, 2025)
   - "From Google Discover: **+168%**" (same source)
   - "**97%** of publishers say newsroom automation is important" (source: Reuters Institute, 2026)
+  - "**Big or small, get more of that pie.**"
 - **Voiceover:**
-  > In digital news, speed is money. Breaking news is now the fastest-growing source of Google traffic, and that audience goes to whoever publishes first. Every story you're late on is readers, subscribers and ad revenue handed to someone else. That's why nearly every publisher now calls automation a priority.
+  > Sports websites draw hundreds of billions of impressions a year, in a twelve-billion-dollar sports broadcasting and streaming ad market. And in digital news, speed is money. Breaking news is now the fastest-growing source of Google traffic, and that audience goes to whoever publishes first. Every story you're late on is readers and revenue handed to someone else. Whether you're a national network or a one-person team site, CoPublisher helps you get more of that pie.
 
 ### Scene 2 — Meet your 24/7 team
 - **Visual:** The CoPublisher AI logo, then three cards flipping in side by side, each with an icon: **Co-Publisher** (newspaper icon), **Social Media Director** (share icon), **Product Strategist** (chart icon). A "24/7" badge stamps across all three. Pull back to `01-news-feed.png`.
@@ -173,6 +176,9 @@ These are the things the script says the product does, matched to what it actual
 ---
 
 ## Sources for Scene 1 (verify before publishing)
+
+- "Hundreds of billions of impressions a year" across sports websites is an estimate, not a published total: no single public figure exists, but major sports networks each draw over 100 million unique visitors a month (per a Google AI search summary you shared). Keep the word "estimate" on screen.
+- "$12 billion global broadcasting and streaming ad market": cited to Visual Capitalist in the same Google AI summary. Find and link the original Visual Capitalist chart, and confirm what the $12B covers (sports specifically, which years) before publishing.
 
 - Breaking news traffic on Google up 103% since November 2024, and Google Discover up 168%, per Define Media Group's publisher panel, as reported by [The Media Copilot](https://mediacopilot.ai/breaking-news-google-ai-overviews-discover-traffic/) and [Press Gazette](https://pressgazette.co.uk/media-audience-and-business-data/us-publishers-see-traffic-boost-for-breaking-news-from-google-discover/).
 - 97% of publishers rate back-end automation as important, and 75% expect agentic AI tools to have a large impact: [Reuters Institute, Journalism, Media and Technology Trends and Predictions 2026](https://reutersinstitute.politics.ox.ac.uk/journalism-media-and-technology-trends-and-predictions-2026) (survey of 280 news leaders in 51 countries).

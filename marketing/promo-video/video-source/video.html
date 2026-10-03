@@ -39,8 +39,8 @@ const lerp = (a,b,t)=>a+(b-a)*t;
 // shot: {img, dur, from:[x,y,w], to:[x,y,w], boxes:[[x,y,w,h,at]], sample:true}
 // scene: {title, vo, shots|graphic, dur}
 const SCENES = [
- {dur:20, graphic:'stakes', title:'Speed is money',
-  vo:"In digital news, speed is money. Breaking news is now the fastest-growing source of Google traffic, and that audience goes to whoever publishes first. Every story you're late on is readers, subscribers and revenue handed to someone else."},
+ {dur:32, graphic:'stakes', title:"What's at stake",
+  vo:"Sports websites draw hundreds of billions of impressions a year, in a twelve-billion-dollar sports broadcasting and streaming ad market. And in digital news, speed is money. Breaking news is now the fastest-growing source of Google traffic, and that audience goes to whoever publishes first. Every story you're late on is readers and revenue handed to someone else. Whether you're a national network or a one-person team site, CoPublisher helps you get more of that pie."},
  {dur:14, graphic:'team', title:'',
   vo:"CoPublisher AI is like adding three people to your staff: a co-publisher, a social media director and a product strategist. Working twenty-four hours a day, so you never miss a story."},
  {dur:20, title:'Your designated news spotter', vo:"It's your designated news spotter. It watches your whole beat all day long and rates every story, so breaking news jumps to the top. And it watches your competition: every rival story shows up within fifteen minutes, flagged as a gap if you haven't covered it.",
@@ -111,10 +111,17 @@ function shotHTML(sh, lt){
 function graphicHTML(kind, t, dur){
   const f=(a,b)=>clamp((t-a)/(b-a),0,1);
   if(kind==='stakes'){
-    const stats=[['+103%','Breaking news traffic from Google','Define Media Group, 2025'],['+168%','From Google Discover','Define Media Group, 2025'],['97%','of publishers call newsroom automation important','Reuters Institute, 2026']];
-    const per=dur/3.2; const i=Math.min(2,Math.floor(t/per)); const lt=t-i*per; const a=clamp(Math.min(lt/0.4,(per-lt)/0.4),0,1)*(i===2?1:1);
-    const s=stats[i];
-    return `<div class="stat" style="top:${300-10*ease(f(i*per,i*per+0.6))}px;opacity:${i===2?clamp(lt/0.4,0,1)*clamp((dur-t)/0.4,0,1):a}"><div class="n">${s[0]}</div><div class="l">${s[1]}</div><div class="s">Source: ${s[2]}</div></div>`;
+    const stats=[
+      ['Hundreds of billions','impressions a year on sports websites','Estimate: major sports networks each draw 100M+ visitors a month',110],
+      ['$12B','global sports broadcasting & streaming ad market','Source: Visual Capitalist',150],
+      ['+103%','breaking-news traffic from Google','Source: Define Media Group, 2025',150],
+      ['+168%','from Google Discover','Source: Define Media Group, 2025',150],
+      ['97%','of publishers call newsroom automation important','Source: Reuters Institute, 2026',150],
+      ['Big or small,','get more of that pie.','',120]];
+    const per=dur/stats.length; const i=Math.min(stats.length-1,Math.floor(t/per)); const lt=t-i*per;
+    const a=clamp(Math.min(lt/0.4,(per-lt)/0.4),0,1)*(i===stats.length-1?clamp((dur-t)/0.4,0,1)/Math.max(0.001,clamp((per-lt)/0.4,0,1)):1);
+    const s=stats[i], last=i===stats.length-1;
+    return `<div class="stat" style="top:${260+12*(1-ease(clamp(lt/0.6,0,1)))}px;opacity:${clamp(a,0,1)}"><div class="n" style="font-size:${s[3]}px;${last?'color:#fff':''}">${s[0]}</div><div class="l" style="${last?'font-size:72px;font-weight:800;color:#60a5fa;margin-top:6px':''}">${s[1]}</div>${s[2]?`<div class="s">${s[2]}</div>`:''}</div>`;
   }
   if(kind==='team'){
     const cards=[['📰','Co-Publisher'],['📣','Social Media<br>Director'],['📈','Product<br>Strategist']];
