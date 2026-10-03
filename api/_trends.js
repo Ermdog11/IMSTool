@@ -73,6 +73,24 @@ function visitsForSource(source) {
   return function() { return null; };
 }
 
+// The raw material for the Trends charts: average readers per hour of day
+// and per day of week (Eastern; null where there's no snapshot yet), plus
+// every reading from the last 7 days in time order.
+var DAY_ORDER = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+function chartSeries(snapshots, visitsOf) {
+  function avg(b) { return b ? { avg: Math.round(b.sum / b.count), samples: b.count } : null; }
+  var byHour = bucketBy(snapshots, localHour, visitsOf);
+  var byDay = bucketBy(snapshots, localDayName, visitsOf);
+  var weekAgo = Date.now() - 7 * 24 * 60 * 60 * 1000;
+  return {
+    hourly: Array.from({ length: 24 }, function(_, h) { return Object.assign({ hour: h }, avg(byHour[h]) || { avg: null, samples: 0 }); }),
+    daily: DAY_ORDER.map(function(d) { return Object.assign({ day: d }, avg(byDay[d]) || { avg: null, samples: 0 }); }),
+    recent: snapshots.filter(function(s) { return new Date(s.captured_at).getTime() >= weekAgo; })
+      .map(function(s) { var v = visitsOf(s); return { at: s.captured_at, visits: typeof v === 'number' ? v : null }; })
+      .filter(function(p) { return p.visits != null; })
+  };
+}
+
 function computeTrends(source, snapshots) {
   var visitsOf = visitsForSource(source);
   var out = { source: source, count: snapshots.length, timeOfDayMeaningful: !!TIME_OF_DAY_MEANINGFUL[source] };
@@ -85,6 +103,7 @@ function computeTrends(source, snapshots) {
     out.bestDay = bestDay ? { day: bestDay.key, avg: Math.round(bestDay.avg), sampleSize: bestDay.count } : null;
   }
   if (source === 'chartbeat') out.topRecurringPages = topRecurringPages(snapshots);
+  if (out.timeOfDayMeaningful) out.series = chartSeries(snapshots, visitsOf);
   return out;
 }
 

@@ -26,6 +26,7 @@ module.exports = async function handler(req, res) {
     return res.status(200).json({
       ready: true,
       text: latest.metrics && latest.metrics.text,
+      suggestions: (latest.metrics && latest.metrics.suggestions) || [],
       generatedAt: latest.captured_at
     });
   } catch (e) {

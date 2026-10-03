@@ -50,6 +50,7 @@ async function generateBreakingDraft(alert, styleGuide) {
     (styleGuide || '(No house style guide set yet — apply standard clean sports-news style: AP style, active voice, tight sentences, attribute claims, no cliches.)') + '\n\n' +
     '- Use ONLY the facts given below. Do NOT invent quotes, statistics, additional details, or context beyond what is stated.\n' +
     '- Where the source is thin (e.g. just a headline and a source name), keep the piece short rather than padding it with guesses.\n' +
+    '- Lightly, where it costs nothing: make the first two sentences answer who/what/when on their own, and name people and teams in full on first mention (e.g. "Maryland coach Buzz Williams"). This helps AI search tools cite the story; never let it override the house voice.\n' +
     '- Insert Markdown links to related InsideMDSports coverage from the list below where a phrase genuinely connects — do not force it, and never invent a URL not in the list.\n' +
     '- factsToCheck should flag anything a human needs to verify or add before this goes out (this is a fast draft off a single source, so lean toward flagging, not toward confidence).\n';
 

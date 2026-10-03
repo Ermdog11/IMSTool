@@ -17,7 +17,9 @@ async function trendsOrPending(sb, siteId, source) {
   var since = new Date(Date.now() - LOOKBACK_DAYS * 24 * 60 * 60 * 1000).toISOString();
   var snapshots = await Store.listSnapshots(sb, siteId, source, since);
   if (snapshots.length < MIN_SNAPSHOTS) return { trendsPending: { count: snapshots.length, needed: MIN_SNAPSHOTS } };
-  return { trends: Trends.computeTrends(source, snapshots) };
+  var t = Trends.computeTrends(source, snapshots);
+  if (t.series) delete t.series.recent; // chart-only; the hourly/daily averages are what the prompts need
+  return { trends: t };
 }
 
 async function chartbeatContext(sb, siteId) {

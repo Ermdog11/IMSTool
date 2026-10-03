@@ -55,23 +55,47 @@ async function generateSummary(sb, site, report) {
   if (!contexts.length) { report.push({ site: site.slug, source: 'summary', status: 'nothing-connected' }); return; }
 
   var sys = 'You are an audience-analytics analyst for InsideMDSports, a Maryland Terrapins sports site. ' +
-    'Write a short (3-5 sentence) standing overview of what the data below shows right now — what\'s working, ' +
-    'any notable pattern, and anything worth a publisher\'s attention. Use ONLY the JSON data given, never invent ' +
-    'numbers. If a source has "trendsPending" it hasn\'t built up enough history yet for a pattern — say so plainly ' +
-    'instead of guessing. Write it as a standing note someone glances at, not a reply to a specific question.\n\n' +
+    'Look at the data below and call the submit_overview tool with (1) a short standing overview (3-5 sentences, ' +
+    'plain text, no markdown, no heading) of what the data shows right now, and (2) 3-5 specific suggestions the ' +
+    'newsroom can act on today or this week: when to publish or post, which story or topic to follow up or promote, ' +
+    'which traffic source is under-used, what a strong or weak social post suggests. Each suggestion names the ' +
+    'number it is based on. Use ONLY the JSON data given, never invent numbers. If a source has "trendsPending" it ' +
+    'hasn\'t built up enough history yet for a pattern; don\'t suggest anything that would need it.\n\n' +
     'DATA:\n' + JSON.stringify(contexts, null, 2);
+
+  var tool = {
+    name: 'submit_overview',
+    description: 'Return the standing overview and suggestions.',
+    input_schema: {
+      type: 'object',
+      properties: {
+        summary: { type: 'string', description: '3-5 sentences, plain text, no markdown.' },
+        suggestions: {
+          type: 'array', minItems: 1, maxItems: 5,
+          items: { type: 'object', properties: {
+            title: { type: 'string', description: 'The action, imperative, under 12 words.' },
+            why: { type: 'string', description: 'One sentence: the number(s) behind it.' }
+          }, required: ['title', 'why'] }
+        }
+      },
+      required: ['summary', 'suggestions']
+    }
+  };
 
   var cr = await fetch('https://api.anthropic.com/v1/messages', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', 'x-api-key': key, 'anthropic-version': '2023-06-01' },
-    body: JSON.stringify({ model: 'claude-sonnet-4-6', max_tokens: 500, system: sys, messages: [{ role: 'user', content: 'Write the overview.' }] })
+    body: JSON.stringify({ model: 'claude-sonnet-4-6', max_tokens: 1200, system: sys, tools: [tool], tool_choice: { type: 'tool', name: 'submit_overview' }, messages: [{ role: 'user', content: 'Write the overview and suggestions.' }] })
   });
   var cd = await cr.json();
   if (cd.error) { report.push({ site: site.slug, source: 'summary', status: 'error', error: JSON.stringify(cd.error) }); return; }
-  var text = (cd.content || []).filter(function(b) { return b.type === 'text'; }).map(function(b) { return b.text; }).join('\n').trim();
+  var out = ((cd.content || []).filter(function(b) { return b.type === 'tool_use'; })[0] || {}).input || {};
+  var text = String(out.summary || '').trim();
   if (!text) { report.push({ site: site.slug, source: 'summary', status: 'empty-response' }); return; }
+  var suggestions = (out.suggestions || []).filter(function(x) { return x && x.title; }).slice(0, 5)
+    .map(function(x) { return { title: String(x.title), why: String(x.why || '') }; });
 
-  await Store.saveSnapshot(sb, site.id, 'summary', { text: text });
+  await Store.saveSnapshot(sb, site.id, 'summary', { text: text, suggestions: suggestions });
   report.push({ site: site.slug, source: 'summary', status: 'captured' });
 }
 
