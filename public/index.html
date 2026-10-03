@@ -62,6 +62,8 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; b
 .metric-label { font-size: 10px; color: var(--text3); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 3px; }
 .metric-value { font-size: 22px; font-weight: 700; color: var(--text); line-height: 1; }
 .metric-sub { font-size: 10px; color: var(--text3); margin-top: 3px; }
+.metric-link { cursor: pointer; transition: box-shadow 0.12s, transform 0.12s; }
+.metric-link:hover { box-shadow: 0 2px 8px rgba(0,0,0,0.12); transform: translateY(-1px); }
 
 /* SCAN STATUS */
 .scan-bar { background: var(--bg2); border-radius: 8px; padding: 10px 14px; margin-bottom: 14px; display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; box-shadow: 0 1px 3px rgba(0,0,0,0.06); }
@@ -244,10 +246,10 @@ body { padding-bottom: 40px; }
 <!-- ALERTS TAB -->
 <div class="page active" id="page-0">
   <div class="metrics">
-    <div class="metric"><div class="metric-label">Total alerts</div><div class="metric-value" id="m-total">—</div><div class="metric-sub">this scan</div></div>
-    <div class="metric"><div class="metric-label">Breaking (5)</div><div class="metric-value" id="m-r5">—</div><div class="metric-sub">immediate email</div></div>
-    <div class="metric"><div class="metric-label">High (4)</div><div class="metric-value" id="m-r4">—</div><div class="metric-sub">2-hr digest</div></div>
-    <div class="metric"><div class="metric-label">Recruiting</div><div class="metric-value" id="m-rec">—</div><div class="metric-sub">FB &amp; BK priority</div></div>
+    <div class="metric metric-link" role="button" tabindex="0" title="Show these stories" onclick="metricFilter('all')" onkeydown="if(event.key==='Enter')metricFilter('all')"><div class="metric-label">Total alerts</div><div class="metric-value" id="m-total">—</div><div class="metric-sub">this scan</div></div>
+    <div class="metric metric-link" role="button" tabindex="0" title="Show these stories" onclick="metricFilter('5')" onkeydown="if(event.key==='Enter')metricFilter('5')"><div class="metric-label">Breaking (5)</div><div class="metric-value" id="m-r5">—</div><div class="metric-sub">immediate email</div></div>
+    <div class="metric metric-link" role="button" tabindex="0" title="Show these stories" onclick="metricFilter('4')" onkeydown="if(event.key==='Enter')metricFilter('4')"><div class="metric-label">High (4)</div><div class="metric-value" id="m-r4">—</div><div class="metric-sub">2-hr digest</div></div>
+    <div class="metric metric-link" role="button" tabindex="0" title="Show these stories" onclick="metricFilter('recruiting')" onkeydown="if(event.key==='Enter')metricFilter('recruiting')"><div class="metric-label">Recruiting</div><div class="metric-value" id="m-rec">—</div><div class="metric-sub">FB &amp; BK priority</div></div>
     <div class="metric"><div class="metric-label">Last scan</div><div class="metric-value" id="m-last" style="font-size:14px;padding-top:3px;">—</div><div class="metric-sub">next in <span id="m-next">—</span></div></div>
   </div>
   <div class="scan-bar">
@@ -927,6 +929,15 @@ function setFilter(f, btn) {
   document.querySelectorAll('.chip').forEach(b => b.classList.remove('active'));
   btn.classList.add('active');
   renderAlerts();
+}
+
+// The count cards above the list (Total / Breaking / High / Recruiting) work
+// like the matching filter chip, then jump to the stories.
+function metricFilter(f) {
+  const chip = [...document.querySelectorAll('.chip')].find(b => (b.getAttribute('onclick') || '').indexOf("setFilter('" + f + "'") === 0);
+  if (chip) setFilter(f, chip); else { currentFilter = f; renderAlerts(); }
+  const list = document.getElementById('alertsContainer');
+  if (list) list.scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
 
 function isBball(s) { return ['basketball','mens-basketball','womens-basketball'].includes(s || ''); }
