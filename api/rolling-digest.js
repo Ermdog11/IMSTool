@@ -4,6 +4,7 @@ const S = require('./_supabase.js');
 const Drafts = require('./_drafts.js');
 const Chat = require('./_chat-store.js');
 const BreakingDraft = require('./_breaking-draft.js');
+const ArticleDate = require('./_article-date.js');
 const Settings = require('./_settings-store.js');
 
 // Same minimal Markdown->HTML used by api/submit-article.js — the auto-draft
@@ -29,6 +30,9 @@ var SLOT_LABEL = {
   midday: 'midday',
   evening: 'evening'
 };
+
+// Never auto-draft a story whose own page says it was published longer ago than this.
+var DRAFT_MAX_AGE_HOURS = 48;
 
 // Cap each digest at this many of the most recent items
 var MAX_ITEMS = 20;
@@ -239,6 +243,15 @@ module.exports = async function handler(req, res) {
         try {
           if (story.url && await Drafts.findBySourceUrl(story.url)) {
             breakingDrafts.push({ headline: story.headline, status: 'already-drafted' });
+            continue;
+          }
+
+          // Last check before anything goes out as breaking: if the article's
+          // own page says it was published days ago, it isn't breaking news,
+          // whatever date the feed or search result gave it.
+          var publishedAt = await ArticleDate.publishedMs(story.url);
+          if (!isNaN(publishedAt) && Date.now() - publishedAt > DRAFT_MAX_AGE_HOURS * 3600000) {
+            breakingDrafts.push({ headline: story.headline, status: 'skipped-old', publishedAt: new Date(publishedAt).toISOString() });
             continue;
           }
 

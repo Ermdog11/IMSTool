@@ -77,10 +77,13 @@ async function runOne(query, apiKey, engineId) {
         url: item.link || '',
         source: (item.displayLink || '').replace(/^www\./, ''),
         snippet: (item.snippet || '').slice(0, 320),
-        age: isNaN(pub) ? 0 : Math.max(0, Math.round((Date.now() - pub) / 3600000))
+        age: isNaN(pub) ? null : Math.max(0, Math.round((Date.now() - pub) / 3600000))
       };
     })
-    .filter(function(item) { return item.age <= MAX_AGE_HOURS; });
+    // A page with no publish date of its own is dropped: crawl-date "freshness"
+    // let months-old articles through as "0h ago" (2026-10-04, an old Chris
+    // Durr commitment went out as a breaking auto-draft).
+    .filter(function(item) { return item.age !== null && item.age <= MAX_AGE_HOURS; });
 }
 
 var SEEN_BLOB_KEY = 'google-search-seen.json';
