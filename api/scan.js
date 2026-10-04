@@ -543,6 +543,9 @@ module.exports = async function handler(req, res) {
     var editorNote = '';
     try { editorNote = await require('./_story-ratings.js').promptNote(); } catch (e) {}
     var dynamicPrompt = flaggedNote + ownCoverageNote + profileNote + B.weightNote(beat) + editorNote + '\n\nStories:\n' + storyList;
+    // Any feed that truncates text can split an emoji; a lone surrogate makes
+    // the Claude API reject the request body as invalid JSON.
+    dynamicPrompt = dynamicPrompt.toWellFormed();
 
     var cr = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
@@ -608,7 +611,7 @@ module.exports = async function handler(req, res) {
           return p.item.idx + '. [' + p.item.source + '] ' + p.item.headline + '\nARTICLE TEXT: ' + (art || '(could not fetch — judge from headline)');
         }).join('\n\n');
 
-        var deepPrompt = B.deepPrompt(beat) + deepList;
+        var deepPrompt = (B.deepPrompt(beat) + deepList).toWellFormed();
 
         try {
           var dr = await fetch('https://api.anthropic.com/v1/messages', {

@@ -102,7 +102,7 @@ async function refresh(sb, siteId, opts) {
 
 function shapeTweet(t, handle) {
   return {
-    text: String(t.text || '').replace(/\s+/g, ' ').trim().slice(0, 240),
+    text: String(t.text || '').replace(/\s+/g, ' ').trim().slice(0, 240).toWellFormed(),
     url: 'https://x.com/' + (handle || 'i') + '/status/' + t.id,
     createdAt: t.createdAt,
     impressions: t.m.impression_count || 0,
