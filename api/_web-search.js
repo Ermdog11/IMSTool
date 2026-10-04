@@ -39,6 +39,7 @@ var QUERIES = [
 // Evergreen hub/roster/schedule pages, video clips, box scores and stat
 // pages — see _static-pages.js.
 var isStaticPage = require('./_static-pages.js').isStaticPage;
+var ArticleDate = require('./_article-date.js');
 
 // Drop a result whose own publish date is older than this.
 var MAX_AGE_HOURS = 72;
@@ -56,7 +57,7 @@ async function runOne(query, apiKey) {
   var d = await r.json();
   if (!r.ok) throw new Error('Brave Search: ' + (d && (d.error && d.error.message || JSON.stringify(d)) || ('HTTP ' + r.status)));
   var items = (d.web && d.web.results) || [];
-  return items
+  var results = items
     .filter(function(item) { return item.url && !isStaticPage(item.url, item.title); })
     .map(function(item) {
       // freshness=pd filters on when Brave last crawled the page, not when it
@@ -70,11 +71,10 @@ async function runOne(query, apiKey) {
         snippet: (item.description || '').replace(/<\/?strong>/g, '').slice(0, 320),
         age: isNaN(pub) ? null : Math.max(0, Math.round((Date.now() - pub) / 3600000))
       };
-    })
-    // A page with no publish date of its own is dropped: crawl-date "freshness"
-    // let months-old articles through as "0h ago" (2026-10-04, an old Chris
-    // Durr commitment went out as a breaking auto-draft).
-    .filter(function(item) { return item.age !== null && item.age <= MAX_AGE_HOURS; });
+    });
+  // Crawl-date filters let re-crawled old pages through: date the undated
+  // ones from the page itself (see _article-date.js).
+  return ArticleDate.fillMissingAges(results, MAX_AGE_HOURS);
 }
 
 var SEEN_BLOB_KEY = 'web-search-seen.json';
