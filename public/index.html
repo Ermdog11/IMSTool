@@ -1063,7 +1063,7 @@ function renderTrending() {
       <h4 style="margin:0 0 8px;font-size:.95rem;color:var(--red);">🔥 ${topic} <span style="color:var(--muted);font-size:.8rem;font-weight:400;">${items.length} more stories</span></h4>
       ${items.map(s => `<div class="acard" style="margin-bottom:8px;">
         <div class="acard-headline" style="font-size:.9rem;">${s.url ? `<a href="${s.url}" target="_blank" rel="noopener" style="color:inherit;text-decoration:underline;">${s.title}</a>` : s.title}</div>
-        <div class="acard-meta" style="margin-top:4px;"><span class="asrc">${s.source}</span><span class="atime">${s.age}h ago</span></div>
+        <div class="acard-meta" style="margin-top:4px;"><span class="asrc">${s.source}</span><span class="atime">${s.age == null ? '' : s.age + 'h ago'}</span></div>
       </div>`).join('')}
     </div>`).join('');
 }

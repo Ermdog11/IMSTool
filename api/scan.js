@@ -1,3 +1,5 @@
+const ArticleDate = require('./_article-date.js');
+
 module.exports = async function handler(req, res) {
   try { await require('./_supabase').requireUserOrCron(req, res); }
   catch (authErr) { return res.status(authErr.status || 401).json({ error: authErr.message || 'Not signed in' }); }
@@ -269,7 +271,7 @@ module.exports = async function handler(req, res) {
             if (!title) return;
             title = title.trim();
             if ((cfg.requireBeat || cfg.requireTerps) && !B.isRelevant(beat, title + ' ' + snippet)) return;
-            var gaAge = pubDate ? Math.round((Date.now() - new Date(pubDate).getTime()) / 3600000) : 0;
+            var gaAge = pubDate ? Math.round((Date.now() - new Date(pubDate).getTime()) / 3600000) : null;
             if (pubDate && new Date(pubDate).getTime() < googleCutoff) return;
             if (excluded.some(function(ex) { return src.toLowerCase().includes(ex) || title.toLowerCase().includes(ex) || realUrl.toLowerCase().includes(ex); })) return;
             stories.push({ title: title.replace(/&amp;/g,'&').replace(/&lt;/g,'<').replace(/&gt;/g,'>'), source: src, url: (realUrl || link).trim(), age: gaAge, snippet: snippet });
@@ -311,7 +313,7 @@ module.exports = async function handler(req, res) {
           if (/^[\w.' -]{2,60} (News|Stats?|Splits?|Schedule|Roster|Standings)$/i.test(title)) return;
           // Some direct feeds carry the whole publication — require beat relevance
           if ((cfg.requireBeat || cfg.requireTerps) && !B.isRelevant(beat, title + ' ' + desc)) return;
-          var age = pubDate ? Math.round((Date.now() - new Date(pubDate).getTime()) / 3600000) : 0;
+          var age = pubDate ? Math.round((Date.now() - new Date(pubDate).getTime()) / 3600000) : null;
           if (pubDate && new Date(pubDate).getTime() < googleCutoff) return;
           if (excluded.some(function(ex) { return src.toLowerCase().includes(ex) || srcUrl.toLowerCase().includes(ex) || title.toLowerCase().includes(ex) || realUrl.toLowerCase().includes(ex); })) return;
           stories.push({ title: title.replace(/&amp;/g,'&').replace(/&lt;/g,'<').replace(/&gt;/g,'>'), source: src, url: (realUrl || link).trim(), age: age, snippet: snippet });
@@ -445,7 +447,8 @@ module.exports = async function handler(req, res) {
     // Cap at the most recent N before sending to Claude. Raised 55 → 110: with
     // ~120 feeds the old cap discarded a lot of legitimate but slightly-older
     // stories purely on recency before they were ever rated.
-    stories = stories.sort(function(a, b) { return a.age - b.age; }).slice(0, 110);
+    // An undated story (age null) sorts as new, as before, so none are cut for it.
+    stories = stories.sort(function(a, b) { return (a.age || 0) - (b.age || 0); }).slice(0, 110);
 
     // X-only pass (api/x-scan.js's 30-min cron): rate just the X posts. It used
     // to send all ~110 news stories through the Claude rating call every 30
@@ -495,7 +498,7 @@ module.exports = async function handler(req, res) {
 
     // Build numbered list for Claude — include the feed snippet where we have one
     var storyList = stories.map(function(s, i) {
-      var line = (i + 1) + '. ' + (s.kind === 'video' ? '[VIDEO] ' : '') + '[' + s.source + '] ' + s.title + ' (' + s.age + 'h ago)';
+      var line = (i + 1) + '. ' + (s.kind === 'video' ? '[VIDEO] ' : '') + '[' + s.source + '] ' + s.title + ' (' + (s.age == null ? 'publish date unknown' : s.age + 'h ago') + ')';
       if (s.followUp) line += '\n   [DEVELOPING STORY WE ARE ACTIVELY COVERING: ' + s.followUp + ' — do NOT let this tag alone push the rating up. Only treat it as newsworthy despite low engagement if it is a genuine NEW development (a status actually changed, a real update). Reaction, analysis, jokes, or commentary about something that already fully happened rates exactly like any other social post — usually 1-2 — the tag is not a rating boost.]';
       if (s.watchedAccount) line += '\n   [WATCHED ACCOUNT: the publisher has specifically curated this X account as a credible ' + beat.team.short + ' beat source — do not downrate for low/no engagement or unfamiliarity, judge purely on newsworthiness]';
       if (s.snippet) line += '\n   snippet: ' + s.snippet;
@@ -542,7 +545,14 @@ module.exports = async function handler(req, res) {
     // Editors' own 1-5 ratings (News Monitor cards and email links) teach the rater.
     var editorNote = '';
     try { editorNote = await require('./_story-ratings.js').promptNote(); } catch (e) {}
-    var dynamicPrompt = flaggedNote + ownCoverageNote + profileNote + B.weightNote(beat) + editorNote + '\n\nStories:\n' + storyList;
+    // Search APIs and a few feeds can't say when a page was published, and a
+    // re-crawled old article then looks new (2026-10-04: an old Chris Durr
+    // commitment went out as breaking). Tell the rater, and have the full
+    // article checked (deep read below) before one of these rates 4-5.
+    var undatedNote = stories.some(function(s) { return s.age == null; })
+      ? '\n\nPUBLISH DATE UNKNOWN: stories marked "(publish date unknown)" came from a web search or feed that could not say when they were published, so they may be old articles that were re-indexed. Never assume they are new. Use the snippet and your own knowledge: if the event they report happened more than about 2 weeks ago, set republished:true. If you would rate one 4 or 5, also set needsContext:true so the full article is checked first.'
+      : '';
+    var dynamicPrompt = flaggedNote + ownCoverageNote + profileNote + B.weightNote(beat) + editorNote + undatedNote + '\n\nStories:\n' + storyList;
     // Any feed that truncates text can split an emoji; a lone surrogate makes
     // the Claude API reject the request body as invalid JSON.
     dynamicPrompt = dynamicPrompt.toWellFormed();
@@ -582,7 +592,10 @@ module.exports = async function handler(req, res) {
     if (body.deep === true) {
       var deepCandidates = parsed
         .map(function(item) { return { item: item, orig: stories[item.idx - 1] }; })
-        .filter(function(p) { return p.item && p.item.needsContext && p.orig && p.orig.url; })
+        .filter(function(p) { return p.item && (p.item.needsContext || (p.orig && p.orig.age == null && (p.item.rating || 0) >= 4)) && p.orig && p.orig.url; })
+        // Undated stories rated 4-5 are checked first: they're the ones that
+        // could go out as breaking (see undatedNote above).
+        .sort(function(a, b) { return (b.orig.age == null && (b.item.rating || 0) >= 4 ? 1 : 0) - (a.orig.age == null && (a.item.rating || 0) >= 4 ? 1 : 0); })
         .slice(0, 6);
 
       if (deepCandidates.length) {
@@ -599,6 +612,10 @@ module.exports = async function handler(req, res) {
           return fetchWithTimeout(p.orig.url, { headers: { 'User-Agent': BROWSER_UA } }, 10000)
             .then(function(r) { return r.text(); })
             .then(function(html) {
+              // The page's own publish date, when it has one, replaces an
+              // unknown or crawl-based age and is shown to the deep rater.
+              var pub = ArticleDate.fromHtml(html.slice(0, 400000));
+              if (!isNaN(pub)) { p.publishedAt = pub; p.orig.age = Math.max(0, Math.round((Date.now() - pub) / 3600000)); }
               return html.replace(/<script[\s\S]*?<\/script>/gi, ' ').replace(/<style[\s\S]*?<\/style>/gi, ' ')
                 .replace(/<[^>]+>/g, ' ').replace(/&nbsp;/g, ' ').replace(/&amp;/g, '&')
                 .replace(/&#?[a-z0-9]+;/gi, ' ').replace(/\s+/g, ' ').trim().slice(0, 2800);
@@ -608,10 +625,11 @@ module.exports = async function handler(req, res) {
 
         var deepList = deepCandidates.map(function(p, k) {
           var art = fetched[k].status === 'fulfilled' ? fetched[k].value : '';
-          return p.item.idx + '. [' + p.item.source + '] ' + p.item.headline + '\nARTICLE TEXT: ' + (art || '(could not fetch — judge from headline)');
+          var published = p.publishedAt ? new Date(p.publishedAt).toISOString().slice(0, 10) : (p.orig.age == null ? 'unknown' : '');
+          return p.item.idx + '. [' + p.item.source + '] ' + p.item.headline + (published ? '\nPUBLISHED: ' + published : '') + '\nARTICLE TEXT: ' + (art || '(could not fetch — judge from headline)');
         }).join('\n\n');
 
-        var deepPrompt = (B.deepPrompt(beat) + deepList).toWellFormed();
+        var deepPrompt = (B.deepPrompt(beat, today) + deepList).toWellFormed();
 
         try {
           var dr = await fetch('https://api.anthropic.com/v1/messages', {
@@ -634,6 +652,7 @@ module.exports = async function handler(req, res) {
               if (d.category) item.category = d.category;
               if (d.sport) item.sport = d.sport;
               if (typeof d.ourRecruit === 'boolean') item.ourRecruit = d.ourRecruit;
+              if (d.republished === true) item.republished = true;
               item.deepened = true;
             });
           }

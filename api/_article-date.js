@@ -1,8 +1,8 @@
 // Reads an article's own publish date from its page (meta tags or JSON-LD).
-// Used as a last check before CoPublisher AI auto-drafts and emails a
-// "breaking" story: search results and some feeds only know when a page was
-// crawled, so a months-old article can arrive looking brand new
-// (2026-10-04, Jeff: an old Chris Durr commitment went out as breaking).
+// Search results and some feeds only know when a page was crawled, so a
+// months-old article can arrive looking brand new (2026-10-04, Jeff: an old
+// Chris Durr commitment went out as a breaking auto-draft). Used to date
+// undated search results and as a last check before an auto-draft.
 // Best-effort: any fetch or parse failure returns NaN (date unknown).
 
 var META_KEYS = ['article:published_time', 'og:published_time', 'datepublished', 'pubdate', 'publishdate', 'publish-date', 'sailthru.date', 'parsely-pub-date', 'dc.date.issued', 'date'];
@@ -38,4 +38,19 @@ async function publishedMs(url) {
   } catch (e) { return NaN; }
 }
 
-module.exports = { publishedMs: publishedMs, fromHtml: fromHtml };
+// For search results whose API gave no publish date (age null), read the
+// date off the page itself: recent pages stay, old ones go. A page whose date
+// still can't be found stays in with age null ("publish date unknown"):
+// scan.js has its full article checked, and the digest never auto-drafts or
+// pushes it as breaking. Search APIs filter by crawl date, so this is what
+// catches a re-crawled old article.
+async function fillMissingAges(results, maxAgeHours) {
+  await Promise.all(results.map(async function(item) {
+    if (item.age !== null) return;
+    var pub = await publishedMs(item.url);
+    if (!isNaN(pub)) item.age = Math.max(0, Math.round((Date.now() - pub) / 3600000));
+  }));
+  return results.filter(function(item) { return item.age === null || item.age <= maxAgeHours; });
+}
+
+module.exports = { publishedMs: publishedMs, fromHtml: fromHtml, fillMissingAges: fillMissingAges };

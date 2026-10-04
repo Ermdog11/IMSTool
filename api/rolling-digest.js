@@ -188,7 +188,9 @@ module.exports = async function handler(req, res) {
     var allAlerts = JSON.parse(match[0]).filter(function(a) { return !a.republished; });
 
     // Only stories newer than this slot's window (rolling, since the previous send)
-    var alerts = allAlerts.filter(function(a) { return hoursAgo(a.time) <= windowHours; });
+    // The story's real age (from its feed, search result or page) when scan.js
+    // knows it; the rater's "time" text otherwise.
+    var alerts = allAlerts.filter(function(a) { return (a.ageHours != null ? a.ageHours : hoursAgo(a.time)) <= windowHours; });
 
     // Cap at the most recent MAX_ITEMS
     alerts.sort(function(a, b) { return hoursAgo(a.time) - hoursAgo(b.time); });
@@ -212,7 +214,8 @@ module.exports = async function handler(req, res) {
 
     // Desktop push for the highest-priority items only — a digest email already
     // covers everything else, this is just for "drop what you're doing" news.
-    var breaking = alerts.filter(function(a) { return (a.rating || 0) >= 5; });
+    // Never for a story whose publish date nobody could confirm (ageHours null).
+    var breaking = alerts.filter(function(a) { return (a.rating || 0) >= 5 && a.ageHours != null; });
     var pushResult = null;
     if (breaking.length) {
       try {
@@ -248,10 +251,16 @@ module.exports = async function handler(req, res) {
 
           // Last check before anything goes out as breaking: if the article's
           // own page says it was published days ago, it isn't breaking news,
-          // whatever date the feed or search result gave it.
+          // whatever date the feed or search result gave it. And with no date
+          // anywhere (not the feed, the search result or the page), it stays
+          // in the digest but isn't drafted: we can't vouch that it's new.
           var publishedAt = await ArticleDate.publishedMs(story.url);
           if (!isNaN(publishedAt) && Date.now() - publishedAt > DRAFT_MAX_AGE_HOURS * 3600000) {
             breakingDrafts.push({ headline: story.headline, status: 'skipped-old', publishedAt: new Date(publishedAt).toISOString() });
+            continue;
+          }
+          if (isNaN(publishedAt) && story.ageHours == null) {
+            breakingDrafts.push({ headline: story.headline, status: 'skipped-undated' });
             continue;
           }
 
