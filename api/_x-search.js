@@ -79,10 +79,12 @@ async function runOne(query, bearerToken, minFaves) {
     var user = users[t.author_id] || {};
     var handle = user.username || 'unknown';
     return {
-      title: (t.text || '').slice(0, 140).replace(/\s+/g, ' ').trim(),
+      // toWellFormed: a cut through an emoji leaves half a surrogate pair,
+      // which the Claude API rejects as invalid JSON and fails the whole scan.
+      title: (t.text || '').slice(0, 140).toWellFormed().replace(/\s+/g, ' ').trim(),
       url: 'https://x.com/' + handle + '/status/' + t.id,
       source: '@' + handle,
-      snippet: (t.text || '').slice(0, 320),
+      snippet: (t.text || '').slice(0, 320).toWellFormed(),
       age: hoursAgo(t.created_at)
     };
   });
