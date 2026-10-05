@@ -12,6 +12,7 @@ var ytCache = { at: 0, payload: null, rotation: 0 };
 var YT_CACHE_MS = 60 * 60 * 1000;
 
 var B = require('./_beat.js');
+var Hot = require('./_hot-topics.js');
 var S = require('./_supabase.js');
 
 // ── Beat words and searches (all from the beat profile) ──────────────────
@@ -162,7 +163,7 @@ async function resolveConfiguredChannels(beat, st, key) {
 }
 
 // Learned channels: posted beat videos on at least 2 refreshes in the last
-// 60 days. Most active first.
+// 60 days. Most active first; up to 60 are followed.
 function learnedChannels(st) {
   var cutoff = Date.now() - 60 * 24 * 3600 * 1000;
   return Object.keys(st.learned)
@@ -188,9 +189,37 @@ async function rememberChannels(st, videos) {
   await Quota.writeJson(CHANNELS_PATH, st);
 }
 
-// Recent uploads of the given channels: 1 quota unit per channel (plus 1 per
-// 50 channels to find their upload lists), versus 100 per search.
+// Recent uploads of the given channels. Each channel's public upload feed
+// (youtube.com/feeds/videos.xml) costs no quota at all, so dozens of beat
+// channels can be followed every refresh. Channels whose feed fails fall
+// back to the Data API: 1 quota unit each (plus 1 per 50 channels), still
+// far cheaper than a 100-unit search.
 async function channelUploads(ids, key, cutoffMs) {
+  if (!ids.length) return [];
+  var out = [], failed = [];
+  await Promise.all(ids.map(async function(id) {
+    try {
+      var r = await fetch('https://www.youtube.com/feeds/videos.xml?channel_id=' + id, { signal: AbortSignal.timeout(6000) });
+      if (!r.ok) { failed.push(id); return; }
+      var xml = await r.text();
+      (xml.match(/<entry>[\s\S]*?<\/entry>/g) || []).forEach(function(e) {
+        function tag(re) { return ((e.match(re) || [])[1] || '').replace(/&amp;/g, '&').replace(/&quot;/g, '"').replace(/&#39;/g, "'").replace(/&lt;/g, '<').replace(/&gt;/g, '>'); }
+        var vid = tag(/<yt:videoId>([^<]+)<\/yt:videoId>/);
+        var published = tag(/<published>([^<]+)<\/published>/);
+        if (!vid || !published || Date.parse(published) < cutoffMs) return;
+        out.push({ videoId: vid, snippet: {
+          title: tag(/<title>([\s\S]*?)<\/title>/), description: tag(/<media:description>([\s\S]*?)<\/media:description>/),
+          publishedAt: published, thumbnails: { medium: { url: 'https://i.ytimg.com/vi/' + vid + '/mqdefault.jpg' } },
+          channelId: tag(/<yt:channelId>([^<]+)<\/yt:channelId>/) || id, channelTitle: tag(/<author>\s*<name>([\s\S]*?)<\/name>/)
+        } });
+      });
+    } catch (e) { failed.push(id); }
+  }));
+  if (failed.length) out = out.concat(await channelUploadsApi(failed.slice(0, 25), key, cutoffMs));
+  return out;
+}
+
+async function channelUploadsApi(ids, key, cutoffMs) {
   if (!ids.length) return [];
   var lists = [];
   for (var i = 0; i < ids.length; i += 50) {
@@ -281,11 +310,19 @@ module.exports = async function handler(req, res) {
     return serveCached('YouTube search limit reached for today. Showing the last results; new searches resume after midnight Pacific.');
   }
   var rotation = ytCache.rotation || 0;
-  var startIdx = (rotation * batchSize) % allTerms.length;
+  // Who's hot on the beat right now (most-covered person in the last 48h of
+  // scans, e.g. "Mike Locksley"): one slot of every refresh searches them,
+  // newest first over the last 3 days, taking turns if two are hot.
+  var hot = await Hot.hotPeople(beat, 2);
   var terms = [];
-  for (var i = 0; i < batchSize; i++) {
-    terms.push(allTerms[(startIdx + i) % allTerms.length]);
+  var hotSlots = hot.length && batchSize > 1 ? 1 : 0;
+  if (hotSlots) terms.push({ q: '"' + hot[rotation % hot.length].name + '"', hot: true });
+  var rotated = batchSize - hotSlots;
+  var startIdx = (rotation * rotated) % allTerms.length;
+  for (var i = 0; i < rotated; i++) {
+    terms.push({ q: allTerms[(startIdx + i) % allTerms.length] });
   }
+  var hotNames = hot.map(function(h) { return h.name.toLowerCase(); });
 
   // Xfinity Center in Mansfield MA is a concert venue, not the UMD arena
   var venueNoise = ['mansfield', 'concert', 'live at xfinity', 'at xfinity center, mansfield', 'tour', 'full show', 'en vevo', 'setlist'];
@@ -345,12 +382,13 @@ module.exports = async function handler(req, res) {
   learnedChannels(channelState).forEach(function(id) { if (!beatChannelIds[id]) beatChannelIds[id] = 'learned'; });
 
   try {
+    var hotCutoff = new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString();
     var searches = terms.map(function(term) {
-      var url = 'https://www.googleapis.com/youtube/v3/search?part=snippet&type=video&order=date&maxResults=25&publishedAfter=' + encodeURIComponent(cutoff) + '&q=' + encodeURIComponent(term) + '&key=' + key;
+      var url = 'https://www.googleapis.com/youtube/v3/search?part=snippet&type=video&order=date&maxResults=25&publishedAfter=' + encodeURIComponent(term.hot ? hotCutoff : cutoff) + '&q=' + encodeURIComponent(term.q) + '&key=' + key;
       return fetch(url).then(function(r) { return r.json(); }).catch(function() { return {}; });
     });
     var results = await Promise.all(searches);
-    var uploads = await channelUploads(Object.keys(beatChannelIds).slice(0, 25), key, cutoffMs);
+    var uploads = await channelUploads(Object.keys(beatChannelIds).slice(0, 60), key, cutoffMs);
 
     var videos = [];
     var seen = [];
@@ -451,8 +489,11 @@ module.exports = async function handler(req, res) {
       return true;
     });
 
-    // Sort: real engagement first, then recency
+    // Sort: videos about who's hot right now first, then real engagement,
+    // then recency.
+    videos.forEach(function(v) { var t = v.title.toLowerCase(); v.hot = hotNames.some(function(n) { return t.indexOf(n) !== -1; }); });
     videos.sort(function(a, b) {
+      if (a.hot !== b.hot) return a.hot ? -1 : 1;
       var av = a.views || 0, bv = b.views || 0;
       if ((av >= 500) !== (bv >= 500)) return (bv >= 500 ? 1 : 0) - (av >= 500 ? 1 : 0);
       return a.age - b.age;
@@ -474,7 +515,7 @@ module.exports = async function handler(req, res) {
     // uploads read directly from now on.
     await rememberChannels(channelState, videos);
     videos.forEach(function(v) { delete v.beatChannel; });
-    var payload = { videos: videos, searched: terms };
+    var payload = { videos: videos, searched: terms.map(function(t) { return t.q; }), hot: hot.map(function(h) { return h.name; }) };
     ytCache = { at: Date.now(), payload: payload, rotation: rotation + 1 };
     await Quota.writeJson(CACHE_PATH, ytCache);
     return res.status(200).json(applyBlocks(payload));
