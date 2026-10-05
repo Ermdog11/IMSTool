@@ -94,8 +94,13 @@ function glanceHtml(y) {
 }
 
 module.exports = async function handler(req, res) {
-  try { await require('./_supabase').requireUserOrCron(req, res); }
+  var who;
+  try { who = await require('./_supabase').requireUserOrCron(req, res); }
   catch (authErr) { return res.status(authErr.status || 401).json({ error: authErr.message || 'Not signed in' }); }
+  // Vercel Cron can deliver a run twice; only the first sends (see _cron-once.js).
+  if (who && who.cron && !(await require('./_cron-once').claim('coverage-desk', require('./_cron-once').today()))) {
+    return res.status(200).json({ skipped: 'duplicate cron delivery' });
+  }
   var key = process.env.ANTHROPIC_API_KEY;
   if (!key) return res.status(500).json({ error: 'Missing ANTHROPIC_API_KEY.' });
 

@@ -160,7 +160,8 @@ function buildEmailHTML(alerts, date, slot, overflowByTopic) {
 }
 
 module.exports = async function handler(req, res) {
-  try { await require('./_supabase').requireUserOrCron(req, res); }
+  var who;
+  try { who = await require('./_supabase').requireUserOrCron(req, res); }
   catch (authErr) { return res.status(authErr.status || 401).json({ error: authErr.message || 'Not signed in' }); }
   var ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY;
 
@@ -170,6 +171,10 @@ module.exports = async function handler(req, res) {
 
   var slot = (req.query && req.query.slot) || 'morning';
   var windowHours = WINDOW_HOURS[slot] || 8;
+  // Vercel Cron can deliver a run twice; only the first sends (see _cron-once.js).
+  if (who && who.cron && !(await require('./_cron-once').claim('rolling-digest-' + slot, require('./_cron-once').today()))) {
+    return res.status(200).json({ skipped: 'duplicate cron delivery' });
+  }
 
   try {
     var scanHandler = require('./scan.js');
