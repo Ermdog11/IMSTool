@@ -110,7 +110,7 @@ button.btn:disabled{opacity:.6;cursor:default}
         </div>
         <div style="flex:1;min-width:160px">
           <label>Tier</label>
-          <select id="ed-tier" onchange="if(preTab==='promos')renderPrePanel()"><option value="free">Free</option><option value="vip">VIP</option></select>
+          <select id="ed-tier" onchange="if(preTab==='promos')renderPrePanel();loadAutoAdd()"><option value="free">Free</option><option value="vip">VIP</option></select>
         </div>
         <div style="flex:1;min-width:160px">
           <label>Mode</label>
@@ -144,6 +144,12 @@ button.btn:disabled{opacity:.6;cursor:default}
       </div>
       <label>Draft</label>
       <textarea id="ed-draft" rows="16" placeholder="Paste the writer's draft here…"></textarea>
+      <div id="ed-autoadd" style="display:flex;gap:6px 18px;flex-wrap:wrap;align-items:center;font-size:13px;margin-top:10px">
+        <span style="font-weight:600">Add with this edit:</span>
+        <label style="display:flex;align-items:center;gap:6px;margin:0;font-weight:400;color:var(--text)"><input type="checkbox" id="aa-podcast" style="width:auto" onchange="saveAutoAdd()"> 🎙️ Latest podcast episode</label>
+        <label style="display:flex;align-items:center;gap:6px;margin:0;font-weight:400;color:var(--text)"><input type="checkbox" id="aa-related" style="width:auto" onchange="saveAutoAdd()"> 🔗 Related links box</label>
+        <label style="display:flex;align-items:center;gap:6px;margin:0;font-weight:400;color:var(--text)"><input type="checkbox" id="aa-promos" style="width:auto" onchange="saveAutoAdd()"> 📣 <span id="aa-promos-label">Promos for this tier</span></label>
+      </div>
       <div class="row">
         <button class="btn" id="ed-go" onclick="runEdit()">Edit draft</button>
         <span id="ed-status" style="font-size:12px;color:var(--muted)"></span>
@@ -542,6 +548,22 @@ async function runEdit(){
   window._queuedEpisode=podMatch?{name:'🎙️ Podcast episode',html:podMatch[1].trim()}:null;
   draft=draft.replace(POD_BLOCK_RE,'').trim();
   if(draft.length<40){document.getElementById('ed-status').textContent='Paste a longer draft.';return;}
+  // One pass (Jeff, 2026-10-05: "add related links and podcast at the same
+  // time as edit, no need for multiple processes"): whatever is ticked under
+  // the draft is fetched alongside the edit and placed in the finished article.
+  var aa=getAutoAdd();
+  if(aa.related) window._relQueued=true;
+  if(aa.promos){
+    var tierNow=document.getElementById('ed-tier').value;
+    getPromos().forEach(function(p){ if((p.tier===tierNow||p.tier==='both') && (p.html||'').trim()) window._promoQueued[p.name]=1; });
+  }
+  var podPromise=null;
+  if(aa.podcast && !podMatch){
+    podPromise=fetchEpisodes().then(function(eps){
+      if(!eps.length) return null;
+      return {name:'🎙️ '+eps[0].title, html:buildPodcastEmbed(eps[0],eps).html};
+    }).catch(function(){ return null; });
+  }
   var wi=document.getElementById('ed-writer').value;
   var w=getWriters();
   var prof=wi!==''?((w[wi]&&w[wi].profile)||''):'';
@@ -571,6 +593,7 @@ async function runEdit(){
     clearInterval(timer);bar.style.width='100%';
     if(d.error){document.getElementById('ed-status').textContent=d.error;}
     else {
+      if(podPromise){ var ep=await podPromise; if(ep) window._queuedEpisode=ep; }
       lastEdit={d:d,writerName:wname,draftId:null,sourceDraft:draft};
       _chatHistory=[];
       document.getElementById('copydesk-card').style.display='none';   // result goes to the top
@@ -620,10 +643,12 @@ function renderEdit(d){
      '</div>'+
      '<div class="out-article" id="ed-article">'+md(d.edited||'')+'</div>'+
      '<div class="row"><button class="btn ghost" onclick="copyArticle(this)">Copy article</button>'+
+     '<button class="btn ghost" onclick="copyArticleHtml(this)" title="The article as HTML code, podcast player and inserts included">Copy HTML</button>'+
      '<button class="btn ghost" onclick="copyMd(this)">Copy Markdown</button>'+
      '<button class="btn ghost" id="ed-save" onclick="submitArticle(this,\'save\')">Save draft</button>'+
      '<button class="btn" id="ed-submit" onclick="submitArticle(this,\'submit\')">Send to publisher</button>'+
      '<span id="ed-submit-status" style="font-size:12px;color:var(--muted)"></span></div>'+
+     '<div class="hint" style="margin-top:6px">A CMS\u2019s visual editor drops embedded players when you paste. To keep the podcast player: paste <b>Copy HTML</b> into the CMS\u2019s HTML (code) view, or paste the whole article as usual and then use <b>Copy embed code</b> in the Inserts card to drop just the player into an embed block.</div>'+
      '<textarea id="ed-md" style="position:absolute;left:-9999px;top:0">'+esc(d.edited||'')+'</textarea>'+
      '</div>'+
      '<div id="ed-final" style="display:none"></div>';
@@ -760,13 +785,14 @@ function renderInsertControls(){
   out.innerHTML='<div style="font-size:12px;font-weight:600;color:var(--text2);margin-bottom:4px">Added to this article</div>'+
     addedInserts.map(function(e){
       var name=window._availableInserts[e.idx].name||('Insert '+(e.idx+1));
-      return '<div style="display:flex;align-items:center;gap:8px;padding:4px 0;font-size:13px">'+
-        '<span style="flex:1">'+esc(name)+'</span>'+
+      return '<div style="display:flex;align-items:center;flex-wrap:wrap;gap:6px 8px;padding:4px 0;font-size:13px">'+
+        '<span style="flex:1 1 140px">'+esc(name)+'</span>'+
         (window._availableInserts[e.idx].podcast||window._availableInserts[e.idx].slider
           ? '<label style="display:flex;align-items:center;gap:6px;margin:0;font-weight:400;font-size:12px;color:var(--muted)">Top <input type="range" min="1" max="10" step="1" value="'+podPosNum(e.placement)+'" oninput="setInsertPos('+e.idx+',\'pos\'+this.value);this.nextElementSibling.textContent=this.value" style="width:120px;padding:0"> <b style="color:var(--text);min-width:16px">'+podPosNum(e.placement)+'</b> Bottom</label>'
           : '<select onchange="setInsertPos('+e.idx+',this.value)" style="font-size:12px;padding:3px 6px;border:1px solid var(--border);border-radius:5px">'+
               PLACEMENTS.map(function(pl){return '<option value="'+pl+'"'+(pl===e.placement?' selected':'')+'>'+PLACE_LABEL[pl]+'</option>';}).join('')+
             '</select>')+
+        '<button class="btn ghost" style="padding:2px 8px;font-size:11px" onclick="copyInsertCode(this,'+e.idx+')">Copy embed code</button>'+
         '<button class="btn ghost" style="padding:2px 8px;font-size:11px" onclick="toggleInsert('+e.idx+')">remove</button>'+
       '</div>';
     }).join('');
@@ -915,7 +941,7 @@ function podcastPanel(){
   if(!preTabState().podcast||!q){
     return '<div style="font-size:12.5px;margin-bottom:8px">Add your latest episode’s player to this article.</div>'+
       '<button class="btn" style="margin:0" onclick="queueLatestEpisode(this)">Add latest episode</button>'+
-      '<div style="'+TIP_STYLE+'"><b>Tip:</b> the 1–10 position is counted on the finished article, so it’s easiest to add the podcast <b>after the edit is complete</b>. Run the edit, then use <b>Embed latest episode</b> in the Inserts card and slide it until it sits where you want.</div>';
+      '<div style="'+TIP_STYLE+'"><b>Tip:</b> the simplest way is the <b>Latest podcast episode</b> box under the draft: it’s added in the same pass as the edit, at your usual spot, and you can slide it in the Inserts card afterwards.</div>';
   }
   var pos=window._podPos||getPodcastSettings().position||10;
   return '<div style="font-size:12.5px;margin-bottom:6px">Added the embed code for <b>'+esc(q.title)+'</b> to your draft. It stays exactly as is when you edit, and it’s included when you copy, save or send the article.</div>'+
@@ -1336,10 +1362,47 @@ async function copyArticle(btn){
   }
 }
 function copyStr(btn,s){
+  var old=btn.textContent;
   var ta=document.createElement('textarea'); ta.value=s; ta.style.position='fixed'; ta.style.left='-9999px';
   document.body.appendChild(ta); ta.select();
-  try{ document.execCommand('copy'); btn.textContent='Copied'; setTimeout(function(){btn.textContent='Copy';},1500); }catch(e){}
+  try{ document.execCommand('copy'); btn.textContent='Copied'; setTimeout(function(){btn.textContent=old==='Copied'?'Copy':old;},1500); }catch(e){}
   document.body.removeChild(ta);
+}
+// The finished article as HTML code (not rich text), so a CMS's HTML / code
+// view keeps the podcast player and other embeds, which a visual editor strips
+// on paste (Jeff, 2026-10-05: "the podcast embed comes out as text").
+function copyArticleHtml(btn){
+  var src=document.getElementById('ed-article'); if(!src) return;
+  var el=src.cloneNode(true);
+  Array.prototype.forEach.call(el.querySelectorAll('.ins-prev'),function(w){ while(w.firstChild) w.parentNode.insertBefore(w.firstChild,w); w.parentNode.removeChild(w); });
+  copyStr(btn, el.innerHTML.trim());
+}
+// One insert's code (the podcast player, a promo), for a CMS embed block.
+function copyInsertCode(btn,i){
+  var ins=(window._availableInserts||[])[i]; if(!ins) return;
+  copyStr(btn, String(ins.html||'').trim());
+}
+// "Add with this edit" checkboxes under the draft, remembered per browser.
+var LS_AUTOADD='ims_editor_autoadd';
+function getAutoAdd(){
+  var c=null; try{ c=JSON.parse(localStorage.getItem(LS_AUTOADD)||'null'); }catch(e){}
+  if(!c) c={podcast:true, related:true, promos:false};
+  ['podcast','related','promos'].forEach(function(k){ var el=document.getElementById('aa-'+k); if(el) c[k]=el.checked; });
+  return c;
+}
+function saveAutoAdd(){
+  var c=getAutoAdd();
+  try{ localStorage.setItem(LS_AUTOADD, JSON.stringify(c)); }catch(e){}
+}
+function loadAutoAdd(){
+  var c=null; try{ c=JSON.parse(localStorage.getItem(LS_AUTOADD)||'null'); }catch(e){}
+  if(!c) c={podcast:true, related:true, promos:false};
+  ['podcast','related','promos'].forEach(function(k){ var el=document.getElementById('aa-'+k); if(el) el.checked=!!c[k]; });
+  var tierEl=document.getElementById('ed-tier'), lab=document.getElementById('aa-promos-label');
+  if(tierEl && lab){
+    var n=getPromos().filter(function(p){ return (p.tier===tierEl.value||p.tier==='both') && (p.html||'').trim(); }).length;
+    lab.textContent='Promos for this tier ('+n+')';
+  }
 }
 
 // ── Transcribe (/transcribe) ────────────────────────────────────────────────
@@ -1625,6 +1688,7 @@ renderPromos();
 loadPodcastSettingsForm();
 updateModeHint();
 renderPreTabs();
+loadAutoAdd();
 document.getElementById('ed-draft').addEventListener('input',function(){ if(!POD_BLOCK_RE.test(this.value)) window._podQueuedInfo=null; renderPreTabs(); });
 // ---- From social (api/write-from-post.js) ----
 // The screenshot is shrunk in the browser (max 1600px, JPEG) so it stays well
