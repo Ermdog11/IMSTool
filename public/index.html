@@ -1159,6 +1159,7 @@ function loadYouTube() {
       '<div class="acard-headline" style="font-size:.92rem;"><a href="' + v.url + '" target="_blank" rel="noopener" style="color:inherit;text-decoration:underline;">' + (v.headline || v.title) + '</a></div>' +
       '<div class="acard-meta" style="margin-top:4px;">' + badge +
         '<span class="tag tag-soc">YouTube</span>' +
+        (v.hot ? '<span class="tag" style="background:#fff1e6;color:#c2410c;" title="About who is hot on the beat right now">Hot topic</span>' : '') +
         '<span class="asrc">' + (v.channel || v.source || '') + '</span>' +
         '<span class="atime">' + (v.time || (v.age ? v.age + 'h ago' : '')) + '</span>' +
       '</div>' +
