@@ -11,7 +11,7 @@
 // allows the search rather than turning YouTube off.
 var { get, put } = require('@vercel/blob');
 
-var DAILY_SEARCHES = 90; // leave headroom under Google's ~100/day
+var DAILY_SEARCHES = 85; // headroom under Google's ~100/day for youtube.js's channel-upload reads (1 unit each, ~26 per refresh)
 var STATE_PATH = 'youtube/quota.json';
 
 function pacificDay() {

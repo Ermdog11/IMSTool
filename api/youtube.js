@@ -3,13 +3,230 @@
 // scan.js), searches are reserved against the shared daily budget in
 // _yt-quota.js, and when the budget is gone the last results are served
 // instead of an error. The rotation index lives in the same Blob doc so
-// consecutive refreshes walk through all 20 term groups.
+// consecutive refreshes walk through all the search groups, which are built
+// from the beat profile (searchTerms). Channels that cover the beat are also
+// read directly (channelUploads), far cheaper than searching.
 var Quota = require('./_yt-quota.js');
 var CACHE_PATH = 'youtube/cache.json';
 var ytCache = { at: 0, payload: null, rotation: 0 };
 var YT_CACHE_MS = 60 * 60 * 1000;
 
+var B = require('./_beat.js');
+var S = require('./_supabase.js');
+
+// ── Beat words and searches (all from the beat profile) ──────────────────
+function clean(n) { return String(n || '').replace(/\s*\(.*?\)\s*/g, '').trim(); }
+
+function beatWords(beat) {
+  var t = beat.team;
+  var team = [t.name, t.short, t.school].concat(t.nicknames)
+    .map(function(w) { return clean(w).toLowerCase(); })
+    .filter(function(w, i, a) { return w.length >= 4 && a.indexOf(w) === i; });
+  var people = [], alumni = [];
+  beat.watch.forEach(function(g) {
+    if (Number(g.rating || 3) <= 1) return;
+    g.names.forEach(function(n) { (g.alumni ? alumni : people).push(clean(n).toLowerCase()); });
+  });
+  (beat.keyFigures || []).forEach(function(n) { people.push(clean(n).toLowerCase()); });
+  (beat.keyTerms || []).forEach(function(x) {
+    if ((x.kind || 'person') === 'person') (x.era === 'historic' ? alumni : people).push(clean(x.term).toLowerCase());
+  });
+  function uniq(a) { return a.filter(function(w, i) { return w.length >= 5 && w.indexOf(' ') !== -1 && a.indexOf(w) === i; }); }
+  // Coaches and key figures are often called by last name alone in titles
+  // ("Locksley on the QB battle"): match those too, with the team required
+  // somewhere in the video (see matchBeat).
+  var lastNames = [];
+  beat.watch.forEach(function(g) {
+    if (/coach|staff/i.test(g.label || '')) g.names.forEach(function(n) { lastNames.push(n); });
+  });
+  (beat.keyFigures || []).forEach(function(n) { lastNames.push(n); });
+  lastNames = lastNames.map(function(n) { var parts = clean(n).toLowerCase().split(/\s+/); return parts[parts.length - 1]; })
+    .filter(function(w, i, a) { return w.length >= 5 && a.indexOf(w) === i; });
+  return { team: team, people: uniq(people), alumni: uniq(alumni), lastNames: lastNames };
+}
+
+function hasAny(list, text) { return list.some(function(w) { return text.indexOf(w) !== -1; }); }
+function hasTeamWord(words, text) { return hasAny(words.team, String(text || '').toLowerCase()); }
+
+// Is this video about our beat? Judged on its own title (and channel name),
+// not just its description, which is where opponents' shows and "Big Ten"
+// roundups mention us in passing:
+//  - our team named in the title or channel, unless the title only names us
+//    as the opponent ("Rutgers vs Maryland preview" on a Rutgers show); or
+//  - one of our current people in the title, with our team named anywhere
+//    (names collide: a recruit and an NFL player can share one); or
+//  - an alum in the title with our team named in the title or description.
+function matchBeat(words, title, desc, channel) {
+  var tl = String(title || '').toLowerCase();
+  var cl = String(channel || '').toLowerCase();
+  var all = tl + ' ' + String(desc || '').toLowerCase() + ' ' + cl;
+  var teamInChannel = hasAny(words.team, cl);
+  var personInTitle = hasAny(words.people, tl);
+  if (personInTitle && (teamInChannel || hasAny(words.team, all))) return true;
+  if (hasAny(words.lastNames || [], tl) && hasAny(words.team, all)) return true;
+  if (teamInChannel) return true;
+  if (hasAny(words.team, tl)) return !onlyAsOpponent(words.team, tl);
+  if (hasAny(words.alumni, tl) && hasAny(words.team, all)) return true;
+  return false;
+}
+
+// True when every mention of our team in the title comes right after
+// "vs", "at", "against", "hosts" and the like, i.e. another team's preview.
+function onlyAsOpponent(team, tl) {
+  var opp = /(?:\bvs\.?|\bv\.|\bversus|\bat|@|\bagainst|\bhosts?|\bfaces?|\bplays?|\bwelcomes?|\bvisit(?:s|ing)?|\btake(?:s)? on)\s*(?:no\.\s*\d+\s*|#\d+\s*)?$/;
+  var found = false;
+  for (var i = 0; i < team.length; i++) {
+    var idx = tl.indexOf(team[i]);
+    while (idx !== -1) {
+      found = true;
+      if (!opp.test(tl.slice(Math.max(0, idx - 24), idx).trim())) return false;
+      idx = tl.indexOf(team[i], idx + 1);
+    }
+  }
+  return found;
+}
+
+function q(s) { return '"' + clean(s) + '"'; }
+function groupsOf(arr, n) { var out = []; for (var i = 0; i < arr.length; i += n) out.push(arr.slice(i, i + n)); return out; }
+
+// YouTube search queries (OR groups), most important first. The rotation in
+// the handler walks through them a few per refresh.
+function searchTerms(beat) {
+  var t = beat.team;
+  var sports = (beat.primarySports || []).slice(0, 3);
+  var out = [];
+  out.push([t.name].concat(t.nicknames).slice(0, 4).map(q).concat(sports.map(function(s) { return q(t.short + ' ' + s); })).join(' | '));
+  sports.slice(0, 2).forEach(function(s) {
+    var base = t.short + ' ' + s;
+    out.push([q(base) + ' press conference', q(base) + ' podcast', q(base) + ' interview'].join(' | '));
+  });
+  if (t.level === 'college' || t.level === 'high school') {
+    out.push([q(t.short) + ' commit', q(t.short) + ' commitment', q(t.short) + ' transfer portal', q(t.short) + ' official visit'].join(' | '));
+  }
+  var people = [];
+  beat.watch.slice().sort(function(a, c) { return (c.rating || 3) - (a.rating || 3); }).forEach(function(g) {
+    if (g.alumni || Number(g.rating || 3) <= 1) return;
+    g.names.forEach(function(n) { n = clean(n); if (n && people.indexOf(n) === -1) people.push(n); });
+  });
+  (beat.keyFigures || []).forEach(function(n) { n = clean(n); if (n && people.indexOf(n) === -1) people.unshift(n); });
+  groupsOf(people.slice(0, 60), 5).forEach(function(g) { out.push(g.map(q).join(' | ')); });
+  var alumni = [];
+  beat.watch.forEach(function(g) {
+    if (!g.alumni || Number(g.rating || 3) <= 1) return;
+    g.names.forEach(function(n) { n = clean(n); if (n && alumni.indexOf(n) === -1) alumni.push(n); });
+  });
+  groupsOf(alumni.slice(0, 10), 5).forEach(function(g) { out.push(g.map(q).join(' | ') + ' ' + q(t.short)); });
+  return out;
+}
+
+// ── Beat channels: configured in the setup wizard, or learned ─────────────
+var CHANNELS_PATH = 'youtube/channels.json';
+
+async function loadChannels() {
+  var st = await Quota.readJson(CHANNELS_PATH);
+  st = st && typeof st === 'object' ? st : {};
+  st.configured = st.configured || {};
+  st.learned = st.learned || {};
+  return st;
+}
+
+// Turns the publisher's channel names into channel ids, at most one search
+// per refresh, remembered for good. A channel URL, UC-id or @handle costs
+// no search.
+async function resolveConfiguredChannels(beat, st, key) {
+  var changed = false, searched = 0;
+  for (var i = 0; i < beat.youtube.length; i++) {
+    var ch = beat.youtube[i];
+    if (Number(ch.rating || 3) <= 1 || ch.blocked) continue;
+    var name = String(ch.name || '').trim();
+    if (!name || Object.prototype.hasOwnProperty.call(st.configured, name)) continue;
+    var id = '';
+    var m = name.match(/(UC[\w-]{22})/);
+    var handle = (name.match(/(?:youtube\.com\/)?(@[\w.-]+)/) || [])[1];
+    try {
+      if (m) id = m[1];
+      else if (handle) {
+        var hr = await fetch('https://www.googleapis.com/youtube/v3/channels?part=id&forHandle=' + encodeURIComponent(handle) + '&key=' + key).then(function(r) { return r.json(); });
+        id = (hr.items && hr.items[0] && hr.items[0].id) || '';
+      } else {
+        if (searched >= 1 || !(await Quota.take(1))) continue;
+        searched++;
+        var sr = await fetch('https://www.googleapis.com/youtube/v3/search?part=snippet&type=channel&maxResults=1&q=' + encodeURIComponent(name) + '&key=' + key).then(function(r) { return r.json(); });
+        id = (sr.items && sr.items[0] && sr.items[0].id && sr.items[0].id.channelId) || '';
+      }
+    } catch (e) { continue; }
+    st.configured[name] = id;
+    changed = true;
+  }
+  if (changed) await Quota.writeJson(CHANNELS_PATH, st);
+}
+
+// Learned channels: posted beat videos on at least 2 refreshes in the last
+// 60 days. Most active first.
+function learnedChannels(st) {
+  var cutoff = Date.now() - 60 * 24 * 3600 * 1000;
+  return Object.keys(st.learned)
+    .filter(function(id) { var c = st.learned[id]; return c.hits >= 2 && c.last >= cutoff; })
+    .sort(function(a, b) { return st.learned[b].hits - st.learned[a].hits; });
+}
+
+async function rememberChannels(st, videos) {
+  var now = Date.now(), changed = false, counted = {};
+  videos.forEach(function(v) {
+    if (!v.channelId || counted[v.channelId] || st.configured && Object.values(st.configured).indexOf(v.channelId) !== -1) return;
+    counted[v.channelId] = 1;
+    var c = st.learned[v.channelId] || { title: v.channel, hits: 0, last: 0 };
+    c.hits += 1; c.last = now; c.title = v.channel;
+    st.learned[v.channelId] = c;
+    changed = true;
+  });
+  if (!changed) return;
+  var keep = Object.keys(st.learned).sort(function(a, b) { return st.learned[b].last - st.learned[a].last; }).slice(0, 150);
+  var pruned = {};
+  keep.forEach(function(id) { pruned[id] = st.learned[id]; });
+  st.learned = pruned;
+  await Quota.writeJson(CHANNELS_PATH, st);
+}
+
+// Recent uploads of the given channels: 1 quota unit per channel (plus 1 per
+// 50 channels to find their upload lists), versus 100 per search.
+async function channelUploads(ids, key, cutoffMs) {
+  if (!ids.length) return [];
+  var lists = [];
+  for (var i = 0; i < ids.length; i += 50) {
+    try {
+      var r = await fetch('https://www.googleapis.com/youtube/v3/channels?part=contentDetails&id=' + ids.slice(i, i + 50).join(',') + '&key=' + key).then(function(x) { return x.json(); });
+      (r.items || []).forEach(function(c) {
+        var u = c.contentDetails && c.contentDetails.relatedPlaylists && c.contentDetails.relatedPlaylists.uploads;
+        if (u) lists.push(u);
+      });
+    } catch (e) { /* best-effort */ }
+  }
+  var pages = await Promise.all(lists.map(function(pl) {
+    return fetch('https://www.googleapis.com/youtube/v3/playlistItems?part=snippet,contentDetails&maxResults=10&playlistId=' + pl + '&key=' + key)
+      .then(function(x) { return x.json(); }).catch(function() { return {}; });
+  }));
+  var out = [];
+  pages.forEach(function(p) {
+    (p.items || []).forEach(function(it) {
+      var sn = it.snippet || {};
+      var vid = (it.contentDetails && it.contentDetails.videoId) || (sn.resourceId && sn.resourceId.videoId);
+      var published = (it.contentDetails && it.contentDetails.videoPublishedAt) || sn.publishedAt;
+      if (!vid || !published || Date.parse(published) < cutoffMs) return;
+      out.push({ videoId: vid, snippet: {
+        title: sn.title, description: sn.description, publishedAt: published, thumbnails: sn.thumbnails,
+        channelId: sn.videoOwnerChannelId || sn.channelId, channelTitle: sn.videoOwnerChannelTitle || sn.channelTitle
+      } });
+    });
+  });
+  return out;
+}
+
 module.exports = async function handler(req, res) {
+  // Every search spends the shared daily YouTube quota, so members only (and
+  // scan.js's in-process call). The page sends the token via _auth.js.
+  try { await S.requireUserOrCron(req, res); }
+  catch (authErr) { return res.status(authErr.status || 401).json({ error: authErr.message || 'Not signed in' }); }
   var key = process.env.YOUTUBE_API_KEY;
   if (!key) return res.status(200).json({ videos: [], error: 'YOUTUBE_API_KEY not set — add it in Vercel environment variables' });
 
@@ -45,36 +262,21 @@ module.exports = async function handler(req, res) {
   if (ytCache.payload && (Date.now() - ytCache.at) < minAge) return serveCached();
 
   var cutoff = new Date(Date.now() - 10 * 24 * 60 * 60 * 1000).toISOString();
+  var cutoffMs = Date.parse(cutoff);
 
-  // 20 OR-groups mirroring the Google News queries. Names are paired with Maryland/Terps
-  // context wherever ambiguity is possible so unrelated content (including cannabis "terps") is avoided.
-  var allTerms = [
-    '"Maryland Terrapins" | "Terps football" | "Terps basketball" | "Maryland Terrapins recruiting"',
-    '"Maryland athletic director" | "SECU Stadium" | "Xfinity Center" Terps | "Damon Evans Maryland" | "Jim Smith Maryland"',
-    '"Mike Locksley" | "Pep Hamilton Maryland" | "Latrell Scott Maryland" | "Maryland football staff"',
-    '"Malik Washington" Maryland | "Zahir Mathis" | "Dontay Joyner" | "Kyree Caldwell" | "Zeke Walkup"',
-    '"Maryland football recruiting" | "Maryland football commits" | "Maryland official visit" | "James Branch" Maryland | "Dallas Pauldo"',
-    '"Boomer Esiason" | "Vernon Davis" Maryland | "Stefon Diggs" | "Darnell Savage" | "DJ Moore" Bears',
-    '"Shawne Merriman" | "LaMont Jordan" | "Jermaine Lewis" | "Torrey Smith" | "Randy Edsall"',
-    '"Buzz Williams" Maryland | "Kevin Willard" | "Maryland basketball recruiting" | "Maryland basketball staff"',
-    '"DJ Wagner" Maryland | "Baba Oladotun" | "Bishop Boswell" | "Kaden House" Maryland | "Adama Tambedou"',
-    '"Len Bias" | "Juan Dixon" | "Greivis Vasquez" | "Melo Trimble" | "Steve Francis" Maryland | "Walt Williams" Maryland',
-    '"Jalen Smith" Terps | "Kevin Huerter" | "Bruno Fernando" | "Jake Layman" | "Alex Len" | "Dez Wells"',
-    '"Brenda Frese" | "Alyssa Thomas" | "Kristi Toliver" | "Diamond Miller" | "Maryland womens basketball"',
-    '"John Tillman" Maryland | "Maryland mens lacrosse" | "Maryland womens lacrosse" | "Jared Bernhardt" | "Matt Rambo"',
-    '"Maryland baseball" Terrapins | "Matt Swope" | "Sasho Cirovski" | "Zack Steffen" | "Maryland soccer" Terrapins',
-    '"Maryland wrestling" Terrapins | "Maryland field hockey" | "Maryland volleyball" Terrapins | "Maryland gymnastics" | "Kyle Snyder" Maryland',
-    '"Maryland transfer portal" | "Maryland decommit" | "Maryland portal target" | "Terps transfer portal"',
-    '"Maryland NIL" Terrapins | "Maryland NIL collective" | "Terrapin Club" | "Maryland athletics fundraising"',
-    '"Testudo Times" | "Terrapin Sports Report" | "On3 Maryland" | "Rivals Maryland" | "Fear the Turtle" Terps',
-    '"Maryland football roster" | "Maryland basketball schedule" | "Maryland spring football" | "Maryland coaching search" Terrapins',
-    '"Aaron Wiggins" Maryland | "Derik Queen" | "Pharrel Payne" | "Big Ten basketball" Maryland'
-  ];
+  // Everything about the beat (team names, people, channels) comes from the
+  // newsroom's beat profile, not a hard-coded list (2026-10-05, Jeff: "very
+  // weak, doesn't find much hidden content, and produces lots of Rutgers and
+  // Ohio State podcasts"). See matchBeat() for the relevance rule.
+  var beat = await B.getBeat(S.isConfigured() ? S.admin() : null);
+  var words = beatWords(beat);
+  var allTerms = searchTerms(beat);
 
   // Rotate groups per request to conserve quota (search costs 100 units each; 10k/day free)
   var batchSize = 7;
   var bReq = parseInt((req.query && req.query.batch) || '', 10);
-  if (bReq >= 1 && bReq <= 12) batchSize = bReq;
+  if (bReq >= 1 && bReq <= 12) batchSize = Math.min(bReq, allTerms.length);
+  batchSize = Math.min(batchSize, allTerms.length);
   if (!(await Quota.take(batchSize))) {
     return serveCached('YouTube search limit reached for today. Showing the last results; new searches resume after midnight Pacific.');
   }
@@ -85,11 +287,6 @@ module.exports = async function handler(req, res) {
     terms.push(allTerms[(startIdx + i) % allTerms.length]);
   }
 
-  var keywords = ['terps', 'terrapins', 'maryland', 'locksley', 'buzz williams', 'oladotun', 'derik queen', 'dj wagner', 'kevin willard', 'brenda frese', 'stefon diggs', 'boomer esiason', 'shawne merriman', 'torrey smith', 'lamont jordan', 'jermaine lewis', 'darnell savage', 'dj moore', 'vernon davis', 'len bias', 'juan dixon', 'greivis vasquez', 'melo trimble', 'kevin huerter', 'bruno fernando', 'jake layman', 'alex len', 'dez wells', 'jalen smith', 'aaron wiggins', 'alyssa thomas', 'kristi toliver', 'diamond miller', 'jared bernhardt', 'matt rambo', 'zack steffen', 'kyle snyder', 'matt swope', 'sasho cirovski', 'john tillman', 'testudo', 'zahir mathis', 'malik washington', 'pharrel payne', 'kaden house', 'bishop boswell', 'adama tambedou', 'randy edsall', 'pep hamilton', 'secu stadium', 'xfinity center', 'big ten'];
-  function matchesKeywords(text) {
-    var t = (text || '').toLowerCase();
-    return keywords.some(function(k) { return t.includes(k); });
-  }
   // Xfinity Center in Mansfield MA is a concert venue, not the UMD arena
   var venueNoise = ['mansfield', 'concert', 'live at xfinity', 'at xfinity center, mansfield', 'tour', 'full show', 'en vevo', 'setlist'];
   function isConcertVenue(text) {
@@ -103,17 +300,16 @@ module.exports = async function handler(req, res) {
     var t = (text || '').toLowerCase();
     return cannabisTerms.some(function(c) { return t.includes(c); });
   }
-  // Maryland-the-state noise guard: bare "maryland" keyword matches food/tourism/local-news
-  // content that has nothing to do with Terps sports (e.g. Maryland blue crab videos).
-  var marylandNoiseTerms = ['crab', 'seafood', 'old bay', 'crab cake', 'crab feast', 'crab house', 'blue crab', 'ocean city', 'national aquarium', 'chesapeake bay', 'recipe', 'cooking', 'weather forecast', 'lottery', 'real estate', 'zoning', 'city council'];
-  function isMarylandNoise(text) {
+  // State-name noise guard: a team named for its state ("Maryland") also
+  // matches food, tourism and local-news videos about the state.
+  var stateNoiseTerms = ['crab', 'seafood', 'old bay', 'crab cake', 'crab feast', 'crab house', 'blue crab', 'ocean city', 'national aquarium', 'chesapeake bay', 'recipe', 'cooking', 'weather forecast', 'lottery', 'real estate', 'zoning', 'city council'];
+  function isStateNoise(text) {
     var t = (text || '').toLowerCase();
-    if (!t.includes('maryland')) return false;
-    if (t.includes('terps') || t.includes('terrapin')) return false;
-    return marylandNoiseTerms.some(function(n) { return t.includes(n); });
+    return stateNoiseTerms.some(function(n) { return t.includes(n); });
   }
 
-  var excluded = ['insidemd', 'jeff ermann', 'ims radio', 'insidetheshell'];
+  // Our own outlet's channel, and anything the publisher excluded.
+  var excluded = ['insidemd', 'jeff ermann', 'ims radio', 'insidetheshell'].concat(beat.excludeSources || [], beat.outletName ? [beat.outletName.toLowerCase()] : []);
   // Video game / simulation content
   var gamingTerms = ['college football 27', 'college football 26', 'cfb27', 'cfb 27', 'cfb26', 'dynasty', 'road to glory', 'simulation', 'sim ', 'ea sports', 'gameplay', 'gaming', 'franchise mode', 'restream', 'twitch', 'madden', 'nba 2k', '2k26', '2k27'];
   function isGaming(text) {
@@ -128,8 +324,8 @@ module.exports = async function handler(req, res) {
     'ai narrat', 'generated with ai', 'powered by ai', 'this video was created using',
     'synthetic voice', 'automated news', 'auto-generated', 'tts '
   ];
-  var aiChannelPatterns = /(news now|sports now|now sports|daily sports|sports daily|news today|today news|sports report|report sports|sports central|central sports|fan nation|hoops nation|gridiron nation|rumor|rumors|breaking sports|sports break|insider report|\bai\b|\bbot\b|robot)/i;
-  var clickbaitTitle = /(SHOCK(?:ING|ED|S)?|STUNNED|STUNNING|JUST IN|BREAKING NEWS|YOU WON'?T BELIEVE|BOMBSHELL|MASSIVE NEWS|HUGE NEWS)\b.*[!?]{2,}|[!?]{3,}|🚨\s*🚨/;
+  var aiChannelPatterns = /(news now|sports now|now sports|daily sports|sports daily|news today|today news|sports central|central sports|hoops nation|gridiron nation|breaking sports|sports break|\bai\b|\bbot\b|robot)/i;
+  var clickbaitTitle = /(SHOCK(?:ING|ED|S)?|STUNNED|STUNNING|JUST IN|BREAKING NEWS|YOU WON'?T BELIEVE|BOMBSHELL|MASSIVE NEWS|HUGE NEWS)\b.*[!?]{2,}|[!?]{4,}|🚨\s*🚨/;
   function isAiSpam(title, desc, channel) {
     var t = ((title || '') + ' ' + (desc || '')).toLowerCase();
     if (aiPhrases.some(function(p) { return t.includes(p); })) return true;
@@ -138,49 +334,65 @@ module.exports = async function handler(req, res) {
     return false;
   }
 
+  // Channels that cover the beat: the publisher's list (setup wizard) plus
+  // ones learned from past runs. Their uploads are read directly, 1 quota
+  // unit per channel instead of 100 per search, which is how small beat
+  // channels (podcasts, pressers, recruit interviews) get found.
+  var channelState = await loadChannels();
+  await resolveConfiguredChannels(beat, channelState, key);
+  var beatChannelIds = {};
+  Object.keys(channelState.configured).forEach(function(n) { var id = channelState.configured[n]; if (id) beatChannelIds[id] = 'configured'; });
+  learnedChannels(channelState).forEach(function(id) { if (!beatChannelIds[id]) beatChannelIds[id] = 'learned'; });
+
   try {
     var searches = terms.map(function(term) {
-      var url = 'https://www.googleapis.com/youtube/v3/search?part=snippet&type=video&order=date&maxResults=15&publishedAfter=' + encodeURIComponent(cutoff) + '&q=' + encodeURIComponent(term) + '&key=' + key;
+      var url = 'https://www.googleapis.com/youtube/v3/search?part=snippet&type=video&order=date&maxResults=25&publishedAfter=' + encodeURIComponent(cutoff) + '&q=' + encodeURIComponent(term) + '&key=' + key;
       return fetch(url).then(function(r) { return r.json(); }).catch(function() { return {}; });
     });
-
     var results = await Promise.all(searches);
+    var uploads = await channelUploads(Object.keys(beatChannelIds).slice(0, 25), key, cutoffMs);
 
     var videos = [];
     var seen = [];
     var apiError = null, quotaHit = false;
 
+    function consider(sn, videoId, fromChannelFeed) {
+      if (!sn || !videoId) return;
+      var title = (sn.title || '').replace(/&amp;/g, '&').replace(/&#39;/g, "'").replace(/&quot;/g, '"');
+      var channel = sn.channelTitle || '';
+      var desc = sn.description || '';
+      var text = title + ' ' + desc + ' ' + channel;
+      var beatChannel = beatChannelIds[sn.channelId || ''];
+      // A configured beat channel's uploads all count; everything else has
+      // to be about our team or our people in its own title (see matchBeat).
+      if (beatChannel !== 'configured' && !matchBeat(words, title, desc, channel)) return;
+      if (excluded.some(function(ex) { return ex && text.toLowerCase().includes(ex); })) return;
+      if (isGaming(text)) return;
+      if (isCannabis(text)) return;
+      if (!hasTeamWord(words, title + ' ' + channel) && isStateNoise(text)) return;
+      if (isConcertVenue(text)) return;
+      if (isAiSpam(title, desc, channel)) return;
+      var norm = title.toLowerCase().replace(/[^a-z0-9 ]/g, '').substring(0, 60);
+      if (seen.includes(norm)) return;
+      seen.push(norm);
+      var pubMs = sn.publishedAt ? new Date(sn.publishedAt).getTime() : 0;
+      videos.push({
+        videoId: videoId,
+        title: title,
+        channel: channel,
+        channelId: sn.channelId || '',
+        beatChannel: !!beatChannel,
+        url: 'https://www.youtube.com/watch?v=' + videoId,
+        thumbnail: (sn.thumbnails && sn.thumbnails.medium && sn.thumbnails.medium.url) || '',
+        age: pubMs ? Math.round((Date.now() - pubMs) / 3600000) : 0,
+        description: desc.substring(0, 150)
+      });
+    }
+
+    uploads.forEach(function(u) { consider(u.snippet, u.videoId, true); });
     results.forEach(function(data) {
       if (data.error) { apiError = data.error.message || 'YouTube API error'; if (Quota.isQuotaError(data.error)) quotaHit = true; return; }
-      (data.items || []).forEach(function(item) {
-        var sn = item.snippet;
-        if (!sn || !item.id || !item.id.videoId) return;
-        var title = (sn.title || '').replace(/&amp;/g, '&').replace(/&#39;/g, "'").replace(/&quot;/g, '"');
-        var channel = sn.channelTitle || '';
-        var desc = sn.description || '';
-        var text = title + ' ' + desc + ' ' + channel;
-        if (!matchesKeywords(text)) return;
-        if (excluded.some(function(ex) { return text.toLowerCase().includes(ex); })) return;
-        if (isGaming(text)) return;
-        if (isCannabis(text)) return;
-        if (isMarylandNoise(text)) return;
-        if (isConcertVenue(text)) return;
-        if (isAiSpam(title, desc, channel)) return;
-        var norm = title.toLowerCase().replace(/[^a-z0-9 ]/g, '').substring(0, 60);
-        if (seen.includes(norm)) return;
-        seen.push(norm);
-        var pubMs = sn.publishedAt ? new Date(sn.publishedAt).getTime() : 0;
-        videos.push({
-          videoId: item.id.videoId,
-          title: title,
-          channel: channel,
-          channelId: sn.channelId || '',
-          url: 'https://www.youtube.com/watch?v=' + item.id.videoId,
-          thumbnail: (sn.thumbnails && sn.thumbnails.medium && sn.thumbnails.medium.url) || '',
-          age: pubMs ? Math.round((Date.now() - pubMs) / 3600000) : 0,
-          description: desc.substring(0, 150)
-        });
-      });
+      (data.items || []).forEach(function(item) { consider(item.snippet, item.id && item.id.videoId, false); });
     });
 
     // Enrich with full descriptions + view counts (videos.list is 1 unit / call, batched 50)
@@ -228,6 +440,9 @@ module.exports = async function handler(req, res) {
       } catch (e) { /* pass through on lookup failure */ }
     }
     videos = videos.filter(function(v) {
+      // Beat channels are exempt: a small channel that covers the beat
+      // (a podcast, a recruit's own channel) is the hidden content we want.
+      if (v.beatChannel) return true;
       var c = chStats[v.channelId];
       if (!c) return true; // couldn't look up — keep
       if (c.subs < 400) return false;
@@ -255,6 +470,10 @@ module.exports = async function handler(req, res) {
       if (ytCache.payload) return serveCached(quotaHit ? 'YouTube search limit reached for today. Showing the last results; new searches resume after midnight Pacific.' : apiError);
       return res.status(200).json({ videos: [], error: quotaHit ? 'YouTube search limit reached for today; new searches resume after midnight Pacific.' : apiError });
     }
+    // Learn channels: one that keeps posting videos about the beat gets its
+    // uploads read directly from now on.
+    await rememberChannels(channelState, videos);
+    videos.forEach(function(v) { delete v.beatChannel; });
     var payload = { videos: videos, searched: terms };
     ytCache = { at: Date.now(), payload: payload, rotation: rotation + 1 };
     await Quota.writeJson(CACHE_PATH, ytCache);
