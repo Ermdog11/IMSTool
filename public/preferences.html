@@ -1,0 +1,267 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CoPublisher AI — Permissions &amp; preferences</title>
+<style>
+:root{--red:#2563eb;--red-dark:#1d4ed8;--dark:#0f1b2d;--border:#e2e7ef;--bg:#f5f7fb;--bg2:#fff;--text:#1a1a1a;--text2:#555;--muted:#888;--green:#3B6D11;--green-bg:#eaf3de;--blue:#0c447c;--amber-bg:#fff8e1;--amber:#8a6d00;--hot:#dc2626;--red-light:#eaf1ff}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:var(--bg);color:var(--text);font-size:14px;line-height:1.5}
+a{color:var(--blue)}
+.topbar{background:var(--dark);padding:0 20px;display:flex;align-items:center;justify-content:space-between;gap:10px;height:52px}
+.brand{color:#fff;font-size:15px;font-weight:600;text-decoration:none;display:flex;align-items:center;gap:10px}
+.brand .mark{width:30px;height:30px;background:var(--red);border-radius:6px;display:grid;place-items:center;font-size:11px;font-weight:800}
+.toplinks{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.toplinks a{color:#ccc;font-size:12px;text-decoration:none;border:.5px solid #555;padding:4px 12px;border-radius:20px;white-space:nowrap}
+.wrap{max-width:860px;margin:0 auto;padding:24px 16px 60px}
+h1{font-size:22px;margin-bottom:4px}
+.lead{color:var(--text2);margin-bottom:16px;max-width:68ch}
+.jump{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:18px}
+.jump a{font-size:12px;font-weight:600;padding:5px 11px;border-radius:20px;border:1px solid var(--border);background:#fff;color:var(--text2);text-decoration:none}
+.card{background:var(--bg2);border:1px solid var(--border);border-radius:12px;padding:20px;margin-bottom:16px;scroll-margin-top:12px}
+.card h2{font-size:16px;margin-bottom:4px}
+.card .sub{font-size:12.5px;color:var(--muted);margin-bottom:12px;max-width:70ch}
+.row{display:flex;align-items:center;gap:8px 16px;flex-wrap:wrap;padding:9px 0;border-top:1px solid var(--border)}
+.row:first-of-type{border-top:0}
+.row .name{flex:1 1 220px;min-width:0}
+.row .name b{font-size:13.5px;font-weight:600}
+.row .name span{display:block;font-size:12px;color:var(--muted)}
+.switch{position:relative;display:inline-block;width:40px;height:22px;flex-shrink:0}
+.switch input{opacity:0;width:0;height:0}
+.switch i{position:absolute;inset:0;background:#cfd6e2;border-radius:22px;cursor:pointer;transition:.15s}
+.switch i:before{content:"";position:absolute;width:16px;height:16px;left:3px;top:3px;background:#fff;border-radius:50%;transition:.15s}
+.switch input:checked+i{background:var(--red)}
+.switch input:checked+i:before{transform:translateX(18px)}
+.switch input:disabled+i{opacity:.5;cursor:default}
+.pos{display:flex;align-items:center;gap:6px;font-size:12px;color:var(--muted)}
+.pos input{width:140px}
+.pos b{color:var(--text);min-width:16px}
+.seg{display:inline-flex;border:1px solid var(--border);border-radius:8px;overflow:hidden}
+.seg button{font:inherit;font-size:12px;font-weight:600;padding:5px 10px;border:0;border-left:1px solid var(--border);background:#fff;color:var(--text2);cursor:pointer}
+.seg button:first-child{border-left:0}
+.seg button.on{background:var(--red);color:#fff}
+.seg button:disabled{cursor:default}
+.btn{font:inherit;background:var(--red);color:#fff;border:none;border-radius:8px;padding:9px 18px;font-size:13.5px;font-weight:600;cursor:pointer}
+.btn:hover{background:var(--red-dark)}
+.btn:disabled{opacity:.6;cursor:default}
+.msg{font-size:12.5px;margin-left:10px}
+.msg.err{color:var(--hot)}.msg.ok{color:var(--green)}
+.notice{background:var(--amber-bg);border:1px solid #f0e2a8;border-radius:8px;padding:9px 12px;font-size:12.5px;margin-bottom:12px}
+table{width:100%;border-collapse:collapse;font-size:13px}
+th,td{text-align:left;padding:7px 8px;border-top:1px solid var(--border);vertical-align:top}
+th{font-size:11.5px;text-transform:uppercase;letter-spacing:.03em;color:var(--text2);border-top:0}
+td.c,th.c{text-align:center;width:84px}
+.yes{color:var(--green);font-weight:700}
+.no{color:#c2c7d0}
+.part{color:var(--amber);font-size:11.5px;font-weight:600}
+tr.you td{background:var(--red-light)}
+.dir h3{font-size:13px;margin:14px 0 2px;color:var(--text2);text-transform:uppercase;letter-spacing:.03em}
+.dir h3:first-child{margin-top:0}
+.tag{display:inline-block;font-size:10.5px;font-weight:700;padding:1px 7px;border-radius:4px;background:#f1f0ec;color:var(--text2);white-space:nowrap}
+.tag.pub{background:#fde8e8;color:#9b1c1c}
+.tag.ed{background:#e8f0fe;color:#1e40af}
+.tag.all{background:var(--green-bg);color:var(--green)}
+.tag.local{background:var(--amber-bg);color:var(--amber)}
+.table-scroll{overflow-x:auto}
+@media (max-width:600px){.topbar{height:auto;padding:10px 16px;flex-wrap:wrap}.card{padding:16px}.pos input{width:110px}td.c,th.c{width:64px}}
+</style>
+</head>
+<body>
+<div class="topbar">
+  <a class="brand" href="/"><span class="mark">CP</span>CoPublisher AI</a>
+  <div class="toplinks" id="toplinks"><a href="/">News Monitor</a><a href="/editor">Content Editor</a></div>
+</div>
+<div class="wrap">
+  <h1>Permissions &amp; preferences</h1>
+  <p class="lead">Your own alerts, the Content Editor's defaults, who on the team can do what, and where every other setting lives.</p>
+  <div class="jump">
+    <a href="#alerts">Your alerts</a><a href="#editor">Content Editor defaults</a><a href="#permissions">Who can do what</a><a href="#everything">All settings</a>
+  </div>
+  <div id="notice"></div>
+
+  <section class="card" id="alerts">
+    <h2>Your alerts</h2>
+    <div class="sub">Which emails come to you. Changes save as you flip them. The publisher can also set these for anyone in <a href="/settings">Settings › Team &amp; alerts</a>.</div>
+    <div id="alert-list"><div class="sub">Loading…</div></div>
+  </section>
+
+  <section class="card" id="editor">
+    <h2>Content Editor defaults</h2>
+    <div class="sub">What's added to every article in the same pass as the edit, and where it goes (1 is the top of the article, 10 the bottom). These are the newsroom's defaults. A writer can still untick a box or move the slider for one article under the draft.</div>
+    <div id="ed-defaults"></div>
+    <div style="margin-top:12px"><button class="btn" id="ed-save" onclick="saveEditorDefaults()">Save defaults</button><span class="msg" id="ed-msg"></span></div>
+  </section>
+
+  <section class="card" id="permissions">
+    <h2>Who can do what</h2>
+    <div class="sub">What each role can do today. The publisher sets each person's role in <a href="/settings">Settings › Team &amp; alerts</a>.</div>
+    <div class="table-scroll"><table id="perm-table"></table></div>
+  </section>
+
+  <section class="card dir" id="everything">
+    <h2>All settings, and where to change them</h2>
+    <div class="sub"><span class="tag local">This browser</span> marks a setting saved only in the browser you set it in; it doesn't follow you to another computer or browser. Everything else is shared by the whole newsroom.</div>
+    <div id="dir"></div>
+  </section>
+</div>
+
+<script src="/supabase-config.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="/_auth.js"></script>
+<script>
+function $(id){return document.getElementById(id);}
+function esc(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
+var ROLE='publisher', CONFIGURED=false, profile={};
+
+// ---- Who can do what ------------------------------------------------------
+// Mirrors the role checks in api/ (requireRole / membership.role). Keep in
+// sync when a route's check changes.
+var PERMS=[
+  ['Use the News Monitor and Content Editor (scans, digests, alerts, editing, writing)','all'],
+  ['Choose your own alerts','all'],
+  ['Open and edit drafts in the Editorial Desk','all'],
+  ['Hide junk sources and exclude sites from the feed','all'],
+  ['Change which X accounts are followed','all'],
+  ['Send a public-records request from the app','editor','Writers can open it in their own email'],
+  ['Edit the house style guide','editor'],
+  ['Connect search keys (web search, Google search, X)','editor'],
+  ['Change the newsroom setup (beat, people to watch, what’s breaking, podcast)','publisher'],
+  ['Change the Content Editor defaults','publisher'],
+  ['Invite people, set roles, and set other people’s alerts','publisher'],
+  ['Connect analytics and social accounts','publisher'],
+  ['Connect the 247Sports login and the Bluesky promo bot','publisher']
+];
+function renderPerms(){
+  var roles=['publisher','editor','writer'];
+  var rank={publisher:3,editor:2,writer:1,all:1};
+  var h='<tr><th>What</th>'+roles.map(function(r){return '<th class="c">'+r.charAt(0).toUpperCase()+r.slice(1)+(r===ROLE?' (you)':'')+'</th>';}).join('')+'</tr>';
+  PERMS.forEach(function(p){
+    h+='<tr><td>'+esc(p[0])+'</td>'+roles.map(function(r){
+      var ok=rank[r]>=rank[p[1]];
+      if(!ok && p[2]) return '<td class="c"><span class="part" title="'+esc(p[2])+'">Partly</span></td>';
+      return '<td class="c">'+(ok?'<span class="yes">✓</span>':'<span class="no">—</span>')+'</td>';
+    }).join('')+'</tr>';
+  });
+  $('perm-table').innerHTML=h;
+}
+
+// ---- Every other setting ----------------------------------------------------
+var WHO={publisher:['pub','Publisher'],editor:['ed','Editors'],all:['all','Everyone'],local:['local','This browser']};
+var DIR=[
+  ['Newsroom setup (the setup wizard)',[
+    ['Outlet, website and the sports you cover','/setup?step=outlet','publisher'],
+    ['Your beat: sources, competitors and Opps Spy email/text alerts','/setup?step=beat','publisher'],
+    ['People to watch','/setup?step=people','publisher'],
+    ['Roster watch','/setup?step=roster','publisher'],
+    ['What counts as breaking news','/setup?step=rules','publisher'],
+    ['Podcast feed and player','/setup?step=podcast','publisher'],
+    ['X accounts to follow','/setup?step=x','all'],
+    ['Invite your team','/setup?step=team','publisher']
+  ]],
+  ['News Monitor settings',[
+    ['Team roles and everyone’s alerts','/settings','publisher'],
+    ['Excluded sources and your own site','/settings','all'],
+    ['Web search, Google search and X search keys','/settings','editor'],
+    ['Bluesky promo bot','/settings','publisher'],
+    ['247Sports login (style drift matching)','/settings','publisher'],
+    ['Desktop alerts','/settings','local'],
+    ['Analytics and social connections','/analytics','publisher']
+  ]],
+  ['Content Editor',[
+    ['House style guide','/house-style','editor'],
+    ['Writers and their voice profiles','/editor','local'],
+    ['Promos for free and VIP articles','/editor','local'],
+    ['Podcast tab: this browser’s player settings (override the newsroom’s)','/editor','local'],
+    ['Related tab: how many links and where they link to','/editor','local']
+  ]]
+];
+function renderDir(){
+  $('dir').innerHTML=DIR.map(function(g){
+    return '<h3>'+esc(g[0])+'</h3>'+g[1].map(function(it){
+      var w=WHO[it[2]];
+      return '<div class="row"><div class="name"><b>'+esc(it[0])+'</b></div><span class="tag '+w[0]+'">'+w[1]+'</span><a href="'+esc(it[1])+'">Open</a></div>';
+    }).join('');
+  }).join('');
+}
+
+// ---- Your alerts -----------------------------------------------------------
+async function loadAlerts(){
+  if(!CONFIGURED){ $('alert-list').innerHTML='<div class="sub">Sign-in isn’t switched on, so alerts go to the digest list for now.</div>'; return; }
+  try{
+    var r=await fetch('/api/alert-prefs'); var d=await r.json();
+    if(!r.ok) throw new Error(d.error||('HTTP '+r.status));
+    $('alert-list').innerHTML=(d.types||[]).map(function(t){
+      return '<div class="row"><div class="name"><b>'+esc(t.label)+'</b></div><label class="switch"><input type="checkbox" data-t="'+esc(t.key)+'" '+(d.me[t.key]?'checked':'')+' onchange="setAlert(this)"><i></i></label></div>';
+    }).join('')+'<div class="sub" id="alert-msg" style="margin:6px 0 0"></div>';
+  }catch(e){ $('alert-list').innerHTML='<div class="msg err" style="margin:0">Couldn’t load your alerts: '+esc(e.message)+'</div>'; }
+}
+async function setAlert(el){
+  el.disabled=true;
+  var m=$('alert-msg');
+  try{
+    var r=await fetch('/api/alert-prefs',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({type:el.dataset.t,enabled:el.checked})});
+    var d=await r.json().catch(function(){return {};});
+    if(!r.ok) throw new Error(d.error||('HTTP '+r.status));
+    m.className='sub msg ok'; m.textContent='Saved.';
+  }catch(e){ el.checked=!el.checked; m.className='sub msg err'; m.textContent='Couldn’t save: '+e.message; }
+  el.disabled=false;
+}
+
+// ---- Content Editor defaults (site profile editorDefaults) -------------------
+// Same shape and fallbacks as editorDefaults() in editor.html.
+var ed={};
+function loadEditorDefaults(){
+  var d=profile.editorDefaults||{}, pod=profile.podcast||{};
+  ed={
+    podcast:d.podcast!==false, related:d.related!==false, promos:!!d.promos,
+    podcastPosition:+(d.podcastPosition||pod.position||10),
+    relatedPosition:+(d.relatedPosition||10),
+    relatedCount:+(d.relatedCount||3), relatedScope:d.relatedScope==='web'?'web':'site'
+  };
+  renderEditorDefaults();
+}
+function renderEditorDefaults(){
+  var can=ROLE==='publisher';
+  var dis=can?'':' disabled';
+  function sw(k){ return '<label class="switch"><input type="checkbox"'+dis+(ed[k]?' checked':'')+' onchange="ed.'+k+'=this.checked"><i></i></label>'; }
+  function pos(k){ return '<span class="pos">Top <input type="range" min="1" max="10" step="1" value="'+ed[k]+'"'+dis+' oninput="ed.'+k+'=+this.value;this.nextElementSibling.textContent=this.value"> <b>'+ed[k]+'</b> Bottom</span>'; }
+  function seg(k,opts){ return '<span class="seg">'+opts.map(function(o){ return '<button type="button"'+dis+' class="'+(ed[k]===o[0]?'on':'')+'" onclick="ed.'+k+'='+JSON.stringify(o[0]).replace(/"/g,'&quot;')+';renderEditorDefaults()">'+o[1]+'</button>'; }).join('')+'</span>'; }
+  $('ed-defaults').innerHTML=
+    '<div class="row"><div class="name"><b>🎙️ Latest podcast episode</b><span>The newest episode’s player, from your podcast feed.</span></div>'+pos('podcastPosition')+sw('podcast')+'</div>'+
+    '<div class="row"><div class="name"><b>🔗 Related links box</b><span>Links to related stories, picked from the finished article.</span></div>'+pos('relatedPosition')+sw('related')+'</div>'+
+    '<div class="row"><div class="name"><b>How many related links</b></div>'+seg('relatedCount',[[1,'1'],[2,'2'],[3,'3'],[4,'4']])+'</div>'+
+    '<div class="row"><div class="name"><b>Related links point to</b></div>'+seg('relatedScope',[['site','Our site only'],['web','Anywhere on the web']])+'</div>'+
+    '<div class="row"><div class="name"><b>📣 Promos for the article’s tier</b><span>Every free or VIP promo set up in the Content Editor, each at its usual spot.</span></div>'+sw('promos')+'</div>';
+  $('ed-save').style.display=can?'':'none';
+  if(!can) $('ed-msg').textContent='';
+}
+async function saveEditorDefaults(){
+  var b=$('ed-save'), m=$('ed-msg'); b.disabled=true; m.className='msg'; m.textContent='Saving…';
+  try{
+    var next=Object.assign({}, profile.editorDefaults||{}, ed);
+    var r=await fetch('/api/site-profile',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({profile:{editorDefaults:next}})});
+    var d=await r.json().catch(function(){return {};});
+    if(!r.ok||d.error) throw new Error(d.error||('HTTP '+r.status));
+    profile.editorDefaults=next;
+    m.className='msg ok'; m.textContent='Saved. New edits start from these.';
+  }catch(e){ m.className='msg err'; m.textContent='Couldn’t save: '+e.message; }
+  b.disabled=false;
+}
+
+(async function init(){
+  if(window.IMSAuth){
+    var s=await IMSAuth.guard();
+    CONFIGURED=!!(s&&s.configured);
+    if(s&&s.user){ ROLE=s.role||'writer'; IMSAuth.mountMenu($('toplinks')); }
+  }
+  if(CONFIGURED && ROLE!=='publisher') $('notice').innerHTML='<div class="notice">You’re signed in as '+(ROLE==='editor'?'an editor':'a '+esc(ROLE))+'. You can change your own alerts here; the newsroom’s defaults are set by the publisher.</div>';
+  renderPerms(); renderDir();
+  try{ var r=await fetch('/api/site-profile'); var d=await r.json(); profile=(d&&d.profile)||{}; }catch(e){ profile={}; }
+  loadEditorDefaults();
+  loadAlerts();
+  if(location.hash){ var t=document.querySelector(location.hash); if(t) t.scrollIntoView(); }
+})();
+</script>
+</body>
+</html>

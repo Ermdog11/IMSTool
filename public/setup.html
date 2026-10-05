@@ -914,6 +914,9 @@ async function load(){
   try{ var fp=await api('/api/feed-prefs'); $('f-own').value=(fp.ownSiteExclude||[]).join('\n'); }catch(e){}
   addInviteRow(); addInviteRow();
   if(profile.setupCompletedAt) maxReached=steps.length-1;
+  // /setup?step=podcast opens that step (links from /preferences).
+  var want=new URLSearchParams(location.search).get('step');
+  steps.forEach(function(st,i){ if(want && st.dataset.k===want){ cur=i; maxReached=Math.max(maxReached,i); } });
   renderSteps();
 }
 load();

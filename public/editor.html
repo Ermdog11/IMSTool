@@ -61,6 +61,11 @@ button.btn:disabled{opacity:.6;cursor:default}
 .spin{display:inline-block;width:14px;height:14px;border:2px solid rgba(255,255,255,.4);border-top-color:#fff;border-radius:50%;animation:sp .7s linear infinite;vertical-align:-2px;margin-right:6px}
 @keyframes sp{to{transform:rotate(360deg)}}
 .savedmsg{color:var(--green);font-size:12px;font-weight:600;margin-left:8px}
+.aa-row{display:flex;align-items:center;gap:4px 14px;flex-wrap:wrap;padding:3px 0}
+.aa-lab{display:flex;align-items:center;gap:6px;margin:0;font-weight:400;color:var(--text);min-width:200px}
+.aa-pos{display:flex;align-items:center;gap:6px;font-size:12px;color:var(--muted)}
+.aa-pos input{width:130px;padding:0}
+.aa-pos b{color:var(--text);min-width:16px}
 </style>
 </head>
 <body>
@@ -110,7 +115,7 @@ button.btn:disabled{opacity:.6;cursor:default}
         </div>
         <div style="flex:1;min-width:160px">
           <label>Tier</label>
-          <select id="ed-tier" onchange="if(preTab==='promos')renderPrePanel();loadAutoAdd()"><option value="free">Free</option><option value="vip">VIP</option></select>
+          <select id="ed-tier" onchange="if(preTab==='promos')renderPrePanel();updatePromoCount()"><option value="free">Free</option><option value="vip">VIP</option></select>
         </div>
         <div style="flex:1;min-width:160px">
           <label>Mode</label>
@@ -144,11 +149,18 @@ button.btn:disabled{opacity:.6;cursor:default}
       </div>
       <label>Draft</label>
       <textarea id="ed-draft" rows="16" placeholder="Paste the writer's draft here…"></textarea>
-      <div id="ed-autoadd" style="display:flex;gap:6px 18px;flex-wrap:wrap;align-items:center;font-size:13px;margin-top:10px">
-        <span style="font-weight:600">Add with this edit:</span>
-        <label style="display:flex;align-items:center;gap:6px;margin:0;font-weight:400;color:var(--text)"><input type="checkbox" id="aa-podcast" style="width:auto" onchange="saveAutoAdd()"> 🎙️ Latest podcast episode</label>
-        <label style="display:flex;align-items:center;gap:6px;margin:0;font-weight:400;color:var(--text)"><input type="checkbox" id="aa-related" style="width:auto" onchange="saveAutoAdd()"> 🔗 Related links box</label>
-        <label style="display:flex;align-items:center;gap:6px;margin:0;font-weight:400;color:var(--text)"><input type="checkbox" id="aa-promos" style="width:auto" onchange="saveAutoAdd()"> 📣 <span id="aa-promos-label">Promos for this tier</span></label>
+      <div id="ed-autoadd" style="font-size:13px;margin-top:10px;border:1px solid var(--border);border-radius:8px;padding:8px 10px">
+        <div style="font-weight:600;margin-bottom:4px">Add with this edit:</div>
+        <div class="aa-row"><label class="aa-lab"><input type="checkbox" id="aa-podcast" style="width:auto"> 🎙️ Latest podcast episode</label>
+          <span class="aa-pos">Top <input type="range" id="aa-podcast-pos" min="1" max="10" step="1" value="10" oninput="this.nextElementSibling.textContent=this.value"> <b>10</b> Bottom</span></div>
+        <div class="aa-row"><label class="aa-lab"><input type="checkbox" id="aa-related" style="width:auto"> 🔗 Related links box</label>
+          <span class="aa-pos">Top <input type="range" id="aa-related-pos" min="1" max="10" step="1" value="10" oninput="this.nextElementSibling.textContent=this.value"> <b>10</b> Bottom</span></div>
+        <div class="aa-row"><label class="aa-lab"><input type="checkbox" id="aa-promos" style="width:auto"> 📣 <span id="aa-promos-label">Promos for this tier</span></label></div>
+        <div style="font-size:12px;color:var(--muted);margin-top:4px;display:flex;gap:4px 12px;flex-wrap:wrap;align-items:center">
+          <span id="aa-default-note">Ticks and spots start from your newsroom’s defaults.</span>
+          <a href="#" id="aa-save-default" style="display:none" onclick="saveAutoAddDefault(this);return false">Make these the default</a>
+          <a href="/preferences#editor">Preferences</a>
+        </div>
       </div>
       <div class="row">
         <button class="btn" id="ed-go" onclick="runEdit()">Edit draft</button>
@@ -292,6 +304,8 @@ button.btn:disabled{opacity:.6;cursor:default}
 (function () {
   if (!window.IMSAuth) return;
   IMSAuth.guard().then(function (s) {
+    var sv = document.getElementById('aa-save-default');
+    if (sv) sv.style.display = IMSAuth.isPublisher() ? '' : 'none';
     if (s && s.user) {
       var bar = document.querySelector('.topbar');
       if (bar) {
@@ -552,12 +566,14 @@ async function runEdit(){
   // time as edit, no need for multiple processes"): whatever is ticked under
   // the draft is fetched alongside the edit and placed in the finished article.
   var aa=getAutoAdd();
-  if(aa.related) window._relQueued=true;
+  window._relPos=null;
+  if(aa.related){ window._relQueued=true; window._relPos=aa.relatedPosition; }
   if(aa.promos){
     var tierNow=document.getElementById('ed-tier').value;
     getPromos().forEach(function(p){ if((p.tier===tierNow||p.tier==='both') && (p.html||'').trim()) window._promoQueued[p.name]=1; });
   }
   var podPromise=null;
+  if(aa.podcast && !podMatch) window._podPos=aa.podcastPosition;
   if(aa.podcast && !podMatch){
     podPromise=fetchEpisodes().then(function(eps){
       if(!eps.length) return null;
@@ -838,6 +854,7 @@ function getPodcastSettings(){
   var f=window.IMSAuth?IMSAuth.authFetch:fetch;
   f('/api/site-profile').then(function(r){return r.json();}).then(function(d){
     if(d&&d.profile&&d.profile.podcast){ window._profilePodcast=d.profile.podcast; if(typeof loadPodcastSettingsForm==='function') loadPodcastSettingsForm(); }
+    if(d&&d.profile){ window._editorDefaults=d.profile.editorDefaults||{}; if(!window._aaTouched) loadAutoAdd(); }
   }).catch(function(){});
 })();
 function podPlatformHint(){var el=document.getElementById('pod-platform-hint');if(el)el.textContent=POD_HINTS[document.getElementById('pod-platform').value]||'';}
@@ -941,7 +958,7 @@ function podcastPanel(){
   if(!preTabState().podcast||!q){
     return '<div style="font-size:12.5px;margin-bottom:8px">Add your latest episode’s player to this article.</div>'+
       '<button class="btn" style="margin:0" onclick="queueLatestEpisode(this)">Add latest episode</button>'+
-      '<div style="'+TIP_STYLE+'"><b>Tip:</b> the simplest way is the <b>Latest podcast episode</b> box under the draft: it’s added in the same pass as the edit, at your usual spot, and you can slide it in the Inserts card afterwards.</div>';
+      '<div style="'+TIP_STYLE+'"><b>Tip:</b> the simplest way is the <b>Latest podcast episode</b> box under the draft: it’s added in the same pass as the edit, at the spot set on the slider next to it, and you can still slide it in the Inserts card afterwards.</div>';
   }
   var pos=window._podPos||getPodcastSettings().position||10;
   return '<div style="font-size:12.5px;margin-bottom:6px">Added the embed code for <b>'+esc(q.title)+'</b> to your draft. It stays exactly as is when you edit, and it’s included when you copy, save or send the article.</div>'+
@@ -1042,7 +1059,8 @@ function embedPodcast(name,html,pos){
 var LS_RELATED='ims_editor_related';
 function getRelCfg(){
   var c={}; try{c=JSON.parse(localStorage.getItem(LS_RELATED)||'{}')||{};}catch(e){}
-  return {count:c.count||3, scope:c.scope==='web'?'web':'site', position:c.position||10};
+  var nd=editorDefaults();
+  return {count:c.count||nd.relatedCount, scope:(c.scope||nd.relatedScope)==='web'?'web':'site', position:c.position||nd.relatedPosition};
 }
 function setRelCfg(k,v){
   var c=getRelCfg(); c[k]=v;
@@ -1086,7 +1104,7 @@ async function addRelatedLinks(btn){
     if(!d.links||!d.links.length) throw new Error(d.note||'No related links found.');
     // Replace an earlier Related block rather than stacking a second one.
     addedInserts.filter(function(e){return window._availableInserts[e.idx].related;}).forEach(function(e){ toggleInsert(e.idx); });
-    window._availableInserts.push({name:'🔗 Related links ('+d.links.length+')',tier:'both',placement:'pos'+cfg.position,html:relatedBlockHtml(d.links),slider:true,related:true});
+    window._availableInserts.push({name:'🔗 Related links ('+d.links.length+')',tier:'both',placement:'pos'+(window._relPos||cfg.position),html:relatedBlockHtml(d.links),slider:true,related:true});
     var idx=window._availableInserts.length-1;
     toggleInsert(idx);
     var wrap=document.getElementById('insert-btns');
@@ -1382,27 +1400,57 @@ function copyInsertCode(btn,i){
   var ins=(window._availableInserts||[])[i]; if(!ins) return;
   copyStr(btn, String(ins.html||'').trim());
 }
-// "Add with this edit" checkboxes under the draft, remembered per browser.
-var LS_AUTOADD='ims_editor_autoadd';
+// "Add with this edit" checkboxes under the draft, each with its 1-10 spot.
+// They start from the newsroom's defaults (site profile editorDefaults, set
+// on /preferences or with "Make these the default" here) every time the page
+// loads; ticking or sliding one only changes this article (Jeff, 2026-10-05:
+// "there should still be a positioning scale for pod and related links, and
+// a way to keep them checked default").
+function editorDefaults(){
+  var d=window._editorDefaults||{}, pod=getPodcastSettings();
+  return {
+    podcast:d.podcast!==false, related:d.related!==false, promos:!!d.promos,
+    podcastPosition:+(d.podcastPosition||pod.position||10),
+    relatedPosition:+(d.relatedPosition||10),
+    relatedCount:+(d.relatedCount||3), relatedScope:d.relatedScope==='web'?'web':'site'
+  };
+}
 function getAutoAdd(){
-  var c=null; try{ c=JSON.parse(localStorage.getItem(LS_AUTOADD)||'null'); }catch(e){}
-  if(!c) c={podcast:true, related:true, promos:false};
-  ['podcast','related','promos'].forEach(function(k){ var el=document.getElementById('aa-'+k); if(el) c[k]=el.checked; });
+  var c={};
+  ['podcast','related','promos'].forEach(function(k){ var el=document.getElementById('aa-'+k); c[k]=!!(el&&el.checked); });
+  ['podcast','related'].forEach(function(k){ var el=document.getElementById('aa-'+k+'-pos'); c[k+'Position']=el?+el.value:10; });
   return c;
 }
-function saveAutoAdd(){
-  var c=getAutoAdd();
-  try{ localStorage.setItem(LS_AUTOADD, JSON.stringify(c)); }catch(e){}
+function setAaPos(k,v){
+  var el=document.getElementById('aa-'+k+'-pos'); if(!el) return;
+  el.value=v; el.nextElementSibling.textContent=v;
 }
 function loadAutoAdd(){
-  var c=null; try{ c=JSON.parse(localStorage.getItem(LS_AUTOADD)||'null'); }catch(e){}
-  if(!c) c={podcast:true, related:true, promos:false};
-  ['podcast','related','promos'].forEach(function(k){ var el=document.getElementById('aa-'+k); if(el) el.checked=!!c[k]; });
+  var d=editorDefaults();
+  ['podcast','related','promos'].forEach(function(k){ var el=document.getElementById('aa-'+k); if(el) el.checked=d[k]; });
+  setAaPos('podcast',d.podcastPosition); setAaPos('related',d.relatedPosition);
+  updatePromoCount();
+  var sv=document.getElementById('aa-save-default');
+  if(sv) sv.style.display=(window.IMSAuth&&IMSAuth.isPublisher())?'':'none';
+}
+function updatePromoCount(){
   var tierEl=document.getElementById('ed-tier'), lab=document.getElementById('aa-promos-label');
   if(tierEl && lab){
     var n=getPromos().filter(function(p){ return (p.tier===tierEl.value||p.tier==='both') && (p.html||'').trim(); }).length;
     lab.textContent='Promos for this tier ('+n+')';
   }
+}
+async function saveAutoAddDefault(link){
+  var c=getAutoAdd();
+  var next=Object.assign({}, window._editorDefaults||{}, {podcast:c.podcast, related:c.related, promos:c.promos, podcastPosition:c.podcastPosition, relatedPosition:c.relatedPosition});
+  var note=document.getElementById('aa-default-note');
+  try{
+    var r=await fetch('/api/site-profile',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({profile:{editorDefaults:next}})});
+    var d=await r.json().catch(function(){return {};});
+    if(!r.ok||d.error) throw new Error(d.error||('HTTP '+r.status));
+    window._editorDefaults=next;
+    if(note){ note.textContent='✓ Saved as the newsroom default.'; note.style.color='var(--green)'; }
+  }catch(e){ if(note){ note.textContent='Couldn’t save: '+e.message; note.style.color='var(--hot)'; } }
 }
 
 // ── Transcribe (/transcribe) ────────────────────────────────────────────────
@@ -1689,6 +1737,9 @@ loadPodcastSettingsForm();
 updateModeHint();
 renderPreTabs();
 loadAutoAdd();
+// Once the writer changes a tick or a spot, the newsroom defaults arriving
+// late from the server don't overwrite it.
+document.getElementById('ed-autoadd').addEventListener('change',function(){ window._aaTouched=true; });
 document.getElementById('ed-draft').addEventListener('input',function(){ if(!POD_BLOCK_RE.test(this.value)) window._podQueuedInfo=null; renderPreTabs(); });
 // ---- From social (api/write-from-post.js) ----
 // The screenshot is shrunk in the browser (max 1600px, JPEG) so it stays well
