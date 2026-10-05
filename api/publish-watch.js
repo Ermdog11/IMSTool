@@ -12,8 +12,13 @@ var S = require('./_supabase');
 var SITE_SLUG = 'insidemdsports';
 
 module.exports = async function handler(req, res) {
-  try { await require('./_supabase').requireUserOrCron(req, res); }
+  var who;
+  try { who = await require('./_supabase').requireUserOrCron(req, res); }
   catch (authErr) { return res.status(authErr.status || 401).json({ error: authErr.message || 'Not signed in' }); }
+  // Vercel Cron can deliver a run twice; only the first sends (see _cron-once.js).
+  if (who && who.cron && !(await require('./_cron-once').claim('publish-watch', require('./_cron-once').today()))) {
+    return res.status(200).json({ skipped: 'duplicate cron delivery' });
+  }
   if (!S.isConfigured()) return res.status(503).json({ error: 'Login not configured (Supabase)' });
 
   try {

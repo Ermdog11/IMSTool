@@ -1,5 +1,33 @@
 const ArticleDate = require('./_article-date.js');
 
+// Splits the stories (by index) into chunks to rate in parallel: one chunk
+// up to 45 stories, otherwise up to 3 chunks of roughly equal size. Stories
+// whose headlines share a name ("Chris Durr") always land in the same chunk.
+function rateChunks(stories, topicStop) {
+  var n = stories.length;
+  var count = n <= 45 ? 1 : Math.min(3, Math.ceil(n / 40));
+  if (count === 1) return [stories.map(function(_, i) { return i; })];
+  var groups = {};
+  var order = [];
+  stories.forEach(function(s, i) {
+    var names = (String(s.title || '').match(/\b[A-Z][a-z]+ [A-Z][a-z]+\b/g) || [])
+      .filter(function(t) { return !(topicStop && topicStop.test(t)); });
+    var key = names.length ? names[0].toLowerCase() : '#' + i;
+    if (!groups[key]) { groups[key] = []; order.push(key); }
+    groups[key].push(i);
+  });
+  var chunks = [];
+  for (var c = 0; c < count; c++) chunks.push([]);
+  order.map(function(k) { return groups[k]; })
+    .sort(function(a, b) { return b.length - a.length; })
+    .forEach(function(g) {
+      var smallest = chunks.reduce(function(m, ch) { return ch.length < m.length ? ch : m; }, chunks[0]);
+      Array.prototype.push.apply(smallest, g);
+    });
+  return chunks.filter(function(ch) { return ch.length; })
+    .map(function(ch) { return ch.sort(function(a, b) { return a - b; }); });
+}
+
 module.exports = async function handler(req, res) {
   try { await require('./_supabase').requireUserOrCron(req, res); }
   catch (authErr) { return res.status(authErr.status || 401).json({ error: authErr.message || 'Not signed in' }); }
@@ -497,13 +525,13 @@ module.exports = async function handler(req, res) {
     }
 
     // Build numbered list for Claude — include the feed snippet where we have one
-    var storyList = stories.map(function(s, i) {
+    var storyLines = stories.map(function(s, i) {
       var line = (i + 1) + '. ' + (s.kind === 'video' ? '[VIDEO] ' : '') + '[' + s.source + '] ' + s.title + ' (' + (s.age == null ? 'publish date unknown' : s.age + 'h ago') + ')';
       if (s.followUp) line += '\n   [DEVELOPING STORY WE ARE ACTIVELY COVERING: ' + s.followUp + ' — do NOT let this tag alone push the rating up. Only treat it as newsworthy despite low engagement if it is a genuine NEW development (a status actually changed, a real update). Reaction, analysis, jokes, or commentary about something that already fully happened rates exactly like any other social post — usually 1-2 — the tag is not a rating boost.]';
       if (s.watchedAccount) line += '\n   [WATCHED ACCOUNT: the publisher has specifically curated this X account as a credible ' + beat.team.short + ' beat source — do not downrate for low/no engagement or unfamiliarity, judge purely on newsworthiness]';
       if (s.snippet) line += '\n   snippet: ' + s.snippet;
       return line;
-    }).join('\n');
+    });
 
     var flaggedNote = '';
     var flagged = (body.flagged || []).slice(-30);
@@ -552,39 +580,52 @@ module.exports = async function handler(req, res) {
     var undatedNote = stories.some(function(s) { return s.age == null; })
       ? '\n\nPUBLISH DATE UNKNOWN: stories marked "(publish date unknown)" came from a web search or feed that could not say when they were published, so they may be old articles that were re-indexed. Never assume they are new. Use the snippet and your own knowledge: if the event they report happened more than about 2 weeks ago, set republished:true. If you would rate one 4 or 5, also set needsContext:true so the full article is checked first.'
       : '';
-    var dynamicPrompt = flaggedNote + ownCoverageNote + profileNote + B.weightNote(beat) + editorNote + undatedNote + '\n\nStories:\n' + storyList;
-    // Any feed that truncates text can split an emoji; a lone surrogate makes
-    // the Claude API reject the request body as invalid JSON.
-    dynamicPrompt = dynamicPrompt.toWellFormed();
+    var sharedNotes = flaggedNote + ownCoverageNote + profileNote + B.weightNote(beat) + editorNote + undatedNote;
 
-    var cr = await fetch('https://api.anthropic.com/v1/messages', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'x-api-key': key, 'anthropic-version': '2023-06-01' },
-      body: JSON.stringify({
-        model: 'claude-sonnet-4-6', max_tokens: 20000,
-        messages: [{
-          role: 'user',
-          content: [
-            { type: 'text', text: prompt, cache_control: { type: 'ephemeral' } },
-            { type: 'text', text: dynamicPrompt }
-          ]
-        }]
-      })
-    });
-    var cd = await cr.json();
+    // Rate in parallel chunks (Jeff, 2026-09-10: scans took ~3 min, almost all
+    // of it one Claude call writing ratings for ~110 stories). Each call gets
+    // the same cached rules and a share of the stories; the output, which is
+    // what takes the time, is split. Stories that name the same person go in
+    // the same chunk, so the "only the most substantive story on one event
+    // rates high" rule still sees them side by side.
+    var chunks = rateChunks(stories, B.topicStopRegex(beat));
+    var replies = await Promise.all(chunks.map(function(idxs) {
+      var part = chunks.length > 1
+        ? '\n\nThis is part of a larger batch, so the story numbers below are not consecutive. Return one object for every story shown, with idx equal to the number shown.'
+        : '';
+      var dynamicPrompt = (sharedNotes + part + '\n\nStories:\n' + idxs.map(function(i) { return storyLines[i]; }).join('\n'))
+        // Any feed that truncates text can split an emoji; a lone surrogate
+        // makes the Claude API reject the request body as invalid JSON.
+        .toWellFormed();
+      return fetch('https://api.anthropic.com/v1/messages', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'x-api-key': key, 'anthropic-version': '2023-06-01' },
+        body: JSON.stringify({
+          model: 'claude-sonnet-4-6', max_tokens: chunks.length > 1 ? 12000 : 20000,
+          messages: [{
+            role: 'user',
+            content: [
+              { type: 'text', text: prompt, cache_control: { type: 'ephemeral' } },
+              { type: 'text', text: dynamicPrompt }
+            ]
+          }]
+        })
+      }).then(function(r) { return r.json(); });
+    }));
 
-    // Expose Claude API errors
-    if (cd.error) return res.status(200).json({ error: 'Claude error: ' + JSON.stringify(cd.error) });
-    if (!cd.content) return res.status(200).json({ error: 'Claude returned no content. Raw: ' + JSON.stringify(cd).substring(0, 300) });
-
-    // Extract text from Claude response
-    var text = cd.content.map(function(i) { return i.type === 'text' ? i.text : ''; }).join('\n');
-    var cleaned = text.replace(/```json|```/g, '').trim();
-    var start = cleaned.indexOf('[');
-    var end = cleaned.lastIndexOf(']');
-    if (start === -1 || end === -1) return res.status(200).json({ error: 'Claude did not return JSON. Response: ' + cleaned.substring(0, 300) });
-
-    var parsed = JSON.parse(cleaned.substring(start, end + 1));
+    var parsed = [];
+    for (var ci = 0; ci < replies.length; ci++) {
+      var cd = replies[ci];
+      // Expose Claude API errors
+      if (cd.error) return res.status(200).json({ error: 'Claude error: ' + JSON.stringify(cd.error) });
+      if (!cd.content) return res.status(200).json({ error: 'Claude returned no content. Raw: ' + JSON.stringify(cd).substring(0, 300) });
+      var text = cd.content.map(function(i) { return i.type === 'text' ? i.text : ''; }).join('\n');
+      var cleaned = text.replace(/```json|```/g, '').trim();
+      var start = cleaned.indexOf('[');
+      var end = cleaned.lastIndexOf(']');
+      if (start === -1 || end === -1) return res.status(200).json({ error: 'Claude did not return JSON. Response: ' + cleaned.substring(0, 300) });
+      parsed = parsed.concat(JSON.parse(cleaned.substring(start, end + 1)));
+    }
 
     // DEEP READ (digest runs only, body.deep === true): for stories the headline + snippet
     // couldn't settle (needsContext), resolve the Google News redirect if needed, fetch the

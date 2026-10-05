@@ -54,8 +54,13 @@ function pushLine(target, events) {
 }
 
 module.exports = async function handler(req, res) {
-  try { await SB.requireUserOrCron(req, res); }
+  var who;
+  try { who = await SB.requireUserOrCron(req, res); }
   catch (authErr) { return res.status(authErr.status || 401).json({ error: authErr.message || 'Not signed in' }); }
+  // Vercel Cron can deliver a run twice; only the first sends (see _cron-once.js).
+  if (who && who.cron && !(await require('./_cron-once').claim('roster-check-' + String((req.query && req.query.scope) || 'all'), require('./_cron-once').today()))) {
+    return res.status(200).json({ skipped: 'duplicate cron delivery' });
+  }
 
   var scope = String((req.query && req.query.scope) || 'all');
   var beat = await Beat.getBeat(SB.isConfigured() ? SB.admin() : null);
