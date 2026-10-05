@@ -104,6 +104,9 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; b
 .tag-soc { background: var(--purple-light); color: var(--purple); }
 .tag-gen { background: #f0f0f0; color: var(--text3); }
 .tag-pod { background: var(--green-light); color: var(--green); }
+.tag-claim { background: #fff4d6; color: #7a5200; font-weight: 700; }
+.tag-claim.mine { background: var(--green-light); color: var(--green); }
+.aaction.claimed-other { color: var(--text3); border-style: dashed; }
 .asrc { font-size: 11px; color: var(--text3); }
 .atime { font-size: 11px; color: var(--text3); }
 .asum { font-size: 12px; color: var(--text2); line-height: 1.5; margin-bottom: 8px; }
@@ -275,6 +278,7 @@ body { padding-bottom: 40px; }
     <button class="chip" onclick="setFilter('football',this)">Football</button>
     <button class="chip" onclick="setFilter('basketball',this)">Basketball</button>
     <button class="chip" onclick="setFilter('alumni',this)">Alumni</button>
+    <button class="chip" onclick="setFilter('claimed',this)" title="Stories someone on the team has claimed">📌 Claimed</button>
     <button class="chip" onclick="setFilter('republished',this)" style="color:#888;border-color:#ddd;">♻️ Republished</button>
     <button class="chip" onclick="switchTab(6)" style="border-color:#e8b923;">🔥 Trending</button>
     <button class="chip" onclick="switchTab(7)" style="border-color:#e8b923;">🎙️ Podcasts</button>
@@ -989,9 +993,10 @@ function renderAlerts() {
     else if (currentFilter === 'basketball') filtered = fresh.filter(a => isBball(a.sport));
     else if (currentFilter === 'alumni') filtered = fresh.filter(a => a.category === 'alumni');
     else if (currentFilter === 'social') filtered = fresh.filter(a => ['social','podcast'].includes(a.category));
+    else if (currentFilter === 'claimed') filtered = fresh.filter(a => claimFor(a));
   }
 
-  if (!filtered.length) { c.innerHTML = '<div class="empty"><i class="ti ti-mood-empty"></i>No alerts in this category.</div>'; return; }
+  if (!filtered.length) { c.innerHTML = '<div class="empty"><i class="ti ti-mood-empty"></i>' + (currentFilter === 'claimed' ? 'Nobody has claimed a story in this scan yet.' : 'No alerts in this category.') + '</div>'; return; }
 
   filtered = sortByDayThenRating(filtered);
   let lastDay = null;
@@ -1021,6 +1026,7 @@ function renderAlerts() {
         <span class="atime">${a.time || (typeof a.ageHours === 'number' ? a.ageHours + 'h ago' : '')}</span>
         ${a.followUp ? `<span class="tag" style="background:var(--red);color:#fff;" title="A new X/Twitter update on a story we're already covering">🔁 Following: ${a.followUp}</span>` : ''}
         ${a.watchedAccount ? `<span class="tag" style="background:var(--text3);color:#fff;" title="From a Maryland beat account you've specifically added to watch">👁 Watched account</span>` : ''}
+        <span id="claimtag-${idx}">${claimTagHtml(a)}</span>
       </div>
       ${a.trendingTopic && a.overflowCount ?`<div style="margin:4px 0 2px;"><a href="#" onclick="toggleOverflow(${idx},'${a.trendingTopic.replace(/'/g,"\\'")}',this);return false;" style="font-size:.78rem;color:var(--red);font-weight:600;text-decoration:none;">🔥 +${a.overflowCount} more ${a.trendingTopic} stories</a><div class="ovf-inline" id="ovf-${idx}" style="display:none;margin-top:6px;padding-left:10px;border-left:2px solid var(--red);"></div></div>` : ''}
       ${a.summary ? `<div class="asum">${a.summary}</div>` : ''}
@@ -1032,7 +1038,7 @@ function renderAlerts() {
         <button class="aaction" onclick="getSEO(${idx})"><i class="ti ti-search"></i> SEO</button>
         <button class="aaction" onclick="getSocial(${idx})"><i class="ti ti-brand-twitter"></i> Draft social</button>
         ${recordsWorthy(a) ? `<button class="aaction" onclick="requestRecords(${idx}, this)" title="Draft a public-records (FOIA / state open-records) request for the contract or documents behind this story"${recordsWorthy(a) === 1 ? ' style="font-weight:700;"' : ''}><i class="ti ti-file-search"></i> ${recordsWorthy(a) === 1 ? '📄 ' : ''}Request records</button>` : ''}
-        <button class="aaction" onclick="claimStory(${idx})"><i class="ti ti-hand-stop"></i> Claim</button>
+        <button class="aaction${claimBtnClass(a)}" id="claimbtn-${idx}" onclick="claimStory(${idx}, this)" title="Claim this story so the rest of the team sees you're writing it">${claimBtnHtml(a)}</button>
         <button class="aaction" onclick="flagStory(${idx})" title="Flag as junk — trains the scanner to exclude similar stories" style="color:#c00;"><i class="ti ti-flag"></i> Flag</button>
         <button class="aaction" onclick="blockSource(${idx})" title="Block ${(a.source||'').replace(/"/g,'&quot;')} — hide this site from all future results" style="color:#c00;"><i class="ti ti-ban"></i> Block source</button>
         <button class="aaction" onclick="hideItem('${(a.url||'').replace(/'/g,"\\'")}')" title="Hide just this story (keeps the source)" style="color:#c00;"><i class="ti ti-eye-off"></i> Hide story</button>
@@ -1685,14 +1691,98 @@ async function writeDraft(story, out, btn) {
   }
 }
 
-function claimStory(idx) {
-  const a = allAlerts[idx];
-  const name = prompt('Who is claiming this story?', 'Jeff Ermann');
-  if (name) {
-    addChatMessage(`📌 ${name} claimed: "${a.headline}"`, 'system');
-    const out = document.getElementById(`output-${idx}`);
-    out.className = 'aaction-output visible';
-    out.innerHTML = `<h4>Claimed</h4>Assigned to ${name}`;
+// ---- Story claims: shared across the newsroom (api/story-claims.js) ----
+// A claim shows on everyone's copy of the card ("📌 Sam is on it"), survives a
+// reload, and posts a line in Team Chat. Refreshed every minute while the page
+// is open; only the claim tag and button are repainted, so open card outputs
+// (angles, SEO...) stay put.
+var storyClaims = {};
+var claimsMe = { userId: null, name: null };
+function claimFor(a) { return (storyClaims || {})[storyKey(a)] || null; }
+function myClaimName() {
+  if (claimsMe.name) return claimsMe.name;
+  try { return localStorage.getItem('ims_claim_name') || ''; } catch (e) { return ''; }
+}
+function isMyClaim(c) {
+  if (!c) return false;
+  return claimsMe.userId ? c.userId === claimsMe.userId : (!!myClaimName() && c.name === myClaimName());
+}
+function claimAge(c) {
+  var m = Math.max(0, Math.round((Date.now() - Date.parse(c.at)) / 60000));
+  return m < 60 ? m + 'm' : m < 1440 ? Math.round(m / 60) + 'h' : Math.round(m / 1440) + 'd';
+}
+function claimTagHtml(a) {
+  var c = claimFor(a);
+  if (!c) return '';
+  var mine = isMyClaim(c);
+  return '<span class="tag tag-claim' + (mine ? ' mine' : '') + '" title="Claimed ' + escapeHtml(new Date(c.at).toLocaleString()) + '">📌 ' +
+    (mine ? 'You’re on it' : escapeHtml(c.name) + ' is on it') + ' · ' + claimAge(c) + '</span>';
+}
+function claimBtnClass(a) { var c = claimFor(a); return c && !isMyClaim(c) ? ' claimed-other' : ''; }
+function claimBtnHtml(a) {
+  var c = claimFor(a);
+  if (!c) return '<i class="ti ti-hand-stop"></i> Claim';
+  if (isMyClaim(c)) return '<i class="ti ti-hand-off"></i> Release';
+  return '<i class="ti ti-lock"></i> Taken by ' + escapeHtml(c.name.split(' ')[0]);
+}
+function paintClaims() {
+  if (currentFilter === 'claimed') { renderAlerts(); return; }
+  allAlerts.forEach(function (a, idx) {
+    var t = document.getElementById('claimtag-' + idx), b = document.getElementById('claimbtn-' + idx);
+    if (t) t.innerHTML = claimTagHtml(a);
+    if (b) { b.innerHTML = claimBtnHtml(a); b.className = 'aaction' + claimBtnClass(a); }
+  });
+}
+async function loadClaims() {
+  try {
+    var r = await fetch('/api/story-claims');
+    if (!r.ok) return;
+    var d = await r.json();
+    if (d.me) claimsMe = d.me;
+    var next = d.claims || {};
+    if (JSON.stringify(next) === JSON.stringify(storyClaims)) return;
+    storyClaims = next;
+    if (allAlerts.length) paintClaims();
+  } catch (e) { /* offline — keep what we have */ }
+}
+async function claimStory(idx, btn) {
+  var a = allAlerts[idx]; if (!a) return;
+  var c = claimFor(a), body;
+  if (window.IMSAuth && IMSAuth.state.configured && !IMSAuth.state.user) {
+    var o = document.getElementById('output-' + idx);
+    if (o) { o.className = 'aaction-output visible'; o.innerHTML = '<h4>Claim</h4>Sign in to claim stories.'; }
+    return;
+  }
+  if (!c) {
+    var name = myClaimName();
+    if (!claimsMe.userId && !name) {
+      // Login switched off: ask once, then remember this browser's name.
+      name = (prompt('Your name, so the team sees who claimed it:') || '').trim();
+      if (!name) return;
+      try { localStorage.setItem('ims_claim_name', name); } catch (e) {}
+    }
+    body = { action: 'claim', key: storyKey(a), headline: a.headline, url: a.url || '', name: name };
+  } else if (isMyClaim(c)) {
+    if (!confirm('Release this story so someone else can take it?')) return;
+    body = { action: 'release', key: storyKey(a) };
+  } else {
+    if (!confirm(c.name + ' claimed this ' + claimAge(c) + ' ago. Release their claim so someone else can take it? (Editors and publishers only.)')) return;
+    body = { action: 'release', key: storyKey(a) };
+  }
+  if (btn) btn.disabled = true;
+  var out = document.getElementById('output-' + idx);
+  try {
+    var r = await fetch('/api/story-claims', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+    var d = await r.json();
+    if (d.claims) storyClaims = d.claims;
+    if (!r.ok) throw new Error(d.error || ('HTTP ' + r.status));
+    if (out && body.action === 'claim') { out.className = 'aaction-output visible'; out.innerHTML = '<h4>Claimed</h4>It’s yours — the rest of the team now sees you’re on it.'; }
+    else if (out && out.innerHTML.indexOf('<h4>Claimed</h4>') === 0) { out.className = 'aaction-output'; out.innerHTML = ''; }
+  } catch (e) {
+    if (out) { out.className = 'aaction-output visible'; out.innerHTML = '<h4>Claim</h4>' + escapeHtml(e.message || e); }
+  } finally {
+    if (btn) btn.disabled = false;
+    paintClaims();
   }
 }
 
@@ -1943,7 +2033,7 @@ async function draftReply(idx, postText) {
 
 // ============================================================
 // TEAM CHAT — persisted server-side (api/chat.js), shared across the whole
-// team. Local-only helper for client-side notices (e.g. "claimed a story")
+// team. Local-only helper for client-side notices (e.g. a failed send)
 // that were never meant to be a shared record.
 // ============================================================
 function addChatMessage(text, type, sender) {
@@ -2032,6 +2122,98 @@ async function sendChat() {
 // ============================================================
 // STORY BACKLOG
 // ============================================================
+// "Request records": stories about coach hires/firings/contracts/buyouts
+// (tier 1), sponsorship and game/event deals (tier 2) and other business news
+// (tier 3) usually have a document behind them that a public body must release
+// under public-records law. The scan tags each story's tier (recordsTier, from
+// api/_records.js) and the button only appears on those; api/records-request.js
+// decides whether the records are actually obtainable and drafts the letter,
+// which a person reviews, edits and sends (or opens in their own email).
+// Nothing goes out without a click.
+function recordsWorthy(a) { return (a && a.recordsTier) || 0; }
+const recordsDrafts = {};
+async function requestRecords(idx, btn) {
+  const a = allAlerts[idx];
+  const out = document.getElementById(`output-${idx}`);
+  out.className = 'aaction-output visible';
+  out.innerHTML = '<h4>Public records request</h4><i class="ti ti-loader spin"></i> Checking whether public-records law covers this and drafting a request…';
+  if (btn) btn.disabled = true;
+  try {
+    const res = await IMSAuth.authFetch('/api/records-request', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'draft', alert: { headline: a.headline, summary: a.summary, source: a.source, url: a.url } })
+    });
+    const d = await res.json();
+    if (!res.ok || d.error) throw new Error(d.error || 'Draft failed');
+    recordsDrafts[idx] = d;
+    renderRecordsDraft(idx);
+  } catch (e) {
+    out.innerHTML = '<h4>Public records request</h4>Couldn’t draft it — ' + escapeHtml(e.message || e);
+  } finally {
+    if (btn) btn.disabled = false;
+  }
+}
+function renderRecordsDraft(idx) {
+  const d = recordsDrafts[idx], out = document.getElementById(`output-${idx}`);
+  if (!d.eligible) {
+    out.innerHTML = '<h4>Public records request</h4>' + escapeHtml(d.reason || 'These records don’t look obtainable under public-records law.');
+    return;
+  }
+  const me = (IMSAuth.state.user && IMSAuth.state.user.email) || '';
+  const canSend = !IMSAuth.state.configured || IMSAuth.isEditor();
+  const fld = 'width:100%;box-sizing:border-box;font:inherit;font-size:12px;padding:6px 8px;border:1px solid var(--border);border-radius:6px;background:#fff;color:var(--text);margin:2px 0 8px;';
+  out.innerHTML = `<h4>Public records request</h4>
+    <div style="margin-bottom:6px;">${escapeHtml(d.reason || '')}</div>
+    ${d.law ? `<div style="margin-bottom:6px;"><b>Law:</b> ${escapeHtml(d.law)}${d.agency ? ' · <b>To:</b> ' + escapeHtml(d.agency) : ''}</div>` : ''}
+    ${d.records.length ? `<div style="margin-bottom:8px;"><b>Asks for:</b><ul style="margin:4px 0 0 18px;padding:0;">${d.records.map(r => '<li>' + escapeHtml(r) + '</li>').join('')}</ul></div>` : ''}
+    <label style="font-size:11px;font-weight:700;">Records office email</label>
+    <input id="rr-to-${idx}" type="email" value="${escapeHtml(d.to || '')}" placeholder="records office email address" style="${fld}">
+    ${d.to && /^https?:/.test(d.toSource || '') ? `<div style="margin:-4px 0 8px;color:var(--text3);">Found on <a href="${escapeHtml(d.toSource)}" target="_blank" rel="noopener">${escapeHtml(d.toSource.replace(/^https?:\/\//, '').slice(0, 70))}</a>. Worth a quick check before sending.</div>` : ''}
+    ${!d.to ? `<div style="margin:-4px 0 8px;color:var(--text3);">${d.portal ? 'This office takes requests through an online form: <a href="' + escapeHtml(d.portal) + '" target="_blank" rel="noopener">open the request portal</a> and paste the letter there.' : 'Couldn’t find a published records email for ' + escapeHtml(d.agency || 'this agency') + '. Check its website for “public records” or “FOIA” and paste the address here.'}</div>` : (d.portal ? `<div style="margin:-4px 0 8px;color:var(--text3);">They also take requests online: <a href="${escapeHtml(d.portal)}" target="_blank" rel="noopener">request portal</a>.</div>` : '')}
+    <label style="font-size:11px;font-weight:700;">CC (you're always copied${me ? ' at ' + escapeHtml(me) : ''}; replies come to you)</label>
+    <input id="rr-cc-${idx}" type="text" value="" placeholder="${me ? 'anyone else, optional' : 'your email (required, so the office can reply to you)'}" style="${fld}">
+    <label style="font-size:11px;font-weight:700;">Subject</label>
+    <input id="rr-subject-${idx}" type="text" value="${escapeHtml(d.subject || '')}" style="${fld}">
+    <label style="font-size:11px;font-weight:700;">Letter — review and edit before sending</label>
+    <textarea id="rr-body-${idx}" rows="16" style="${fld}resize:vertical;line-height:1.5;">${escapeHtml(d.body || '')}</textarea>
+    ${d.response_note ? `<div style="margin-bottom:8px;color:var(--text3);">${escapeHtml(d.response_note)}</div>` : ''}
+    <div style="display:flex;gap:6px;flex-wrap:wrap;">
+      ${canSend ? `<button class="aaction" style="font-weight:700;" onclick="sendRecordsRequest(${idx}, this)"><i class="ti ti-send"></i> Send request</button>` : ''}
+      <button class="aaction" onclick="mailtoRecordsRequest(${idx})"><i class="ti ti-mail"></i> Open in my email</button>
+      <button class="aaction" onclick="navigator.clipboard.writeText(document.getElementById('rr-body-${idx}').value);this.innerHTML='<i class=&quot;ti ti-check&quot;></i> Copied'"><i class="ti ti-copy"></i> Copy letter</button>
+    </div>
+    <div id="rr-status-${idx}" style="margin-top:6px;"></div>`;
+}
+function mailtoRecordsRequest(idx) {
+  const v = id => document.getElementById(`rr-${id}-${idx}`).value.trim();
+  window.location.href = 'mailto:' + encodeURIComponent(v('to')) + '?subject=' + encodeURIComponent(v('subject')) +
+    (v('cc') ? '&cc=' + encodeURIComponent(v('cc')) : '') + '&body=' + encodeURIComponent(v('body'));
+}
+async function sendRecordsRequest(idx, btn) {
+  const a = allAlerts[idx], d = recordsDrafts[idx];
+  const v = id => document.getElementById(`rr-${id}-${idx}`).value.trim();
+  const status = document.getElementById(`rr-status-${idx}`);
+  if (!v('to')) { status.textContent = 'Enter the records office email address first.'; return; }
+  if (!confirm(`Send this records request to ${v('to')}?\n\nIt goes out under your name from the CoPublisher mailbox. You're CC'd, and replies come straight to you.`)) return;
+  btn.disabled = true;
+  status.innerHTML = '<i class="ti ti-loader spin"></i> Sending…';
+  try {
+    const res = await IMSAuth.authFetch('/api/records-request', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'send', to: v('to'), cc: v('cc'), subject: v('subject'), body: v('body'),
+        agency: d.agency, law: d.law, responseNote: d.response_note,
+        alert: { headline: a.headline, summary: a.summary, source: a.source, url: a.url } })
+    });
+    const r = await res.json();
+    if (!res.ok || r.error) throw new Error(r.error || 'Send failed');
+    status.innerHTML = '<b>Sent</b> to ' + escapeHtml(r.request.to) + (r.request.cc.length ? ' (CC ' + escapeHtml(r.request.cc.join(', ')) + ')' : '') + '. ' + escapeHtml(d.response_note || '');
+    btn.innerHTML = '<i class="ti ti-check"></i> Sent';
+  } catch (e) {
+    status.textContent = 'Couldn’t send — ' + (e.message || e);
+    btn.disabled = false;
+  }
+}
+
 // Story ideas: each card has Write it (drafts the idea into the Content
 // Editor, same as an alert card) and Fewer like this (hides it and tells the
 // next batch to avoid similar ideas, newsroom-wide via /api/story-ideas).
@@ -3226,6 +3408,8 @@ async function rateStory(idx, n) {
   } catch (e) { if (el) el.insertAdjacentHTML('beforeend', '<span style="color:var(--hot);margin-left:6px;">Not saved: ' + e.message + '</span>'); }
 }
 loadMyRatings();
+loadClaims();
+setInterval(function () { if (document.visibilityState === 'visible') loadClaims(); }, 60000);
 // Show the newsroom's latest shared scan as soon as the page opens (free when it's fresh).
 runScan();
 
