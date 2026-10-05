@@ -76,7 +76,7 @@ tr.you td{background:var(--red-light)}
   <h1>Permissions &amp; preferences</h1>
   <p class="lead">Your own alerts, the Content Editor's defaults, who on the team can do what, and where every other setting lives.</p>
   <div class="jump">
-    <a href="#alerts">Your alerts</a><a href="#editor">Content Editor defaults</a><a href="#permissions">Who can do what</a><a href="#everything">All settings</a>
+    <a href="#alerts">Your alerts</a><a href="#editor">Content Editor defaults</a><a href="#access">What writers see</a><a href="#permissions">Who can do what</a><a href="#everything">All settings</a>
   </div>
   <div id="notice"></div>
 
@@ -91,6 +91,13 @@ tr.you td{background:var(--red-light)}
     <div class="sub">What's added to every article in the same pass as the edit, and where it goes (1 is the top of the article, 10 the bottom). These are the newsroom's defaults. A writer can still untick a box or move the slider for one article under the draft.</div>
     <div id="ed-defaults"></div>
     <div style="margin-top:12px"><button class="btn" id="ed-save" onclick="saveEditorDefaults()">Save defaults</button><span class="msg" id="ed-msg"></span></div>
+  </section>
+
+  <section class="card" id="access">
+    <h2>What writers and editors see in the Content Editor</h2>
+    <div class="sub">Turn a tool off and it disappears from that role's Content Editor screen (and the app refuses it if they try anyway). You, the publisher, always have everything.</div>
+    <div class="table-scroll"><table id="access-table"></table></div>
+    <div style="margin-top:12px"><button class="btn" id="acc-save" onclick="saveAccess()">Save</button><span class="msg" id="acc-msg"></span></div>
   </section>
 
   <section class="card" id="permissions">
@@ -114,6 +121,47 @@ function $(id){return document.getElementById(id);}
 function esc(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
 var ROLE='publisher', CONFIGURED=false, profile={};
 
+// ---- What writers and editors see (site profile editorAccess) ---------------
+// Keep in sync with FEATURES in api/_access.js.
+var ACCESS_FEATURES=[
+  ['Copydesk modes',[['mode_edit','Full edit: rewrite in house style'],['mode_keep','Keep my words: review only'],['mode_links','Hotlinks only']]],
+  ['Copydesk tools',[['add_with_edit','Add podcast, related links and promos'],['ask_editor','Ask the editor (chat)']]],
+  ['Content Editor tabs',[['tab_transcribe','Transcribe'],['tab_social','From social'],['tab_house_style','House style'],['tab_writers','Writers'],['tab_inserts','Inserts'],['tab_drafts','Drafts']]]
+];
+var access={};
+function renderAccess(){
+  var can=ROLE==='publisher', dis=can?'':' disabled';
+  var h='<tr><th>Tool</th><th class="c">Publisher</th><th class="c">Editor</th><th class="c">Writer</th></tr>';
+  ACCESS_FEATURES.forEach(function(g){
+    h+='<tr><td colspan="4" style="font-weight:700;font-size:12px;color:var(--text2);padding-top:12px">'+esc(g[0])+'</td></tr>';
+    g[1].forEach(function(f){
+      h+='<tr><td>'+esc(f[1])+'</td><td class="c"><span class="yes">✓</span></td>'+['editor','writer'].map(function(r){
+        var on=!((access[r]||{})[f[0]]===false);
+        return '<td class="c"><label class="switch"><input type="checkbox"'+dis+(on?' checked':'')+' onchange="setAccess(\''+r+'\',\''+f[0]+'\',this.checked)"><i></i></label></td>';
+      }).join('')+'</tr>';
+    });
+  });
+  $('access-table').innerHTML=h;
+  $('acc-save').style.display=can?'':'none';
+}
+function setAccess(role,key,on){
+  access[role]=access[role]||{};
+  if(on) delete access[role][key]; else access[role][key]=false;
+}
+async function saveAccess(){
+  var b=$('acc-save'), m=$('acc-msg');
+  var noMode=['editor','writer'].filter(function(r){ return ['mode_edit','mode_keep','mode_links'].every(function(k){ return (access[r]||{})[k]===false; }); });
+  if(noMode.length){ m.className='msg err'; m.textContent='Leave at least one Copydesk mode on for '+noMode.join(' and ')+'s.'; return; }
+  b.disabled=true; m.className='msg'; m.textContent='Saving…';
+  try{
+    var r=await fetch('/api/site-profile',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({profile:{editorAccess:access}})});
+    var d=await r.json().catch(function(){return {};});
+    if(!r.ok||d.error) throw new Error(d.error||('HTTP '+r.status));
+    m.className='msg ok'; m.textContent='Saved. It takes effect the next time they open the Content Editor.';
+  }catch(e){ m.className='msg err'; m.textContent='Couldn\u2019t save: '+e.message; }
+  b.disabled=false;
+}
+
 // ---- Who can do what ------------------------------------------------------
 // Mirrors the role checks in api/ (requireRole / membership.role). Keep in
 // sync when a route's check changes.
@@ -128,6 +176,7 @@ var PERMS=[
   ['Connect search keys (web search, Google search, X)','editor'],
   ['Change the newsroom setup (beat, people to watch, what’s breaking, podcast)','publisher'],
   ['Change the Content Editor defaults','publisher'],
+  ['Choose which Content Editor tools writers and editors see','publisher'],
   ['Invite people, set roles, and set other people’s alerts','publisher'],
   ['Connect analytics and social accounts','publisher'],
   ['Connect the 247Sports login and the Bluesky promo bot','publisher']
@@ -259,6 +308,7 @@ async function saveEditorDefaults(){
   renderPerms(); renderDir();
   try{ var r=await fetch('/api/site-profile'); var d=await r.json(); profile=(d&&d.profile)||{}; }catch(e){ profile={}; }
   loadEditorDefaults();
+  access=JSON.parse(JSON.stringify(profile.editorAccess||{})); renderAccess();
   loadAlerts();
   if(location.hash){ var t=document.querySelector(location.hash); if(t) t.scrollIntoView(); }
 })();

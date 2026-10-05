@@ -66,6 +66,7 @@ button.btn:disabled{opacity:.6;cursor:default}
 .aa-pos{display:flex;align-items:center;gap:6px;font-size:12px;color:var(--muted)}
 .aa-pos input{width:130px;padding:0}
 .aa-pos b{color:var(--text);min-width:16px}
+body.no-add #ed-autoadd,body.no-add #pre-tabs-wrap,body.no-add #pre-panel,body.no-ask #pre-ask-wrap,body.no-ask #ed-ask-wrap{display:none!important}
 </style>
 </head>
 <body>
@@ -100,7 +101,7 @@ button.btn:disabled{opacity:.6;cursor:default}
     <div class="card" id="copydesk-card">
       <div style="display:flex;align-items:flex-end;gap:18px;flex-wrap:wrap;border-bottom:1px solid var(--border)">
         <h2 style="margin:0 0 8px">Copydesk</h2>
-        <div style="display:flex;gap:2px;flex-wrap:wrap">
+        <div id="pre-tabs-wrap" style="display:flex;gap:2px;flex-wrap:wrap">
           <button type="button" id="pre-tab-podcast" style="padding:7px 14px;font-size:13px;border:1px solid transparent;border-radius:8px 8px 0 0;background:transparent;cursor:pointer;font-family:inherit;margin-bottom:-1px" onclick="openPreTab('podcast')">🎙️ Podcast</button>
           <button type="button" id="pre-tab-related" style="padding:7px 14px;font-size:13px;border:1px solid transparent;border-radius:8px 8px 0 0;background:transparent;cursor:pointer;font-family:inherit;margin-bottom:-1px" onclick="openPreTab('related')">🔗 Related links</button>
           <button type="button" id="pre-tab-promos" style="padding:7px 14px;font-size:13px;border:1px solid transparent;border-radius:8px 8px 0 0;background:transparent;cursor:pointer;font-family:inherit;margin-bottom:-1px" onclick="openPreTab('promos')">📣 Promos</button>
@@ -139,7 +140,7 @@ button.btn:disabled{opacity:.6;cursor:default}
         </div>
       </div>
       <div class="hint" id="ed-mode-hint" style="margin-top:2px"></div>
-      <div style="margin:14px 0;padding-bottom:14px;border-bottom:1px solid var(--border)">
+      <div id="pre-ask-wrap" style="margin:14px 0;padding-bottom:14px;border-bottom:1px solid var(--border)">
         <div class="hint" style="margin-bottom:8px">Ask a question or tell it what to do while you write or edit &mdash; can search the web for current stats, injuries, and this week's news when a question needs it; sources cited below the reply.</div>
         <div id="pre-ed-chat" style="display:flex;flex-direction:column;gap:8px;margin-bottom:8px"></div>
         <div style="display:flex;gap:6px">
@@ -306,6 +307,7 @@ button.btn:disabled{opacity:.6;cursor:default}
   IMSAuth.guard().then(function (s) {
     var sv = document.getElementById('aa-save-default');
     if (sv) sv.style.display = IMSAuth.isPublisher() ? '' : 'none';
+    if (typeof applyAccess === 'function') applyAccess();
     if (s && s.user) {
       var bar = document.querySelector('.topbar');
       if (bar) {
@@ -649,7 +651,7 @@ function renderEdit(d){
     ? 'Your draft &mdash; <span class="hint" style="font-weight:400">unchanged, only obvious typos fixed</span>'
     : 'Edited draft <span class="hint" style="font-weight:400"> &middot; '+(d.relatedCount||0)+' related articles available for links</span>';
   h+='<div class="card"><h2>'+draftHead+'</h2>'+
-     '<div style="margin-bottom:14px;padding-bottom:12px;border-bottom:1px solid var(--border)">'+
+     '<div id="ed-ask-wrap" style="margin-bottom:14px;padding-bottom:12px;border-bottom:1px solid var(--border)">'+
        '<div class="hint" style="margin-bottom:8px">Can search the web for current stats, injuries, and this week\'s news when a question needs it — sources are cited below the reply. Still double-check anything you\'ll publish.</div>'+
        '<div id="ed-chat" style="display:flex;flex-direction:column;gap:8px;margin-bottom:8px"></div>'+
        '<div style="display:flex;gap:6px">'+
@@ -854,7 +856,7 @@ function getPodcastSettings(){
   var f=window.IMSAuth?IMSAuth.authFetch:fetch;
   f('/api/site-profile').then(function(r){return r.json();}).then(function(d){
     if(d&&d.profile&&d.profile.podcast){ window._profilePodcast=d.profile.podcast; if(typeof loadPodcastSettingsForm==='function') loadPodcastSettingsForm(); }
-    if(d&&d.profile){ window._editorDefaults=d.profile.editorDefaults||{}; if(!window._aaTouched) loadAutoAdd(); }
+    if(d&&d.profile){ window._editorDefaults=d.profile.editorDefaults||{}; window._editorAccess=d.profile.editorAccess||{}; applyAccess(); if(!window._aaTouched) loadAutoAdd(); }
   }).catch(function(){});
 })();
 function podPlatformHint(){var el=document.getElementById('pod-platform-hint');if(el)el.textContent=POD_HINTS[document.getElementById('pod-platform').value]||'';}
@@ -1400,6 +1402,31 @@ function copyInsertCode(btn,i){
   var ins=(window._availableInserts||[])[i]; if(!ins) return;
   copyStr(btn, String(ins.html||'').trim());
 }
+// What this person's role may use, set by the publisher on /preferences
+// (profile.editorAccess; see api/_access.js, which also enforces it).
+// Unset = allowed; the publisher always has everything.
+var TAB_ACCESS={1:'tab_writers',2:'tab_inserts',3:'tab_drafts',4:'tab_house_style',5:'tab_transcribe',6:'tab_social'};
+function canUse(key){
+  var role=window.IMSAuth&&IMSAuth.state&&IMSAuth.state.role;
+  if(!role||role==='publisher') return true;
+  var a=(window._editorAccess||{})[role];
+  return !(a&&a[key]===false);
+}
+function applyAccess(){
+  var sel=document.getElementById('ed-mode'), first=null;
+  Array.prototype.forEach.call(sel.options,function(o){ var ok=canUse('mode_'+o.value); o.hidden=!ok; o.disabled=!ok; if(ok&&first===null) first=o.value; });
+  if(first!==null && !canUse('mode_'+sel.value)){ sel.value=first; updateModeHint(); }
+  var go=document.getElementById('ed-go');
+  go.disabled=first===null;
+  if(first===null) document.getElementById('ed-status').textContent='Editing is turned off for your role. Ask your publisher.';
+  document.body.classList.toggle('no-add',!canUse('add_with_edit'));
+  document.body.classList.toggle('no-ask',!canUse('ask_editor'));
+  Object.keys(TAB_ACCESS).forEach(function(i){ var b=document.getElementById('nav-'+i); if(b) b.style.display=canUse(TAB_ACCESS[i])?'':'none'; });
+  var on=document.querySelector('.nav button.active, nav button.active');
+  var cur=on&&on.id?+on.id.replace('nav-',''):0;
+  if(TAB_ACCESS[cur] && !canUse(TAB_ACCESS[cur])) show(0);
+}
+
 // "Add with this edit" checkboxes under the draft, each with its 1-10 spot.
 // They start from the newsroom's defaults (site profile editorDefaults, set
 // on /preferences or with "Make these the default" here) every time the page
@@ -1417,7 +1444,8 @@ function editorDefaults(){
 }
 function getAutoAdd(){
   var c={};
-  ['podcast','related','promos'].forEach(function(k){ var el=document.getElementById('aa-'+k); c[k]=!!(el&&el.checked); });
+  var addOk=canUse('add_with_edit');
+  ['podcast','related','promos'].forEach(function(k){ var el=document.getElementById('aa-'+k); c[k]=addOk&&!!(el&&el.checked); });
   ['podcast','related'].forEach(function(k){ var el=document.getElementById('aa-'+k+'-pos'); c[k+'Position']=el?+el.value:10; });
   return c;
 }

@@ -61,6 +61,7 @@ module.exports = async function handler(req, res) {
   try { auth = await S.requireUserOrCron(req, res); }
   catch (e) { return res.status(e.status || 401).json({ error: e.message || 'Not signed in' }); }
   if (req.method !== 'POST') return res.status(405).json({ error: 'POST only' });
+  if (!(await require('./_access').allowed(auth, 'tab_social'))) return require('./_access').deny(res);
 
   var body = req.body || {};
   var text = String(body.text || '').trim().slice(0, 8000);
