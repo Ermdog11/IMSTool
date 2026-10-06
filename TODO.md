@@ -58,6 +58,8 @@
 
 ## Done
 
+- **2026-10-06 — Option to drop the Tier pull-down** (Jeff: for newsrooms that only publish paywalled or only free content). Permissions & preferences → Content Editor defaults → "What you publish" (`editorDefaults.tierMode`: `both`, `free` or `vip`). With a single tier, the Content Editor hides the pull-down and every article uses that tier for promos and ad slots (`applyTierMode()`). The Drafts list drops the VIP badge.
+
 - **2026-10-06 — Placement sliders are percentages in 20% steps, with the meaning spelled out** (Jeff). 0% is above the first paragraph and 100% after the last, counted in paragraphs; 40% of a 10-paragraph story lands after paragraph 4. Placements are saved as `pct0`–`pct100`. Old `pos1`–`pos10` placements and saved 1–10 defaults convert to the nearest 20% (`pct()` in editor.html and preferences.html; `placementIndex` in submit-article.js reads both).
 - **2026-10-06 — Opp Watch follow box autofills names, sites and X handles** (Jeff: "follow a competition should be a box where twitter names autofill"). Datalists come from the beat outlets and watched X accounts. `opps-spy` POST `lookup` checks the beat first, then makes one web-search call. `follow` takes `x`, saved as `outlet.x` and merged into `x_watch_handles`.
 - **2026-10-06 — Content Editor box is now "Give directions / ask a question" and writes on command.** `handleRefine` in `copyedit.js` handles CHANGE, WRITE (a full story, section or lede goes into the draft; headlines, posts and questions go in the reply) and QUESTION, with replies as long as needed. Its prompt now reads outlet and team from the beat profile instead of a hard-coded "InsideMDSports, a Maryland Terrapins site". Also renamed the podcast insert to "Your latest podcast episode".
