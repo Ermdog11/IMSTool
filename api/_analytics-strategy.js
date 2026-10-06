@@ -30,7 +30,7 @@ var TOOL = {
   input_schema: {
     type: 'object',
     properties: {
-      overview: { type: 'string', description: '3-5 plain sentences: the big picture across every channel, with the key numbers.' },
+      overview: { type: 'string', description: 'The big picture across every channel, with the key numbers: 2-4 short paragraphs of 1-3 sentences each, separated by a blank line (one idea per paragraph, e.g. the dominant story, how each channel is doing, the biggest opportunity). Plain text, no markdown.' },
       channels: {
         type: 'array', description: 'One per connected channel.',
         items: { type: 'object', properties: {

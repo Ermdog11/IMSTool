@@ -60,6 +60,7 @@
 
 ## Done
 
+- **2026-10-06 — Strategy & overlap overview in paragraphs** (Jeff: "paragraphs"). The prompt asks for 2–4 short paragraphs with one idea each. The tab splits older single-block reads every two sentences (`strategyParagraphs`, safe around decimals like 1.76M).
 - **2026-10-06 — Heat spots fixed: no more spots from one viral post** (Jeff, on "#2: publish by 7 AM ... site readers run 39% below typical; posts get 2133% above the usual engagement": "this makes no sense").
   - **Cause:** social got a third of the score, and a single viral 7 AM post (21x average) outweighed low site readers.
   - **Fix:** when Chartbeat is connected, site readers decide. Social only nudges a slot by about ±15%, each post is capped at 3x average, and an hour with below-typical site readers is never picked. A day/hour with few readings leans on the general curve (n/(n+3)).
