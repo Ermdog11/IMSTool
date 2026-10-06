@@ -32,7 +32,12 @@ function aaiKey() {
 
 async function auth(req) {
   if (!S.isConfigured()) return null;
-  return S.requireUser(req);
+  var ctx = await S.requireUser(req);
+  // Publisher's per-role switch (api/_access.js).
+  if (!(await require('./_access').allowed(ctx, 'tab_transcribe'))) {
+    var e = new Error('Your publisher has turned Transcribe off for your role.'); e.status = 403; throw e;
+  }
+  return ctx;
 }
 
 async function aaiJson(path, opts) {

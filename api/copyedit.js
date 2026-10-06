@@ -269,12 +269,17 @@ async function handleRefine(res, key, body) {
 }
 
 module.exports = async function handler(req, res) {
-  try { await require('./_supabase').requireUserOrCron(req, res); }
+  var who;
+  try { who = await require('./_supabase').requireUserOrCron(req, res); }
   catch (authErr) { return res.status(authErr.status || 401).json({ error: authErr.message || 'Not signed in' }); }
   var key = process.env.ANTHROPIC_API_KEY;
   if (!key) return res.status(500).json({ error: 'Missing ANTHROPIC_API_KEY.' });
 
   var body = req.body || {};
+  // Publisher's per-role switches (api/_access.js).
+  var Access = require('./_access');
+  var askedMode = (body.mode === 'keep' || body.mode === 'links') ? body.mode : 'edit';
+  if (!(await Access.allowed(who, body.refine ? 'ask_editor' : 'mode_' + askedMode))) return Access.deny(res);
 
   if (body.refine) return handleRefine(res, key, body);
 
