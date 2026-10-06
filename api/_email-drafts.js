@@ -30,8 +30,9 @@ var MAX_PER_RUN = 10;
 function inboxInfo() {
   var user = String(process.env.GMAIL_USER || '').trim();
   var m = /^([^@+]+)(?:\+[^@]*)?@(.+)$/.exec(user);
-  if (!m || !process.env.GMAIL_APP_PASSWORD) return { configured: false, address: null };
-  return { configured: true, address: m[1] + '+' + TAG + '@' + m[2] };
+  if (!m || !process.env.GMAIL_APP_PASSWORD) return { configured: false, address: null, calendarAddress: null };
+  // +calendar mail is read in the same pass and goes to the calendar (_calendar.js).
+  return { configured: true, address: m[1] + '+' + TAG + '@' + m[2], calendarAddress: m[1] + '+calendar@' + m[2] };
 }
 
 function esc(s) { return String(s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); }
@@ -132,11 +133,16 @@ async function run() {
     host: 'imap.gmail.com', port: 993, secure: true, logger: false,
     auth: { user: process.env.GMAIL_USER, pass: String(process.env.GMAIL_APP_PASSWORD).replace(/\s/g, '') }
   });
-  var out = { configured: true, address: info.address, checked: 0, saved: [], skipped: [] };
+  var out = { configured: true, address: info.address, calendarAddress: info.calendarAddress, checked: 0, saved: [], calendar: [], skipped: [] };
   await client.connect();
   var lock = await client.getMailboxLock('INBOX');
   try {
-    var uids = (await client.search({ seen: false, to: info.address }, { uid: true })) || [];
+    // Gmail's own search (X-GM-RAW) also catches mail sent by Bcc or
+    // forwarded, where our address isn't in the To line.
+    var uids;
+    try { uids = await client.search({ seen: false, gmraw: 'deliveredto:' + info.address + ' OR deliveredto:' + info.calendarAddress }, { uid: true }); }
+    catch (e) { uids = await client.search({ seen: false, or: [{ to: info.address }, { to: info.calendarAddress }] }, { uid: true }); }
+    uids = uids || [];
     uids = uids.slice(0, MAX_PER_RUN);
     if (!uids.length) return out;
     var senders = await allowedSenders();
@@ -149,6 +155,16 @@ async function run() {
         var fromAddr = ((parsed.from && parsed.from.value && parsed.from.value[0] && parsed.from.value[0].address) || '').toLowerCase();
         if (!(fromAddr in senders)) { out.skipped.push({ from: fromAddr, why: 'not on the team' }); continue; }
         if (!senderVerified(parsed, fromAddr)) { out.skipped.push({ from: fromAddr, why: 'sender not verified' }); continue; }
+        // Sent to +calendar: dates go on the calendar instead of a draft.
+        var rcpts = [].concat(parsed.to ? parsed.to.value || [] : [], parsed.cc ? parsed.cc.value || [] : []).map(function (a) { return String(a.address || '').toLowerCase(); });
+        var dto = parsed.headers && parsed.headers.get('delivered-to');
+        dto = (Array.isArray(dto) ? dto.join(' ') : String(dto && dto.text || dto || '')).toLowerCase();
+        if (rcpts.indexOf(info.calendarAddress.toLowerCase()) !== -1 || dto.indexOf('+calendar@') !== -1) {
+          var calText = parsed.text || String(parsed.html || '').replace(/<[^>]+>/g, ' ');
+          var cal = await require('./_calendar').fromEmail(calText, { from: fromAddr, subject: cleanSubject(parsed.subject), sentAt: parsed.date });
+          out.calendar.push({ subject: cleanSubject(parsed.subject), events: cal.events.length, from: fromAddr });
+          continue;
+        }
         var art = await articleFrom(parsed);
         var plain = art.html.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
         if (plain.length < 40) { out.skipped.push({ from: fromAddr, why: 'no article text' }); continue; }
