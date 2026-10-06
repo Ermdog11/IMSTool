@@ -307,6 +307,22 @@ body.no-opps .acc-opps,body.no-write .acc-write,body.no-flag .acc-flag,body.no-f
   .chip { min-height: 36px; }
 }
 
+/* Customizable card layouts (Home, Xs and Os) */
+.home-hello { display: flex; justify-content: space-between; align-items: flex-start; gap: 10px; }
+.lay-btn { font: inherit; font-size: 13px; font-weight: 600; border: 1px solid var(--border); background: #fff; color: var(--fg); border-radius: 16px; padding: 6px 12px; cursor: pointer; white-space: nowrap; }
+.lay-btn.on { background: #4338ca; color: #fff; border-color: #4338ca; }
+.lay-cards > .lay-hidden { display: none !important; }
+.lay-cards.lay-editing > .lay-hidden { display: block !important; opacity: .45; }
+.lay-cards > .role-hidden, .lay-cards.lay-editing > .role-hidden { display: none !important; }
+.lay-ctl { display: none; }
+.lay-editing > [data-card] { outline: 2px dashed #c7d2fe; outline-offset: 2px; }
+.lay-editing .lay-ctl { display: flex; gap: 6px; align-items: center; justify-content: flex-end; margin: 0 0 10px; }
+.lay-ctl span { margin-right: auto; font-size: 12px; font-weight: 700; color: #4338ca; text-transform: uppercase; letter-spacing: .04em; }
+.lay-ctl button { font: inherit; font-size: 13px; font-weight: 700; min-width: 40px; min-height: 36px; border: 1px solid #c7d2fe; background: #fff; color: #3730a3; border-radius: 8px; cursor: pointer; padding: 0 10px; }
+.lay-ctl button:disabled { opacity: .35; cursor: default; }
+.lay-bar { display: none; gap: 8px; align-items: center; flex-wrap: wrap; margin: 0 0 12px; padding: 10px 12px; border-radius: 10px; background: #f5f7ff; border: 1px solid #c7d2fe; font-size: 13px; color: #3730a3; }
+.lay-bar.on { display: flex; }
+.lay-bar button { font: inherit; font-size: 13px; font-weight: 600; border: 1px solid #c7d2fe; background: #fff; border-radius: 16px; padding: 5px 12px; cursor: pointer; }
 /* Home ask box */
 .home-card.hc-ask { grid-column: 1 / -1; border-color: #c7d2fe; background: #f8f9ff; }
 .home-ask { display: flex; gap: 8px; }
@@ -1052,14 +1068,14 @@ body.other-newsroom .other-only { display: block !important; }
      2026-10-06: "The home page of the app shouldn't be only centered on
      search. It needs to display the key elements") -->
 <div class="page" id="page-16">
-  <div class="home-hello"><div><h2 id="homeHello">Welcome</h2><div class="home-date" id="homeDate"></div></div></div>
+  <div class="home-hello"><div><h2 id="homeHello">Welcome</h2><div class="home-date" id="homeDate"></div></div><button class="lay-btn" onclick="toggleLayoutEdit('home',this)">✏️ Customize</button></div>
   <form class="home-search" onsubmit="homeSearch(event)">
     <i class="ti ti-search"></i>
     <input id="homeSearchInput" type="search" placeholder="Search the latest news…" autocomplete="off" enterkeyhint="search">
     <button type="submit">Search</button>
   </form>
-  <div class="home-grid">
-    <section class="home-card hc-ask">
+  <div class="home-grid lay-cards" id="homeCards" data-layout="home">
+    <section class="home-card hc-ask" data-card="ask">
       <div class="hc-head"><h3>💬 Ask CoPublisher</h3></div>
       <form class="home-ask" onsubmit="homeAsk(event)">
         <input id="homeAskInput" type="text" placeholder="Anything on the calendar? How are we doing this week?" autocomplete="off" enterkeyhint="send">
@@ -1068,13 +1084,13 @@ body.other-newsroom .other-only { display: block !important; }
       <div class="hc-chips" id="homeAskChips"></div>
       <div id="homeAskAnswer"></div>
     </section>
-    <section class="home-card hc-news" data-tab="0">
+    <section class="home-card hc-news" data-card="news" data-tab="0">
       <div class="hc-head"><h3>📰 Latest news</h3><a href="/alerts" onclick="switchTab(0);return false">All news ›</a></div>
       <div class="hc-stats" id="homeNewsStats">Loading the latest scan…</div>
       <div id="homeNewsList"></div>
       <div class="hc-actions"><button onclick="switchTab(0);runScan(true)"><i class="ti ti-refresh"></i> Scan now</button><button onclick="setHomeFilter('5')">Breaking only</button></div>
     </section>
-    <section class="home-card hc-write" data-editor="1">
+    <section class="home-card hc-write" data-card="write" data-editor="1">
       <div class="hc-head"><h3>✍️ Content Editor</h3><a href="/editor">Open ›</a></div>
       <div class="hc-quick">
         <a href="/editor"><span>📝</span>Edit a story</a>
@@ -1084,15 +1100,15 @@ body.other-newsroom .other-only { display: block !important; }
       </div>
       <div id="homeDrafts" class="hc-list"></div>
     </section>
-    <section class="home-card hc-chat" data-tab="3">
+    <section class="home-card hc-chat" data-card="chat" data-tab="3">
       <div class="hc-head"><h3>💬 Team chat</h3><a href="/chat" onclick="switchTab(3);return false">Open chat ›</a></div>
       <div id="homeChat" class="hc-list"><div class="hc-empty">Loading…</div></div>
     </section>
-    <section class="home-card hc-cal" data-tab="14">
+    <section class="home-card hc-cal" data-card="cal" data-tab="14">
       <div class="hc-head"><h3>📅 Coming up</h3><a href="/calendar" onclick="switchTab(14);return false">Calendar ›</a></div>
       <div id="homeCal" class="hc-list"><div class="hc-empty">Loading…</div></div>
     </section>
-    <section class="home-card hc-money">
+    <section class="home-card hc-money" data-card="money">
       <div class="hc-head"><h3>💰 Advertising &amp; audience</h3></div>
       <div class="hc-quick">
         <a href="/advertising" data-tab="17" onclick="switchTab(17);return false"><span>💵</span>Advertising<em id="homeAdsCount"></em></a>
@@ -1101,7 +1117,7 @@ body.other-newsroom .other-only { display: block !important; }
         <a href="/leaderboard" data-tab="15" onclick="switchTab(15);return false"><span>🏆</span>Leaderboard</a>
       </div>
     </section>
-    <section class="home-card hc-more">
+    <section class="home-card hc-more" data-card="more">
       <div class="hc-head"><h3>🧭 Your beat</h3></div>
       <div class="hc-quick">
         <a href="/backlog" data-tab="4" onclick="switchTab(4);return false"><span>💡</span>Story ideas</a>
@@ -1146,9 +1162,10 @@ body.other-newsroom .other-only { display: block !important; }
 <!-- XS AND OS (page-18; Jeff, 2026-10-06: "where the ombudsman and the social
      media and analytics feedback and questions will live") -->
 <div class="page" id="page-18">
-  <div class="hc-head" style="margin-bottom:10px;"><h2 style="margin:0;font-size:20px;">❌⭕ Xs and Os</h2></div>
+  <div class="hc-head" style="margin-bottom:10px;"><h2 style="margin:0;font-size:20px;">❌⭕ Xs and Os</h2><button class="lay-btn" onclick="toggleLayoutEdit('xos',this)">✏️ Customize</button></div>
   <div style="font-size:13px;color:var(--text2);margin:-4px 0 14px;max-width:80ch;">The film room: how our coverage, social posts and audience numbers are doing, and what to change.</div>
-  <div class="settings-card">
+  <div id="xosCards" class="lay-cards" data-layout="xos">
+  <div class="settings-card" data-card="social">
     <h3><i class="ti ti-brand-instagram"></i> Social media check</h3>
     <div style="font-size:12px;color:var(--text3);margin-bottom:10px;line-height:1.5;">Quick reads on your social accounts from their real numbers (Buffer, Facebook/Instagram, X).</div>
     <div style="display:flex;flex-wrap:wrap;gap:6px;">
@@ -1158,7 +1175,7 @@ body.other-newsroom .other-only { display: block !important; }
       <button class="chip" onclick="xosAsk('What time should we post on X and Facebook?')">Best times to post</button>
     </div>
   </div>
-  <div class="settings-card">
+  <div class="settings-card" data-card="strategy">
     <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;">
       <h3 style="margin:0;"><i class="ti ti-compass"></i> Strategy &amp; overlap</h3>
       <button class="chip" id="stratRefresh" onclick="loadStrategy(true)">Refresh now</button>
@@ -1167,7 +1184,7 @@ body.other-newsroom .other-only { display: block !important; }
     <div id="strategyBox"><div class="empty" style="padding:14px;">Loading…</div></div>
   </div>
 
-  <div class="settings-card">
+  <div class="settings-card" data-card="ask">
     <h3><i class="ti ti-message-circle-question"></i> Ask about your audience</h3>
     <div style="font-size:12px;color:var(--text3);margin-bottom:12px;line-height:1.5;">Answered strictly from your connected sources' real numbers — not general knowledge. Try "what's been working best this week?" or "when should I publish?"</div>
     <div id="analyticsQuestionScope" style="margin-bottom:8px;"></div>
@@ -1179,7 +1196,7 @@ body.other-newsroom .other-only { display: block !important; }
     <div id="analyticsQuestionAnswer"></div>
   </div>
 
-  <div style="border:1px solid #c7d2fe;background:#f5f7ff;border-radius:10px;padding:12px 14px;margin-bottom:14px;">
+  <div data-card="ombudsman" style="border:1px solid #c7d2fe;background:#f5f7ff;border-radius:10px;padding:12px 14px;margin-bottom:14px;">
     <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;">
       <div><b style="font-size:1rem;">⚖️ Ombudsman</b><div style="font-size:.8rem;color:var(--text2);max-width:70ch;">Holds our own coverage to account for readers: checks our recent articles for accuracy, honest headlines, sourcing, fairness and balance, and suggests the stories we should do next. Runs every morning (Coverage Desk) and with every update email.</div></div>
       <div style="display:flex;gap:8px;flex-wrap:wrap;">
@@ -1189,6 +1206,7 @@ body.other-newsroom .other-only { display: block !important; }
     </div>
     <div id="ombudsmanReview"></div>
     <div id="ombudsmanIdeas"></div>
+  </div>
   </div>
 </div>
 
@@ -1241,6 +1259,7 @@ function applyNewsroom(s) {
   if (!window.IMSAuth) return;
   IMSAuth.guard().then(function (s) {
     if (s && s.site && s.site.slug !== 'insidemdsports') applyNewsroom(s);
+    if (typeof loadLayouts === 'function') loadLayouts();
     if (s && s.user) {
       var slot = document.querySelector('.topbar-right');
       if (slot) IMSAuth.mountMenu(slot);
@@ -1389,7 +1408,7 @@ function switchTab(idx, fromPop) {
   if (idx === 15) loadLeaderboard();
   if (idx === 16) loadHome();
   if (idx === 17) loadAdvertising();
-  if (idx === 18) { loadOmbudsmanIdeas(); renderAnalyticsConnections(); loadAnalyticsSuggestions(); loadStrategy(); }
+  if (idx === 18) { applyLayout('xos'); loadOmbudsmanIdeas(); renderAnalyticsConnections(); loadAnalyticsSuggestions(); loadStrategy(); }
   syncMobileNav(idx);
   window.scrollTo(0, 0);
   if (!fromPop) {
@@ -1444,8 +1463,9 @@ async function loadHome() {
   document.getElementById('homeDate').textContent = new Date().toLocaleDateString([], { weekday: 'long', month: 'long', day: 'numeric' }) + (s.site && s.site.name ? ' · ' + s.site.name : '');
   // Cards and shortcuts this person's role can't use are hidden.
   const canEditor = !(s.access && s.access.use_editor === false);
-  document.querySelectorAll('#page-16 [data-tab]').forEach(el => { el.style.display = monitorCanUse(+el.dataset.tab) ? '' : 'none'; });
-  document.querySelectorAll('#page-16 [data-editor]').forEach(el => { el.style.display = canEditor ? '' : 'none'; });
+  document.querySelectorAll('#page-16 [data-tab]').forEach(el => { const ok = monitorCanUse(+el.dataset.tab); el.style.display = ok ? '' : 'none'; el.classList.toggle('role-hidden', !ok); });
+  document.querySelectorAll('#page-16 [data-editor]').forEach(el => { el.style.display = canEditor ? '' : 'none'; el.classList.toggle('role-hidden', !canEditor); });
+  applyLayout('home');
   renderHomeNews();
   loadHomeAskChips();
   const f = window.IMSAuth ? IMSAuth.authFetch : fetch;
@@ -1536,6 +1556,98 @@ async function loadAdvertising() {
     const hs = (d.events || []).filter(e => e.kind === 'heat' && Date.parse(e.start) > Date.now()).sort((a, b) => a.start.localeCompare(b.start)).slice(0, 4);
     document.getElementById('advHeat').innerHTML = hs.length ? hs.map(e => '<div class="hc-item">🔥 ' + esc(e.title || 'Hot spot') + '<small>' + new Date(e.start).toLocaleString([], { weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }) + '</small></div>').join('') : '<div class="hc-empty">No hot spots left this week. New ones arrive Monday morning.</div>';
   }).catch(() => { document.getElementById('advHeat').innerHTML = '<div class="hc-empty">Couldn\'t load hot spots.</div>'; });
+}
+
+// Customizable layouts (Jeff, 2026-10-06: "make the tools on here customizable,
+// so they can move them up or down or remove" them). Each person's order and
+// hidden cards per page, saved to their account (api/layout.js) with a local
+// copy so the page arranges itself instantly.
+const LAYOUTS = {};
+function layoutGet(page) {
+  if (LAYOUTS[page]) return LAYOUTS[page];
+  try { const l = JSON.parse(localStorage.getItem('cp-layout-' + page) || 'null'); if (l) return l; } catch (e) {}
+  return { order: [], hidden: [] };
+}
+function layoutBox(page) { return document.querySelector('[data-layout="' + page + '"]'); }
+function layoutCards(box) { return Array.from(box.children).filter(c => c.dataset && c.dataset.card); }
+function applyLayout(page) {
+  const box = layoutBox(page); if (!box) return;
+  const L = layoutGet(page), cards = layoutCards(box);
+  cards.forEach((c, i) => { if (c.dataset.defIdx === undefined) c.dataset.defIdx = i; });
+  const rank = c => { const i = (L.order || []).indexOf(c.dataset.card); return i === -1 ? 1000 + (+c.dataset.defIdx) : i; };
+  cards.sort((a, b) => rank(a) - rank(b)).forEach(c => {
+    box.appendChild(c);
+    c.classList.toggle('lay-hidden', (L.hidden || []).indexOf(c.dataset.card) !== -1);
+  });
+  if (box.classList.contains('lay-editing')) layoutControls(page);
+}
+function layoutSave(page) {
+  const box = layoutBox(page); if (!box) return;
+  const cards = layoutCards(box);
+  const L = { order: cards.map(c => c.dataset.card), hidden: cards.filter(c => c.classList.contains('lay-hidden')).map(c => c.dataset.card) };
+  LAYOUTS[page] = L;
+  try { localStorage.setItem('cp-layout-' + page, JSON.stringify(L)); } catch (e) {}
+  const f = window.IMSAuth ? IMSAuth.authFetch : fetch;
+  f('/api/layout', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(Object.assign({ page: page }, L)) }).catch(() => {});
+}
+function layoutTitle(c) { const h = c.querySelector('h3'); return h ? h.textContent.replace(/\s+/g, ' ').trim() : c.dataset.card; }
+function layoutControls(page) {
+  const box = layoutBox(page); if (!box) return;
+  const cards = layoutCards(box).filter(c => !c.classList.contains('role-hidden'));
+  cards.forEach((c, i) => {
+    let ctl = c.querySelector(':scope > .lay-ctl');
+    if (!ctl) { ctl = document.createElement('div'); ctl.className = 'lay-ctl'; c.insertBefore(ctl, c.firstChild); }
+    const hidden = c.classList.contains('lay-hidden');
+    ctl.innerHTML = '<span>' + (hidden ? 'Hidden' : 'Showing') + '</span>' +
+      '<button type="button" title="Move up" ' + (i === 0 ? 'disabled' : '') + ' onclick="layoutMove(\'' + page + '\',\'' + c.dataset.card + '\',-1)">↑</button>' +
+      '<button type="button" title="Move down" ' + (i === cards.length - 1 ? 'disabled' : '') + ' onclick="layoutMove(\'' + page + '\',\'' + c.dataset.card + '\',1)">↓</button>' +
+      '<button type="button" onclick="layoutToggle(\'' + page + '\',\'' + c.dataset.card + '\')">' + (hidden ? '👁 Show' : '✕ Remove') + '</button>';
+  });
+}
+function layoutMove(page, id, dir) {
+  const box = layoutBox(page);
+  const cards = layoutCards(box).filter(c => !c.classList.contains('role-hidden'));
+  const i = cards.findIndex(c => c.dataset.card === id), j = i + dir;
+  if (i < 0 || j < 0 || j >= cards.length) return;
+  if (dir < 0) box.insertBefore(cards[i], cards[j]); else box.insertBefore(cards[j], cards[i]);
+  layoutControls(page); layoutSave(page);
+  cards[i].scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+}
+function layoutToggle(page, id) {
+  const c = layoutBox(page).querySelector(':scope > [data-card="' + id + '"]'); if (!c) return;
+  c.classList.toggle('lay-hidden');
+  layoutControls(page); layoutSave(page);
+}
+function toggleLayoutEdit(page, btn) {
+  const box = layoutBox(page); if (!box) return;
+  const on = !box.classList.contains('lay-editing');
+  box.classList.toggle('lay-editing', on);
+  if (btn) { btn.classList.toggle('on', on); btn.textContent = on ? '✓ Done' : '✏️ Customize'; }
+  let bar = document.getElementById('layBar-' + page);
+  if (!bar) {
+    bar = document.createElement('div'); bar.id = 'layBar-' + page; bar.className = 'lay-bar';
+    bar.innerHTML = '<span style="flex:1;min-width:180px">Move cards with ↑ ↓, or remove the ones you don\'t use (they stay listed here, faded, so you can bring them back). Only you see your layout.</span><button type="button" onclick="layoutReset(\'' + page + '\')">Reset to default</button>';
+    box.parentNode.insertBefore(bar, box);
+  }
+  bar.classList.toggle('on', on);
+  if (on) layoutControls(page);
+}
+function layoutReset(page) {
+  if (!confirm('Put every card back in its original place?')) return;
+  const box = layoutBox(page);
+  layoutCards(box).sort((a, b) => (+a.dataset.defIdx) - (+b.dataset.defIdx)).forEach(c => { box.appendChild(c); c.classList.remove('lay-hidden'); });
+  LAYOUTS[page] = { order: [], hidden: [] };
+  try { localStorage.removeItem('cp-layout-' + page); } catch (e) {}
+  const f = window.IMSAuth ? IMSAuth.authFetch : fetch;
+  f('/api/layout', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ page: page, reset: true }) }).catch(() => {});
+  layoutControls(page);
+}
+function loadLayouts() {
+  const f = window.IMSAuth ? IMSAuth.authFetch : fetch;
+  f('/api/layout').then(r => r.json()).then(d => {
+    Object.keys((d && d.layouts) || {}).forEach(p => { LAYOUTS[p] = d.layouts[p]; try { localStorage.setItem('cp-layout-' + p, JSON.stringify(d.layouts[p])); } catch (e) {} });
+    applyLayout('home'); applyLayout('xos');
+  }).catch(() => {});
 }
 
 // Phone bottom bar and its More sheet: every tab this person can use (the
