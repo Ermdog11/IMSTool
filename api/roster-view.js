@@ -22,8 +22,10 @@ module.exports = async function handler(req, res) {
   // Same as the rest of the app: require sign-in once login is switched on,
   // otherwise business as usual (Roster Watch works with no login configured).
   if (S.isConfigured()) {
-    try { await S.requireUser(req); }
+    var rvCtx;
+    try { rvCtx = await S.requireUser(req); }
     catch (e) { return res.status(e.status || 401).json({ error: e.message }); }
+    if (!(await require('./_access').allowed(rvCtx, 'mon_roster'))) return require('./_access').deny(res);
   }
 
   try {

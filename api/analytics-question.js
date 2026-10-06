@@ -95,6 +95,7 @@ module.exports = async function handler(req, res) {
   var ctx;
   try { ctx = await S.requireUser(req); }
   catch (e) { return res.status(e.status || 401).json({ error: e.message }); }
+  if (!(await require('./_access').allowed(ctx, 'mon_analytics'))) return require('./_access').deny(res);
 
   var body = req.body || {};
   var question = (body.question || '').toString().trim().slice(0, 1000);

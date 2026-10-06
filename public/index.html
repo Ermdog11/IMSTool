@@ -206,6 +206,7 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; b
 .bb-brand { font-size: 13px; font-weight: 700; color: #fff; letter-spacing: 0.5px; }
 .bb-tag { font-size: 11px; font-weight: 600; color: var(--nav-on); }
 body { padding-bottom: 40px; }
+body.no-write .acc-write,body.no-flag .acc-flag,body.no-flag #excludeCard{display:none!important}
 </style>
 </head>
 <body>
@@ -813,6 +814,12 @@ body { padding-bottom: 40px; }
         if (typeof applyExclusions === 'function') applyExclusions();
       });
     }
+    if (s && s.role && s.role !== 'publisher') {
+      IMSAuth.authFetch('/api/site-profile').then(function (r) { return r.json(); }).then(function (d) {
+        monitorAccess = (d && d.profile && d.profile.editorAccess) || {};
+        applyMonitorAccess();
+      }).catch(function () {});
+    }
     if (s && s.role === 'publisher') {
       var t = document.getElementById('teamCardWrap');
       if (t) t.hidden = false;
@@ -871,7 +878,34 @@ function pathToTab(p) {
   return i === -1 ? 0 : i;
 }
 
+// What this person's role may use, set by the publisher on /preferences
+// (site profile editorAccess; api/_access.js also enforces it on the routes
+// that spend credits or show private numbers). Unset = allowed; the publisher
+// and a login-free setup always have everything. Alerts and Settings always show.
+var MON_ACCESS = { 1:'mon_digest', 2:'mon_social', 3:'mon_chat', 4:'mon_backlog', 5:'mon_recruiting', 6:'mon_trending', 7:'mon_podcasts', 8:'mon_youtube', 9:'mon_bluesky', 11:'mon_analytics', 12:'mon_roster', 13:'mon_opps' };
+var monitorAccess = null;
+function accessAllows(key) {
+  var role = window.IMSAuth && IMSAuth.state && IMSAuth.state.role;
+  if (!role || role === 'publisher' || !monitorAccess) return true;
+  var a = monitorAccess[role];
+  return !(a && a[key] === false);
+}
+function monitorCanUse(idx) { return !MON_ACCESS[idx] || accessAllows(MON_ACCESS[idx]); }
+function applyMonitorAccess() {
+  Object.keys(MON_ACCESS).forEach(function (i) {
+    var show = monitorCanUse(+i);
+    var b = document.getElementById('tab-btn-' + i); if (b) b.style.display = show ? '' : 'none';
+    document.querySelectorAll('.chip[onclick="switchTab(' + i + ')"]').forEach(function (c) { c.style.display = show ? '' : 'none'; });
+  });
+  document.body.classList.toggle('no-write', !accessAllows('act_write_story'));
+  document.body.classList.toggle('no-flag', !accessAllows('act_flag_block'));
+  var on = document.querySelector('.nav-tab.active');
+  var cur = on ? +on.id.replace('tab-btn-', '') : 0;
+  if (!monitorCanUse(cur)) switchTab(0, true);
+}
+
 function switchTab(idx, fromPop) {
+  if (!monitorCanUse(idx)) idx = 0;
   document.querySelectorAll('.page').forEach((p, i) => p.classList.toggle('active', i === idx));
   document.querySelectorAll('.nav-tab').forEach((t, i) => t.classList.toggle('active', i === idx));
   if (idx === 3) { loadChatMessages(); startChatPolling(); } else { stopChatPolling(); }
@@ -1032,15 +1066,15 @@ function renderAlerts() {
       ${a.summary ? `<div class="asum">${a.summary}</div>` : ''}
       <div class="myrate" id="myrate-${idx}">${myRateHtml(a, idx)}</div>
       <div class="acard-actions">
-        <button class="aaction" onclick="writeIt(${idx}, this)" title="Draft an article from this story and open it in the Content Editor" style="font-weight:700;"><i class="ti ti-pencil"></i> Write it</button>
+        <button class="aaction acc-write" onclick="writeIt(${idx}, this)" title="Draft an article from this story and open it in the Content Editor" style="font-weight:700;"><i class="ti ti-pencil"></i> Write it</button>
         <button class="aaction" onclick="getAngles(${idx})"><i class="ti ti-bulb"></i> Story angles</button>
         <button class="aaction" onclick="getAutoBrief(${idx})"><i class="ti ti-file-text"></i> Auto-brief</button>
         <button class="aaction" onclick="getSEO(${idx})"><i class="ti ti-search"></i> SEO</button>
         <button class="aaction" onclick="getSocial(${idx})"><i class="ti ti-brand-twitter"></i> Draft social</button>
         ${recordsWorthy(a) ? `<button class="aaction" onclick="requestRecords(${idx}, this)" title="Draft a public-records (FOIA / state open-records) request for the contract or documents behind this story"${recordsWorthy(a) === 1 ? ' style="font-weight:700;"' : ''}><i class="ti ti-file-search"></i> ${recordsWorthy(a) === 1 ? '📄 ' : ''}Request records</button>` : ''}
         <button class="aaction" onclick="claimStory(${idx})"><i class="ti ti-hand-stop"></i> Claim</button>
-        <button class="aaction" onclick="flagStory(${idx})" title="Flag as junk — trains the scanner to exclude similar stories" style="color:#c00;"><i class="ti ti-flag"></i> Flag</button>
-        <button class="aaction" onclick="blockSource(${idx})" title="Block ${(a.source||'').replace(/"/g,'&quot;')} — hide this site from all future results" style="color:#c00;"><i class="ti ti-ban"></i> Block source</button>
+        <button class="aaction acc-flag" onclick="flagStory(${idx})" title="Flag as junk — trains the scanner to exclude similar stories" style="color:#c00;"><i class="ti ti-flag"></i> Flag</button>
+        <button class="aaction acc-flag" onclick="blockSource(${idx})" title="Block ${(a.source||'').replace(/"/g,'&quot;')} — hide this site from all future results" style="color:#c00;"><i class="ti ti-ban"></i> Block source</button>
         <button class="aaction" onclick="hideItem('${(a.url||'').replace(/'/g,"\\'")}')" title="Hide just this story (keeps the source)" style="color:#c00;"><i class="ti ti-eye-off"></i> Hide story</button>
       </div>
       <div class="aaction-output" id="output-${idx}"></div>
@@ -2054,7 +2088,7 @@ function renderBacklog() {
         <div class="backlog-title">${escapeHtml(idea.title)}</div>
         <div class="backlog-meta">${escapeHtml(idea.angle || '')}</div>
         <div class="acard-actions" style="margin-top:8px;">
-          <button class="aaction" style="font-weight:700;" onclick="writeIdea(${i}, this)" title="Draft this idea and open it in the Content Editor"><i class="ti ti-pencil"></i> Write it</button>
+          <button class="aaction acc-write" style="font-weight:700;" onclick="writeIdea(${i}, this)" title="Draft this idea and open it in the Content Editor"><i class="ti ti-pencil"></i> Write it</button>
           <button class="aaction" style="color:#c00;" onclick="dislikeIdea(${i})" title="Hide this idea and suggest fewer like it"><i class="ti ti-thumb-down"></i> Fewer like this</button>
         </div>
         <div class="aaction-output" id="idea-out-${i}"></div>

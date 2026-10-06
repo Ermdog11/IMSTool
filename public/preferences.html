@@ -76,7 +76,7 @@ tr.you td{background:var(--red-light)}
   <h1>Permissions &amp; preferences</h1>
   <p class="lead">Your own alerts, the Content Editor's defaults, who on the team can do what, and where every other setting lives.</p>
   <div class="jump">
-    <a href="#alerts">Your alerts</a><a href="#editor">Content Editor defaults</a><a href="#access">What writers see</a><a href="#permissions">Who can do what</a><a href="#everything">All settings</a>
+    <a href="#alerts">Your alerts</a><a href="#editor">Content Editor defaults</a><a href="#access">What writers and editors see</a><a href="#permissions">Who can do what</a><a href="#everything">All settings</a>
   </div>
   <div id="notice"></div>
 
@@ -94,8 +94,8 @@ tr.you td{background:var(--red-light)}
   </section>
 
   <section class="card" id="access">
-    <h2>What writers and editors see in the Content Editor</h2>
-    <div class="sub">Turn a tool off and it disappears from that role's Content Editor screen (and the app refuses it if they try anyway). You, the publisher, always have everything.</div>
+    <h2>What writers and editors see and can do</h2>
+    <div class="sub">Turn something off and it disappears from that role's News Monitor or Content Editor screen. Anything that spends AI credits, shows your traffic numbers or changes things for the whole newsroom is also refused by the app if they try anyway. Alerts and Settings always show. You, the publisher, always have everything.</div>
     <div class="table-scroll"><table id="access-table"></table></div>
     <div style="margin-top:12px"><button class="btn" id="acc-save" onclick="saveAccess()">Save</button><span class="msg" id="acc-msg"></span></div>
   </section>
@@ -126,7 +126,9 @@ var ROLE='publisher', CONFIGURED=false, profile={};
 var ACCESS_FEATURES=[
   ['Copydesk modes',[['mode_edit','Full edit: rewrite in house style'],['mode_keep','Keep my words: review only'],['mode_links','Hotlinks only']]],
   ['Copydesk tools',[['add_with_edit','Add podcast, related links and promos'],['ask_editor','Ask the editor (chat)']]],
-  ['Content Editor tabs',[['tab_transcribe','Transcribe'],['tab_social','From social'],['tab_house_style','House style'],['tab_writers','Writers'],['tab_inserts','Inserts'],['tab_drafts','Drafts']]]
+  ['Content Editor tabs',[['tab_transcribe','Transcribe'],['tab_social','From social'],['tab_house_style','House style'],['tab_writers','Writers'],['tab_inserts','Inserts'],['tab_drafts','Drafts']]],
+  ['News Monitor actions',[['act_write_story','Write it: draft an article from an alert or story idea'],['act_flag_block','Flag junk and block sources for the whole newsroom'],['act_x_follow','Change which X accounts are followed']]],
+  ['News Monitor sections',[['mon_analytics','Analytics (traffic and audience numbers)'],['mon_chat','Team chat'],['mon_digest','Nightly digest'],['mon_social','Hot social'],['mon_backlog','Story backlog'],['mon_recruiting','Recruiting tracker'],['mon_roster','Roster watch'],['mon_opps','Opp Watch'],['mon_trending','Trending'],['mon_podcasts','Podcasts'],['mon_youtube','YouTube'],['mon_bluesky','Bluesky']]]
 ];
 var access={};
 function renderAccess(){
@@ -157,7 +159,7 @@ async function saveAccess(){
     var r=await fetch('/api/site-profile',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({profile:{editorAccess:access}})});
     var d=await r.json().catch(function(){return {};});
     if(!r.ok||d.error) throw new Error(d.error||('HTTP '+r.status));
-    m.className='msg ok'; m.textContent='Saved. It takes effect the next time they open the Content Editor.';
+    m.className='msg ok'; m.textContent='Saved. It takes effect the next time they open or reload the News Monitor or Content Editor.';
   }catch(e){ m.className='msg err'; m.textContent='Couldn\u2019t save: '+e.message; }
   b.disabled=false;
 }
@@ -169,14 +171,14 @@ var PERMS=[
   ['Use the News Monitor and Content Editor (scans, digests, alerts, editing, writing)','all'],
   ['Choose your own alerts','all'],
   ['Open and edit drafts in the Editorial Desk','all'],
-  ['Hide junk sources and exclude sites from the feed','all'],
-  ['Change which X accounts are followed','all'],
+  ['Hide junk sources and exclude sites from the feed (unless you switch it off below)','all'],
+  ['Change which X accounts are followed (unless you switch it off below)','all'],
   ['Send a public-records request from the app','editor','Writers can open it in their own email'],
   ['Edit the house style guide','editor'],
   ['Connect search keys (web search, Google search, X)','editor'],
   ['Change the newsroom setup (beat, people to watch, what’s breaking, podcast)','publisher'],
   ['Change the Content Editor defaults','publisher'],
-  ['Choose which Content Editor tools writers and editors see','publisher'],
+  ['Choose what writers and editors see and can do','publisher'],
   ['Invite people, set roles, and set other people’s alerts','publisher'],
   ['Connect analytics and social accounts','publisher'],
   ['Connect the 247Sports login and the Bluesky promo bot','publisher']
