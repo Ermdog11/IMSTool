@@ -895,8 +895,8 @@ body.no-opps .acc-opps,body.no-write .acc-write,body.no-flag .acc-flag,body.no-f
   <div class="cal-box" id="calModeAsk" style="display:none;border-color:#93c5fd;background:#f0f7ff;">
     <b style="font-size:.95rem;">How should CoPublisher run your calendar?</b>
     <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:8px;">
-      <button class="cal-mode-btn" onclick="calSetMode('ai')"><b>🤖 Let the AI help</b><span>It adds your games each week, this week's 🔥 heat spots, and dated things it spots in the news (press conferences, decision dates, signing day). Delete anything you don't want and it won't come back.</span></button>
-      <button class="cal-mode-btn" onclick="calSetMode('manual')"><b>✋ Only what we add</b><span>Nothing goes on the calendar unless someone on the team adds it (by email, paste or by hand). No heat spots.</span></button>
+      <button class="cal-mode-btn" onclick="calSetMode('ai')"><b>🤖 Let the AI help</b><span>It adds your games each week, this week's 🔥 hot spots, and dated things it spots in the news (press conferences, decision dates, signing day). Delete anything you don't want and it won't come back.</span></button>
+      <button class="cal-mode-btn" onclick="calSetMode('manual')"><b>✋ Only what we add</b><span>Nothing goes on the calendar unless someone on the team adds it (by email, paste or by hand). No hot spots.</span></button>
     </div>
   </div>
   <div id="calModeLine" style="font-size:.78rem;color:var(--text3);margin:0 0 8px;display:none;"></div>
@@ -924,7 +924,7 @@ body.no-opps .acc-opps,body.no-write .acc-write,body.no-flag .acc-flag,body.no-f
   </div>
   <div class="cal-box" id="calHeatBox" style="font-size:.85rem;">
     <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
-      <b>🔥 Heat spots</b><span style="color:var(--text3);font-size:.78rem;">the 5 best times to publish this week, ranked from your last 4 weeks of site readers and social engagement</span>
+      <b>🔥 Hot spots</b><span style="color:var(--text3);font-size:.78rem;">the 5 best times to publish this week, ranked from your last 4 weeks of site readers and social engagement</span>
     </div>
     <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:6px;">
       <label style="display:flex;gap:5px;align-items:center;" id="calHeatOnWrap"><input type="checkbox" id="calHeatOn" onchange="calHeatToggle(this.checked)" style="width:auto"> Show on the calendar</label>
@@ -4106,12 +4106,12 @@ function renderCalMode() {
   document.getElementById('calHeatBox').style.display = m === 'manual' ? 'none' : '';
   if (m) {
     line.style.display = '';
-    line.innerHTML = (m === 'ai' ? '🤖 AI-assisted: CoPublisher adds games, heat spots and dated items from the news.' : '✋ Only what the team adds.') +
+    line.innerHTML = (m === 'ai' ? '🤖 AI-assisted: CoPublisher adds games, hot spots and dated items from the news.' : '✋ Only what the team adds.') +
       (h.canManage ? ' <a href="#" onclick="calSetMode(\'' + (m === 'ai' ? 'manual' : 'ai') + '\');return false;">Switch to ' + (m === 'ai' ? 'only what we add' : 'AI-assisted') + '</a>' : '');
   } else line.style.display = 'none';
 }
 async function calSetMode(m) {
-  if (m === 'manual' && calData.mode === 'ai' && !confirm('Switch to only what the team adds? Upcoming heat spots and items the AI added will be removed.')) return;
+  if (m === 'manual' && calData.mode === 'ai' && !confirm('Switch to only what the team adds? Upcoming hot spots and items the AI added will be removed.')) return;
   calSay(m === 'ai' ? 'Setting up: finding your upcoming games… (this can take up to a minute)' : 'Saving…');
   try {
     var d = await calFetch({ action: 'mode', mode: m });
@@ -4129,10 +4129,10 @@ function renderHeatBox() {
   document.getElementById('calHeatCh').value = mine.channel || 'email';
   var n = (calData.events || []).filter(function (e) { return e.kind === 'heat' && Date.parse(e.start) > Date.now(); }).length;
   document.getElementById('calHeatMsg').textContent = h.on === false ? 'Off for the newsroom.' + (h.canManage ? '' : ' An editor or publisher can turn it on.')
-    : h.note ? h.note : (n ? n + ' still ahead this week' + (h.basis ? ', based on ' + h.basis : '') + '. New ones arrive every Monday morning.' : 'No heat spots left this week. New ones arrive Monday morning.');
+    : h.note ? h.note : (n ? n + ' still ahead this week' + (h.basis ? ', based on ' + h.basis : '') + '. New ones arrive every Monday morning.' : 'No hot spots left this week. New ones arrive Monday morning.');
 }
 async function calHeatToggle(on) {
-  var m = document.getElementById('calHeatMsg'); m.textContent = on ? 'Working out this week\'s heat spots…' : 'Turning off…';
+  var m = document.getElementById('calHeatMsg'); m.textContent = on ? 'Working out this week\'s hot spots…' : 'Turning off…';
   try { await calFetch({ action: 'heat-on', on: on }); await loadCalendar(); } catch (e) { m.textContent = e.message; }
 }
 async function calHeatRefresh() {
@@ -4143,7 +4143,7 @@ async function calHeatRefresh() {
 }
 async function calHeatRemind() {
   var mins = +document.getElementById('calHeatMin').value, ch = document.getElementById('calHeatCh').value, m = document.getElementById('calHeatMsg');
-  try { await calFetch({ action: 'heat-remind', minutes: mins, channel: ch }); await loadCalendar(); m.textContent = mins ? 'You\'ll get a reminder ' + calMinLabel(mins) + ' before every heat spot, by ' + (ch === 'text' ? 'text (email until texting is connected)' : 'email') + '.' : 'Heat spot reminders off.'; }
+  try { await calFetch({ action: 'heat-remind', minutes: mins, channel: ch }); await loadCalendar(); m.textContent = mins ? 'You\'ll get a reminder ' + calMinLabel(mins) + ' before every hot spot, by ' + (ch === 'text' ? 'text (email until texting is connected)' : 'email') + '.' : 'Hot spot reminders off.'; }
   catch (e) { m.textContent = e.message; }
 }
 function calSay(t, err) { var m = document.getElementById('calMsg'); m.style.color = err ? 'var(--hot)' : 'var(--text3)'; m.innerHTML = t; }

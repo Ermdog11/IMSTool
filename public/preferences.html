@@ -257,8 +257,35 @@ async function loadAlerts(){
     if(!r.ok) throw new Error(d.error||('HTTP '+r.status));
     $('alert-list').innerHTML=(d.types||[]).map(function(t){
       return '<div class="row"><div class="name"><b>'+esc(t.label)+'</b></div><label class="switch"><input type="checkbox" data-t="'+esc(t.key)+'" '+(d.me[t.key]?'checked':'')+' onchange="setAlert(this)"><i></i></label></div>';
-    }).join('')+'<div class="sub" id="alert-msg" style="margin:6px 0 0"></div>';
+    }).join('')+'<div id="hot12-row"></div><div class="sub" id="alert-msg" style="margin:6px 0 0"></div>';
+    loadHot12();
   }catch(e){ $('alert-list').innerHTML='<div class="msg err" style="margin:0">Couldn’t load your alerts: '+esc(e.message)+'</div>'; }
+}
+// "A hot spot is within 12 hours" (Jeff, 2026-10-06): yours, email or text,
+// saved with the calendar (api/calendar.js action 'hot12').
+async function loadHot12(){
+  var box=$('hot12-row'); if(!box) return;
+  try{
+    var r=await fetch('/api/calendar'); var d=await r.json();
+    if(!r.ok) return; // no calendar access: leave the row out
+    var mine=d.heat&&d.heat.hot12, off=d.heat&&!d.heat.on;
+    box.innerHTML='<div class="row"><div class="name"><b>🔥 A hot spot is within 12 hours</b>'+
+      '<div class="sub" style="margin:2px 0 0">One heads-up per hot spot (the best times to publish), so a story is ready. Never between 10 PM and 7 AM; early-morning ones come the evening before.'+(off?' Hot spots are switched off for the newsroom right now.':'')+'</div></div>'+
+      '<select id="hot12-ch" onchange="setHot12()" style="width:auto;margin:0 10px 0 0"><option value="email">Email</option><option value="text">Text</option></select>'+
+      '<label class="switch"><input type="checkbox" id="hot12-on" '+(mine?'checked':'')+' onchange="setHot12()"><i></i></label></div>';
+    $('hot12-ch').value=(mine&&mine.channel)||'email';
+  }catch(e){}
+}
+async function setHot12(){
+  var on=$('hot12-on'), ch=$('hot12-ch'), m=$('alert-msg');
+  on.disabled=true;
+  try{
+    var r=await fetch('/api/calendar',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'hot12',on:on.checked,channel:ch.value})});
+    var d=await r.json().catch(function(){return {};});
+    if(!r.ok) throw new Error(d.error||('HTTP '+r.status));
+    m.className='sub msg ok'; m.textContent=on.checked?('Saved. '+(ch.value==='text'?'Texting isn\u2019t connected yet, so these come by email for now.':'')):'Saved.';
+  }catch(e){ on.checked=!on.checked; m.className='sub msg err'; m.textContent='Couldn\u2019t save: '+e.message; }
+  on.disabled=false;
 }
 async function setAlert(el){
   el.disabled=true;

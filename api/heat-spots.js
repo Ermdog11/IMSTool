@@ -22,10 +22,10 @@ module.exports = async function handler(req, res) {
     if (Cal.mode(await Cal.load()) === 'ai') {
       try { games = await require('./_ai-calendar').addGames(sb); } catch (e) { console.error('AI calendar games failed (non-fatal):', e.message); }
     }
-    console.log('Heat spots:', out.on ? out.spots.length + ' added' : 'off', '|', out.basis || out.note || '', '| games added:', games.length);
+    console.log('Hot spots:', out.on ? out.spots.length + ' added' : 'off', '|', out.basis || out.note || '', '| games added:', games.length);
     return res.status(200).json({ on: out.on, spots: (out.spots || []).map(function (e) { return { title: e.title, start: e.start, note: e.note }; }), basis: out.basis || null, note: out.note || null, gamesAdded: games.length });
   } catch (e) {
-    console.error('Heat spots failed:', e.message);
+    console.error('Hot spots failed:', e.message);
     return res.status(500).json({ error: e.message });
   }
 };

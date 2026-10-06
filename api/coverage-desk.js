@@ -157,7 +157,7 @@ module.exports = async function handler(req, res) {
       .join('\n');
     var ownList = ownIndex.slice(0, 25).map(function (a) { return '- ' + a.headline; }).join('\n');
 
-    // This week's heat spots (best times to publish; filled in now if the
+    // This week's hot spots (best times to publish; filled in now if the
     // Monday cron hasn't run). Today's show in the calendar box; all of the
     // week's remaining ones go to the memo's WHEN TO PUBLISH section.
     var heatList = '';
@@ -168,14 +168,16 @@ module.exports = async function handler(req, res) {
         if (hsite.data) {
           var heat = await require('./_calendar').ensureHeatSpots(hsb, hsite.data.id, false);
           var nowMs = Date.now();
-          heatList = (heat.spots || []).filter(function (e) { return Date.parse(e.start) > nowMs - 3600000; })
+          // Only spots far enough ahead to act on (the memo lands at 7 AM;
+          // a 7 or 8 AM spot is too soon to plan for from it).
+          heatList = (heat.spots || []).filter(function (e) { return Date.parse(e.start) > nowMs + 90 * 60000; })
             .sort(function (a, b) { return (a.heatRank || 9) - (b.heatRank || 9); })
             .map(function (e) {
               return '- #' + e.heatRank + ' ' + new Date(e.start).toLocaleString('en-US', { timeZone: 'America/New_York', weekday: 'long', hour: 'numeric', minute: '2-digit' }) + (e.note ? ' — ' + e.note : '');
             }).join('\n');
           if (!heatList && heat.note) heatList = '(' + heat.note + ')';
         }
-      } catch (e) { console.error('Coverage Desk: heat spots failed (non-fatal):', e.message); }
+      } catch (e) { console.error('Coverage Desk: hot spots failed (non-fatal):', e.message); }
     }
 
     // AI-assisted calendar: add the dated, upcoming items in today's news first,
@@ -228,11 +230,11 @@ module.exports = async function handler(req, res) {
         ? "WHAT WORKED YESTERDAY — 3-5 bullets reading YESTERDAY'S NUMBERS below (the publisher also sees the raw figures in a box above your memo, so don't just repeat them): what pulled readers on the site and why it likely did (topic, timing, angle), what did or didn't land on social (Buffer posts and the X account's own tweets), any top site story that got no social push, and how yesterday compared with the prior week, where readers came from (search vs social vs direct, and any shift vs the prior week), and what people searched on Google to find us (Search Console; preliminary numbers). End with 1-2 concrete actions for today drawn from this (e.g. a follow-up on a story that pulled readers, re-push a strong story on social, post at the hour that worked). Use ONLY the numbers given; never invent figures. If a source is missing or thin, say so in a few words rather than guessing.\n"
         : 'WHAT WORKED — write exactly one line: "No analytics from yesterday yet (connect Chartbeat and Buffer under Analytics)." Do not invent numbers or name a top story.\n') +
       (calList ? "TODAY'S CALENDAR is shown to the publisher in its own box above your memo; don't list it again, but factor it into TODAY'S PRIORITIES (who covers a game, presser or deadline today).\n" : '') +
-      (heatList ? "WHEN TO PUBLISH — two or three sentences on this week's heat spots (the best times to publish, ranked from our own last 4 weeks of site readers and social engagement, listed below): name today's if any and what story from TODAY'S PRIORITIES to hold for it, then the best ones still ahead this week in order. Use only the reasons given; don't invent numbers. If the list says there isn't enough history yet, say that in one line.\n" : '') +
+      (heatList ? "WHEN TO PUBLISH — two or three sentences on this week's hot spots (the best times to publish, ranked from our own last 4 weeks of site readers and social engagement, listed below): name today's if any and what story from TODAY'S PRIORITIES to hold for it, then the best ones still ahead this week in order. If tomorrow has one before 10 AM, say to have a story written and scheduled before the end of today, since there won't be time in the morning. Use only the reasons given; don't invent numbers. If the list says there isn't enough history yet, say that in one line.\n" : '') +
       "EDITOR'S READ — one or two sentences: an honest take on where the beat is right now and the single thing you would focus on today.\n\n" +
       "TODAY'S RATED NEWS:\n" + (newsList || '(nothing notable in the scan)') + '\n\n' +
       (calList ? "TODAY'S CALENDAR:\n" + calList + '\n\n' : '') +
-      (heatList ? "THIS WEEK'S HEAT SPOTS (ranked):\n" + heatList + '\n\n' : '') +
+      (heatList ? "THIS WEEK'S HOT SPOTS (ranked):\n" + heatList + '\n\n' : '') +
       'RECENTLY PUBLISHED BY INSIDEMDSPORTS:\n' + (ownList || '(unavailable this run)') + '\n\n' +
       (hasNumbers ? "YESTERDAY'S NUMBERS (" + yesterday.day + ', Eastern; site readers are summed from readings every 3 hours, a ranking rather than exact pageviews):\n' + JSON.stringify({ site: yesterday.site, social: yesterday.social, x: yesterday.x, googleSearch: yesterday.search, errors: yesterday.errors }) + '\n\n' : '') +
       'Return ONLY clean HTML: <h3> for each section header, <ul><li> for bullets, <p> for the read. No preamble, no markdown fences.';

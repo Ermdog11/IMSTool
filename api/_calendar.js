@@ -192,7 +192,7 @@ async function setDefault(email, minutes, channel) {
   minutes = Number(minutes) || 0;
   if (minutes && STEPS.indexOf(minutes) === -1) throw new Error('Pick 30 minutes to 6 hours, in 30-minute steps.');
   var data = await load();
-  // Merge: the same entry also holds the heat-spot reminder.
+  // Merge: the same entry also holds the hot-spot reminder.
   var p = data.prefs[email] || {};
   if (minutes) { p.minutes = minutes; p.channel = channel === 'text' ? 'text' : 'email'; } else { delete p.minutes; delete p.channel; }
   if (Object.keys(p).length) data.prefs[email] = p; else delete data.prefs[email];
@@ -229,10 +229,10 @@ async function deleteEvent(id) {
 // ---- Who runs the calendar (Jeff, 2026-10-06: "have it ask whether you want
 // the AI to actively calendar by adding games and other things it notices or
 // be all controlled by users"). settings.mode: 'ai' (CoPublisher adds the
-// beat's games, heat spots and dated items it spots in the news; see
-// _ai-calendar.js) or 'manual' (only what people add; no heat spots either).
+// beat's games, hot spots and dated items it spots in the news; see
+// _ai-calendar.js) or 'manual' (only what people add; no hot spots either).
 // Unset = not asked yet: the Calendar tab asks an editor or publisher, and
-// meanwhile heat spots show (they were asked for) but nothing else is added.
+// meanwhile hot spots show (they were asked for) but nothing else is added.
 function mode(data) { var m = data.settings && data.settings.mode; return m === 'ai' || m === 'manual' ? m : null; }
 async function setMode(m) {
   if (m !== 'ai' && m !== 'manual') throw new Error('Pick AI-assisted or only what we add.');
@@ -287,9 +287,9 @@ function timeOf(e) {
 }
 
 
-// ---- Heat spots (the week's five best times to publish; _heat-spots.js) ----
+// ---- Hot spots (the week's five best times to publish; _heat-spots.js) ----
 // Newsroom-wide on/off (settings.heatSpots, on unless turned off) and each
-// person's "remind me before every heat spot" (prefs[email].heat). The spots
+// person's "remind me before every hot spot" (prefs[email].heat). The spots
 // are ordinary calendar items of kind 'heat', replaced whenever the week is
 // recomputed; past ones stay as history.
 
@@ -303,7 +303,7 @@ function weekKey(ms) {
   return nyDay(ms);
 }
 
-var HEAT_V = 2; // 2026-10-06: site readers lead, social capped (no more 7 AM spots from one viral post)
+var HEAT_V = 3; // 2: site readers lead, social capped (no 7 AM spots from one viral post); 3: renamed "Hot spot" (2026-10-06)
 function heatOn(data) { return mode(data) !== 'manual' && !(data.settings && data.settings.heatSpots === false); }
 
 function heatReminders(data) {
@@ -329,7 +329,7 @@ async function ensureHeatSpots(sb, siteId, force) {
   var added = got.spots.map(function (sp) {
     return {
       id: newId(), createdAt: new Date().toISOString(), createdBy: '', source: 'heat', kind: 'heat', heatWeek: wk, heatRank: sp.rank,
-      title: '🔥 Heat spot #' + sp.rank + ': publish by ' + sp.label.replace(/^\S+ /, ''),
+      title: '🔥 Hot spot #' + sp.rank + ': publish by ' + sp.label.replace(/^\S+ /, ''),
       start: zonedIso(sp.date, sp.time), allDay: false, end: null, location: '', note: sp.why,
       reminders: reminders.map(function (r) { return Object.assign({}, r); })
     };
@@ -347,7 +347,7 @@ async function setHeatOn(on) {
   await save(data);
 }
 
-// Your reminder before every heat spot: saved as a preference and applied
+// Your reminder before every hot spot: saved as a preference and applied
 // to this week's upcoming spots right away.
 async function setHeatReminder(email, minutes, channel) {
   email = String(email || '').toLowerCase();
@@ -368,6 +368,46 @@ async function setHeatReminder(email, minutes, channel) {
   await save(data);
 }
 
+// When a reminder goes out. A hot-spot heads-up that would land overnight
+// (10 PM to 7 AM Eastern, e.g. "2 hours before" a 7 AM spot) comes at 8 PM
+// the evening before instead, so there's time to have a story ready (Jeff,
+// 2026-10-06: "a fix for when the hot spot is early and the email goes out
+// too late to use it").
+function etHour(ms) { return Number(new Intl.DateTimeFormat('en-US', { timeZone: TZ, hour: '2-digit', hourCycle: 'h23' }).format(new Date(ms))) % 24; }
+function reminderDueMs(e, r) {
+  var due = startMs(e) - r.minutes * 60000;
+  if (e.kind !== 'heat') return due;
+  var h = etHour(due);
+  if (h >= 22 || h < 7) {
+    var evening = Date.parse(zonedIso(nyDay(h < 7 ? due - 12 * 3600000 : due), '20:00'));
+    return Math.min(due, evening);
+  }
+  return due;
+}
+
+// "A hot spot is within 12 hours" alert (Jeff, 2026-10-06: "a checkbox on
+// preferences to receive email or text alerts when a hot spot is within a 12
+// hour window"). Per person, opt-in: prefs[email].hot12 = { channel }. Each
+// spot alerts each person once. Never between 10 PM and 7 AM Eastern; from
+// 8 PM a spot before noon tomorrow counts too, so an early spot is flagged
+// the evening before instead of overnight.
+async function setHot12(email, on, channel) {
+  email = String(email || '').toLowerCase();
+  if (!email) throw new Error('Sign in to set alerts.');
+  var data = await load();
+  var p = data.prefs[email] || {};
+  if (on) p.hot12 = { channel: channel === 'text' ? 'text' : 'email' }; else delete p.hot12;
+  if (Object.keys(p).length) data.prefs[email] = p; else delete data.prefs[email];
+  await save(data);
+}
+function hot12Due(e, now) {
+  var s = startMs(e), h = etHour(now);
+  if (s <= now || h >= 22 || h < 7) return false;
+  if (s - now <= 12 * 3600000) return true;
+  var tomorrow = nyDay(now + 86400000);
+  return h >= 20 && nyDay(s) === tomorrow && etHour(s) < 12;
+}
+
 // Cron: send every reminder that's due. Returns how many went out.
 async function sendDueReminders() {
   var data = await load();
@@ -379,19 +419,49 @@ async function sendDueReminders() {
     if (s < now - 15 * 60000) continue; // already happened
     for (var j = 0; j < (e.reminders || []).length; j++) {
       var r = e.reminders[j];
-      if (r.sentAt || now < s - r.minutes * 60000) continue;
+      if (r.sentAt || now < reminderDueMs(e, r)) continue;
+      var nightBefore = e.kind === 'heat' && nyDay(now) !== nyDay(s);
       try {
         await Mailer.sendMail({
           to: r.email,
-          subject: 'Reminder: ' + e.title + ' (' + fmtWhen(e) + ')',
+          subject: nightBefore ? 'Hot spot tomorrow at ' + new Date(s).toLocaleTimeString('en-US', { timeZone: TZ, hour: 'numeric', minute: '2-digit' }) + ': have a story ready tonight'
+            : 'Reminder: ' + e.title + ' (' + fmtWhen(e) + ')',
           html: '<div style="font-family:-apple-system,Segoe UI,sans-serif;font-size:15px">' +
             '<p><b>' + esc(e.title) + '</b><br>' + esc(fmtWhen(e)) + (e.location ? ' · ' + esc(e.location) : '') + '</p>' +
+            (nightBefore ? '<p>This hot spot is early, so this heads-up comes the evening before: line up the story tonight and schedule it for then.</p>' : '') +
             (e.note ? '<p>' + esc(e.note) + '</p>' : '') +
             (r.channel === 'text' ? '<p style="color:#888;font-size:12px">You asked for a text; texting isn\'t connected yet, so this came by email.</p>' : '') +
             '<p style="font-size:13px"><a href="https://ims-tool.vercel.app/calendar">Open the calendar</a></p></div>'
         });
         r.sentAt = new Date().toISOString(); sent++; changed = true;
       } catch (err) { console.error('Calendar reminder failed:', err.message); }
+    }
+  }
+  // Hot spot within 12 hours, for everyone who opted in.
+  var hotPeople = Object.keys(data.prefs || {}).filter(function (em) { return data.prefs[em] && data.prefs[em].hot12; });
+  if (hotPeople.length && heatOn(data)) {
+    for (var k = 0; k < data.events.length; k++) {
+      var he = data.events[k];
+      if (he.kind !== 'heat' || !hot12Due(he, now)) continue;
+      he.hot12Sent = he.hot12Sent || [];
+      for (var q = 0; q < hotPeople.length; q++) {
+        var em = hotPeople[q];
+        if (he.hot12Sent.indexOf(em) !== -1) continue;
+        var hs = startMs(he), when = new Date(hs).toLocaleString('en-US', { timeZone: TZ, weekday: 'long', hour: 'numeric', minute: '2-digit' });
+        try {
+          await Mailer.sendMail({
+            to: em,
+            subject: '🔥 Hot spot ' + (nyDay(hs) === nyDay(now) ? 'today' : 'tomorrow') + ' at ' + new Date(hs).toLocaleTimeString('en-US', { timeZone: TZ, hour: 'numeric', minute: '2-digit' }) + ': have a story ready',
+            html: '<div style="font-family:-apple-system,Segoe UI,sans-serif;font-size:15px">' +
+              '<p><b>' + esc(he.title) + '</b><br>' + esc(when) + '</p>' +
+              (he.note ? '<p>' + esc(he.note) + '</p>' : '') +
+              '<p>Have your best story ready to publish then.</p>' +
+              (data.prefs[em].hot12.channel === 'text' ? '<p style="color:#888;font-size:12px">You asked for a text; texting isn\'t connected yet, so this came by email.</p>' : '') +
+              '<p style="font-size:13px"><a href="https://ims-tool.vercel.app/calendar">Open the calendar</a> · <a href="https://ims-tool.vercel.app/preferences">Change this alert</a></p></div>'
+          });
+          he.hot12Sent.push(em); sent++; changed = true;
+        } catch (err) { console.error('Hot spot alert failed:', err.message); }
+      }
     }
   }
   if (changed) await save(data);
@@ -416,4 +486,4 @@ async function fromEmail(text, meta) {
   return { summary: got.summary, events: saved };
 }
 
-module.exports = { HEAT_V: HEAT_V, mode: mode, setMode: setMode, addAiEvents: addAiEvents, sameItem: sameItem, ensureHeatSpots: ensureHeatSpots, setHeatOn: setHeatOn, setHeatReminder: setHeatReminder, heatOn: heatOn, weekKey: weekKey, eventsOn: eventsOn, timeOf: timeOf, load: load, extract: extract, addEvents: addEvents, setReminder: setReminder, setDefault: setDefault, updateEvent: updateEvent, deleteEvent: deleteEvent, sendDueReminders: sendDueReminders, fromEmail: fromEmail, zonedIso: zonedIso, STEPS: STEPS, TZ: TZ };
+module.exports = { HEAT_V: HEAT_V, mode: mode, setMode: setMode, addAiEvents: addAiEvents, sameItem: sameItem, ensureHeatSpots: ensureHeatSpots, setHeatOn: setHeatOn, setHeatReminder: setHeatReminder, heatOn: heatOn, weekKey: weekKey, eventsOn: eventsOn, timeOf: timeOf, load: load, extract: extract, addEvents: addEvents, setReminder: setReminder, setDefault: setDefault, updateEvent: updateEvent, deleteEvent: deleteEvent, sendDueReminders: sendDueReminders, reminderDueMs: reminderDueMs, setHot12: setHot12, hot12Due: hot12Due, fromEmail: fromEmail, zonedIso: zonedIso, STEPS: STEPS, TZ: TZ };
