@@ -2033,7 +2033,31 @@ function trTime(ms){
 function trName(sp){ return sp==null?'':(trState.names[sp]||('Speaker '+sp)); }
 function trUtterances(){
   var d=trState.data||{};
-  return d.utterances&&d.utterances.length?d.utterances:[{speaker:'A',start:0,text:d.text||''}];
+  return trParagraphs(d.utterances&&d.utterances.length?d.utterances:[{speaker:'A',start:0,text:d.text||''}]);
+}
+// Flowing text, not a row per sentence (Jeff, 2026-10-06: "it shouldn't
+// separate every sentence like this. Needs to be flowing text with paragraphs
+// in between every 3-4 sentence chunk"). Back-to-back turns from the same
+// speaker are joined, then split into paragraphs of 3-4 sentences; each keeps
+// the time of its first sentence. Used by the live view and every finished
+// transcript, so Copy / + Draft work on a paragraph.
+function trParagraphs(turns){
+  var out=[], cur=null;
+  (turns||[]).forEach(function(t){
+    var text=String(t.text||'').trim(); if(!text) return;
+    var sents=text.match(/[^.!?]+(?:[.!?]+["”’)]*|$)/g)||[text];
+    sents.forEach(function(x){
+      x=x.trim(); if(!x) return;
+      // New paragraph on a new speaker, after 4 sentences, or after 3 long ones.
+      if(!cur||cur.speaker!==(t.speaker==null?null:t.speaker)||cur.n>=4||(cur.n>=3&&cur.text.length>320)){
+        cur={speaker:t.speaker==null?null:t.speaker,start:t.start,text:'',n:0}; out.push(cur);
+      }
+      cur.text+=(cur.text?' ':'')+x; cur.n++;
+    });
+  });
+  // A lone short sentence left at the end of a speaker's run joins the paragraph before it.
+  for(var i=out.length-1;i>0;i--){ if(out[i].n===1&&out[i-1].speaker===out[i].speaker&&out[i-1].n<=4){ out[i-1].text+=' '+out[i].text; out[i-1].n++; out.splice(i,1); } }
+  return out.map(function(p){ return {speaker:p.speaker,start:p.start,text:p.text}; });
 }
 function renderTranscript(){
   var us=trUtterances(), speakers=[];
@@ -2052,9 +2076,11 @@ function renderTranscript(){
     (trState.data.source==='youtube'?'<div style="'+TIP_STYLE+'">From the video\u2019s '+(trState.data.auto?'<b>auto-generated</b> YouTube captions, so names and numbers are often wrong. Check every quote against the video.':'own captions.')+' No speaker labels: captions don\u2019t have them.'+(trState.data.author?' Channel: '+esc(trState.data.author)+'.':'')+'</div>':'')+
     '<div class="hint" style="margin:0 0 6px">Click <b>Copy</b> to grab a quote, or <b>+ Draft</b> to drop it at the end of your Copydesk draft.</div>'+
     us.map(function(u,i){
-      return '<div style="display:flex;gap:10px;padding:8px 0;border-top:1px solid var(--border)">'+
-        '<div style="width:120px;flex-shrink:0;font-size:12px"><div style="font-weight:600;color:var(--text)">'+esc(trName(u.speaker))+'</div><div style="color:var(--muted)">'+trTime(u.start)+'</div></div>'+
-        '<div style="flex:1;font-size:14px">'+esc(u.text)+'</div>'+
+      var newSpeaker=i===0||us[i-1].speaker!==u.speaker;
+      return (newSpeaker&&u.speaker!=null?'<div style="font-weight:700;font-size:13px;margin:14px 0 2px">'+esc(trName(u.speaker))+'</div>':'')+
+        '<div style="display:flex;gap:10px;padding:4px 0 10px;align-items:flex-start">'+
+        '<div style="width:44px;flex-shrink:0;font-size:11.5px;color:var(--muted);padding-top:3px">'+trTime(u.start)+'</div>'+
+        '<div style="flex:1;font-size:15px;line-height:1.6">'+esc(u.text)+'</div>'+
         '<div style="flex-shrink:0;display:flex;flex-direction:column;gap:4px">'+
           '<button class="btn ghost" style="margin:0;padding:3px 9px;font-size:11.5px" onclick="trCopyOne('+i+',this)">Copy</button>'+
           '<button class="btn ghost" style="margin:0;padding:3px 9px;font-size:11.5px" onclick="trToDraft('+i+',this)">+ Draft</button></div></div>';
@@ -2174,10 +2200,19 @@ function renderLive(){
     '<button class="btn" style="margin:0 0 0 auto" onclick="stopLive()">■ Stop</button></div>');
   var h='<div class="card"><h2 style="margin:0 0 8px">Live transcript</h2>'+
     (live.turns.length||live.partial?'':'<div class="hint" style="margin:0">Listening… text shows up here as people talk.</div>')+
-    live.turns.map(function(u){ return '<div style="display:flex;gap:10px;padding:6px 0;border-top:1px solid var(--border)"><div style="width:90px;flex-shrink:0;font-size:12px;color:var(--muted)">'+(u.speaker!=null?'<b style="color:var(--text)">Speaker '+esc(u.speaker)+'</b><br>':'')+trTime(u.start)+'</div><div style="flex:1;font-size:14px">'+esc(u.text)+'</div></div>'; }).join('')+
-    (live.partial?'<div style="display:flex;gap:10px;padding:6px 0;border-top:1px solid var(--border);color:var(--muted)"><div style="width:52px;flex-shrink:0;font-size:12px">…</div><div style="flex:1;font-size:14px">'+esc(live.partial)+'</div></div>':'')+
+    (function(){
+      var ps=trParagraphs(live.turns);
+      return ps.map(function(u,i){
+        var last=i===ps.length-1;
+        return (u.speaker!=null&&(i===0||ps[i-1].speaker!==u.speaker)?'<div style="font-weight:700;font-size:13px;margin:12px 0 2px">Speaker '+esc(u.speaker)+'</div>':'')+
+          '<p style="margin:0 0 12px;font-size:15px;line-height:1.6">'+esc(u.text)+(last&&live.partial?' <span style="color:var(--muted)">'+esc(live.partial)+'</span>':'')+'</p>';
+      }).join('')+(!ps.length&&live.partial?'<p style="margin:0;font-size:15px;line-height:1.6;color:var(--muted)">'+esc(live.partial)+'</p>':'');
+    })()+
     '</div>';
+  // Follow the newest text, unless the reader has scrolled up to look back.
+  var nearBottom=window.innerHeight+window.scrollY>=document.documentElement.scrollHeight-120;
   var out=document.getElementById('tr-result'); out.innerHTML=h;
+  if(nearBottom&&(live.turns.length||live.partial)) window.scrollTo(0,document.documentElement.scrollHeight);
   clearTimeout(live.tick); live.tick=setTimeout(renderLive,1000);
 }
 function labelLiveRecording(){
