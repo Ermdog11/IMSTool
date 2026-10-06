@@ -250,7 +250,6 @@ body.no-opps .acc-opps,body.no-write .acc-write,body.no-flag .acc-flag,body.no-f
   <button class="nav-tab" id="tab-btn-6" onclick="switchTab(6)">🔥 Trending</button>
   <button class="nav-tab" id="tab-btn-7" onclick="switchTab(7)">🎙️ Podcasts</button>
   <button class="nav-tab" id="tab-btn-8" onclick="switchTab(8)">📺 YouTube</button>
-  <button class="nav-tab" id="tab-btn-9" onclick="switchTab(9)">🦋 Bluesky</button>
   <button class="nav-tab" id="tab-btn-10" onclick="switchTab(10)">Settings</button>
   <button class="nav-tab" id="tab-btn-11" onclick="switchTab(11)">📈 Analytics</button>
   <button class="nav-tab" id="tab-btn-12" onclick="switchTab(12)">🏈 Roster watch</button>
@@ -295,7 +294,6 @@ body.no-opps .acc-opps,body.no-write .acc-write,body.no-flag .acc-flag,body.no-f
     <button class="chip" onclick="switchTab(6)" style="border-color:#e8b923;">🔥 Trending</button>
     <button class="chip" onclick="switchTab(7)" style="border-color:#e8b923;">🎙️ Podcasts</button>
     <button class="chip" onclick="switchTab(8)" style="border-color:#e8b923;">📺 YouTube</button>
-    <button class="chip" onclick="switchTab(9)" style="border-color:#e8b923;">🦋 Bluesky</button>
   </div>
   <div class="alerts" id="alertsContainer">
     <div class="empty"><i class="ti ti-radar"></i>Hit "Scan now" to pull the latest Terps news from all external sources</div>
@@ -967,15 +965,15 @@ function applyMonitorAccess() {
   document.body.classList.toggle('no-flag', !accessAllows('act_flag_block'));
   document.body.classList.toggle('no-opps', !accessAllows('act_opps_edit'));
   if (oppsData && oppsData.competitors) renderOpps();
-  var on = document.querySelector('.nav-tab.active');
-  var cur = on ? +on.id.replace('tab-btn-', '') : 0;
+  var on = document.querySelector('.page.active');
+  var cur = on ? +on.id.replace('page-', '') : 0;
   if (!monitorCanUse(cur)) switchTab(0, true);
 }
 
 function switchTab(idx, fromPop) {
   if (!monitorCanUse(idx)) idx = 0;
   document.querySelectorAll('.page').forEach((p, i) => p.classList.toggle('active', i === idx));
-  document.querySelectorAll('.nav-tab').forEach((t, i) => t.classList.toggle('active', i === idx));
+  document.querySelectorAll('.nav-tab').forEach(t => t.classList.toggle('active', t.id === 'tab-btn-' + idx));
   if (idx === 3) { loadChatMessages(); startChatPolling(); } else { stopChatPolling(); }
   if (idx === 7) loadPodcasts();
   if (idx === 8) loadYouTube();
