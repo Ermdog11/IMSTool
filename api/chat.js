@@ -3,6 +3,8 @@
 //
 //   GET ?since=<ISO>   -> { messages: [...] }  (all messages, or only newer than `since` for polling)
 //   POST { text }      -> send a message as the signed-in user
+//   POST { action:'delete', ids:[...] } -> publisher only: delete those messages
+//                      (Jeff, 2026-10-06: "publisher needs checkboxes to mass delete messages from chat")
 
 var S = require('./_supabase');
 var Store = require('./_chat-store');
@@ -27,6 +29,12 @@ module.exports = async function handler(req, res) {
   }
 
   if (req.method !== 'POST') return res.status(405).json({ error: 'GET or POST' });
+
+  if (req.body && req.body.action === 'delete') {
+    if (!ctx.membership || ctx.membership.role !== 'publisher') return res.status(403).json({ error: 'Only the publisher can delete chat messages.' });
+    try { return res.status(200).json({ ok: true, deleted: await Store.remove(ctx.supabase, ctx.site.id, req.body.ids) }); }
+    catch (e) { return res.status(500).json({ error: e.message }); }
+  }
 
   var text = String((req.body && req.body.text) || '').trim().slice(0, 2000);
   if (!text) return res.status(400).json({ error: 'Empty message' });

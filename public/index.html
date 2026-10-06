@@ -141,6 +141,12 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; b
 .chat-layout { display: flex; flex-direction: column; height: calc(100vh - 200px); min-height: 400px; }
 .chat-messages { flex: 1; overflow-y: auto; background: var(--bg2); border-radius: 10px 10px 0 0; padding: 14px; display: flex; flex-direction: column; gap: 10px; border: 1px solid var(--border); border-bottom: none; }
 .chat-msg { max-width: 85%; }
+.chat-sel { display: none; margin: 0 8px 0 0; vertical-align: -2px; width: auto; cursor: pointer; }
+.chat-selecting .chat-sel { display: inline-block; }
+.chat-selecting .chat-msg[data-id] { cursor: pointer; }
+.chat-selecting .chat-msg.picked { outline: 2px solid var(--red); outline-offset: 1px; }
+.chat-bulk { display: none; align-items: center; gap: 8px; flex-wrap: wrap; font-size: 12.5px; padding: 8px 10px; background: var(--bg2); border: 1px solid var(--border); border-radius: 8px; margin-bottom: 8px; }
+.chat-selecting .chat-bulk { display: flex; }
 .chat-msg.system { align-self: center; background: var(--bg); border-radius: 20px; padding: 5px 14px; font-size: 11px; color: var(--text3); }
 .chat-msg.alert-drop { align-self: stretch; background: var(--hot-light); border: 1px solid #f7c1c1; border-radius: 8px; padding: 10px 12px; }
 .chat-msg.alert-drop .alert-headline { font-size: 12px; font-weight: 600; color: var(--hot-dark); margin-bottom: 3px; }
@@ -329,7 +335,15 @@ body.no-opps .acc-opps,body.no-write .acc-write,body.no-flag .acc-flag,body.no-f
 
 <!-- TEAM CHAT TAB -->
 <div class="page" id="page-3">
-  <div class="notice"><i class="ti ti-users"></i> General channel — alerts rated 4+ auto-drop here, and breaking-news auto-drafts land here tagged. Shared with the whole team.</div>
+  <div class="notice" style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;"><span><i class="ti ti-users"></i> General channel — alerts rated 4+ auto-drop here, and breaking-news auto-drafts land here tagged. Shared with the whole team.</span>
+    <button class="chip" id="chatSelectBtn" style="display:none;" onclick="chatSelectMode(true)">☑️ Select to delete</button></div>
+  <div class="chat-wrap" id="chatWrap">
+  <div class="chat-bulk">
+    <label style="display:flex;gap:5px;align-items:center;cursor:pointer;"><input type="checkbox" id="chatSelAll" onchange="chatSelectAll(this.checked)" style="width:auto"> Select all</label>
+    <span id="chatSelCount" style="color:var(--text3);">0 selected</span>
+    <button class="chip" style="color:#c00;border-color:#f7c1c1;" onclick="chatDeleteSelected(this)">🗑 Delete selected</button>
+    <button class="chip" onclick="chatSelectMode(false)">Done</button>
+  </div>
   <div class="chat-layout">
     <div class="chat-messages" id="chatMessages">
       <div class="chat-msg system">Loading…</div>
@@ -338,6 +352,7 @@ body.no-opps .acc-opps,body.no-write .acc-write,body.no-flag .acc-flag,body.no-f
       <input class="chat-input" id="chatInput" placeholder="Message the team..." onkeydown="if(event.key==='Enter')sendChat()" />
       <button class="chat-send" onclick="sendChat()">Send</button>
     </div>
+  </div>
   </div>
 </div>
 
@@ -2266,14 +2281,55 @@ function renderChatMessage(m) {
     div.className = 'chat-msg ' + (m.sender_user_id && m.sender_user_id === myId ? 'me' : 'other');
     div.innerHTML = `<div class="sender">${m.sender_name || ''}</div>${m.text.replace(/</g,'&lt;')}`;
   }
+  // Publisher bulk delete: every saved message carries its id and a checkbox
+  // (shown only in select mode); clicking the message toggles it too.
+  if (m.id) {
+    div.dataset.id = m.id;
+    const cb = document.createElement('input');
+    cb.type = 'checkbox'; cb.className = 'chat-sel';
+    cb.onclick = ev => { ev.stopPropagation(); div.classList.toggle('picked', cb.checked); chatSelCount(); };
+    div.insertBefore(cb, div.firstChild);
+    div.addEventListener('click', ev => {
+      if (!document.getElementById('chatWrap').classList.contains('chat-selecting') || ev.target.tagName === 'A') return;
+      cb.checked = !cb.checked; div.classList.toggle('picked', cb.checked); chatSelCount();
+    });
+  }
   c.appendChild(div);
   c.scrollTop = c.scrollHeight;
   chatLatestTs = m.created_at;
 }
 
+function chatSelectMode(on) {
+  document.getElementById('chatWrap').classList.toggle('chat-selecting', !!on);
+  if (!on) { document.querySelectorAll('#chatMessages .chat-sel').forEach(cb => { cb.checked = false; cb.parentNode.classList.remove('picked'); }); document.getElementById('chatSelAll').checked = false; }
+  chatSelCount();
+}
+function chatSelectAll(on) {
+  document.querySelectorAll('#chatMessages .chat-sel').forEach(cb => { cb.checked = on; cb.parentNode.classList.toggle('picked', on); });
+  chatSelCount();
+}
+function chatPicked() { return Array.from(document.querySelectorAll('#chatMessages .chat-sel:checked')).map(cb => cb.parentNode.dataset.id); }
+function chatSelCount() { const el = document.getElementById('chatSelCount'); if (el) el.textContent = chatPicked().length + ' selected'; }
+async function chatDeleteSelected(btn) {
+  const ids = chatPicked();
+  if (!ids.length) return alert('Tick the messages to delete first.');
+  if (!confirm('Delete ' + ids.length + ' message' + (ids.length === 1 ? '' : 's') + ' from Team Chat for everyone? This can\'t be undone.')) return;
+  btn.disabled = true;
+  try {
+    const r = await IMSAuth.authFetch('/api/chat', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'delete', ids }) });
+    const d = await r.json().catch(() => ({}));
+    if (!r.ok || d.error) throw new Error(d.error || ('HTTP ' + r.status));
+    ids.forEach(id => { const el = document.querySelector('#chatMessages [data-id="' + CSS.escape(id) + '"]'); if (el) el.remove(); });
+    document.getElementById('chatSelAll').checked = false;
+    chatSelCount();
+  } catch (e) { alert('Couldn\'t delete: ' + e.message); }
+  btn.disabled = false;
+}
+
 async function loadChatMessages() {
   const c = document.getElementById('chatMessages');
   if (!window.IMSAuth) return;
+  document.getElementById('chatSelectBtn').style.display = IMSAuth.isPublisher && IMSAuth.isPublisher() ? '' : 'none';
   try {
     const r = await IMSAuth.authFetch('/api/chat');
     const d = await r.json();
