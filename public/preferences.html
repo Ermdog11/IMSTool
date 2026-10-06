@@ -224,6 +224,7 @@ var DIR=[
     ['Writers and their voice profiles','/editor','local'],
     ['Promos for free and VIP articles','/editor','local'],
     ['Ad slots (ad code placed in every article)','/editor#2','publisher'],
+    ['Affiliate programs, clicks and payouts (CoPublisher AI)','/affiliates','publisher'],
     ['Podcast tab: this browser’s player settings (override the newsroom’s)','/editor','local'],
     ['Related tab: how many links and where they link to','/editor','local']
   ]]
@@ -266,7 +267,7 @@ var ed={};
 function loadEditorDefaults(){
   var d=profile.editorDefaults||{}, pod=profile.podcast||{};
   ed={
-    podcast:d.podcast!==false, related:d.related!==false, promos:!!d.promos, factCheck:!!d.factCheck, ads:d.ads!==false,
+    podcast:d.podcast!==false, related:d.related!==false, promos:!!d.promos, factCheck:!!d.factCheck, ads:d.ads!==false, affiliate:d.affiliate!==false,
     podcastPosition:+(d.podcastPosition||pod.position||10),
     relatedPosition:+(d.relatedPosition||10),
     relatedCount:+(d.relatedCount||3), relatedScope:d.relatedScope==='web'?'web':'site'
@@ -286,6 +287,7 @@ function renderEditorDefaults(){
     '<div class="row"><div class="name"><b>Related links point to</b></div>'+seg('relatedScope',[['site','Our site only'],['web','Anywhere on the web']])+'</div>'+
     '<div class="row"><div class="name"><b>📣 Promos for the article’s tier</b><span>Every free or VIP promo set up in the Content Editor, each at its usual spot.</span></div>'+sw('promos')+'</div>'+
     '<div class="row"><div class="name"><b>💰 Ad slots</b><span>Your ad units, at their set spots (set them up on the Content Editor’s Inserts tab).</span></div>'+sw('ads')+'</div>'+
+    '<div class="row"><div class="name"><b>💸 Affiliate links</b><span>Links to gear, ticket and other partner sites earn your newsroom a share through CoPublisher AI\u2019s affiliate programs.</span></div>'+sw('affiliate')+'</div>'+
     '<div class="row"><div class="name"><b>🔎 Extra fact-check</b><span>Checks every name, number and date in the finished article against live sources and your past coverage. Takes a minute longer and uses more AI credits.</span></div>'+sw('factCheck')+'</div>';
   $('ed-save').style.display=can?'':'none';
   if(!can) $('ed-msg').textContent='';
