@@ -162,4 +162,4 @@ async function fetchYesterday(siteUrl, pathPrefix) {
   };
 }
 
-module.exports = { isConfigured: isConfigured, serviceAccountEmail: serviceAccountEmail, listSites: listSites, fetchSummary: fetchSummary, fetchYesterday: fetchYesterday };
+module.exports = { query: query, isConfigured: isConfigured, serviceAccountEmail: serviceAccountEmail, listSites: listSites, fetchSummary: fetchSummary, fetchYesterday: fetchYesterday };

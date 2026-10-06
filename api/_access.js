@@ -46,6 +46,7 @@ var FEATURES = [
   { key: 'mon_roster',     label: 'Roster watch' },
   { key: 'mon_opps',       label: 'Opp Watch' },
   { key: 'mon_calendar',   label: 'Calendar' },
+  { key: 'mon_leaderboard', label: 'Writer leaderboard', hidden: true },
   // News Monitor actions
   { key: 'act_write_story',label: 'Write it: draft an article from an alert or story idea' },
   { key: 'act_flag_block', label: 'Flag junk and block sources for the whole newsroom' },
@@ -58,9 +59,12 @@ var MON = FEATURES.filter(function (f) { return /^mon_/.test(f.key); }).map(func
 var ACT = FEATURES.filter(function (f) { return /^act_/.test(f.key); }).map(function (f) { return f.key; });
 var EDITOR_TOOLS = FEATURES.filter(function (f) { return /^(mode_|tab_)/.test(f.key) || f.key === 'add_with_edit' || f.key === 'ask_editor'; }).map(function (f) { return f.key; });
 function offs(keys) { var o = {}; keys.forEach(function (k) { o[k] = false; }); return o; }
+// The writer leaderboard is off for everyone but the publisher until the
+// publisher turns it on for a role, and while off it's not even listed for
+// them (hidden: resolve() leaves it out, the route answers 404).
 var ROLE_DEFAULTS = {
-  editor: {},
-  writer: { drafts_all: false, mon_analytics: false, act_opps_edit: false },
+  editor: { mon_leaderboard: false },
+  writer: { drafts_all: false, mon_analytics: false, act_opps_edit: false, mon_leaderboard: false },
   contributor: Object.assign(offs(['use_monitor', 'drafts_all', 'tab_writers', 'tab_inserts'].concat(MON, ACT)), { act_fact_check: true }),
   viewer: Object.assign(offs(['use_editor', 'drafts_all', 'mon_analytics'].concat(ACT, EDITOR_TOOLS)))
 };
@@ -76,7 +80,11 @@ function can(profile, role, key) {
 // Every switch for one role, for /api/me (the pages read it from there).
 function resolve(profile, role) {
   var out = {};
-  FEATURES.forEach(function (f) { out[f.key] = can(profile, role, f.key); });
+  FEATURES.forEach(function (f) {
+    var ok = can(profile, role, f.key);
+    if (f.hidden && !ok) return; // off and hidden: don't even list it
+    out[f.key] = ok;
+  });
   return out;
 }
 

@@ -142,7 +142,9 @@ function accOn(r,k){ var a=access[r]||{}; if(a[k]===false) return false; if(a[k]
 function renderAccess(){
   var can=ROLE==='publisher', dis=can?'':' disabled';
   var h='<tr><th>Tool</th><th class="c">Publisher</th><th class="c">Editor</th><th class="c">Writer</th><th class="c">Contributor</th><th class="c">Viewer</th></tr>';
-  ACCESS_FEATURES.forEach(function(g){
+  // The writer leaderboard is listed only for the publisher: staff don't see it exists unless it's turned on for them.
+  var groups=ACCESS_FEATURES.concat(can?[['Publisher only unless you share it',[['mon_leaderboard','🏆 Writer leaderboard (off for everyone until you turn it on; while off, staff don\u2019t see it exists)']]]]:[]);
+  groups.forEach(function(g){
     h+='<tr><td colspan="6" style="font-weight:700;font-size:12px;color:var(--text2);padding-top:12px">'+esc(g[0])+'</td></tr>';
     g[1].forEach(function(f){
       h+='<tr><td>'+esc(f[1])+'</td><td class="c"><span class="yes">✓</span></td>'+ACC_ROLES.map(function(r){

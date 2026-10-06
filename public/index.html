@@ -225,6 +225,14 @@ body.no-opps .acc-opps,body.no-write .acc-write,body.no-flag .acc-flag,body.no-f
 .cal-kind.media{background:#f5f3ff;border-color:#ddd6fe;color:#6d28d9}
 .cal-kind.heat{background:#fff7ed;border-color:#fed7aa;color:#c2410c}
 .cal-ev.heat{border-left:3px solid #f97316}
+.lb-table{width:100%;border-collapse:collapse;font-size:13px;background:var(--bg2);border:1px solid var(--border);border-radius:8px}
+.lb-table th{font-size:11px;text-transform:uppercase;letter-spacing:.04em;color:var(--text3);text-align:right;padding:8px 10px;border-bottom:1px solid var(--border);cursor:pointer;white-space:nowrap;user-select:none}
+.lb-table th:first-child,.lb-table td:first-child{text-align:left}
+.lb-table th.on{color:var(--text)}
+.lb-table td{padding:8px 10px;border-bottom:1px solid var(--border);text-align:right;white-space:nowrap;vertical-align:top}
+.lb-table tr.lb-w{cursor:pointer}
+.lb-table tr.lb-w:hover td{background:var(--bg)}
+.lb-up{color:var(--green);font-size:11px}.lb-down{color:var(--hot);font-size:11px}.lb-flat{color:var(--text3);font-size:11px}
 .cal-mode-btn{flex:1;min-width:240px;text-align:left;border:1px solid var(--border);background:var(--surface,#fff);border-radius:8px;padding:10px 12px;cursor:pointer;font:inherit;color:var(--text)}
 .cal-mode-btn:hover{border-color:#60a5fa}
 .cal-mode-btn span{display:block;font-size:.8rem;color:var(--text2);margin-top:3px;line-height:1.4}
@@ -265,6 +273,7 @@ body.no-opps .acc-opps,body.no-write .acc-write,body.no-flag .acc-flag,body.no-f
   <button class="nav-tab" id="tab-btn-12" onclick="switchTab(12)">🏈 Roster watch</button>
   <button class="nav-tab" id="tab-btn-13" onclick="switchTab(13)">👀 Opp Watch</button>
   <button class="nav-tab" id="tab-btn-14" onclick="switchTab(14)">📅 Calendar</button>
+  <button class="nav-tab" id="tab-btn-15" onclick="switchTab(15)" style="display:none">🏆 Leaderboard</button>
 </div>
 
 <!-- ALERTS TAB -->
@@ -905,6 +914,21 @@ body.no-opps .acc-opps,body.no-write .acc-write,body.no-flag .acc-flag,body.no-f
   <div id="calList"><div class="empty"><i class="ti ti-calendar"></i>Loading…</div></div>
 </div>
 
+<!-- WRITER LEADERBOARD -->
+<div class="page" id="page-15">
+  <div style="padding:16px 0 8px;display:flex;justify-content:space-between;align-items:flex-end;gap:10px;flex-wrap:wrap;">
+    <div><h3 style="margin:0;font-size:1.1rem;">🏆 Writer leaderboard</h3>
+      <p style="color:var(--text2);font-size:.85rem;margin:4px 0 0;max-width:72ch;">How each writer's stories are doing, with the change against the period before (green up, red down). Click a column to sort, a writer to see their top stories. Who wrote what comes from the stories saved, submitted or imported in CoPublisher.</p></div>
+    <div style="display:flex;gap:6px;align-items:center;">
+      <select id="lbDays" onchange="loadLeaderboard()" class="cal-sel"><option value="7">Last 7 days</option><option value="30" selected>Last 30 days</option><option value="90">Last 90 days</option></select>
+      <button class="chip" onclick="loadLeaderboard(true)">Refresh</button>
+    </div>
+  </div>
+  <div id="lbKudos"></div>
+  <div id="lbNote" style="font-size:.78rem;color:var(--text3);margin-bottom:6px;"></div>
+  <div class="table-scroll" style="overflow-x:auto;"><table id="lbTable" class="lb-table"></table></div>
+</div>
+
 <div class="bottom-bar">
   <span class="bb-brand">INSIDEMDSPORTS</span>
   <span class="bb-tag">TERPS NEWS MONITOR</span>
@@ -930,6 +954,7 @@ body.no-opps .acc-opps,body.no-write .acc-write,body.no-flag .acc-flag,body.no-f
     }
     // Contributors (freelancers) work in the Content Editor only.
     if (s && s.access && s.access.use_monitor === false) { location.replace('/editor'); return; }
+    applyLeaderboardAccess();
     if (s && s.access && s.role !== 'publisher') applyMonitorAccess();
     if (s && s.role && s.role !== 'publisher' && !s.access) {
       IMSAuth.authFetch('/api/site-profile').then(function (r) { return r.json(); }).then(function (d) {
@@ -987,7 +1012,7 @@ const SCAN_MS = 30 * 60 * 1000;
 // scan run on /alerts still feeds /digest, /podcasts, etc. without
 // re-fetching. vercel.json rewrites every path below back to this file.
 // ============================================================
-var TAB_PATHS = ['/alerts','/digest','/social','/chat','/backlog','/recruiting','/trending','/podcasts','/youtube','/bluesky','/settings','/analytics','/roster','/opps','/calendar'];
+var TAB_PATHS = ['/alerts','/digest','/social','/chat','/backlog','/recruiting','/trending','/podcasts','/youtube','/bluesky','/settings','/analytics','/roster','/opps','/calendar','/leaderboard'];
 function pathToTab(p) {
   p = String(p || '/').replace(/\/+$/, '') || '/';
   if (p === '/' || p === '/index.html' || p === '/index') return 0;
@@ -1009,8 +1034,17 @@ function accessAllows(key) {
   var a = monitorAccess[role];
   return !(a && a[key] === false);
 }
-function monitorCanUse(idx) { return !MON_ACCESS[idx] || accessAllows(MON_ACCESS[idx]); }
+// The writer leaderboard is the publisher's unless they turned it on for a
+// role; for anyone else it isn't even listed (mon_leaderboard, hidden).
+function leaderboardAllowed() {
+  var role = window.IMSAuth && IMSAuth.state && IMSAuth.state.role;
+  if (!role || role === 'publisher') return true;
+  var acc = IMSAuth.state.access; return !!(acc && acc.mon_leaderboard === true);
+}
+function monitorCanUse(idx) { if (idx === 15) return leaderboardAllowed(); return !MON_ACCESS[idx] || accessAllows(MON_ACCESS[idx]); }
+function applyLeaderboardAccess() { var b = document.getElementById('tab-btn-15'); if (b) b.style.display = leaderboardAllowed() ? '' : 'none'; }
 function applyMonitorAccess() {
+  applyLeaderboardAccess();
   Object.keys(MON_ACCESS).forEach(function (i) {
     var show = monitorCanUse(+i);
     var b = document.getElementById('tab-btn-' + i); if (b) b.style.display = show ? '' : 'none';
@@ -1039,6 +1073,7 @@ function switchTab(idx, fromPop) {
   if (idx === 12) loadRosterWatch();
   if (idx === 13) loadOppsSpy();
   if (idx === 14) loadCalendar();
+  if (idx === 15) loadLeaderboard();
   window.scrollTo(0, 0);
   if (!fromPop) {
     try { history.pushState({ imsTab: idx }, '', TAB_PATHS[idx]); } catch (e) {}
@@ -3975,6 +4010,59 @@ async function calDelete(id) {
   var ev = (calData.events || []).filter(function (e) { return e.id === id; })[0];
   if (!confirm('Delete "' + (ev ? ev.title : 'this event') + '" from the calendar?')) return;
   try { await calFetch({ action: 'delete', id: id }); await loadCalendar(); } catch (e) { calSay(calEsc(e.message), true); }
+}
+
+// ---- Writer leaderboard (/api/writer-stats; see api/_writer-stats.js) -------
+var lbData = null, lbSort = 'impressions', lbDir = -1, lbOpen = {};
+var LB_COLS = [
+  ['writer', 'Writer'], ['articles', 'Stories'], ['impressions', 'Google impressions'], ['clicks', 'Google clicks'], ['ctrPct', 'CTR'],
+  ['readers', 'Site readers'], ['readersPerArticle', 'Readers / story'], ['peak', 'Peak'], ['socialPosts', 'Social posts'], ['interactions', 'Social interactions']
+];
+async function loadLeaderboard(refresh) {
+  var t = document.getElementById('lbTable'), note = document.getElementById('lbNote');
+  t.innerHTML = '<tr><td style="text-align:left;padding:14px;">Loading…</td></tr>';
+  try {
+    var r = await IMSAuth.authFetch('/api/writer-stats?days=' + document.getElementById('lbDays').value + (refresh ? '&refresh=1' : ''));
+    var d = await r.json().catch(function () { return {}; });
+    if (!r.ok || d.error) throw new Error(d.error || ('HTTP ' + r.status));
+    lbData = d;
+    document.getElementById('lbKudos').innerHTML = (d.kudos || []).length ? '<div style="border:1px solid #fde68a;background:#fffbeb;border-radius:8px;padding:9px 12px;margin-bottom:8px;font-size:13px;">' + d.kudos.map(function (k) { return '<div style="padding:2px 0;">' + escapeHtml(k) + '</div>'; }).join('') + '</div>' : '';
+    var src = [d.sources.search ? 'Google Search' : null, d.sources.site ? 'site readers (Chartbeat)' : null, d.sources.social ? 'social (Buffer)' : null].filter(Boolean);
+    note.innerHTML = (src.length ? 'From ' + src.join(', ') + '. ' : 'No analytics connected yet: connect them under Analytics. ') +
+      'Change is against the ' + d.days + ' days before. Site readers are summed from readings every 3 hours (a ranking, not exact pageviews). Updated ' + new Date(d.at).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }) + '.' +
+      (d.notes && d.notes.length ? ' <span style="color:var(--hot)">' + escapeHtml(d.notes.join(' · ')) + '</span>' : '');
+    renderLeaderboard();
+  } catch (e) { t.innerHTML = '<tr><td style="text-align:left;padding:14px;">Couldn\'t load the leaderboard: ' + escapeHtml(e.message) + '</td></tr>'; }
+}
+function lbChange(w, k) {
+  if (k === 'writer') return '';
+  if (w.isNew) return '<div class="lb-flat">new</div>';
+  var c = w.change && w.change[k];
+  if (c == null) return '';
+  return '<div class="' + (c > 0 ? 'lb-up' : c < 0 ? 'lb-down' : 'lb-flat') + '">' + (c > 0 ? '▲ ' : c < 0 ? '▼ ' : '') + (c > 0 ? '+' : '') + c + '%</div>';
+}
+function lbFmt(k, v) { if (v == null) return '—'; if (k === 'ctrPct') return v + '%'; return typeof v === 'number' ? v.toLocaleString() : escapeHtml(v); }
+function lbSortBy(k) { if (lbSort === k) lbDir = -lbDir; else { lbSort = k; lbDir = k === 'writer' ? 1 : -1; } renderLeaderboard(); }
+function renderLeaderboard() {
+  var t = document.getElementById('lbTable'); if (!lbData) return;
+  var ws = (lbData.writers || []).slice().sort(function (a, b) {
+    var x = a[lbSort], y = b[lbSort];
+    if (lbSort === 'writer') return lbDir * String(x).localeCompare(String(y));
+    return lbDir * ((x == null ? -1 : x) - (y == null ? -1 : y));
+  });
+  var h = '<tr>' + LB_COLS.map(function (c) { return '<th class="' + (c[0] === lbSort ? 'on' : '') + '" onclick="lbSortBy(\'' + c[0] + '\')">' + c[1] + (c[0] === lbSort ? (lbDir < 0 ? ' ▼' : ' ▲') : '') + '</th>'; }).join('') + '</tr>';
+  if (!ws.length) h += '<tr><td colspan="' + LB_COLS.length + '" style="text-align:left;padding:14px;">No stories by name in this period yet.</td></tr>';
+  ws.forEach(function (w, i) {
+    var key = w.writer;
+    h += '<tr class="lb-w" onclick="lbOpen[this.dataset.k]=!lbOpen[this.dataset.k];renderLeaderboard()" data-k="' + escapeHtml(key) + '">' + LB_COLS.map(function (c) {
+      return '<td>' + (c[0] === 'writer' ? '<b>' + (i + 1) + '. ' + escapeHtml(w.writer) + '</b>' : lbFmt(c[0], w[c[0]])) + lbChange(w, c[0]) + '</td>';
+    }).join('') + '</tr>';
+    if (lbOpen[key]) h += '<tr><td colspan="' + LB_COLS.length + '" style="text-align:left;background:var(--bg);">' + (w.stories || []).map(function (s) {
+      return '<div style="padding:3px 0;font-size:12.5px;">' + (s.url ? '<a href="' + escapeHtml(s.url) + '" target="_blank" rel="noopener">' + escapeHtml(s.headline) + '</a>' : escapeHtml(s.headline)) +
+        ' <span style="color:var(--text3);">' + escapeHtml(s.date) + ' · ' + (s.impressions || 0).toLocaleString() + ' impressions · ' + (s.clicks || 0).toLocaleString() + ' clicks · ' + (s.readers || 0).toLocaleString() + ' readers' + (s.interactions ? ' · ' + s.interactions.toLocaleString() + ' social' : '') + '</span></div>';
+    }).join('') + '</td></tr>';
+  });
+  t.innerHTML = h;
 }
 
 async function loadRosterWatch() {

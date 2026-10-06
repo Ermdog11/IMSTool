@@ -191,6 +191,25 @@ module.exports = async function handler(req, res) {
     // Ombudsman: daily quality review of our last 3 days of articles (best-effort).
     var ombReview = null;
     try { ombReview = await require('./_ombudsman.js').review({}); } catch (e) { console.error('Coverage Desk: ombudsman review failed (non-fatal):', e.message); }
+    // Writer leaderboard kudos (last 7 days): in the memo, and in Team Chat
+    // when the publisher has shared the leaderboard with any role.
+    var kudosLines = [];
+    try {
+      if (S.isConfigured()) {
+        var ksb = S.admin();
+        var ksite = await ksb.from('sites').select('id').eq('slug', 'insidemdsports').single();
+        if (ksite.data) {
+          var WS = require('./_writer-stats');
+          kudosLines = WS.kudos(await WS.get(ksb, ksite.data.id, 7, true));
+          var prof = await require('./_settings-store').getProfile(ksb);
+          var acc = (prof && prof.editorAccess) || {};
+          var shared = ['editor', 'writer', 'contributor', 'viewer'].some(function (r) { return acc[r] && acc[r].mon_leaderboard === true; });
+          if (shared && kudosLines.length) {
+            await require('./_chat-store').postSystemMessage(ksb, { senderName: 'CoPublisher AI', kind: 'system', text: 'Kudos this week: ' + kudosLines.join(' ') + ' (Leaderboard)' });
+          }
+        }
+      }
+    } catch (e) { console.error('Coverage Desk: kudos failed (non-fatal):', e.message); }
 
     // Today's calendar: shown at the top of the email and given to the memo.
     var todayEvents = [];
@@ -234,6 +253,7 @@ module.exports = async function handler(req, res) {
       '<div style="background:#fff;border:1px solid #e8e6e1;border-top:none;border-radius:0 0 8px 8px;padding:18px;font-size:14px;line-height:1.55">' +
       calendarHtml(todayEvents) +
       require('./_ombudsman.js').reviewHtml(ombReview) +
+      (kudosLines.length ? '<div style="border:1px solid #fde68a;background:#fffbeb;border-radius:8px;padding:10px 14px;margin-bottom:16px"><div style="font-size:12px;font-weight:700;color:#b45309;text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px">🏆 Writer kudos · last 7 days</div>' + kudosLines.map(function (k) { return '<div style="font-size:13px;padding:2px 0">' + esc(k) + '</div>'; }).join('') + '<div style="font-size:11px;margin-top:4px"><a href="https://ims-tool.vercel.app/leaderboard" style="color:#2563eb">Full leaderboard</a></div></div>' : '') +
       glanceHtml(yesterday) +
       memo +
       '<p style="color:#888;font-size:11px;margin-top:20px;border-top:1px solid #eee;padding-top:10px">Auto-generated from this morning’s scan of ' + alerts.length + ' rated stories. A starting point &mdash; review before assigning.</p>' +
