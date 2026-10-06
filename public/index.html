@@ -1249,14 +1249,14 @@ function renderAlerts() {
     const isVideo = a.kind === 'video';
     return dayHeader + `<div class="acard ${cardClass}" id="card-${idx}">
       <div class="acard-top">
-             <div class="acard-headline">${isVideo ? '📺 ' : ''}${a.url ? `<a href="${a.url}" target="_blank" rel="noopener" style="color:inherit;text-decoration:underline;">${a.headline}</a>` : a.headline}</div>
+             <div class="acard-headline">${isVideo ? '📺 ' : a.kind === 'podcast' ? '🎙️ ' : ''}${a.url ? `<a href="${a.url}" target="_blank" rel="noopener" style="color:inherit;text-decoration:underline;">${a.headline}</a>` : a.headline}</div>
         <span class="rating ${ratingClass}">${ratingLabel}</span>
       </div>
       ${isVideo && a.thumbnail ? `<a href="${a.url}" target="_blank" rel="noopener"><img src="${a.thumbnail}" style="width:180px;max-width:45%;border-radius:6px;margin:4px 0;" alt=""></a>` : ''}
       <div class="acard-meta">
         <span class="tag ${isVideo ? 'tag-soc' : tagClass}">${isVideo ? 'YouTube' : catLabel}</span>
         ${a.sport ? `<span class="tag tag-gen">${a.sport}</span>` : ''}
-        <span class="asrc">${isVideo ? (a.channel || a.source) : a.source}</span>
+        <span class="asrc">${isVideo ? (a.channel || a.source) : a.kind === 'podcast' ? (a.show || a.source) : a.source}</span>
         <span class="atime">${a.time || (typeof a.ageHours === 'number' ? a.ageHours + 'h ago' : '')}</span>
         ${a.followUp ? `<span class="tag" style="background:var(--red);color:#fff;" title="A new X/Twitter update on a story we're already covering">🔁 Following: ${a.followUp}</span>` : ''}
         ${a.watchedAccount ? `<span class="tag" style="background:var(--text3);color:#fff;" title="From a Maryland beat account you've specifically added to watch">👁 Watched account</span>` : ''}

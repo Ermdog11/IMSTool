@@ -503,13 +503,38 @@ module.exports = async function handler(req, res) {
       });
     } catch (e) { /* YouTube is optional */ }
 
+    // Podcast episodes from the last scan window (Jeff, 2026-10-06: "in the
+    // event a podcast or YouTube video seems highly relevant it should surface
+    // in the main search results"). Same idea as videos: rated in the same
+    // pass, 4-5 join the main feed and digest; the rest stay in the Podcasts tab.
+    var podcastCount = 0;
+    if (!body.xOnly) try {
+      var podHandler = require('./podcasts.js');
+      var podQuery = {};
+      if (userBlocked.length) podQuery.blocked = userBlocked.join(',');
+      var podData = await Promise.race([
+        new Promise(function(resolve) {
+          podHandler({ query: podQuery }, { status: function() { return this; }, json: function(d) { resolve(d); return this; } }).catch(function() { resolve({}); });
+        }),
+        new Promise(function(resolve) { setTimeout(function() { resolve({}); }, 20000); })
+      ]);
+      (podData.episodes || []).filter(function(ep) { return ep.title && ep.url && (ep.age || 0) <= windowHours; }).slice(0, 20).forEach(function(ep) {
+        stories.push({
+          title: ep.title, source: ep.podcast || 'Podcast', url: ep.url,
+          age: ep.age || 0, snippet: (ep.description || '').slice(0, 320),
+          kind: 'podcast', show: ep.podcast || ''
+        });
+        podcastCount++;
+      });
+    } catch (e) { /* podcasts are optional */ }
+
     var redditCount = stories.filter(function(s){return s.source.includes('Reddit');}).length;
     var googleCount = stories.filter(function(s){return !s.source.includes('Reddit') && s.kind !== 'video';}).length;
     var allNames = redditFetches.map(function(f) { return f.name; }).concat(feedConfigs.map(function(f) { return f.name; }));
     var fetchStatuses = results.map(function(r, i) {
       return allNames[i] + ':' + (r.status === 'fulfilled' ? r.value.status : 'FAILED');
     });
-    console.log('Stories:', stories.length, '| Reddit:', redditCount, '| Google:', googleCount, '| YouTube:', videoCount, '| WebSearch:', webSearchCount, (webSearchWarnings.length ? '(' + webSearchWarnings.join('; ') + ')' : ''), '| XSearch:', xSearchCount, (xSearchWarnings.length ? '(' + xSearchWarnings.join('; ') + ')' : ''), '| GoogleSiteSearch:', googleSearchCount, (googleSearchWarnings.length ? '(' + googleSearchWarnings.join('; ') + ')' : ''), '| Own-outlet filtered:', ownFiltered, '| Static pages filtered:', staticFiltered, '| Blocklist size:', ownTitleWordSets.length, '| Blocklist source:', blocklistSource, '| Fetches:', fetchStatuses.join(', '));
+    console.log('Stories:', stories.length, '| Reddit:', redditCount, '| Google:', googleCount, '| YouTube:', videoCount, '| Podcasts:', podcastCount, '| WebSearch:', webSearchCount, (webSearchWarnings.length ? '(' + webSearchWarnings.join('; ') + ')' : ''), '| XSearch:', xSearchCount, (xSearchWarnings.length ? '(' + xSearchWarnings.join('; ') + ')' : ''), '| GoogleSiteSearch:', googleSearchCount, (googleSearchWarnings.length ? '(' + googleSearchWarnings.join('; ') + ')' : ''), '| Own-outlet filtered:', ownFiltered, '| Static pages filtered:', staticFiltered, '| Blocklist size:', ownTitleWordSets.length, '| Blocklist source:', blocklistSource, '| Fetches:', fetchStatuses.join(', '));
 
     if (!stories.length) {
       var diagMsg = 'No stories found. Fetch results: ' + fetchStatuses.join(', ');
@@ -518,7 +543,7 @@ module.exports = async function handler(req, res) {
 
     // Build numbered list for Claude — include the feed snippet where we have one
     var storyLines = stories.map(function(s, i) {
-      var line = (i + 1) + '. ' + (s.kind === 'video' ? '[VIDEO] ' : '') + '[' + s.source + '] ' + s.title + ' (' + (s.age == null ? 'publish date unknown' : s.age + 'h ago') + ')';
+      var line = (i + 1) + '. ' + (s.kind === 'video' ? '[VIDEO] ' : s.kind === 'podcast' ? '[PODCAST] ' : '') + '[' + s.source + '] ' + s.title + ' (' + (s.age == null ? 'publish date unknown' : s.age + 'h ago') + ')';
       if (s.followUp) line += '\n   [DEVELOPING STORY WE ARE ACTIVELY COVERING: ' + s.followUp + ' — do NOT let this tag alone push the rating up. Only treat it as newsworthy despite low engagement if it is a genuine NEW development (a status actually changed, a real update). Reaction, analysis, jokes, or commentary about something that already fully happened rates exactly like any other social post — usually 1-2 — the tag is not a rating boost.]';
       if (s.watchedAccount) line += '\n   [WATCHED ACCOUNT: the publisher has specifically curated this X account as a credible ' + beat.team.short + ' beat source — do not downrate for low/no engagement or unfamiliarity, judge purely on newsworthiness]';
       if (s.snippet) line += '\n   snippet: ' + s.snippet;
@@ -716,7 +741,9 @@ module.exports = async function handler(req, res) {
     var STALE_DAYS = 14;
     var staleCut = Date.now() - STALE_DAYS * 86400000;
     var freshCands = parsed.map(function(item) { return { item: item, orig: stories[item.idx - 1] }; })
-      .filter(function(p) { return p.item && !p.item.irrelevant && p.orig && p.orig.url; })
+      // Videos and podcast episodes carry real dates from their own feeds; a
+      // show page's date is the show's, not the episode's.
+      .filter(function(p) { return p.item && !p.item.irrelevant && p.orig && p.orig.url && p.orig.kind !== 'video' && p.orig.kind !== 'podcast'; })
       .sort(function(x, y) { return (y.item.rating || 0) - (x.item.rating || 0); })
       .slice(0, 60);
     async function realDate(p) {
@@ -795,6 +822,7 @@ module.exports = async function handler(req, res) {
       var orig = stories[item.idx - 1];
       var extra = { url: orig ? orig.url : '', ageHours: orig ? orig.age : null };
       if (orig && orig.kind === 'video') { extra.kind = 'video'; extra.thumbnail = orig.thumbnail || ''; extra.channel = orig.channel || ''; }
+      if (orig && orig.kind === 'podcast') { extra.kind = 'podcast'; extra.show = orig.show || ''; extra.category = 'podcast'; }
       if (orig && orig.followUp) extra.followUp = orig.followUp;
       if (orig && orig.watchedAccount) extra.watchedAccount = true;
       return Object.assign({}, item, extra);
@@ -807,9 +835,11 @@ module.exports = async function handler(req, res) {
     // Check original titles (not Claude's rewrites) for reliable name detection.
     var alumniWatch = B.alumniNames(beat)
       .map(function(name) { return { display: name, lc: name.toLowerCase() }; });
-    // Videos are rated in the same pass but don't go through the article topic caps.
+    // Videos and podcast episodes are rated in the same pass but don't go
+    // through the article topic caps.
     var videoItems = withUrls.filter(function(it) { return it.kind === 'video' && !it.irrelevant; });
-    var articleItems = withUrls.filter(function(it) { return it.kind !== 'video'; });
+    var podcastItems = withUrls.filter(function(it) { return it.kind === 'podcast' && !it.irrelevant && !it.republished; });
+    var articleItems = withUrls.filter(function(it) { return it.kind !== 'video' && it.kind !== 'podcast'; });
 
     var topicStop = B.topicStopRegex(beat);
     var topicRatingCount = {};
@@ -870,6 +900,7 @@ module.exports = async function handler(req, res) {
     var ratedVideos = videoItems.filter(function(v) { return !v.republished; })
       .sort(function(a, b) { return (b.rating || 0) - (a.rating || 0) || (a.time || '').localeCompare(b.time || ''); });
     ratedVideos.forEach(function(v) { if ((v.rating || 0) >= 4) final.push(v); });
+    podcastItems.forEach(function(p) { if ((p.rating || 0) >= 4) final.push(p); });
 
     // Tag the main-feed item that holds each overflowing topic's slot with a "+N more" count.
     var overflowCountByTopic = {};
