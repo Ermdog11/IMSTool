@@ -93,6 +93,20 @@ function glanceHtml(y) {
   return h + '</div>';
 }
 
+// "📅 Today on the calendar" box at the top of the memo.
+function calendarHtml(list) {
+  if (!list || !list.length) return '';
+  var Cal = require('./_calendar');
+  return '<div style="border:1px solid #cfe0f5;background:#f3f8fe;border-radius:8px;padding:10px 14px;margin-bottom:16px">' +
+    '<div style="font-size:12px;font-weight:700;color:#1d4ed8;text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px">📅 Today on the calendar</div>' +
+    list.map(function (e) {
+      return '<div style="font-size:13px;padding:3px 0"><b>' + esc(Cal.timeOf(e)) + '</b> &nbsp;' + esc(e.title) +
+        (e.location ? ' <span style="color:#666">· ' + esc(e.location) + '</span>' : '') +
+        (e.note ? '<div style="font-size:12px;color:#555;margin-left:2px">' + esc(e.note) + '</div>' : '') + '</div>';
+    }).join('') +
+    '<div style="font-size:11px;margin-top:6px"><a href="https://ims-tool.vercel.app/calendar" style="color:#2563eb">Open the calendar</a></div></div>';
+}
+
 module.exports = async function handler(req, res) {
   var who;
   try { who = await require('./_supabase').requireUserOrCron(req, res); }
@@ -143,6 +157,12 @@ module.exports = async function handler(req, res) {
       .join('\n');
     var ownList = ownIndex.slice(0, 25).map(function (a) { return '- ' + a.headline; }).join('\n');
 
+    // Today's calendar: shown at the top of the email and given to the memo.
+    var todayEvents = [];
+    try { todayEvents = await require('./_calendar').eventsOn(); } catch (e) { console.error('Coverage Desk: calendar failed (non-fatal):', e.message); }
+    var Cal = require('./_calendar');
+    var calList = todayEvents.map(function (e) { return '- ' + Cal.timeOf(e) + ': ' + e.title + (e.location ? ' (' + e.location + ')' : '') + (e.note ? ' — ' + e.note : ''); }).join('\n');
+
     var prompt =
       'You are the managing editor of InsideMDSports, a University of Maryland Terrapins beat site. It is the morning of ' + today + '. ' +
       'Write a SHORT daily coverage memo to the publisher — the kind an assistant editor leaves on the desk. Plain, direct, skimmable. ' +
@@ -153,8 +173,10 @@ module.exports = async function handler(req, res) {
       (hasNumbers
         ? "WHAT WORKED YESTERDAY — 3-5 bullets reading YESTERDAY'S NUMBERS below (the publisher also sees the raw figures in a box above your memo, so don't just repeat them): what pulled readers on the site and why it likely did (topic, timing, angle), what did or didn't land on social (Buffer posts and the X account's own tweets), any top site story that got no social push, and how yesterday compared with the prior week, where readers came from (search vs social vs direct, and any shift vs the prior week), and what people searched on Google to find us (Search Console; preliminary numbers). End with 1-2 concrete actions for today drawn from this (e.g. a follow-up on a story that pulled readers, re-push a strong story on social, post at the hour that worked). Use ONLY the numbers given; never invent figures. If a source is missing or thin, say so in a few words rather than guessing.\n"
         : 'WHAT WORKED — write exactly one line: "No analytics from yesterday yet (connect Chartbeat and Buffer under Analytics)." Do not invent numbers or name a top story.\n') +
+      (calList ? "TODAY'S CALENDAR is shown to the publisher in its own box above your memo; don't list it again, but factor it into TODAY'S PRIORITIES (who covers a game, presser or deadline today).\n" : '') +
       "EDITOR'S READ — one or two sentences: an honest take on where the beat is right now and the single thing you would focus on today.\n\n" +
       "TODAY'S RATED NEWS:\n" + (newsList || '(nothing notable in the scan)') + '\n\n' +
+      (calList ? "TODAY'S CALENDAR:\n" + calList + '\n\n' : '') +
       'RECENTLY PUBLISHED BY INSIDEMDSPORTS:\n' + (ownList || '(unavailable this run)') + '\n\n' +
       (hasNumbers ? "YESTERDAY'S NUMBERS (" + yesterday.day + ', Eastern; site readers are summed from readings every 3 hours, a ranking rather than exact pageviews):\n' + JSON.stringify({ site: yesterday.site, social: yesterday.social, x: yesterday.x, googleSearch: yesterday.search, errors: yesterday.errors }) + '\n\n' : '') +
       'Return ONLY clean HTML: <h3> for each section header, <ul><li> for bullets, <p> for the read. No preamble, no markdown fences.';
@@ -173,6 +195,7 @@ module.exports = async function handler(req, res) {
       '<div style="font-family:-apple-system,BlinkMacSystemFont,Arial,sans-serif;max-width:620px;margin:0 auto;color:#1a1a1a">' +
       '<div style="background:#0f1b2d;padding:12px 16px;border-radius:8px 8px 0 0"><span style="color:#fff;font-weight:700">Coverage Desk &mdash; ' + today + '</span></div>' +
       '<div style="background:#fff;border:1px solid #e8e6e1;border-top:none;border-radius:0 0 8px 8px;padding:18px;font-size:14px;line-height:1.55">' +
+      calendarHtml(todayEvents) +
       glanceHtml(yesterday) +
       memo +
       '<p style="color:#888;font-size:11px;margin-top:20px;border-top:1px solid #eee;padding-top:10px">Auto-generated from this morning’s scan of ' + alerts.length + ' rated stories. A starting point &mdash; review before assigning.</p>' +
@@ -180,7 +203,7 @@ module.exports = async function handler(req, res) {
 
     var mailResult = await mailer.sendMail({ subject: 'Coverage Desk — ' + today, html: html });
 
-    console.log('Coverage Desk sent | alerts:', alerts.length, '| own index:', ownIndex.length, '| analytics:', hasNumbers, '| mail:', JSON.stringify(mailResult));
+    console.log('Coverage Desk sent | alerts:', alerts.length, '| own index:', ownIndex.length, '| analytics:', hasNumbers, '| calendar:', todayEvents.length, '| mail:', JSON.stringify(mailResult));
     return res.status(200).json({ ok: true, alerts: alerts.length, ownIndex: ownIndex.length, analytics: hasNumbers ? { site: !!(yesterday.site && yesterday.site.readings), social: !!yesterday.social, x: !!(yesterday.x && yesterday.x.totals), errors: yesterday.errors } : null, mail: mailResult });
   } catch (e) {
     console.error('coverage-desk error:', e.message);
