@@ -3210,17 +3210,26 @@ async function loadOmbudsmanIdeas() {
 // The Ombudsman's quality review of our recent articles (api/_ombudsman.js review()).
 const OMB_SEV = { correction: ['🔴', 'Possible correction'], fix: ['🟡', 'Should fix'], note: ['⚪', 'Note'] };
 function renderOmbReview(r) {
+  // Each article by name first, one line each, then a short overall read
+  // (Jeff, 2026-10-06: "this doesn't say what article it's talking about and
+  // is too wordy").
   const el = document.getElementById('ombudsmanReview'); if (!el) return;
   if (!r) { el.innerHTML = '<div style="font-size:12.5px;color:var(--text3);margin-top:8px;">No review yet. It runs every morning, or press Review our coverage.</div>'; return; }
-  const flagged = (r.articles || []).filter(a => a.verdict !== 'clean'), clean = (r.articles || []).filter(a => a.verdict === 'clean');
-  el.innerHTML = '<div style="font-size:12px;font-weight:700;color:#4338ca;text-transform:uppercase;letter-spacing:.06em;margin:12px 0 6px;">Coverage review · ' + escapeHtml(new Date(r.at).toLocaleString([], { weekday: 'short', hour: 'numeric', minute: '2-digit' })) + ' · ' + (r.articles || []).length + ' articles</div>' +
-    (r.column ? '<div style="font-size:13.5px;line-height:1.55;background:#fff;border:1px solid var(--border);border-radius:8px;padding:10px 12px;margin-bottom:8px;"><i>' + escapeHtml(r.column) + '</i></div>' : '') +
-    flagged.map(a => '<div style="background:#fff;border:1px solid var(--border);border-left:3px solid ' + (a.verdict === 'correction' ? '#dc2626' : '#f59e0b') + ';border-radius:8px;padding:9px 12px;margin-bottom:6px;">' +
-      '<div style="font-weight:600;">' + (a.url ? '<a href="' + escapeHtml(a.url) + '" target="_blank" rel="noopener" style="color:var(--text);">' + escapeHtml(a.headline) + '</a>' : escapeHtml(a.headline)) + ' <span style="font-size:.75rem;color:var(--text3);font-weight:400;">' + escapeHtml(a.writer || '') + ' · ' + escapeHtml(a.date || '') + '</span></div>' +
-      (a.findings || []).map(f => '<div style="font-size:12.5px;margin-top:5px;">' + (OMB_SEV[f.severity] || OMB_SEV.note)[0] + ' <b>' + escapeHtml((OMB_SEV[f.severity] || OMB_SEV.note)[1]) + '</b> · ' + escapeHtml(f.type) + (f.quote ? ' · “' + escapeHtml(f.quote) + '”' : '') +
-        '<div style="color:var(--text2);margin:2px 0 0 18px;">' + escapeHtml(f.issue) + (f.suggestion ? ' <span style="color:var(--green);">→ ' + escapeHtml(f.suggestion) + '</span>' : '') + '</div></div>').join('') +
+  const esc = escapeHtml;
+  const short = (t, n) => { t = String(t || '').trim(); const parts = t.match(/[^.!?]+[.!?]+/g) || [t]; t = parts.slice(0, n).join(' ').trim(); return t; };
+  const order = { correction: 0, fix: 1, clean: 2 };
+  const arts = (r.articles || []).slice().sort((x, y) => (order[x.verdict] || 2) - (order[y.verdict] || 2));
+  const badge = v => v === 'correction' ? '<span style="font-size:11px;font-weight:700;color:#dc2626;">🔴 Possible correction</span>' : v === 'fix' ? '<span style="font-size:11px;font-weight:700;color:#b45309;">🟡 Should fix</span>' : '<span style="font-size:11px;font-weight:700;color:var(--green);">✓ Clean</span>';
+  el.innerHTML = '<div style="font-size:12px;font-weight:700;color:#4338ca;text-transform:uppercase;letter-spacing:.06em;margin:12px 0 6px;">Coverage review · ' + esc(new Date(r.at).toLocaleString([], { weekday: 'short', hour: 'numeric', minute: '2-digit' })) + ' · ' + arts.length + ' article' + (arts.length === 1 ? '' : 's') + '</div>' +
+    arts.map(a => '<div style="background:#fff;border:1px solid var(--border);border-left:3px solid ' + (a.verdict === 'correction' ? '#dc2626' : a.verdict === 'fix' ? '#f59e0b' : '#16a34a') + ';border-radius:8px;padding:8px 11px;margin-bottom:6px;">' +
+      '<div style="font-weight:700;font-size:14px;line-height:1.35;">' + (a.url ? '<a href="' + esc(a.url) + '" target="_blank" rel="noopener" style="color:var(--text);">' + esc(a.headline) + '</a>' : esc(a.headline)) + '</div>' +
+      '<div style="font-size:11.5px;color:var(--text3);margin:1px 0 3px;">' + badge(a.verdict) + (a.writer ? ' · ' + esc(a.writer) : '') + (a.date ? ' · ' + esc(a.date) : '') + '</div>' +
+      ((a.note || (arts.length === 1 && r.column)) ? '<div style="font-size:13px;color:var(--text2);">' + esc(short(a.note || r.column, 1)) + '</div>' : '') +
+      (a.findings || []).slice(0, 3).map(f => '<div style="font-size:12.5px;margin-top:4px;">' + (OMB_SEV[f.severity] || OMB_SEV.note)[0] + ' ' +
+        (f.quote ? '<span style="color:var(--text3);">“' + esc(String(f.quote).slice(0, 90)) + '”</span> ' : '') + esc(short(f.issue, 1)) +
+        (f.suggestion ? ' <span style="color:var(--green);">→ ' + esc(short(f.suggestion, 1)) + '</span>' : '') + '</div>').join('') +
     '</div>').join('') +
-    (clean.length ? '<div style="font-size:12px;color:var(--text3);">✓ Clean: ' + clean.map(a => escapeHtml(a.headline)).join(' · ') + '</div>' : '');
+    (r.column && arts.length > 1 ? '<div style="font-size:13px;color:var(--text2);margin-top:4px;"><b>Overall:</b> ' + esc(short(r.column, 2)) + '</div>' : '');
 }
 async function runOmbReview(btn) {
   btn.disabled = true; const old = btn.textContent; btn.textContent = 'Reviewing… (up to a minute)';
