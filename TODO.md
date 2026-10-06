@@ -58,6 +58,8 @@
 
 ## Done
 
+- **2026-10-06 — Heat spots and an AI-assisted calendar.** `_heat-spots.js` ranks this week's five best times to publish (Chartbeat snapshots by day/hour, blended with the hour-of-day curve, about two thirds; Buffer + X engagement, about one third; 6 AM–11 PM, at most two a day, 3+ hours apart). They go on the calendar as kind `heat` via `_calendar.ensureHeatSpots`: Monday cron `/api/heat-spots`, the first Calendar load of the week, or Coverage Desk if neither ran. Per-person "remind me before every heat spot" is `prefs[email].heat`, and the memo gets a WHEN TO PUBLISH section. The Calendar tab asks editors and publishers how to run it (`settings.mode` `ai` or `manual`, Jeff's ask). In AI mode, `_ai-calendar.js` adds games weekly (one web-search call) and dated items from the morning's rated news (one extract call in Coverage Desk). Dedupe is by same day plus word overlap, and AI items a person deletes are remembered in `dismissed`. Manual mode adds nothing, and has no heat spots.
+
 - **2026-10-06 — Bluesky tab removed from the News Monitor header** (Jeff: "it doesn't account for enough traffic"). The page still works at `/bluesky`; the tab highlight now matches by id instead of position, so removing a header button can't shift the others.
 
 - **2026-10-06 — Coverage Desk email includes the day's calendar events.** `_calendar.eventsOn()` (New York date, all-day items included) feeds a "📅 Today on the calendar" box at the top of the memo, and the list goes to the memo prompt so today's priorities account for them. No events = no box.
