@@ -3633,7 +3633,8 @@ function renderTeam(team, prefs) {
   (team.invites || []).forEach(iv => {
     h += `<div style="border:1px dashed var(--border);border-radius:8px;padding:10px 12px;display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;">
       <div><strong>${iv.email}</strong> <span style="font-size:11px;color:var(--text3);">invited · ${iv.role} · not signed in yet</span></div>
-      <button onclick="teamAction('remove',{inviteId:'${iv.id}'})" style="font-size:11px;border:1px solid var(--border);background:none;border-radius:5px;padding:3px 8px;cursor:pointer;">Cancel</button>
+      <span style="display:flex;gap:6px;"><button onclick="resendInvite('${iv.id}',this)" style="font-size:11px;border:1px solid var(--border);background:none;border-radius:5px;padding:3px 8px;cursor:pointer;">Resend email</button>
+      <button onclick="teamAction('remove',{inviteId:'${iv.id}'})" style="font-size:11px;border:1px solid var(--border);background:none;border-radius:5px;padding:3px 8px;cursor:pointer;">Cancel</button></span>
     </div>`;
   });
   h += '</div>';
@@ -3651,6 +3652,17 @@ function renderTeam(team, prefs) {
   c.innerHTML = h;
 }
 
+// Email a pending invite again (api/team.js resendInvite).
+async function resendInvite(id, btn) {
+  btn.disabled = true; btn.textContent = 'Sending…';
+  try {
+    const res = await IMSAuth.authFetch('/api/team', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'resendInvite', inviteId: id }) });
+    const d = await res.json();
+    btn.textContent = d.error ? 'Failed' : d.emailed ? 'Sent ✓' : 'Not sent';
+    if (d.error || !d.emailed) alert(d.error || d.note);
+  } catch (e) { btn.textContent = 'Failed'; alert(e.message); }
+  setTimeout(() => { btn.disabled = false; btn.textContent = 'Resend email'; }, 4000);
+}
 async function teamAction(action, payload) {
   if (_teamBusy) return; _teamBusy = true;
   try {
