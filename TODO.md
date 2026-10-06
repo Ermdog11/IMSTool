@@ -61,6 +61,15 @@
 ## Done
 
 - **2026-10-06 — Strategy & overlap overview in paragraphs** (Jeff: "paragraphs"). The prompt asks for 2–4 short paragraphs with one idea each. The tab splits older single-block reads every two sentences (`strategyParagraphs`, safe around decimals like 1.76M).
+- **2026-10-06 — Heat spots fixed: no more spots from one viral post** (Jeff, on "#2: publish by 7 AM ... site readers run 39% below typical; posts get 2133% above the usual engagement": "this makes no sense").
+  - **Cause:** social got a third of the score, and a single viral 7 AM post (21x average) outweighed low site readers.
+  - **Fix:** when Chartbeat is connected, site readers decide. Social only nudges a slot by about ±15%, each post is capped at 3x average, and an hour with below-typical site readers is never picked. A day/hour with few readings leans on the general curve (n/(n+3)).
+  - **Wording:** big ratios read as "2.7x typical", and social is only mentioned when it supports the pick. The calendar tag reads "best time to publish".
+  - **This week's spots:** they recompute after deploy (`HEAT_V` bump in `_calendar.js`).
+- **2026-10-06 — Team Chat looks like Slack, with profile photos** (Jeff: "team chat needs to look like a chat/Slack, not a headline list"; "give users options to upload a photo that will show next to their name in chat").
+  - **Layout:** each message is a row with the photo (or colored initials), bold name and time, then the text. A run of messages from one person within 5 minutes groups under one header (time shows on hover). Day dividers read Today, Yesterday or a date. Links are clickable.
+  - **Bot posts:** alerts, breaking drafts, calendar items and kudos come from "🤖 CoPublisher AI" with a small tag.
+  - **Photos:** "🖼️ Your photo" crops and resizes to a 128px square JPEG in the browser. `POST /api/chat {action:'avatar', image}` stores it in a private Blob map (`chat-avatars.json`, `_chat-store.setAvatar`), and chat GET returns the photos for the people in view. No schema change.
 
 - **2026-10-06 — YouTube connected to Analytics, and a daily cross-channel Strategy & overlap read** (Jeff: "wire YouTube analytics connections; I want all of the analytics studied, compared and analyzed so the app can give holistic data and suggestions for content/social media strategy and overlap").
   - **YouTube:** `_youtube-stats.js` uses the app's YOUTUBE_API_KEY, so it needs only the channel's @handle or link: no sign-in, and about 4 quota units per read. It reads subscribers, plus views, likes and comments for the last 50 uploads, a 30-day summary, Shorts (≤3 min) vs long, and best day and hour. It's a new `youtube` connection, part of `gatherContexts`, so the Overall summary and Ask about your audience use it too. Owner-only stats (watch time, retention, traffic sources) still need the YouTube Analytics OAuth connection (later).
