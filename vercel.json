@@ -41,6 +41,9 @@
     "api/transcribe.js": {
       "maxDuration": 300
     },
+    "api/transcript-tidy.js": {
+      "maxDuration": 120
+    },
     "api/transcripts.js": {
       "maxDuration": 120
     },

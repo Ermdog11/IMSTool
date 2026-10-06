@@ -1994,9 +1994,10 @@ async function openLibraryTranscript(id){
   try{
     var r=await trFetch('/api/transcript-library?id='+encodeURIComponent(id)); var d=await r.json();
     if(!r.ok) throw new Error(d.error||('HTTP '+r.status));
-    trState={id:null,libId:d.id,data:{utterances:d.utterances||[],text:d.text||'',duration:d.duration,source:d.source==='youtube'?'youtube':d.source,auto:d.auto},names:d.names||{},name:d.title,timer:null,saved:true};
+    trState={id:null,libId:d.id,data:{utterances:d.utterances||[],text:d.text||'',duration:d.duration,source:d.source==='youtube'?'youtube':d.source,auto:d.auto},names:d.names||{},name:d.title,timer:null,saved:true,breaks:d.breaks||null};
     document.getElementById('tr-status').style.display='none';
     renderTranscript();
+    if(!d.breaks) trTidy();
     document.getElementById('tr-result').scrollIntoView({behavior:'smooth',block:'start'});
   }catch(e){ trStatus(esc(e.message),true); }
 }
@@ -2013,9 +2014,10 @@ async function deleteLibraryTranscript(id,btn){
 async function trAutoSave(libId,source,sourceUrl){
   if(trState.saved||!trState.data) return;
   var mine=trState; mine.saved=true;
+  await trTidy();
   try{
     var r=await trFetch('/api/transcript-library',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'save',id:libId,source:source,sourceName:trState.name,sourceUrl:sourceUrl||'',
-      data:{utterances:trState.data.utterances||[],text:trState.data.text||'',duration:trState.data.duration||null,auto:trState.data.auto},names:trState.names})});
+      data:{utterances:mine.data.utterances||[],text:mine.data.text||'',duration:mine.data.duration||null,auto:mine.data.auto},names:mine.names,breaks:mine.breaks||undefined})});
     var d=await r.json();
     if(!r.ok) throw new Error(d.error||('HTTP '+r.status));
     mine.libId=d.id; mine.name=d.title;
@@ -2119,7 +2121,43 @@ function trTime(ms){
 function trName(sp){ return sp==null?'':(trState.names[sp]||('Speaker '+sp)); }
 function trUtterances(){
   var d=trState.data||{};
-  return trParagraphs(d.utterances&&d.utterances.length?d.utterances:[{speaker:'A',start:0,text:d.text||''}]);
+  var us=d.utterances&&d.utterances.length?d.utterances:[{speaker:'A',start:0,text:d.text||''}];
+  return trState.breaks&&trState.breaks.length?trByBreaks(trSentences(us),trState.breaks):trParagraphs(us);
+}
+// Every sentence with its speaker and the time of the turn it came from.
+function trSentences(turns){
+  var out=[];
+  (turns||[]).forEach(function(t){
+    var text=String(t.text||'').trim(); if(!text) return;
+    (text.match(/[^.!?]+(?:[.!?]+["\u201d\u2019)]*|$)/g)||[text]).forEach(function(x){ x=x.trim(); if(x) out.push({speaker:t.speaker==null?null:t.speaker,start:t.start,text:x}); });
+  });
+  return out;
+}
+// Paragraphs where the AI said they start (/api/transcript-tidy): it reads
+// the sentences and breaks at a new question, topic or speaker, the way an
+// editor would; it never changes a word.
+function trByBreaks(sents,breaks){
+  var starts={}; breaks.forEach(function(n){ starts[n]=1; });
+  var out=[], cur=null;
+  sents.forEach(function(x,n){
+    if(!cur||starts[n]||cur.speaker!==x.speaker){ cur={speaker:x.speaker,start:x.start,text:''}; out.push(cur); }
+    cur.text+=(cur.text?' ':'')+x.text;
+  });
+  return out;
+}
+async function trTidy(){
+  var mine=trState, d=mine.data||{};
+  var sents=trSentences(d.utterances&&d.utterances.length?d.utterances:[{speaker:'A',start:0,text:d.text||''}]);
+  if(sents.length<5) return;
+  mine.tidying=true; if(trState===mine) renderTranscript();
+  try{
+    var r=await trFetch('/api/transcript-tidy',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({sentences:sents.map(function(x){return {s:x.speaker,t:x.text};})})});
+    var out=await r.json();
+    if(r.ok&&out.breaks&&out.breaks.length) mine.breaks=out.breaks;
+  }catch(e){}
+  mine.tidying=false;
+  if(trState===mine) renderTranscript();
+  if(mine.libId&&mine.breaks) trFetch('/api/transcript-library',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'update',id:mine.libId,breaks:mine.breaks})}).catch(function(){});
 }
 // Flowing text, not a row per sentence (Jeff, 2026-10-06: "it shouldn't
 // separate every sentence like this. Needs to be flowing text with paragraphs
@@ -2154,13 +2192,14 @@ function renderTranscript(){
     '<h2 style="margin:0">'+esc(trState.name||'Transcript')+'<span style="font-weight:400;font-size:13px;color:var(--muted)">'+dur+'</span>'+
       (trState.libId?' <a href="#" style="font-size:12px;font-weight:400" onclick="trRename();return false">Rename</a> <span style="font-size:12px;font-weight:400;color:var(--green,#16a34a)">✓ Saved to library</span>':(trState.saved?' <span style="font-size:12px;font-weight:400;color:var(--muted)">Saving…</span>':''))+'</h2>'+
     '<div><button class="btn ghost" style="margin:0 6px 0 0" onclick="trCopyAll(this)">Copy all</button>'+
-    '<button class="btn ghost" style="margin:0" onclick="trAllToDraft()">Send to Copydesk</button></div></div>'+
+    '<button class="btn ghost" style="margin:0" onclick="trAllToDraft()">Send to Content Editor</button></div></div>'+
     '<div style="display:flex;gap:10px;flex-wrap:wrap;margin:12px 0 4px">'+speakers.map(function(sp){
       return '<label style="margin:0;display:flex;align-items:center;gap:6px;font-weight:400">Speaker '+esc(sp)+' is '+
         '<input value="'+esc(trState.names[sp]||'').replace(/"/g,'&quot;')+'" placeholder="name" style="width:150px;padding:5px 7px" onchange="trState.names[\''+esc(sp)+'\']=this.value.trim();trSaveNames();renderTranscript()"></label>';
     }).join('')+'</div>'+
     (L&&L.recording?'<div style="'+TIP_STYLE+'">'+(speakers.length?'Live speaker labels are a first pass.':'This live transcript has no speaker labels.')+' <button class="btn" style="margin:0 0 0 6px;padding:4px 10px;font-size:12.5px" onclick="labelLiveRecording()">Get the full speaker-labeled version</button> <a style="margin-left:6px;font-size:12.5px" download="'+esc(L.name.replace(/[^A-Za-z0-9]+/g,'-'))+'.'+(/mp4/.test(L.recType)?'m4a':'webm')+'" href="'+URL.createObjectURL(L.recording)+'">Save the recording</a></div>':'')+
     (trState.data.source==='youtube'?'<div style="'+TIP_STYLE+'">From the video\u2019s '+(trState.data.auto?'<b>auto-generated</b> YouTube captions, so names and numbers are often wrong. Check every quote against the video.':'own captions.')+' No speaker labels: captions don\u2019t have them.'+(trState.data.author?' Channel: '+esc(trState.data.author)+'.':'')+'</div>':'')+
+    (trState.tidying?'<div class="hint" style="margin:0 0 6px"><span class="spin" style="border-color:var(--border);border-top-color:var(--muted)"></span> Organizing the paragraphs…</div>':'')+
     '<div class="hint" style="margin:0 0 6px">Click <b>Copy</b> to grab a quote, or <b>+ Draft</b> to drop it at the end of your Copydesk draft.</div>'+
     us.map(function(u,i){
       var newSpeaker=i===0||us[i-1].speaker!==u.speaker;
