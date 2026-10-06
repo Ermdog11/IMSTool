@@ -223,6 +223,21 @@ async function deleteEvent(id) {
 // All-day items are reminded relative to 8 AM that day.
 function startMs(e) { return Date.parse(e.start); }
 
+// Today's items (New York date), earliest first, for the Coverage Desk memo
+// (Jeff, 2026-10-06: "daily coverage desk email should include that day's
+// calendar events"). An all-day item counts on its date.
+function nyDay(ms) { return new Date(ms).toLocaleDateString('en-CA', { timeZone: TZ }); }
+async function eventsOn(day) {
+  day = day || nyDay(Date.now());
+  var data = await load();
+  return data.events.filter(function (e) { return e.start && nyDay(startMs(e)) === day; })
+    .sort(function (a, b) { return startMs(a) - startMs(b); });
+}
+function timeOf(e) {
+  return e.allDay ? 'All day' : new Date(e.start).toLocaleTimeString('en-US', { timeZone: TZ, hour: 'numeric', minute: '2-digit' });
+}
+
+
 // Cron: send every reminder that's due. Returns how many went out.
 async function sendDueReminders() {
   var data = await load();
@@ -271,4 +286,4 @@ async function fromEmail(text, meta) {
   return { summary: got.summary, events: saved };
 }
 
-module.exports = { load: load, extract: extract, addEvents: addEvents, setReminder: setReminder, setDefault: setDefault, updateEvent: updateEvent, deleteEvent: deleteEvent, sendDueReminders: sendDueReminders, fromEmail: fromEmail, zonedIso: zonedIso, STEPS: STEPS, TZ: TZ };
+module.exports = { eventsOn: eventsOn, timeOf: timeOf, load: load, extract: extract, addEvents: addEvents, setReminder: setReminder, setDefault: setDefault, updateEvent: updateEvent, deleteEvent: deleteEvent, sendDueReminders: sendDueReminders, fromEmail: fromEmail, zonedIso: zonedIso, STEPS: STEPS, TZ: TZ };
