@@ -77,7 +77,17 @@ async function gscContext(sb, siteId) {
   return out;
 }
 
-// scope: 'all' | 'chartbeat' | 'meta' | 'buffer' | 'x' | 'gsc'. Returns an array of whichever
+// The newsroom's YouTube channel (public numbers; see _youtube-stats.js).
+async function youtubeContext(sb, siteId) {
+  var conn = await Store.getConnection(sb, siteId, 'youtube');
+  if (!conn || !conn.channelId) return null;
+  var out = { source: 'youtube', channel: conn.title || conn.handle };
+  try { Object.assign(out, await require('./_youtube-stats').fetchSummary(conn.channelId)); }
+  catch (e) { out.liveError = e.message; }
+  return out;
+}
+
+// scope: 'all' | 'chartbeat' | 'meta' | 'buffer' | 'x' | 'gsc' | 'youtube'. Returns an array of whichever
 // requested sources are actually connected — never throws for a source
 // that isn't connected, just omits it.
 async function gatherContexts(sb, siteId, scope) {
@@ -101,6 +111,10 @@ async function gatherContexts(sb, siteId, scope) {
   if (scope === 'all' || scope === 'buffer') {
     var bf = await bufferContext(sb, siteId);
     if (bf) contexts.push(bf);
+  }
+  if (scope === 'all' || scope === 'youtube') {
+    var yc = await youtubeContext(sb, siteId);
+    if (yc) contexts.push(yc);
   }
   return contexts;
 }

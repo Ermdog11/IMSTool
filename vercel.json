@@ -131,6 +131,9 @@
     "api/writer-stats.js": {
       "maxDuration": 60
     },
+    "api/analytics-strategy.js": {
+      "maxDuration": 180
+    },
     "api/story-ideas.js": {
       "maxDuration": 120
     },
@@ -185,6 +188,10 @@
     {
       "path": "/api/roster-check?scope=department",
       "schedule": "40 11 * * 1,3,5"
+    },
+    {
+      "path": "/api/analytics-strategy",
+      "schedule": "30 10 * * *"
     },
     {
       "path": "/api/heat-spots",
