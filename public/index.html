@@ -139,12 +139,27 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; b
 
 /* CHAT */
 .chat-layout { display: flex; flex-direction: column; height: calc(100vh - 200px); min-height: 400px; }
-.chat-messages { flex: 1; overflow-y: auto; background: var(--bg2); border-radius: 10px 10px 0 0; padding: 14px; display: flex; flex-direction: column; gap: 10px; border: 1px solid var(--border); border-bottom: none; }
+.chat-messages { flex: 1; overflow-y: auto; background: var(--bg2); border-radius: 10px 10px 0 0; padding: 8px 0; display: flex; flex-direction: column; gap: 0; border: 1px solid var(--border); border-bottom: none; }
+/* Slack-style rows (Jeff, 2026-10-06: "team chat needs to look like a chat/Slack, not a headline list") */
+.chat-row { display: flex; gap: 10px; padding: 4px 16px; align-items: flex-start; }
+.chat-row:hover { background: var(--bg); }
+.chat-row.first { padding-top: 10px; }
+.chat-av { width: 36px; height: 36px; border-radius: 6px; flex-shrink: 0; object-fit: cover; display: flex; align-items: center; justify-content: center; font-size: 14px; font-weight: 700; color: #fff; }
+.chat-gutter { width: 36px; flex-shrink: 0; font-size: 10px; color: transparent; text-align: right; padding-top: 3px; }
+.chat-row:hover .chat-gutter { color: var(--text3); }
+.chat-body { flex: 1; min-width: 0; font-size: 14px; line-height: 1.45; color: var(--text); word-wrap: break-word; }
+.chat-name { font-weight: 700; font-size: 14px; margin-right: 6px; }
+.chat-time { font-size: 11px; color: var(--text3); }
+.chat-pill { font-size: 10px; font-weight: 700; padding: 1px 7px; border-radius: 4px; margin-right: 6px; vertical-align: 1px; color: #fff; }
+.chat-day { display: flex; align-items: center; gap: 10px; margin: 10px 16px 2px; font-size: 11px; font-weight: 700; color: var(--text3); }
+.chat-day::before, .chat-day::after { content: ''; flex: 1; border-top: 1px solid var(--border); }
+.chat-note { text-align: center; font-size: 12px; color: var(--text3); padding: 14px; }
 .chat-msg { max-width: 85%; }
 .chat-sel { display: none; margin: 0 8px 0 0; vertical-align: -2px; width: auto; cursor: pointer; }
 .chat-selecting .chat-sel { display: inline-block; }
 .chat-selecting .chat-msg[data-id] { cursor: pointer; }
-.chat-selecting .chat-msg.picked { outline: 2px solid var(--red); outline-offset: 1px; }
+.chat-selecting .chat-msg.picked, .chat-selecting .chat-row.picked { outline: 2px solid var(--red); outline-offset: -2px; background: var(--hot-light); }
+.chat-selecting .chat-row[data-id] { cursor: pointer; }
 .chat-bulk { display: none; align-items: center; gap: 8px; flex-wrap: wrap; font-size: 12.5px; padding: 8px 10px; background: var(--bg2); border: 1px solid var(--border); border-radius: 8px; margin-bottom: 8px; }
 .chat-selecting .chat-bulk { display: flex; }
 .chat-msg.system { align-self: center; background: var(--bg); border-radius: 20px; padding: 5px 14px; font-size: 11px; color: var(--text3); }
@@ -345,7 +360,8 @@ body.no-opps .acc-opps,body.no-write .acc-write,body.no-flag .acc-flag,body.no-f
 <!-- TEAM CHAT TAB -->
 <div class="page" id="page-3">
   <div class="notice" style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;"><span><i class="ti ti-users"></i> General channel — alerts rated 4+ auto-drop here, and breaking-news auto-drafts land here tagged. Shared with the whole team.</span>
-    <button class="chip" id="chatSelectBtn" style="display:none;" onclick="chatSelectMode(true)">☑️ Select to delete</button></div>
+    <span style="display:flex;gap:6px;align-items:center;"><button class="chip" onclick="document.getElementById('chatPhotoFile').click()" id="chatPhotoBtn">🖼️ Your photo</button><input type="file" id="chatPhotoFile" accept="image/*" style="display:none" onchange="if(this.files[0])chatSetPhoto(this.files[0]);this.value=''">
+    <button class="chip" id="chatSelectBtn" style="display:none;" onclick="chatSelectMode(true)">☑️ Select to delete</button></span></div>
   <div class="chat-wrap" id="chatWrap">
   <div class="chat-bulk">
     <label style="display:flex;gap:5px;align-items:center;cursor:pointer;"><input type="checkbox" id="chatSelAll" onchange="chatSelectAll(this.checked)" style="width:auto"> Select all</label>
@@ -2303,9 +2319,8 @@ async function draftReply(idx, postText) {
 function addChatMessage(text, type, sender) {
   const c = document.getElementById('chatMessages');
   const div = document.createElement('div');
-  div.className = `chat-msg ${type}`;
-  if (sender) div.innerHTML = `<div class="sender">${sender}</div>${text}`;
-  else div.textContent = text;
+  div.className = 'chat-note';
+  div.textContent = (sender ? sender + ': ' : '') + text;
   c.appendChild(div);
   c.scrollTop = c.scrollHeight;
 }
@@ -2313,28 +2328,54 @@ function addChatMessage(text, type, sender) {
 let chatPollTimer = null;
 let chatLatestTs = null;
 
+// Slack-style: photo (or initials), name and time, then the message;
+// a run of messages from the same person within 5 minutes shows the photo
+// and name once. Bot posts (alerts, breaking drafts, calendar, kudos) come
+// from "CoPublisher AI" with a tag.
+let chatAvatars = {}, chatLast = { sender: null, at: 0, day: '' };
+const CHAT_COLORS = ['#2563eb', '#7c3aed', '#db2777', '#ea580c', '#059669', '#0891b2', '#4f46e5', '#b45309'];
+function chatEsc(s) { return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); }
+function chatInitials(n) { const p = String(n || '?').replace(/@.*/, '').split(/[\s._-]+/).filter(Boolean); return ((p[0] || '?')[0] + (p.length > 1 ? p[p.length - 1][0] : '')).toUpperCase(); }
+function chatAvatarHtml(id, name, bot) {
+  if (bot) return '<div class="chat-av" style="background:#111827;">🤖</div>';
+  if (id && chatAvatars[id]) return '<img class="chat-av" src="' + chatEsc(chatAvatars[id]) + '" alt="">';
+  let h = 0; String(name || id || '?').split('').forEach(c => { h = (h * 31 + c.charCodeAt(0)) >>> 0; });
+  return '<div class="chat-av" style="background:' + CHAT_COLORS[h % CHAT_COLORS.length] + ';">' + chatEsc(chatInitials(name)) + '</div>';
+}
+function chatDayLabel(d) {
+  const t = new Date(); const y = new Date(Date.now() - 86400000);
+  if (d.toDateString() === t.toDateString()) return 'Today';
+  if (d.toDateString() === y.toDateString()) return 'Yesterday';
+  return d.toLocaleDateString([], { weekday: 'long', month: 'long', day: 'numeric' });
+}
 function renderChatMessage(m) {
   const c = document.getElementById('chatMessages');
-  const div = document.createElement('div');
-  const myId = window.IMSAuth && IMSAuth.state && IMSAuth.state.user && IMSAuth.state.user.id;
-  if (m.kind === 'breaking' || m.kind === 'alert-drop') {
-    div.className = 'chat-msg alert-drop';
-    const tag = m.tag ? `<span style="background:var(--red);color:#fff;font-size:10px;font-weight:700;padding:1px 7px;border-radius:20px;margin-right:6px;vertical-align:1px;">${m.tag}</span>` : '';
-    const link = (m.meta && m.meta.reviewUrl) ? ` — <a href="${m.meta.reviewUrl}" target="_blank" rel="noopener">open draft</a>` : '';
-    div.innerHTML = `<div class="alert-headline">${tag}🚨 ${m.text}${link}</div><div class="alert-meta">${new Date(m.created_at).toLocaleString()}</div>`;
-  } else if (m.kind === 'calendar') {
-    // Calendar items come from emailed text: always escaped.
-    div.className = 'chat-msg alert-drop';
-    div.style.background = 'var(--blue-light)'; div.style.borderColor = '#bfdbfe';
-    const e = s => String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-    div.innerHTML = `<div class="alert-headline" style="color:var(--blue)"><span style="background:var(--blue);color:#fff;font-size:10px;font-weight:700;padding:1px 7px;border-radius:20px;margin-right:6px;vertical-align:1px;">${e(m.tag || 'Calendar')}</span>📅 ${e(m.text)} — <a href="#" onclick="switchTab(14);return false">open calendar</a></div><div class="alert-meta">${new Date(m.created_at).toLocaleString()}</div>`;
-  } else if (m.kind === 'system') {
-    div.className = 'chat-msg system';
-    div.textContent = m.text;
-  } else {
-    div.className = 'chat-msg ' + (m.sender_user_id && m.sender_user_id === myId ? 'me' : 'other');
-    div.innerHTML = `<div class="sender">${m.sender_name || ''}</div>${m.text.replace(/</g,'&lt;')}`;
+  const at = new Date(m.created_at), dayKey = at.toDateString();
+  const bot = m.kind && m.kind !== 'user';
+  const senderKey = bot ? 'bot' : (m.sender_user_id || m.sender_name || '?');
+  if (dayKey !== chatLast.day) {
+    const dv = document.createElement('div'); dv.className = 'chat-day'; dv.textContent = chatDayLabel(at); c.appendChild(dv);
+    chatLast = { sender: null, at: 0, day: dayKey };
   }
+  const grouped = !bot && chatLast.sender === senderKey && at - chatLast.at < 5 * 60000;
+  const time = at.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+  let body = '';
+  if (m.kind === 'breaking' || m.kind === 'alert-drop') {
+    const link = (m.meta && m.meta.reviewUrl) ? ' <a href="' + chatEsc(m.meta.reviewUrl) + '" target="_blank" rel="noopener">Open draft</a>' : '';
+    body = '<span class="chat-pill" style="background:var(--red);">' + chatEsc(m.tag || 'Alert') + '</span>' + chatEsc(m.text) + link;
+  } else if (m.kind === 'calendar') {
+    body = '<span class="chat-pill" style="background:var(--blue);">' + chatEsc(m.tag || 'Calendar') + '</span>📅 ' + chatEsc(m.text) + ' <a href="#" onclick="switchTab(14);return false">Open calendar</a>';
+  } else if (bot) {
+    body = chatEsc(m.text);
+  } else {
+    body = chatEsc(m.text).replace(/(https?:\/\/[^\s<]+)/g, '<a href="$1" target="_blank" rel="noopener">$1</a>').replace(/\n/g, '<br>');
+  }
+  const div = document.createElement('div');
+  div.className = 'chat-row' + (grouped ? '' : ' first');
+  div.innerHTML = grouped
+    ? '<div class="chat-gutter">' + chatEsc(time.replace(/\s?[AP]M$/i, '')) + '</div><div class="chat-body">' + body + '</div>'
+    : chatAvatarHtml(m.sender_user_id, m.sender_name, bot) + '<div class="chat-body"><div><span class="chat-name">' + chatEsc(bot ? 'CoPublisher AI' : (m.sender_name || 'Someone')) + '</span><span class="chat-time">' + chatEsc(time) + '</span></div>' + body + '</div>';
+  chatLast.sender = senderKey; chatLast.at = +at;
   // Publisher bulk delete: every saved message carries its id and a checkbox
   // (shown only in select mode); clicking the message toggles it too.
   if (m.id) {
@@ -2351,6 +2392,25 @@ function renderChatMessage(m) {
   c.appendChild(div);
   c.scrollTop = c.scrollHeight;
   chatLatestTs = m.created_at;
+}
+
+// Your chat photo: resized in the browser to a 128px square JPEG, then saved.
+async function chatSetPhoto(file) {
+  const btn = document.getElementById('chatPhotoBtn');
+  if (!/^image\//.test(file.type)) return alert('Pick an image file.');
+  btn.disabled = true; btn.textContent = 'Saving…';
+  try {
+    const img = await new Promise((ok, bad) => { const i = new Image(); i.onload = () => ok(i); i.onerror = () => bad(new Error('Couldn\'t read that image.')); i.src = URL.createObjectURL(file); });
+    const size = 128, cv = document.createElement('canvas'); cv.width = cv.height = size;
+    const side = Math.min(img.naturalWidth, img.naturalHeight);
+    cv.getContext('2d').drawImage(img, (img.naturalWidth - side) / 2, (img.naturalHeight - side) / 2, side, side, 0, 0, size, size);
+    const data = cv.toDataURL('image/jpeg', 0.82);
+    const r = await IMSAuth.authFetch('/api/chat', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'avatar', image: data }) });
+    const d = await r.json().catch(() => ({}));
+    if (!r.ok || d.error) throw new Error(d.error || ('HTTP ' + r.status));
+    await loadChatMessages();
+  } catch (e) { alert('Couldn\'t save your photo: ' + e.message); }
+  btn.disabled = false; btn.textContent = '🖼️ Your photo';
 }
 
 function chatSelectMode(on) {
@@ -2396,9 +2456,10 @@ async function loadChatMessages() {
     const d = await r.json();
     if (d.error) { c.innerHTML = `<div class="chat-msg system">${d.error}</div>`; return; }
     c.innerHTML = '';
-    chatLatestTs = null;
+    chatLatestTs = null; chatLast = { sender: null, at: 0, day: '' };
+    chatAvatars = Object.assign({}, chatAvatars, d.avatars || {});
     (d.messages || []).forEach(renderChatMessage);
-    if (!(d.messages || []).length) c.innerHTML = '<div class="chat-msg system">No messages yet — say hello, or wait for the next scan / breaking story.</div>';
+    if (!(d.messages || []).length) c.innerHTML = '<div class="chat-note">No messages yet. Say hello, or wait for the next breaking story.</div>';
   } catch (e) {
     c.innerHTML = `<div class="chat-msg system">Couldn't load chat — ${e.message}</div>`;
   }
@@ -2409,6 +2470,7 @@ async function pollChatMessages() {
   try {
     const r = await IMSAuth.authFetch('/api/chat?since=' + encodeURIComponent(chatLatestTs));
     const d = await r.json();
+    chatAvatars = Object.assign({}, chatAvatars, d.avatars || {});
     (d.messages || []).forEach(renderChatMessage);
   } catch (e) { /* silent — next poll tries again */ }
 }
