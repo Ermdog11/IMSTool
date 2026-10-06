@@ -22,6 +22,7 @@ Last updated: 2026-09-13
 | Feature | What it does for the customer |
 |---|---|
 | All-source aggregation | Pulls from ~60 free feeds — Google News, Bing News, Reddit, team/beat blogs, official athletics site, regional papers, national outlets — with no paid API costs passed on. |
+| Sites search engines miss | A small outlet that Google News and Bing don't index, or whose feed address changed, can be read straight from its own site: CoPublisher finds the feed the site advertises, tries the usual feed addresses, or reads the latest headlines off its home page. |
 | Watch-list-driven coverage | Tracks ~250 named people (players, recruits, targets, coaches, staff, alumni, beat reporters) — not just the team name — so niche news isn't missed. |
 | AI rating & triage | One pass rates every story 1–5, assigns a category and sport, flags irrelevant items, recycled/republished stories, and stories that need a deeper read. |
 | Name-collision handling | Knows the difference between your alum and an unrelated athlete with the same name. |
