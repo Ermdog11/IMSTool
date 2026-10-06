@@ -60,6 +60,11 @@
 
 ## Done
 
+- **2026-10-06 — Ombudsman now does what a real ombudsman does: quality review of our own coverage** (Jeff: "it needs more quality control and the functions a real ombudsman would do").
+  - **What it checks:** `_ombudsman.review()` reads our articles from the last 3 days (knowledge base, AI drafts excluded) plus earlier headlines for consistency. For each it flags accuracy, headline, sourcing, speculation, fairness, context, tone, consistency, disclosure and clarity problems, with severity (correction, fix or note), the exact quote and the fix. It also writes a short ombudsman's column on balance and fairness across the coverage. It never asserts what it can't support; unconfirmed items say "verify".
+  - **When it runs:** daily in Coverage Desk (a ⚖️ box at the top of the memo), or on demand with Review our coverage on the Story backlog tab's new ⚖️ Ombudsman panel, which also holds Story ideas. One Claude call, saved to Blob (`ombudsman-review.json`).
+  - **Idea types:** now also accountability and reader-question.
+
 - **2026-10-06 — "💡 Ombudsman: 5 ideas now" button on the Story backlog tab** (Jeff asked where the Ombudsman is: it only ran inside update emails). `POST /api/story-ideas {action:'ombudsman', alerts}` runs it on demand with the page's latest scan, and the five show at the top of the tab. maxDuration is 60.
 
 - **2026-10-06 — Ombudsman: five story ideas in every update email** (Jeff). This is the first cut of the coverage-ideas agent below. `_ombudsman.js` makes one forced-tool Claude call per rolling digest (3 a day). It reads the update's rated news, our recent headlines (no repeats; follow-ups encouraged), Opp Watch gaps from the last 3 days, the next 7 days of calendar, and "Fewer like this" feedback. The mix: at least one gap, one follow-up, and one tied to an upcoming event. The "💡 Five story ideas" box goes at the bottom of the email. The latest five are saved to Blob and shown at the top of the Story backlog tab with Write it.
