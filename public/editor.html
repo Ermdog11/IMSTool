@@ -63,7 +63,9 @@ button.btn:disabled{opacity:.6;cursor:default}
 .savedmsg{color:var(--green);font-size:12px;font-weight:600;margin-left:8px}
 .dm-filters{display:grid;grid-template-columns:2fr 1fr 1fr 1fr;gap:8px;margin-bottom:8px}
 .dm-filters input,.dm-filters select{margin:0;font-size:13px;padding:7px 9px}
-.dm-bulk{display:flex;align-items:center;gap:10px;font-size:12.5px;color:var(--muted);min-height:30px}
+.dm-bulk{display:flex;align-items:center;gap:10px;flex-wrap:wrap;font-size:12.5px;color:var(--muted);min-height:30px;padding:0 4px}
+.dm-all{display:flex;align-items:center;gap:6px;margin:0;cursor:pointer;font-weight:600;color:var(--text)}
+.dm-all input{width:auto;margin:0}
 .dm-row{display:grid;grid-template-columns:22px minmax(0,1fr) 128px 120px 110px 178px;gap:10px;align-items:center;padding:9px 4px;border-top:1px solid var(--border);font-size:13px}
 .dm-row.head{border-top:0;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.03em;color:var(--muted);padding-top:2px}
 .dm-row input[type=checkbox]{width:auto;margin:0}
@@ -1551,8 +1553,7 @@ function renderDraftsList(){
   var rows=list.slice(dmState.page*DM_PAGE,(dmState.page+1)*DM_PAGE);
   if(!dmState.all.length){ c.innerHTML='<div class="empty">No drafts yet. Save one from Copydesk, or email one in.</div>'; document.getElementById('dm-pager').innerHTML=''; renderDmBulk(); return; }
   if(!list.length){ c.innerHTML='<div class="empty">No drafts match.</div>'; document.getElementById('dm-pager').innerHTML=''; renderDmBulk(); return; }
-  var allOn=rows.length&&rows.every(function(d){return dmState.sel[d.id];});
-  c.innerHTML='<div class="dm-row head"><input type="checkbox" title="Select all on this page" '+(allOn?'checked ':'')+'onchange="dmSelectPage(this.checked)"><span>Headline</span><span>Status</span><span>Writer</span><span>Updated</span><span></span></div>'+
+  c.innerHTML='<div class="dm-row head"><span></span><span>Headline</span><span>Status</span><span>Writer</span><span>Updated</span><span></span></div>'+
     rows.map(function(d){
       var src=d.source||'copydesk';
       var badges=(d.tier==='vip'&&!singleTier()?'<span class="dm-badge vip">VIP</span>':'')+(src!=='copydesk'?'<span class="dm-badge '+(src==='email'?'email':src==='breaking'?'breaking':'')+'">'+esc(DM_SOURCES[src]||src)+'</span>':'');
@@ -1576,14 +1577,23 @@ function renderDraftsList(){
   renderDmBulk();
 }
 function dmSelect(id,on){ if(on) dmState.sel[id]=1; else delete dmState.sel[id]; renderDmBulk(); }
-function dmSelectPage(on){
-  var list=filteredDrafts().slice(dmState.page*DM_PAGE,(dmState.page+1)*DM_PAGE);
-  list.forEach(function(d){ if(on) dmState.sel[d.id]=1; else delete dmState.sel[d.id]; });
+// "Select all" sits in the bar above the list (Jeff, 2026-10-06: "check all
+// boxes atop any lists with bulk delete"), so it shows on phones too, where the
+// column header row is hidden. It ticks every draft the filters match, on every
+// page, not just the 25 on screen.
+function dmSelectAll(on){
+  filteredDrafts().forEach(function(d){ if(on) dmState.sel[d.id]=1; else delete dmState.sel[d.id]; });
   renderDraftsList();
 }
 function renderDmBulk(){
+  var bar=document.getElementById('dm-bulk');
+  var list=filteredDrafts();
+  if(!list.length){ bar.innerHTML=''; return; }
   var ids=Object.keys(dmState.sel).filter(function(id){ return dmState.all.some(function(d){return d.id===id;}); });
-  document.getElementById('dm-bulk').innerHTML=ids.length?'<b style="color:var(--text)">'+ids.length+' selected</b> <button class="btn ghost" style="margin:0;padding:4px 10px;font-size:12px" onclick="dmDelete(Object.keys(dmState.sel))">Delete selected</button> <a href="#" onclick="dmState.sel={};renderDraftsList();return false">Clear</a>':'';
+  var on=list.filter(function(d){return dmState.sel[d.id];}).length;
+  bar.innerHTML='<label class="dm-all"><input type="checkbox" id="dm-all" '+(on===list.length?'checked ':'')+'onchange="dmSelectAll(this.checked)"> Select all'+(list.length>1?' '+list.length:'')+'</label>'+
+    (ids.length?'<b style="color:var(--text)">'+ids.length+' selected</b> <button class="btn ghost" style="margin:0;padding:4px 10px;font-size:12px" onclick="dmDelete(Object.keys(dmState.sel))">Delete selected</button> <a href="#" onclick="dmState.sel={};renderDraftsList();return false">Clear</a>':'');
+  document.getElementById('dm-all').indeterminate=on>0&&on<list.length;
 }
 // Quick edits save straight away; the row updates in place.
 async function dmQuick(id,fields){
@@ -1631,7 +1641,8 @@ function dmDelete(ids){
 function dmFlushDelete(){
   var p=dmState.pendingDelete; if(!p) return;
   clearTimeout(p.timer); dmState.pendingDelete=null;
-  fetch('/api/drafts?ids='+encodeURIComponent(p.ids.join(',')),{method:'DELETE'}).then(function(r){ if(!r.ok) throw new Error('HTTP '+r.status); })
+  var calls=[]; for(var i=0;i<p.ids.length;i+=100) calls.push(fetch('/api/drafts?ids='+encodeURIComponent(p.ids.slice(i,i+100).join(',')),{method:'DELETE',keepalive:true}).then(function(r){ if(!r.ok) throw new Error('HTTP '+r.status); }));
+  Promise.all(calls)
     .catch(function(e){ dmState.all=dmState.all.concat(p.removed); renderDraftsList(); dmToast('Couldn’t delete: '+e.message); });
 }
 window.addEventListener('beforeunload',dmFlushDelete);

@@ -2310,7 +2310,14 @@ function chatSelectAll(on) {
   chatSelCount();
 }
 function chatPicked() { return Array.from(document.querySelectorAll('#chatMessages .chat-sel:checked')).map(cb => cb.parentNode.dataset.id); }
-function chatSelCount() { const el = document.getElementById('chatSelCount'); if (el) el.textContent = chatPicked().length + ' selected'; }
+function chatSelCount() {
+  const el = document.getElementById('chatSelCount'); if (!el) return;
+  const n = chatPicked().length, total = document.querySelectorAll('#chatMessages .chat-sel').length;
+  el.textContent = n + ' selected';
+  // Keep the "Select all" box at the top honest as messages are ticked one by one.
+  const all = document.getElementById('chatSelAll');
+  if (all) { all.checked = total > 0 && n === total; all.indeterminate = n > 0 && n < total; }
+}
 async function chatDeleteSelected(btn) {
   const ids = chatPicked();
   if (!ids.length) return alert('Tick the messages to delete first.');
