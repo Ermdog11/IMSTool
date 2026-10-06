@@ -118,6 +118,9 @@
     },
     "api/social-promo-check.js": {
       "maxDuration": 60
+    },
+    "api/email-drafts.js": {
+      "maxDuration": 60
     }
   },
   "rewrites": [
@@ -140,6 +143,10 @@
     }
   ],
   "crons": [
+    {
+      "path": "/api/email-drafts",
+      "schedule": "*/5 * * * *"
+    },
     {
       "path": "/api/opps-spy?run=1",
       "schedule": "*/15 * * * *"
