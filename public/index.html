@@ -299,7 +299,7 @@ body.no-opps .acc-opps,body.no-write .acc-write,body.no-flag .acc-flag,body.no-f
     <div class="metric metric-link" role="button" tabindex="0" title="Show these stories" onclick="metricFilter('5')" onkeydown="if(event.key==='Enter')metricFilter('5')"><div class="metric-label">Breaking (5)</div><div class="metric-value" id="m-r5">—</div><div class="metric-sub">immediate email</div></div>
     <div class="metric metric-link" role="button" tabindex="0" title="Show these stories" onclick="metricFilter('4')" onkeydown="if(event.key==='Enter')metricFilter('4')"><div class="metric-label">High (4)</div><div class="metric-value" id="m-r4">—</div><div class="metric-sub">2-hr digest</div></div>
     <div class="metric metric-link" role="button" tabindex="0" title="Show these stories" onclick="metricFilter('recruiting')" onkeydown="if(event.key==='Enter')metricFilter('recruiting')"><div class="metric-label">Recruiting</div><div class="metric-value" id="m-rec">—</div><div class="metric-sub">FB &amp; BK priority</div></div>
-    <div class="metric"><div class="metric-label">Last scan</div><div class="metric-value" id="m-last" style="font-size:14px;padding-top:3px;">—</div><div class="metric-sub">next in <span id="m-next">—</span></div></div>
+    <div class="metric"><div class="metric-label">Last scan</div><div class="metric-value" id="m-last" style="font-size:14px;padding-top:3px;">—</div><div class="metric-sub">next scheduled <span id="m-next">—</span></div></div>
   </div>
   <div class="scan-bar">
     <div class="scan-indicator" style="flex-direction:column;align-items:stretch;gap:4px;">
@@ -313,7 +313,7 @@ body.no-opps .acc-opps,body.no-write .acc-write,body.no-flag .acc-flag,body.no-f
     </div>
     <div style="display:flex;gap:8px;flex-wrap:wrap;">
       <button class="scan-btn" style="background:#fff;color:var(--fg);border:1px solid var(--border);" onclick="openExcludeSettings()"><i class="ti ti-ban"></i> Exclude sources</button>
-      <button class="scan-btn" id="scanBtn" onclick="runScan(true)" title="Refresh the newsroom's shared scan (if it's more than 5 minutes old)"><i class="ti ti-refresh"></i> Scan now</button>
+      <button class="scan-btn" id="scanBtn" onclick="runScan(true)" title="Run a fresh scan now (about 2 minutes; skipped if the last one is under 5 minutes old). Opening the page just shows the latest saved scan."><i class="ti ti-refresh"></i> Scan now</button>
     </div>
   </div>
   <div class="filters">
@@ -1027,7 +1027,23 @@ let currentFilter = 'all';
 let savedEmail = '';
 let lastScanTime = null;
 let countdownInterval = null;
-const SCAN_MS = 30 * 60 * 1000;
+// Opening the page never runs a new scan (Jeff, 2026-10-06: "unless it costs
+// very little, the tool doesn't need to systematically scan news when opened";
+// a full scan is ~$0.20-0.30 of Claude). It shows the newsroom's latest saved
+// scan, from the 3x/day scheduled digest scans or anyone's "Scan now", and an
+// open tab checks for a newer saved one every SCAN_MS (free). A new scan runs
+// only from "Scan now" (or when nothing has ever been saved).
+const SCAN_MS = 10 * 60 * 1000;
+// The scheduled scans (vercel.json, rolling-digest crons), UTC hours.
+const SCHEDULED_SCAN_UTC = [12, 16, 21];
+function nextScheduledScan() {
+  const now = new Date();
+  for (let d = 0; d < 2; d++) for (const h of SCHEDULED_SCAN_UTC) {
+    const t = Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() + d, h);
+    if (t > now.getTime()) return t;
+  }
+  return null;
+}
 
 // ============================================================
 // SECTION ROUTING
@@ -2021,7 +2037,7 @@ async function sendRecordsRequest(idx, btn) {
 // the automatic rating-4/5 breaking drafts), saves it to Editorial Desk drafts
 // and opens the Content Editor on it. A story that already has a draft just
 // opens that one. The tab is opened up front, synchronously, so popup blockers
-// don't eat it once the ~20-40s draft call returns.
+// don't eat it once the ~30-90s draft call returns.
 async function writeIt(idx, btn) {
   const a = allAlerts[idx];
   return writeDraft({ headline: a.headline, summary: a.summary, source: a.source, time: a.time, category: a.category, url: a.url },
@@ -2030,11 +2046,11 @@ async function writeIt(idx, btn) {
 
 // The page the new tab shows while the draft is written (Jeff, 2026-10-06:
 // "this screen needs to look better while it writes"): the headline, an
-// estimated progress bar against the usual ~30s (held at 95% until the draft
+// estimated progress bar against the usual ~45s (held at 95% until the draft
 // is ready) and the step it's probably on. Phone-first, follows dark mode.
 function draftLoadingHtml(headline) {
   const h = String(headline || 'this story').replace(/&/g,'&amp;').replace(/</g,'&lt;');
-  const steps = ['Reading the story', 'Finding our related articles to link', 'Writing in house style', 'Writing the headline and fact-check notes', 'Saving to your drafts'];
+  const steps = ['Reading the story', 'Checking our archive, roster and calendar', 'Looking up current facts', 'Writing in house style', 'Adding the headline and fact-check notes'];
   return '<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">' +
     '<title>Writing draft…</title><style>' +
     ':root{--bg:#f5f7fb;--card:#fff;--ink:#111827;--muted:#6b7280;--line:#e5e7eb;--accent:#2563eb;--track:#eaf1ff}' +
@@ -2048,11 +2064,11 @@ function draftLoadingHtml(headline) {
     '.dot{width:18px;height:18px;border-radius:50%;border:2px solid var(--line);flex:none;display:flex;align-items:center;justify-content:center;font-size:11px}' +
     'li.on{color:var(--ink);font-weight:600}li.on .dot{border-color:var(--accent);border-top-color:transparent;animation:spin .8s linear infinite}li.done .dot{background:var(--accent);border-color:var(--accent);color:#fff}' +
     '@keyframes spin{to{transform:rotate(360deg)}}.foot{font-size:12px;color:var(--muted);margin-top:18px;text-align:center}' +
-    '</style></head><body><div class="card"><div class="top"><div class="pen">✍️</div><div><div class="lbl">Writing a draft</div><div class="sub">Usually about 30 seconds</div></div></div>' +
+    '</style></head><body><div class="card"><div class="top"><div class="pen">✍️</div><div><div class="lbl">Writing a draft</div><div class="sub">Usually under a minute</div></div></div>' +
     '<h1>' + h + '</h1><div class="bar"><div class="fill" id="f"></div></div><div class="meta"><span id="p">0%</span><span id="t">0s</span></div>' +
     '<ul>' + steps.map(function (x) { return '<li><span class="dot"></span>' + x + '</li>'; }).join('') + '</ul>' +
     '<div class="foot">The Content Editor opens here when it’s ready.</div></div>' +
-    '<script>var s=Date.now(),li=document.querySelectorAll("li");function tick(){var e=(Date.now()-s)/1000,p=Math.min(95,Math.round(100*(1-Math.exp(-e/14))));' +
+    '<script>var s=Date.now(),li=document.querySelectorAll("li");function tick(){var e=(Date.now()-s)/1000,p=Math.min(95,Math.round(100*(1-Math.exp(-e/22))));' +
     'document.getElementById("f").style.width=p+"%";document.getElementById("p").textContent=p+"%";document.getElementById("t").textContent=Math.round(e)+"s";' +
     'var k=Math.min(li.length-1,Math.floor(p/20));for(var i=0;i<li.length;i++){li[i].className=i<k?"done":i===k?"on":"";li[i].firstChild.textContent=i<k?"✓":"";}}tick();setInterval(tick,500);<\/script></body></html>';
 }
@@ -2156,7 +2172,7 @@ async function runScan(force) {
   btn.disabled = true;
   btn.innerHTML = '<i class="ti ti-loader spin"></i> Scanning...';
   dot.style.background = '#cf0315';
-  txt.innerHTML = '<strong>Checking for news</strong> — loading your newsroom\'s latest scan (a fresh scan takes about 2 minutes)...';
+  txt.innerHTML = force ? '<strong>Scanning for news</strong> — a fresh scan takes about 2 minutes...' : '<strong>Loading</strong> your newsroom\'s latest scan...';
   // Keep the current stories on screen while checking; most checks are instant.
   if (!allAlerts.length) document.getElementById('alertsContainer').innerHTML = '<div class="empty"><i class="ti ti-loader spin"></i>Searching news, Reddit, social, podcasts, recruiting boards...</div>';
   startScanProgress();
@@ -2166,7 +2182,7 @@ async function runScan(force) {
     const res = await fetch('/api/scan', {
       method: 'POST',
       headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({ shared: true, force: !!force, flagged: getFlagged(), blockedSources: allExcludedTerms() })
+      body: JSON.stringify({ shared: true, force: !!force, savedOnly: !force, flagged: getFlagged(), blockedSources: allExcludedTerms() })
     });
     const data = await res.json();
     if (data.error) throw new Error(typeof data.error === 'string' ? data.error : data.error.message || 'API error');
@@ -2204,15 +2220,17 @@ async function runScan(force) {
       .filter(s => !EXCLUDED.some(ex => (s.source||'').toLowerCase().includes(ex.toLowerCase())))
       .filter(s => !isBlockedSource(s.source) && !isHidden(s.url));
     allVideos = (data.videos || []).filter(v => !isBlockedSource(v.source || v.channel) && !isHidden(v.url));
-    // Countdown runs from when the shared scan actually happened; while another
-    // tab is refreshing it, check again in a minute.
-    lastScanTime = data.refreshing ? Date.now() - SCAN_MS + SHARED_RETRY_MS : scanAtServer;
+    // Check for a newer saved scan SCAN_MS from now (free); while another tab
+    // is running a new scan, check again in a minute.
+    lastScanTime = data.refreshing ? Date.now() - SCAN_MS + SHARED_RETRY_MS : Date.now();
 
     document.getElementById('m-total').textContent = allAlerts.length;
     document.getElementById('m-r5').textContent = allAlerts.filter(a => a.rating === 5).length;
     document.getElementById('m-r4').textContent = allAlerts.filter(a => a.rating === 4).length;
     document.getElementById('m-rec').textContent = allAlerts.filter(a => a.category === 'recruiting').length;
-    document.getElementById('m-last').textContent = new Date(scanAtServer).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'});
+    document.getElementById('m-last').textContent = new Date(scanAtServer).toDateString() === new Date().toDateString()
+      ? new Date(scanAtServer).toLocaleTimeString([],{hour:'numeric',minute:'2-digit'})
+      : new Date(scanAtServer).toLocaleString([],{month:'short',day:'numeric',hour:'numeric',minute:'2-digit'});
 
     dot.style.background = '#3B6D11';
     txt.innerHTML = data.refreshing
@@ -2250,8 +2268,8 @@ function startCountdown() {
   countdownInterval = setInterval(() => {
     if (!lastScanTime) return;
     const rem = Math.max(0, SCAN_MS - (Date.now() - lastScanTime));
-    const m = Math.floor(rem / 60000), s = Math.floor((rem % 60000) / 1000);
-    document.getElementById('m-next').textContent = `${m}m ${s}s`;
+    const next = nextScheduledScan();
+    document.getElementById('m-next').textContent = next ? new Date(next).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }) : '—';
     if (rem === 0 && !scanInProgress) runScan();
   }, 1000);
 }
@@ -3846,7 +3864,7 @@ async function rateStory(idx, n) {
   } catch (e) { if (el) el.insertAdjacentHTML('beforeend', '<span style="color:var(--hot);margin-left:6px;">Not saved: ' + e.message + '</span>'); }
 }
 loadMyRatings();
-// Show the newsroom's latest shared scan as soon as the page opens (free when it's fresh).
+// Show the newsroom's latest saved scan as soon as the page opens (free: never starts a new scan).
 runScan();
 
 // ---- Source health (api/source-health.js) ----
