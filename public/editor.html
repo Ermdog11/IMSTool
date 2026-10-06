@@ -185,6 +185,7 @@ body.no-factcheck .acc-factcheck,body.no-add #ed-autoadd,body.no-add #pre-tabs-w
           <span class="aa-pos">Top <input type="range" id="aa-related-pos" min="1" max="10" step="1" value="10" oninput="this.nextElementSibling.textContent=this.value"> <b>10</b> Bottom</span></div>
         <div class="aa-row"><label class="aa-lab"><input type="checkbox" id="aa-promos" style="width:auto"> 📣 <span id="aa-promos-label">Promos for this tier</span></label></div>
         <div class="aa-row" id="aa-ads-row" style="display:none"><label class="aa-lab"><input type="checkbox" id="aa-ads" style="width:auto"> 💰 <span id="aa-ads-label">Ad slots</span></label></div>
+        <div class="aa-row" id="aa-aff-row" style="display:none"><label class="aa-lab"><input type="checkbox" id="aa-affiliate" style="width:auto"> 💸 Affiliate links</label><span class="aa-pos" id="aa-aff-note"></span></div>
         <div class="aa-row acc-factcheck"><label class="aa-lab"><input type="checkbox" id="aa-factcheck" style="width:auto"> 🔎 Extra fact-check</label><span class="aa-pos">Checks every name, number and date against live sources. About a minute more.</span></div>
         <div style="font-size:12px;color:var(--muted);margin-top:4px;display:flex;gap:4px 12px;flex-wrap:wrap;align-items:center">
           <span id="aa-default-note">Ticks and spots start from your newsroom’s defaults.</span>
@@ -624,6 +625,7 @@ async function runEdit(){
   // the draft is fetched alongside the edit and placed in the finished article.
   var aa=getAutoAdd();
   window._adsQueued=!!aa.ads;
+  window._affQueued=!!aa.affiliate;
   window._relPos=null;
   if(aa.related){ window._relQueued=true; window._relPos=aa.relatedPosition; }
   if(aa.promos){
@@ -792,6 +794,7 @@ function renderEdit(d){
   window._availableInserts=inserts;
   var artEl=document.querySelector('#ed-result .out-article');
   window._articleBaseHtml=artEl?artEl.innerHTML:'';
+  if(window._affQueued) applyAffiliateLinks(d);
 
   // Hover preview on inserted hotlinks — shows which article a link points
   // to (from the same list the editor was told to link from) so it can be
@@ -803,6 +806,7 @@ function renderEdit(d){
   if(window._relQueued){ openRelatedBox(); addRelatedLinks(document.querySelector('#related-box .btn')); }
   (window._availableInserts||[]).forEach(function(p,i){ if(window._promoQueued[p.name] && !p.podcast && !p.related && !p.ad) toggleInsert(i); });
   if(window._adsQueued) placeAds();
+  if(window._affQueued) placeAffiliateBoxes();
 }
 
 // Delegated on #ed-result (not the article div itself) so it keeps working
@@ -1370,6 +1374,60 @@ function placeAds(){
   });
 }
 
+// ---- Affiliate links (/api/affiliate, /api/go; see api/_affiliate.js) -------
+// CoPublisher AI's affiliate programs (gear, tickets...). With the box ticked,
+// links in the finished article to a program's sites go through /api/go,
+// which counts the click for this newsroom and article and forwards it with
+// the affiliate tag; programs with a ready-made box are placed like ad slots.
+window._aff={site:'',programs:[]};
+function affPrograms(){ return (window._aff&&window._aff.programs)||[]; }
+(function(){
+  var f=window.IMSAuth?IMSAuth.authFetch:fetch;
+  f('/api/affiliate?for=editor').then(function(r){return r.json();}).then(function(d){
+    if(!d||!d.programs) return;
+    window._aff=d;
+    var row=document.getElementById('aa-aff-row'); if(row) row.style.display=d.programs.length?'':'none';
+    var note=document.getElementById('aa-aff-note'); if(note) note.textContent=d.programs.map(function(p){return p.name;}).join(', ');
+  }).catch(function(){});
+})();
+function affHost(u){ try{ return new URL(u).hostname.replace(/^www\./,'').toLowerCase(); }catch(e){ return ''; } }
+function affProgramFor(url){
+  var h=affHost(url); if(!h) return null;
+  return affPrograms().filter(function(p){ return (p.domains||[]).some(function(d){ return h===d || h.slice(-(d.length+1))==='.'+d; }); })[0]||null;
+}
+function affArticleRef(){
+  var heds=(lastEdit&&lastEdit.d&&lastEdit.d.headlines)||[];
+  return String((heds[0]&&heds[0].text)||'article').toLowerCase().replace(/[^a-z0-9]+/g,'-').slice(0,60);
+}
+function affLink(p,url){
+  return location.origin+'/api/go?p='+encodeURIComponent(p.id)+'&s='+encodeURIComponent(window._aff.site||'')+'&a='+encodeURIComponent(affArticleRef())+(url?'&u='+encodeURIComponent(url):'');
+}
+// Rewrites matching links in the edited article (Markdown, so saved drafts keep them).
+function applyAffiliateLinks(d){
+  if(!d||!d.edited||!affPrograms().length) return;
+  var n=0;
+  d.edited=d.edited.replace(/\]\((https?:\/\/[^\s)]+)\)/g,function(m,u){ var p=affProgramFor(u); if(!p) return m; n++; return ']('+affLink(p,u)+')'; });
+  if(!n) return;
+  var art=document.getElementById('ed-article'); if(art){ art.innerHTML=md(d.edited); window._articleBaseHtml=art.innerHTML; }
+  var mdb=document.getElementById('ed-md'); if(mdb) mdb.value=d.edited;
+  var st=document.getElementById('ed-status'); if(st) st.textContent=n+' affiliate link'+(n>1?'s':'')+' tagged.';
+}
+function placeAffiliateBoxes(){
+  var tmp=document.createElement('div'); tmp.innerHTML=window._articleBaseHtml||'';
+  var n=tmp.children.length;
+  window._availableInserts=window._availableInserts||[];
+  affPrograms().forEach(function(p){
+    if(!String(p.boxHtml||'').trim()) return;
+    var html=p.boxHtml.replace(/\{link\}/g,affLink(p,p.home||''));
+    var first=Math.max(1,+p.first||4), every=+p.every||0, max=Math.max(1,+p.max||1), count=0;
+    for(var at=first; at<n && count<max; at+=every||Infinity){
+      window._availableInserts.push({name:'💸 '+p.name+' (after ¶'+at+')',tier:'both',placement:'after'+at,html:html,ad:true});
+      toggleInsert(window._availableInserts.length-1); count++;
+      if(!every) break;
+    }
+  });
+}
+
 // ---- Extra fact-check (/api/fact-check) --------------------------------------
 // Opt-in deeper check: every name, number and date in the piece against live
 // sources and the newsroom's past coverage (api/_fact-check.js). Offered under
@@ -1771,7 +1829,7 @@ function applyAccess(){
 function editorDefaults(){
   var d=window._editorDefaults||{}, pod=getPodcastSettings();
   return {
-    podcast:d.podcast!==false, related:d.related!==false, promos:!!d.promos, factCheck:!!d.factCheck, ads:d.ads!==false,
+    podcast:d.podcast!==false, related:d.related!==false, promos:!!d.promos, factCheck:!!d.factCheck, ads:d.ads!==false, affiliate:d.affiliate!==false,
     podcastPosition:+(d.podcastPosition||pod.position||10),
     relatedPosition:+(d.relatedPosition||10),
     relatedCount:+(d.relatedCount||3), relatedScope:d.relatedScope==='web'?'web':'site'
@@ -1783,6 +1841,7 @@ function getAutoAdd(){
   ['podcast','related','promos'].forEach(function(k){ var el=document.getElementById('aa-'+k); c[k]=addOk&&!!(el&&el.checked); });
   var fc=document.getElementById('aa-factcheck'); c.factCheck=canUse('act_fact_check')&&!!(fc&&fc.checked);
   var ad=document.getElementById('aa-ads'); c.ads=addOk&&adsForTier().length>0&&!!(ad&&ad.checked);
+  var af=document.getElementById('aa-affiliate'); c.affiliate=addOk&&affPrograms().length>0&&!!(af&&af.checked);
   ['podcast','related'].forEach(function(k){ var el=document.getElementById('aa-'+k+'-pos'); c[k+'Position']=el?+el.value:10; });
   return c;
 }
@@ -1792,7 +1851,7 @@ function setAaPos(k,v){
 }
 function loadAutoAdd(){
   var d=editorDefaults();
-  ['podcast','related','promos','factCheck','ads'].forEach(function(k){ var el=document.getElementById('aa-'+k.toLowerCase()); if(el) el.checked=d[k]; });
+  ['podcast','related','promos','factCheck','ads','affiliate'].forEach(function(k){ var el=document.getElementById('aa-'+k.toLowerCase()); if(el) el.checked=d[k]; });
   setAaPos('podcast',d.podcastPosition); setAaPos('related',d.relatedPosition);
   var fsf=document.getElementById('fs-factcheck'); if(fsf) fsf.checked=d.factCheck;
   updatePromoCount();
@@ -1811,7 +1870,7 @@ function updatePromoCount(){
 }
 async function saveAutoAddDefault(link){
   var c=getAutoAdd();
-  var next=Object.assign({}, window._editorDefaults||{}, {podcast:c.podcast, related:c.related, promos:c.promos, factCheck:c.factCheck, ads:c.ads, podcastPosition:c.podcastPosition, relatedPosition:c.relatedPosition});
+  var next=Object.assign({}, window._editorDefaults||{}, {podcast:c.podcast, related:c.related, promos:c.promos, factCheck:c.factCheck, ads:c.ads, affiliate:c.affiliate, podcastPosition:c.podcastPosition, relatedPosition:c.relatedPosition});
   var note=document.getElementById('aa-default-note');
   try{
     var r=await fetch('/api/site-profile',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({profile:{editorDefaults:next}})});
