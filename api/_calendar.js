@@ -27,10 +27,10 @@ var STEPS = [30, 60, 90, 120, 150, 180, 210, 240, 270, 300, 330, 360];
 async function load() {
   try {
     var r = await get(PATH, { access: 'private', useCache: false });
-    if (!r || r.statusCode !== 200) return { events: [], prefs: {} };
+    if (!r || r.statusCode !== 200) return { events: [], prefs: {}, settings: {} };
     var d = await new Response(r.stream).json();
-    return { events: d.events || [], prefs: d.prefs || {} };
-  } catch (e) { return { events: [], prefs: {} }; }
+    return { events: d.events || [], prefs: d.prefs || {}, settings: d.settings || {}, heat: d.heat || null, dismissed: d.dismissed || [] };
+  } catch (e) { return { events: [], prefs: {}, settings: {} }; }
 }
 async function save(data) {
   // Keep a year of history at most.
@@ -192,7 +192,10 @@ async function setDefault(email, minutes, channel) {
   minutes = Number(minutes) || 0;
   if (minutes && STEPS.indexOf(minutes) === -1) throw new Error('Pick 30 minutes to 6 hours, in 30-minute steps.');
   var data = await load();
-  if (minutes) data.prefs[email] = { minutes: minutes, channel: channel === 'text' ? 'text' : 'email' }; else delete data.prefs[email];
+  // Merge: the same entry also holds the heat-spot reminder.
+  var p = data.prefs[email] || {};
+  if (minutes) { p.minutes = minutes; p.channel = channel === 'text' ? 'text' : 'email'; } else { delete p.minutes; delete p.channel; }
+  if (Object.keys(p).length) data.prefs[email] = p; else delete data.prefs[email];
   await save(data);
 }
 
@@ -216,8 +219,54 @@ async function updateEvent(id, fields) {
 
 async function deleteEvent(id) {
   var data = await load();
+  var gone = data.events.filter(function (e) { return e.id === id; })[0];
   data.events = data.events.filter(function (e) { return e.id !== id; });
+  // Something the AI added and a person deleted: don't add it back next run.
+  if (gone && gone.source === 'ai') data.dismissed = (data.dismissed || []).concat(dedupeKey(gone)).slice(-300);
   await save(data);
+}
+
+// ---- Who runs the calendar (Jeff, 2026-10-06: "have it ask whether you want
+// the AI to actively calendar by adding games and other things it notices or
+// be all controlled by users"). settings.mode: 'ai' (CoPublisher adds the
+// beat's games, heat spots and dated items it spots in the news; see
+// _ai-calendar.js) or 'manual' (only what people add; no heat spots either).
+// Unset = not asked yet: the Calendar tab asks an editor or publisher, and
+// meanwhile heat spots show (they were asked for) but nothing else is added.
+function mode(data) { var m = data.settings && data.settings.mode; return m === 'ai' || m === 'manual' ? m : null; }
+async function setMode(m) {
+  if (m !== 'ai' && m !== 'manual') throw new Error('Pick AI-assisted or only what we add.');
+  var data = await load();
+  data.settings = Object.assign({}, data.settings, { mode: m });
+  if (m === 'manual') { var now = Date.now(); data.events = data.events.filter(function (e) { return !((e.kind === 'heat' || e.source === 'ai') && Date.parse(e.start) > now); }); data.heat = null; }
+  await save(data);
+}
+
+// Same New York day and mostly the same words: treated as the same item, so
+// the AI never adds a game twice under a slightly different title.
+function words(t) { return String(t || '').toLowerCase().replace(/[^a-z0-9 ]+/g, ' ').split(/\s+/).filter(function (w) { return w.length > 2 && ['the', 'and', 'for', 'with', 'game', 'vs'].indexOf(w) === -1; }); }
+function dedupeKey(e) { return nyDay(Date.parse(e.start)) + '|' + words(e.title).sort().join(' '); }
+function sameItem(a, b) {
+  if (nyDay(Date.parse(a.start)) !== nyDay(Date.parse(b.start))) return false;
+  var wa = words(a.title), wb = words(b.title);
+  if (!wa.length || !wb.length) return false;
+  var hit = wa.filter(function (w) { return wb.indexOf(w) !== -1; }).length;
+  return hit / Math.min(wa.length, wb.length) >= 0.6;
+}
+// AI-found items -> only the ones not already on the calendar (or deleted
+// by someone before), then saved like any other add.
+async function addAiEvents(list, meta) {
+  var data = await load();
+  var now = Date.now();
+  var fresh = [];
+  list.forEach(function (e) {
+    if (!e || !e.start || Date.parse(e.start) < now || Date.parse(e.start) > now + 60 * 86400000) return;
+    if (data.events.concat(fresh).some(function (x) { return sameItem(x, e); })) return;
+    if ((data.dismissed || []).some(function (k) { var p = k.split('|'); return sameItem({ start: e.start, title: e.title }, { start: zonedIso(p[0], '12:00'), title: p[1] }); })) return;
+    fresh.push(Object.assign({}, e, { source: 'ai' }));
+  });
+  if (!fresh.length) return [];
+  return await addEvents(fresh, Object.assign({ by: '', source: 'ai' }, meta || {}));
 }
 
 // All-day items are reminded relative to 8 AM that day.
@@ -237,6 +286,85 @@ function timeOf(e) {
   return e.allDay ? 'All day' : new Date(e.start).toLocaleTimeString('en-US', { timeZone: TZ, hour: 'numeric', minute: '2-digit' });
 }
 
+
+// ---- Heat spots (the week's five best times to publish; _heat-spots.js) ----
+// Newsroom-wide on/off (settings.heatSpots, on unless turned off) and each
+// person's "remind me before every heat spot" (prefs[email].heat). The spots
+// are ordinary calendar items of kind 'heat', replaced whenever the week is
+// recomputed; past ones stay as history.
+
+// Monday (New York) of the current week, as the key for "this week's spots".
+function weekKey(ms) {
+  ms = ms || Date.now();
+  for (var i = 0; i < 7; i++) {
+    var d = ms - i * 86400000;
+    if (new Date(d).toLocaleDateString('en-US', { timeZone: TZ, weekday: 'long' }) === 'Monday') return nyDay(d);
+  }
+  return nyDay(ms);
+}
+
+function heatOn(data) { return mode(data) !== 'manual' && !(data.settings && data.settings.heatSpots === false); }
+
+function heatReminders(data) {
+  return Object.keys(data.prefs || {}).filter(function (k) { return data.prefs[k] && data.prefs[k].heat && data.prefs[k].heat.minutes; })
+    .map(function (k) { return { email: k, minutes: data.prefs[k].heat.minutes, channel: data.prefs[k].heat.channel || 'email', sentAt: null }; });
+}
+
+// Recompute this week's spots and put them on the calendar (unless the
+// newsroom turned them off). force: recompute even if this week is done.
+async function ensureHeatSpots(sb, siteId, force) {
+  var data = await load();
+  var wk = weekKey();
+  if (!heatOn(data)) return { on: false, spots: [] };
+  if (!force && data.heat && data.heat.week === wk) {
+    return { on: true, spots: data.events.filter(function (e) { return e.kind === 'heat' && e.heatWeek === wk; }), basis: data.heat.basis, note: data.heat.note };
+  }
+  var got = await require('./_heat-spots').compute(sb, siteId);
+  data = await load(); // re-read: someone may have added an event meanwhile
+  var now = Date.now();
+  data.events = data.events.filter(function (e) { return !(e.kind === 'heat' && Date.parse(e.start) > now); });
+  var reminders = heatReminders(data);
+  var added = got.spots.map(function (sp) {
+    return {
+      id: newId(), createdAt: new Date().toISOString(), createdBy: '', source: 'heat', kind: 'heat', heatWeek: wk, heatRank: sp.rank,
+      title: '🔥 Heat spot #' + sp.rank + ': publish by ' + sp.label.replace(/^\S+ /, ''),
+      start: zonedIso(sp.date, sp.time), allDay: false, end: null, location: '', note: sp.why,
+      reminders: reminders.map(function (r) { return Object.assign({}, r); })
+    };
+  });
+  data.events = data.events.concat(added).sort(function (a, b) { return a.start.localeCompare(b.start); });
+  data.heat = { week: wk, at: new Date().toISOString(), basis: got.basis, note: got.note };
+  await save(data);
+  return { on: true, spots: added, basis: got.basis, note: got.note };
+}
+
+async function setHeatOn(on) {
+  var data = await load();
+  data.settings = Object.assign({}, data.settings, { heatSpots: !!on });
+  if (!on) { var now = Date.now(); data.events = data.events.filter(function (e) { return !(e.kind === 'heat' && Date.parse(e.start) > now); }); data.heat = null; }
+  await save(data);
+}
+
+// Your reminder before every heat spot: saved as a preference and applied
+// to this week's upcoming spots right away.
+async function setHeatReminder(email, minutes, channel) {
+  email = String(email || '').toLowerCase();
+  if (!email) throw new Error('Sign in to set reminders.');
+  minutes = Number(minutes) || 0;
+  if (minutes && STEPS.indexOf(minutes) === -1) throw new Error('Pick 30 minutes to 6 hours, in 30-minute steps.');
+  channel = channel === 'text' ? 'text' : 'email';
+  var data = await load();
+  var p = data.prefs[email] || {};
+  if (minutes) p.heat = { minutes: minutes, channel: channel }; else delete p.heat;
+  if (Object.keys(p).length) data.prefs[email] = p; else delete data.prefs[email];
+  var now = Date.now();
+  data.events.forEach(function (e) {
+    if (e.kind !== 'heat' || Date.parse(e.start) <= now) return;
+    e.reminders = (e.reminders || []).filter(function (r) { return r.email !== email; });
+    if (minutes) e.reminders.push({ email: email, minutes: minutes, channel: channel, sentAt: null });
+  });
+  await save(data);
+}
 
 // Cron: send every reminder that's due. Returns how many went out.
 async function sendDueReminders() {
@@ -286,4 +414,4 @@ async function fromEmail(text, meta) {
   return { summary: got.summary, events: saved };
 }
 
-module.exports = { eventsOn: eventsOn, timeOf: timeOf, load: load, extract: extract, addEvents: addEvents, setReminder: setReminder, setDefault: setDefault, updateEvent: updateEvent, deleteEvent: deleteEvent, sendDueReminders: sendDueReminders, fromEmail: fromEmail, zonedIso: zonedIso, STEPS: STEPS, TZ: TZ };
+module.exports = { mode: mode, setMode: setMode, addAiEvents: addAiEvents, sameItem: sameItem, ensureHeatSpots: ensureHeatSpots, setHeatOn: setHeatOn, setHeatReminder: setHeatReminder, heatOn: heatOn, weekKey: weekKey, eventsOn: eventsOn, timeOf: timeOf, load: load, extract: extract, addEvents: addEvents, setReminder: setReminder, setDefault: setDefault, updateEvent: updateEvent, deleteEvent: deleteEvent, sendDueReminders: sendDueReminders, fromEmail: fromEmail, zonedIso: zonedIso, STEPS: STEPS, TZ: TZ };
