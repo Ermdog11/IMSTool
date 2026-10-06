@@ -2,7 +2,15 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<link rel="manifest" href="/manifest.json">
+<meta name="theme-color" content="#0f1b2d">
+<link rel="icon" type="image/png" sizes="32x32" href="/icons/favicon-32.png">
+<link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="CoPublisher">
+<meta name="apple-mobile-web-app-status-bar-style" content="black">
 <title>InsideMDSports — Content Editor</title>
 <style>
 :root{--red:#2563eb;--red-dark:#1d4ed8;--gold:#f59e0b;--dark:#0f1b2d;--border:#e2e7ef;--bg:#f5f7fb;--bg2:#fff;--text:#1a1a1a;--text2:#333;--muted:#4a4a4a;--green:#3B6D11;--blue:#0c447c;--blue-light:#e8f4ff;--amber-bg:#fff8e1;--amber:#8a6d00;--hot:#dc2626;--red-light:#eaf1ff;--hot-dark:#b91c1c;--hot-light:#fef2f2;--nav:#16263f;--nav-on:#60a5fa;}
@@ -23,8 +31,12 @@ a{color:var(--blue)}
   .site-sub{display:none}
   .topbar-slot{flex-wrap:wrap;gap:6px}
   .topbar-slot span{max-width:52vw;overflow:hidden;text-overflow:ellipsis}
-  .nav{padding:0 8px}
-  .nav button{padding:10px 10px}
+  /* One row of tabs you swipe sideways, instead of three rows (2026-10-06). */
+  body .nav{padding:0 8px;flex-wrap:nowrap;overflow-x:auto;-webkit-overflow-scrolling:touch;scrollbar-width:none}
+  body .nav::-webkit-scrollbar{display:none}
+  body .nav button{padding:12px 12px;flex:0 0 auto;white-space:nowrap;font-size:13px}
+  input,select,textarea{font-size:16px!important}
+  body .btn{min-height:40px}
 }
 .nav{background:var(--nav);display:flex;flex-wrap:wrap;padding:0 20px}
 .nav button{font-size:12px;font-weight:600;padding:11px 16px;color:rgba(255,255,255,.7);border:none;background:transparent;cursor:pointer;border-bottom:2px solid transparent}
@@ -531,7 +543,7 @@ async function loadGuideFromServer(){
 function setActive(i){
   document.querySelectorAll('.page').forEach(function(p){p.classList.toggle('active',p.id==='page-'+i);});
   document.querySelectorAll('.nav button').forEach(function(b){b.classList.remove('active');});
-  var n=document.getElementById('nav-'+i); if(n)n.classList.add('active');
+  var n=document.getElementById('nav-'+i); if(n){ n.classList.add('active'); try{ n.scrollIntoView({block:'nearest',inline:'center'}); }catch(e){} } // keeps the active tab in view in the phone's swipe row
 }
 // House style has its own shareable URL (/house-style, rewritten to this page
 // in vercel.json); the other tabs keep their /editor#N hashes.

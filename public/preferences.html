@@ -2,7 +2,15 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<link rel="manifest" href="/manifest.json">
+<meta name="theme-color" content="#0f1b2d">
+<link rel="icon" type="image/png" sizes="32x32" href="/icons/favicon-32.png">
+<link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="CoPublisher">
+<meta name="apple-mobile-web-app-status-bar-style" content="black">
 <title>CoPublisher AI — Permissions &amp; preferences</title>
 <style>
 :root{--red:#2563eb;--red-dark:#1d4ed8;--dark:#0f1b2d;--border:#e2e7ef;--bg:#f5f7fb;--bg2:#fff;--text:#1a1a1a;--text2:#555;--muted:#888;--green:#3B6D11;--green-bg:#eaf3de;--blue:#0c447c;--amber-bg:#fff8e1;--amber:#8a6d00;--hot:#dc2626;--red-light:#eaf1ff}
@@ -76,6 +84,9 @@ tr.you td{background:var(--red-light)}
 .tag.local{background:var(--amber-bg);color:var(--amber)}
 .table-scroll{overflow-x:auto}
 @media (max-width:600px){.topbar{height:auto;padding:10px 16px;flex-wrap:wrap}.card{padding:16px}.pos input{width:110px}td.c,th.c{width:64px}}
+
+/* Phones: 16px text boxes so iPhone doesn't zoom in on tap (2026-10-06). */
+@media (max-width:700px){input,select,textarea{font-size:16px!important}}
 </style>
 </head>
 <body>

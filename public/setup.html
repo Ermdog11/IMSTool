@@ -2,7 +2,15 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<link rel="manifest" href="/manifest.json">
+<meta name="theme-color" content="#0f1b2d">
+<link rel="icon" type="image/png" sizes="32x32" href="/icons/favicon-32.png">
+<link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="CoPublisher">
+<meta name="apple-mobile-web-app-status-bar-style" content="black">
 <title>CoPublisher AI — Set up your newsroom</title>
 <style>
 :root{--red:#2563eb;--red-dark:#1d4ed8;--gold:#f59e0b;--dark:#0f1b2d;--border:#e2e7ef;--bg:#f5f7fb;--bg2:#fff;--text:#1a1a1a;--text2:#555;--muted:#888;--green:#3B6D11;--green-bg:#eaf3de;--blue:#0c447c;--blue-light:#e8f4ff;--amber-bg:#fff8e1;--amber:#8a6d00;--hot:#dc2626;--red-light:#eaf1ff;--hot-dark:#b91c1c;--hot-light:#fef2f2;--nav:#16263f;--nav-on:#60a5fa;}
@@ -102,6 +110,9 @@ input:focus,select:focus,textarea:focus,button:focus-visible{outline:2px solid v
 .blk input{width:auto}
 .item.blocked .main,.item.blocked .rate{opacity:.4}
 @media (max-width:600px){.grid2{grid-template-columns:1fr}.rule{grid-template-columns:1fr}.seg{flex-wrap:wrap}}
+
+/* Phones: 16px text boxes so iPhone doesn't zoom in on tap (2026-10-06). */
+@media (max-width:700px){input,select,textarea{font-size:16px!important}}
 </style>
 </head>
 <body>
