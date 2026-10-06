@@ -206,7 +206,7 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; b
 .bb-brand { font-size: 13px; font-weight: 700; color: #fff; letter-spacing: 0.5px; }
 .bb-tag { font-size: 11px; font-weight: 600; color: var(--nav-on); }
 body { padding-bottom: 40px; }
-body.no-write .acc-write,body.no-flag .acc-flag,body.no-flag #excludeCard{display:none!important}
+body.no-opps .acc-opps,body.no-write .acc-write,body.no-flag .acc-flag,body.no-flag #excludeCard{display:none!important}
 </style>
 </head>
 <body>
@@ -781,7 +781,19 @@ body.no-write .acc-write,body.no-flag .acc-flag,body.no-flag #excludeCard{displa
 <div class="page" id="page-13">
   <div style="padding:16px 0 8px;">
     <h3 style="margin:0;font-size:1.1rem;">👀 Opp Watch</h3>
-    <p style="color:var(--text2);font-size:.85rem;margin:4px 0 0;max-width:68ch;">Follow your closest competition. Every story they publish on your beat shows up here within 15 minutes, marked <b>Gap</b> when we haven't covered it. Choose who to follow, and who emails you when they publish, in <a href="/setup">setup → Your beat</a>.</p>
+    <p style="color:var(--text2);font-size:.85rem;margin:4px 0 0;max-width:68ch;">Follow your closest competition. Every story they publish on your beat shows up here within 15 minutes, marked <b>Gap</b> when we haven't covered it. Follow a new outlet, turn email or text alerts on or off, or unfollow, right here.</p>
+  </div>
+  <div id="oppsManage" class="acc-opps" style="background:var(--bg2);border:1px solid var(--border);border-radius:10px;padding:12px;margin:8px 0 12px;">
+    <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
+      <b style="font-size:.9rem;">Follow a competitor</b>
+      <input id="oppsAddName" placeholder="Name (e.g. On3 Maryland)" style="flex:1;min-width:150px;font-size:13px;padding:7px 9px;border:1px solid var(--border);border-radius:6px;">
+      <input id="oppsAddSite" placeholder="Website or RSS feed" style="flex:1.4;min-width:180px;font-size:13px;padding:7px 9px;border:1px solid var(--border);border-radius:6px;" onkeydown="if(event.key==='Enter')oppsFollow()">
+      <label style="font-size:.8rem;display:flex;gap:4px;align-items:center;"><input type="checkbox" id="oppsAddEmail" checked> ✉️ Email me</label>
+      <label style="font-size:.8rem;display:flex;gap:4px;align-items:center;" title="Saved now; texts start once texting is connected"><input type="checkbox" id="oppsAddText"> 💬 Text me</label>
+      <button class="pill" onclick="oppsFollow()">Follow</button>
+    </div>
+    <div id="oppsAvail" style="margin-top:8px;display:flex;flex-wrap:wrap;gap:6px;align-items:center;"></div>
+    <div id="oppsMsg" style="font-size:12px;margin-top:6px;color:var(--text3);"></div>
   </div>
   <div id="oppsCards" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:10px;margin:8px 0 16px;"></div>
   <div style="display:flex;gap:8px;align-items:center;margin-bottom:8px;flex-wrap:wrap;">
@@ -899,6 +911,8 @@ function applyMonitorAccess() {
   });
   document.body.classList.toggle('no-write', !accessAllows('act_write_story'));
   document.body.classList.toggle('no-flag', !accessAllows('act_flag_block'));
+  document.body.classList.toggle('no-opps', !accessAllows('act_opps_edit'));
+  if (oppsData && oppsData.competitors) renderOpps();
   var on = document.querySelector('.nav-tab.active');
   var cur = on ? +on.id.replace('tab-btn-', '') : 0;
   if (!monitorCanUse(cur)) switchTab(0, true);
@@ -3321,12 +3335,17 @@ function renderOpps() {
   var comps = oppsData.competitors || [];
   if (!comps.length) {
     cards.innerHTML = '';
-    list.innerHTML = '<div class="empty" style="padding:18px;"><i class="ti ti-eye"></i>You aren\'t following any competitors yet. In <a href="/setup">setup → Your beat</a>, check <b>Email me when they publish</b> or <b>Text me</b> on the outlets you compete with most.</div>';
+    renderOppsAvail();
+    list.innerHTML = '<div class="empty" style="padding:18px;"><i class="ti ti-eye"></i>You aren\'t following any competitors yet. Add the outlets you compete with most above.</div>';
     return;
   }
   cards.innerHTML = comps.map(function (c) {
     return '<div style="background:var(--bg2);border:1px solid var(--border);border-radius:10px;padding:12px;">' +
-      '<div style="display:flex;justify-content:space-between;gap:6px;"><b>' + oppsEsc(c.name) + '</b><span style="font-size:.8rem;">' + (c.alertEmail ? '✉️' : '') + (c.alertText ? '💬' : '') + '</span></div>' +
+      '<div style="display:flex;justify-content:space-between;gap:6px;align-items:flex-start;"><b>' + oppsEsc(c.name) + '</b>' +
+        '<button class="acc-opps" title="Unfollow" onclick="oppsAct({action:\'unfollow\',domain:\'' + oppsEsc(c.key || c.domain).replace(/'/g, '') + '\'},\'Unfollowed ' + oppsEsc(c.name).replace(/'/g, '') + '.\')" style="border:0;background:none;color:var(--text3);cursor:pointer;font-size:15px;line-height:1;padding:0 2px;">×</button></div>' +
+        '<div style="display:flex;gap:12px;font-size:.75rem;margin-top:4px;color:var(--text2);">' +
+          '<label style="display:flex;gap:4px;align-items:center;"><input type="checkbox" ' + (c.alertEmail ? 'checked ' : '') + (accessAllows('act_opps_edit') ? '' : 'disabled ') + 'onchange="oppsAct({action:\'set\',domain:\'' + oppsEsc(c.key || c.domain).replace(/'/g, '') + '\',alertEmail:this.checked})"> ✉️ Email</label>' +
+          '<label style="display:flex;gap:4px;align-items:center;" title="Saved now; texts start once texting is connected"><input type="checkbox" ' + (c.alertText ? 'checked ' : '') + (accessAllows('act_opps_edit') ? '' : 'disabled ') + 'onchange="oppsAct({action:\'set\',domain:\'' + oppsEsc(c.key || c.domain).replace(/'/g, '') + '\',alertText:this.checked})"> 💬 Text</label></div>' +
       '<div style="display:flex;gap:14px;margin:8px 0 6px;font-size:.8rem;color:var(--text2);">' +
         '<span><b style="font-size:1.15rem;color:var(--text);">' + c.last24 + '</b> today</span>' +
         '<span><b style="font-size:1.15rem;color:var(--text);">' + c.last7 + '</b> this week</span>' +
@@ -3335,6 +3354,7 @@ function renderOpps() {
       (c.topics.length ? '<div style="margin-top:6px;display:flex;flex-wrap:wrap;gap:4px;">' + c.topics.map(function (t) { return '<span style="font-size:.72rem;background:var(--bg);border:1px solid var(--border);border-radius:10px;padding:1px 7px;">' + oppsEsc(t) + '</span>'; }).join('') + '</div>' : '') +
       '</div>';
   }).join('');
+  renderOppsAvail();
   var gapsOnly = document.getElementById('oppsGapsOnly').checked, only = document.getElementById('oppsOutlet').value;
   var items = (oppsData.items || []).filter(function (i) { return (!gapsOnly || !i.covered) && (!only || i.outlet === only); });
   list.innerHTML = items.length ? items.map(function (i) {
@@ -3345,6 +3365,40 @@ function renderOpps() {
         : '<span style="font-size:.72rem;color:#fff;background:var(--hot);border-radius:10px;padding:2px 8px;white-space:nowrap;">Gap</span>') +
       '</div>';
   }).join('') : '<div class="empty" style="padding:14px;">' + (gapsOnly ? 'No gaps. We\'ve covered everything they have.' : 'No stories yet. New ones appear within 15 minutes of publishing.') + '</div>';
+}
+
+// Manage who Opp Watch follows without the setup wizard (Jeff, 2026-10-06).
+function renderOppsAvail() {
+  var el = document.getElementById('oppsAvail'); if (!el) return;
+  var av = (oppsData.available || []).slice(0, 12);
+  el.innerHTML = av.length ? '<span style="font-size:.78rem;color:var(--text3);">From your beat:</span>' + av.map(function (o) {
+    return '<button class="chip" style="font-size:.75rem;padding:3px 9px;" title="' + oppsEsc(o.domain) + '" onclick="oppsAct({action:\'follow\',name:this.dataset.n,site:this.dataset.d,alertEmail:true},\'Following ' + oppsEsc(o.name).replace(/'/g, '') + '.\')" data-n="' + oppsEsc(o.name) + '" data-d="' + oppsEsc(o.domain) + '">+ ' + oppsEsc(o.name) + '</button>';
+  }).join('') : '';
+}
+async function oppsAct(body, okMsg) {
+  var m = document.getElementById('oppsMsg');
+  m.style.color = 'var(--text3)'; m.textContent = 'Saving…';
+  try {
+    var fetcher = window.IMSAuth ? IMSAuth.authFetch : fetch;
+    var r = await fetcher('/api/opps-spy', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+    var d = await r.json().catch(function () { return {}; });
+    if (!r.ok || d.error) throw new Error(d.error || ('HTTP ' + r.status));
+    m.style.color = 'var(--green)'; m.textContent = okMsg || 'Saved.';
+    if (body.action === 'follow') m.textContent += ' Their stories start showing within 15 minutes.';
+    await loadOppsSpy();
+    return true;
+  } catch (e) {
+    m.style.color = 'var(--hot)'; m.textContent = 'Couldn\'t save: ' + e.message;
+    loadOppsSpy();
+    return false;
+  }
+}
+async function oppsFollow() {
+  var n = document.getElementById('oppsAddName'), st = document.getElementById('oppsAddSite');
+  if (!st.value.trim()) { document.getElementById('oppsMsg').textContent = 'Add their website or RSS feed.'; return; }
+  var ok = await oppsAct({ action: 'follow', name: n.value.trim(), site: st.value.trim(), alertEmail: document.getElementById('oppsAddEmail').checked, alertText: document.getElementById('oppsAddText').checked },
+    'Following ' + (n.value.trim() || st.value.trim()) + '.');
+  if (ok) { n.value = ''; st.value = ''; }
 }
 
 async function loadRosterWatch() {

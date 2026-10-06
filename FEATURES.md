@@ -45,7 +45,7 @@ Last updated: 2026-09-13
 | Real section URLs | Every section is its own bookmarkable, shareable address; browser back/forward works. |
 | Your ratings teach it | Rate any story 1–5 right on its card or with one tap in any email. CoPublisher learns from every correction, including which outlets your team trusts more or less, and rates future stories the way your newsroom would. |
 | Source health | Every scan checks every source. Feeds that break are fixed automatically when possible (or skipped), feeds that go quiet are flagged, you get one email when something changes, and Settings shows every source's status. |
-| Opp Watch | Follow your closest competition. Pick the outlets you compete with and every story they publish on your beat shows up within 15 minutes, flagged as a **Gap** when you haven't covered it, with how much they publish and what they're writing about. Get an email (texts coming) the moment they publish. |
+| Opp Watch | Follow your closest competition. Pick the outlets you compete with and every story they publish on your beat shows up within 15 minutes, flagged as a **Gap** when you haven't covered it, with how much they publish and what they're writing about. Get an email (texts coming) the moment they publish. Follow a new outlet (its website, a section of a big site, or its RSS feed), pick one from your beat with a click, turn email or text alerts on or off, or unfollow, all right in the Opp Watch tab. |
 
 ---
 

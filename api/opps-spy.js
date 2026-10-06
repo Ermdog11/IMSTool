@@ -1,12 +1,20 @@
 // /api/opps-spy — Opp Watch: follow your closest competition.
 //
-// Competitors are the beat's outlets (setup wizard → Your beat) with
-// "Email me when they publish" or "Text me when they publish" checked.
+// Competitors are the beat's outlets marked followed (spy), or with "Email me
+// when they publish" or "Text me" checked: set in the Opp Watch tab itself or
+// in the setup wizard → Your beat.
 //
 //   GET ?run=1   (cron, every 15 min) -> polls each competitor's feed, records
 //                new articles, emails the newsroom about the ones from outlets
 //                with email alerts on. No Claude calls: just feeds.
-//   GET          (News Monitor's Opp Watch tab) -> { competitors:[stats], items:[latest] }
+//   GET          (News Monitor's Opp Watch tab) -> { competitors:[stats], items:[latest], available:[{name,domain}] }
+//   POST         (Opp Watch tab, manage who you follow without the setup wizard;
+//                Jeff, 2026-10-06: "editing Opp Watch and adding opps shouldn't
+//                require a trip to the setup wizard"):
+//                { action:'follow', name, site, alertEmail?, alertText? }  (site: website or RSS URL)
+//                { action:'set', domain, alertEmail?, alertText? }
+//                { action:'unfollow', domain }
+//                Saved into the beat profile's outlets, the same list the wizard edits.
 //
 // Each article is checked against our own recent headlines (the same
 // own-outlet list scan.js keeps in Blob), so the tab can show what a rival
@@ -33,7 +41,7 @@ function competitors(beat) { return beat.outlets.filter(function (o) { return !o
 function feedUrl(beat, o) {
   if (o.rss) return o.rss;
   var names = [beat.team.name].concat(beat.team.nicknames).slice(0, 2);
-  var q = names.map(function (n) { return 'site:' + o.domain + ' "' + n + '"'; }).join(' OR ');
+  var q = names.map(function (n) { return 'site:' + (o.section || o.domain) + ' "' + n + '"'; }).join(' OR ');
   return 'https://news.google.com/rss/search?q=' + encodeURIComponent(q) + '&hl=en-US&gl=US&ceid=US:en';
 }
 
@@ -142,7 +150,7 @@ function stats(beat, state) {
     var skip = STOP.concat(words(beat.team.name), words(beat.team.short), beat.team.nicknames.map(function (n) { return n.toLowerCase(); }));
     week.forEach(function (i) { words(i.title).forEach(function (w) { if (skip.indexOf(w) === -1 && !/^\d+$/.test(w)) freq[w] = (freq[w] || 0) + 1; }); });
     return {
-      name: o.name, domain: o.domain || '', alertEmail: !!o.alertEmail, alertText: !!o.alertText,
+      name: o.name, domain: o.domain || '', key: key(o), alertEmail: !!o.alertEmail, alertText: !!o.alertText,
       last24: mine.filter(function (i) { return now - i.at < 86400000; }).length,
       last7: week.length,
       gaps7: week.filter(function (i) { return !i.covered; }).length,
@@ -151,6 +159,74 @@ function stats(beat, state) {
       following: !!(state.outlets || {})[key(o)]
     };
   });
+}
+
+// Website or feed URL -> { domain, rss? }.
+function parseSite(site) {
+  var raw = String(site || '').trim();
+  if (!raw) return null;
+  var url;
+  try { url = new URL(/^https?:\/\//i.test(raw) ? raw : 'https://' + raw); } catch (e) { return null; }
+  var domain = url.hostname.replace(/^www\./, '').toLowerCase();
+  if (!/\./.test(domain)) return null;
+  var isFeed = /(rss|feed|atom|\.xml)/i.test(url.pathname + url.search);
+  // A section of a big site (247sports.com/college/maryland) narrows the
+  // search to that section, so the rest of the site isn't followed too.
+  var path = url.pathname.replace(/\/+$/, '');
+  return { domain: domain, rss: isFeed ? url.href : null, section: !isFeed && path.length > 1 ? domain + path : null };
+}
+
+// Writes the edited outlets list into the saved beat profile. The saved beat
+// only takes effect with a team name, so a newsroom still on its seed gets
+// the seed's team copied in alongside (same values).
+async function saveOutlets(sb, beat, outlets) {
+  var Store = require('./_settings-store');
+  var profile = await Store.getProfile(sb);
+  var saved = Object.assign({}, profile.beat || {});
+  if (!saved.team || !saved.team.name) saved.team = { name: beat.team.name, short: beat.team.short, school: beat.team.school, nicknames: beat.team.nicknames, level: beat.team.level };
+  saved.outlets = outlets.map(function (o) {
+    var c = {}; Object.keys(o).forEach(function (k) { if (o[k] !== undefined && o[k] !== null && o[k] !== '') c[k] = o[k]; }); return c;
+  });
+  await Store.saveProfile(sb, { beat: saved });
+}
+
+async function manage(req, res, ctx) {
+  if (!(await require('./_access').allowed(ctx, 'act_opps_edit'))) return require('./_access').deny(res);
+  if (!S.isConfigured()) return res.status(503).json({ error: 'Sign-in is not set up yet, so changes cannot be saved.' });
+  var sb = S.admin();
+  var body = req.body || {};
+  var beat = await Beat.getBeat(sb);
+  var outlets = beat.outlets.map(function (o) { return Object.assign({}, o); });
+  var find = function (domain) { domain = String(domain || '').toLowerCase().replace(/^www\./, ''); return outlets.filter(function (o) { return key(o) === domain || String(o.domain || '').toLowerCase() === domain; })[0]; };
+  if (body.action === 'follow') {
+    var name = String(body.name || '').trim().slice(0, 80);
+    var site = parseSite(body.site || body.domain);
+    if (!site) return res.status(400).json({ error: 'Add their website (e.g. on3.com/teams/maryland-terrapins) or RSS feed.' });
+    var o = find(site.domain);
+    if (!o) {
+      if (!name) name = site.domain;
+      o = { name: name, domain: site.domain, rating: 4 };
+      outlets.push(o);
+    } else if (name) o.name = name;
+    if (site.rss) o.rss = site.rss;
+    if (site.section) o.section = site.section;
+    o.spy = true; o.blocked = false;
+    o.alertEmail = !!body.alertEmail; o.alertText = !!body.alertText;
+  } else if (body.action === 'set') {
+    var t = find(body.domain);
+    if (!t) return res.status(404).json({ error: 'Not found' });
+    t.spy = true;
+    if (body.alertEmail !== undefined) t.alertEmail = !!body.alertEmail;
+    if (body.alertText !== undefined) t.alertText = !!body.alertText;
+  } else if (body.action === 'unfollow') {
+    var u = find(body.domain);
+    if (!u) return res.status(404).json({ error: 'Not found' });
+    u.spy = false; u.alertEmail = false; u.alertText = false; // stays a beat source, just not followed
+  } else {
+    return res.status(400).json({ error: 'Unknown action' });
+  }
+  await saveOutlets(sb, beat, outlets);
+  return res.status(200).json({ ok: true });
 }
 
 module.exports = async function handler(req, res) {
@@ -163,17 +239,23 @@ module.exports = async function handler(req, res) {
       var beat = await Beat.getBeat(sb);
       return res.status(200).json(await run(beat));
     }
+    var oppCtx = null;
     if (S.isConfigured()) {
-      try { var oppCtx = await S.requireUser(req); } catch (e) { return res.status(e.status || 401).json({ error: e.message }); }
+      try { oppCtx = await S.requireUser(req); } catch (e) { return res.status(e.status || 401).json({ error: e.message }); }
       if (!(await require('./_access').allowed(oppCtx, 'mon_opps'))) return require('./_access').deny(res);
     }
+    if (req.method === 'POST') return await manage(req, res, oppCtx);
     var beat2 = await Beat.getBeat(sb);
     var state = await loadJson(STATE_KEY, { outlets: {}, items: [] });
     state.items = state.items || [];
     var names = competitors(beat2).map(function (o) { return o.name; });
     return res.status(200).json({
       competitors: stats(beat2, state),
-      items: state.items.filter(function (i) { return names.indexOf(i.outlet) !== -1; }).slice(0, 120)
+      items: state.items.filter(function (i) { return names.indexOf(i.outlet) !== -1; }).slice(0, 120),
+      // Beat outlets not followed yet, for one-click follow in the tab.
+      available: beat2.outlets.filter(function (o) { return !o.blocked && o.domain && names.indexOf(o.name) === -1; })
+        .sort(function (a, b) { return Number(b.rating || 3) - Number(a.rating || 3); })
+        .map(function (o) { return { name: o.name, domain: o.domain }; }).slice(0, 30)
     });
   } catch (e) {
     console.error('Opp Watch error:', e.message);
