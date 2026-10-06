@@ -35,7 +35,9 @@ module.exports = async function handler(req, res) {
       var b = await Beat.getBeat(S.isConfigured() ? S.admin() : null);
       return res.status(200).json({
         disliked: (all[SITE] || []).slice(0, 40),
-        beat: { outletName: b.outletName, coverage: b.coverage, short: b.team.short }
+        beat: { outletName: b.outletName, coverage: b.coverage, short: b.team.short },
+        // The Ombudsman's latest five (from the last update email), for the Story backlog tab.
+        ombudsman: await require('./_ombudsman.js').latest().catch(function () { return null; })
       });
     }
     if (req.method !== 'POST') return res.status(405).json({ error: 'GET or POST' });
