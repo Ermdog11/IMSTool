@@ -174,7 +174,7 @@ async function run() {
         var fromName = senders[fromAddr] || (parsed.from.value[0].name || fromAddr);
         await Drafts.saveDraft({
           id: id, writerName: fromName, tier: 'free', headline: headline, html: art.html,
-          status: 'draft', source: 'email', emailedBy: fromAddr, emailedFrom: art.from,
+          status: 'draft', source: 'email', emailedBy: fromAddr, ownerEmail: fromAddr, emailedFrom: art.from,
           createdAt: now, updatedAt: now
         });
         out.saved.push({ id: id, headline: headline, from: fromAddr });

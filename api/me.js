@@ -99,6 +99,8 @@ module.exports = async function handler(req, res) {
       full_name: (profRes.data && profRes.data.full_name) || null
     },
     role: membership.role,
+    // What this role may use (api/_access.js), so the pages can hide the rest.
+    access: require('./_access').resolve(await require('./_settings-store').getProfile(sb).catch(function () { return {}; }), membership.role),
     byline: membership.byline || null,
     site: { id: site.id, slug: site.slug, name: site.name }
   });

@@ -76,7 +76,7 @@ tr.you td{background:var(--red-light)}
   <h1>Permissions &amp; preferences</h1>
   <p class="lead">Your own alerts, the Content Editor's defaults, who on the team can do what, and where every other setting lives.</p>
   <div class="jump">
-    <a href="#alerts">Your alerts</a><a href="#editor">Content Editor defaults</a><a href="#access">What writers and editors see</a><a href="#permissions">Who can do what</a><a href="#everything">All settings</a>
+    <a href="#alerts">Your alerts</a><a href="#editor">Content Editor defaults</a><a href="#access">What each role can do</a><a href="#permissions">Who can do what</a><a href="#everything">All settings</a>
   </div>
   <div id="notice"></div>
 
@@ -94,7 +94,7 @@ tr.you td{background:var(--red-light)}
   </section>
 
   <section class="card" id="access">
-    <h2>What writers and editors see and can do</h2>
+    <h2>What each role sees and can do</h2>
     <div class="sub">Turn something off and it disappears from that role's News Monitor or Content Editor screen. Anything that spends AI credits, shows your traffic numbers or changes things for the whole newsroom is also refused by the app if they try anyway. Alerts and Settings always show. You, the publisher, always have everything.</div>
     <div class="table-scroll"><table id="access-table"></table></div>
     <div style="margin-top:12px"><button class="btn" id="acc-save" onclick="saveAccess()">Save</button><span class="msg" id="acc-msg"></span></div>
@@ -104,6 +104,7 @@ tr.you td{background:var(--red-light)}
     <h2>Who can do what</h2>
     <div class="sub">What each role can do today. The publisher sets each person's role in <a href="/settings">Settings › Team &amp; alerts</a>.</div>
     <div class="table-scroll"><table id="perm-table"></table></div>
+    <div class="sub" style="margin-top:10px">Two more roles: <b>Contributor</b> (freelancers and stringers) uses the Content Editor only, sees only their own drafts and gets no alerts by default. <b>Viewer</b> can read the News Monitor but can't change anything or use the Content Editor. Fine-tune any role with the switches above.</div>
   </section>
 
   <section class="card dir" id="everything">
@@ -124,6 +125,7 @@ var ROLE='publisher', CONFIGURED=false, profile={};
 // ---- What writers and editors see (site profile editorAccess) ---------------
 // Keep in sync with FEATURES in api/_access.js.
 var ACCESS_FEATURES=[
+  ['Apps and drafts',[['use_monitor','Use the News Monitor'],['use_editor','Use the Content Editor'],['drafts_all','See and edit everyone\u2019s drafts (off: only their own)']]],
   ['Copydesk modes',[['mode_edit','Full edit: rewrite in house style'],['mode_keep','Keep my words: review only'],['mode_links','Hotlinks only']]],
   ['Copydesk tools',[['add_with_edit','Add podcast, related links and promos'],['ask_editor','Ask the editor (chat)'],['act_fact_check','Extra fact-check (uses more AI credits)']]],
   ['Content Editor tabs',[['tab_transcribe','Transcribe'],['tab_social','From social'],['tab_house_style','House style'],['tab_writers','Writers'],['tab_inserts','Inserts'],['tab_drafts','Drafts']]],
@@ -131,14 +133,20 @@ var ACCESS_FEATURES=[
   ['News Monitor sections',[['mon_analytics','Analytics (traffic and audience numbers)'],['mon_chat','Team chat'],['mon_digest','Nightly digest'],['mon_social','Hot social'],['mon_backlog','Story backlog'],['mon_recruiting','Recruiting tracker'],['mon_roster','Roster watch'],['mon_opps','Opp Watch'],['mon_calendar','Calendar'],['mon_trending','Trending'],['mon_podcasts','Podcasts'],['mon_youtube','YouTube'],['mon_bluesky','Bluesky']]]
 ];
 var access={};
+// Each role starts from its defaults (api/_access.js ROLE_DEFAULTS, sent by
+// /api/site-profile); a switch you change is saved, one left alone follows
+// the default.
+var ACC_ROLES=['editor','writer','contributor','viewer'];
+var accessDefaults={};
+function accOn(r,k){ var a=access[r]||{}; if(a[k]===false) return false; if(a[k]===true) return true; return (accessDefaults[r]||{})[k]!==false; }
 function renderAccess(){
   var can=ROLE==='publisher', dis=can?'':' disabled';
-  var h='<tr><th>Tool</th><th class="c">Publisher</th><th class="c">Editor</th><th class="c">Writer</th></tr>';
+  var h='<tr><th>Tool</th><th class="c">Publisher</th><th class="c">Editor</th><th class="c">Writer</th><th class="c">Contributor</th><th class="c">Viewer</th></tr>';
   ACCESS_FEATURES.forEach(function(g){
-    h+='<tr><td colspan="4" style="font-weight:700;font-size:12px;color:var(--text2);padding-top:12px">'+esc(g[0])+'</td></tr>';
+    h+='<tr><td colspan="6" style="font-weight:700;font-size:12px;color:var(--text2);padding-top:12px">'+esc(g[0])+'</td></tr>';
     g[1].forEach(function(f){
-      h+='<tr><td>'+esc(f[1])+'</td><td class="c"><span class="yes">✓</span></td>'+['editor','writer'].map(function(r){
-        var on=!((access[r]||{})[f[0]]===false);
+      h+='<tr><td>'+esc(f[1])+'</td><td class="c"><span class="yes">✓</span></td>'+ACC_ROLES.map(function(r){
+        var on=accOn(r,f[0]);
         return '<td class="c"><label class="switch"><input type="checkbox"'+dis+(on?' checked':'')+' onchange="setAccess(\''+r+'\',\''+f[0]+'\',this.checked)"><i></i></label></td>';
       }).join('')+'</tr>';
     });
@@ -148,11 +156,12 @@ function renderAccess(){
 }
 function setAccess(role,key,on){
   access[role]=access[role]||{};
-  if(on) delete access[role][key]; else access[role][key]=false;
+  var def=(accessDefaults[role]||{})[key]!==false;
+  if(on===def) delete access[role][key]; else access[role][key]=on;
 }
 async function saveAccess(){
   var b=$('acc-save'), m=$('acc-msg');
-  var noMode=['editor','writer'].filter(function(r){ return ['mode_edit','mode_keep','mode_links'].every(function(k){ return (access[r]||{})[k]===false; }); });
+  var noMode=['editor','writer','contributor'].filter(function(r){ return accOn(r,'use_editor') && ['mode_edit','mode_keep','mode_links'].every(function(k){ return !accOn(r,k); }); });
   if(noMode.length){ m.className='msg err'; m.textContent='Leave at least one Copydesk mode on for '+noMode.join(' and ')+'s.'; return; }
   b.disabled=true; m.className='msg'; m.textContent='Saving…';
   try{
@@ -170,7 +179,7 @@ async function saveAccess(){
 var PERMS=[
   ['Use the News Monitor and Content Editor (scans, digests, alerts, editing, writing)','all'],
   ['Choose your own alerts','all'],
-  ['Open and edit drafts in the Editorial Desk','all'],
+  ['Open and edit everyone\u2019s drafts (writers: only their own, unless you switch it on above)','editor'],
   ['Hide junk sources and exclude sites from the feed (unless you switch it off below)','all'],
   ['Change which X accounts are followed (unless you switch it off below)','all'],
   ['Send a public-records request from the app','editor','Writers can open it in their own email'],
@@ -313,7 +322,7 @@ async function saveEditorDefaults(){
   }
   if(CONFIGURED && ROLE!=='publisher') $('notice').innerHTML='<div class="notice">You’re signed in as '+(ROLE==='editor'?'an editor':'a '+esc(ROLE))+'. You can change your own alerts here; the newsroom’s defaults are set by the publisher.</div>';
   renderPerms(); renderDir();
-  try{ var r=await fetch('/api/site-profile'); var d=await r.json(); profile=(d&&d.profile)||{}; }catch(e){ profile={}; }
+  try{ var r=await fetch('/api/site-profile'); var d=await r.json(); profile=(d&&d.profile)||{}; accessDefaults=(d&&d.accessDefaults)||{}; }catch(e){ profile={}; }
   loadEditorDefaults();
   access=JSON.parse(JSON.stringify(profile.editorAccess||{})); renderAccess();
   loadAlerts();

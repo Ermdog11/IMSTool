@@ -24,6 +24,8 @@ var VALID = ALERT_TYPES.map(function (t) { return t.key; });
 function defaultFor(typeKey, role) {
   var t = ALERT_TYPES.filter(function (x) { return x.key === typeKey; })[0];
   if (!t) return false;
+  // Freelance contributors and viewers start with every alert off.
+  if (role === 'contributor' || role === 'viewer') return false;
   if (t.defaultOn === 'all') return true;
   if (t.defaultOn === 'publisher') return role === 'publisher';
   if (t.defaultOn === 'editors') return role === 'publisher' || role === 'editor';

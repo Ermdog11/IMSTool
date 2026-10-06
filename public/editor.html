@@ -333,6 +333,7 @@ body.no-factcheck .acc-factcheck,body.no-add #ed-autoadd,body.no-add #pre-tabs-w
         </div>
       </div>
       <div class="hint" id="drafts-inbox" style="margin:6px 0 10px">Nothing here is published. Click a headline to open it.</div>
+      <div class="hint" id="dm-mine" style="display:none;margin:-4px 0 8px">Showing your own drafts.</div>
       <div class="dm-filters">
         <input id="dm-q" placeholder="Search headlines" oninput="dmState.page=0;renderDraftsList()">
         <select id="dm-writer" onchange="dmState.page=0;renderDraftsList()"><option value="">All writers</option></select>
@@ -359,6 +360,8 @@ body.no-factcheck .acc-factcheck,body.no-add #ed-autoadd,body.no-add #pre-tabs-w
   IMSAuth.guard().then(function (s) {
     var sv = document.getElementById('aa-save-default');
     if (sv) sv.style.display = IMSAuth.isPublisher() ? '' : 'none';
+    // Viewers don't use the Content Editor (Permissions & preferences).
+    if (s && s.access && s.access.use_editor === false) { location.replace('/'); return; }
     if (typeof applyAccess === 'function') applyAccess();
     if (typeof renderAds === 'function') renderAds();
     if (s && s.user) {
@@ -1482,6 +1485,7 @@ async function loadDrafts(keepDetail){
   try{
     var r=await fetch('/api/drafts');
     var d=await r.json();
+    var hint=document.getElementById('dm-mine'); if(hint) hint.style.display=d.mineOnly?'':'none';
     dmState.all=(d.drafts||[]).filter(function(x){ return !dmState.pendingDelete||dmState.pendingDelete.ids.indexOf(x.id)===-1; });
     fillDraftFilters();
     renderDraftsList();
@@ -1796,6 +1800,7 @@ var TAB_ACCESS={1:'tab_writers',2:'tab_inserts',3:'tab_drafts',4:'tab_house_styl
 function canUse(key){
   var role=window.IMSAuth&&IMSAuth.state&&IMSAuth.state.role;
   if(!role||role==='publisher') return true;
+  var acc=IMSAuth.state.access; if(acc && key in acc) return acc[key]!==false;
   var a=(window._editorAccess||{})[role];
   return !(a&&a[key]===false);
 }

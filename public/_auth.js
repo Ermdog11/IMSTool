@@ -9,7 +9,7 @@
 // lock anyone out of the tool.
 
 (function () {
-  var STATE = { ready: false, configured: false, user: null, role: null, byline: null, site: null, client: null, preview: false };
+  var STATE = { ready: false, configured: false, user: null, role: null, access: null, byline: null, site: null, client: null, preview: false };
 
   // Sections safe to show a signed-out visitor as a read-mostly demo — no drafts,
   // no team/config controls, nothing that emails the publisher or costs real work
@@ -86,6 +86,7 @@
 
       STATE.user = me.user || null;
       STATE.role = me.role || null;
+      STATE.access = me.access || null; // what this role may use (api/_access.js)
       STATE.byline = me.byline || null;
       STATE.site = me.site || null;
       STATE.ready = true;

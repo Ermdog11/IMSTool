@@ -873,7 +873,10 @@ body.no-opps .acc-opps,body.no-write .acc-write,body.no-flag .acc-flag,body.no-f
         if (typeof applyExclusions === 'function') applyExclusions();
       });
     }
-    if (s && s.role && s.role !== 'publisher') {
+    // Contributors (freelancers) work in the Content Editor only.
+    if (s && s.access && s.access.use_monitor === false) { location.replace('/editor'); return; }
+    if (s && s.access && s.role !== 'publisher') applyMonitorAccess();
+    if (s && s.role && s.role !== 'publisher' && !s.access) {
       IMSAuth.authFetch('/api/site-profile').then(function (r) { return r.json(); }).then(function (d) {
         monitorAccess = (d && d.profile && d.profile.editorAccess) || {};
         applyMonitorAccess();
@@ -945,7 +948,9 @@ var MON_ACCESS = { 1:'mon_digest', 2:'mon_social', 3:'mon_chat', 4:'mon_backlog'
 var monitorAccess = null;
 function accessAllows(key) {
   var role = window.IMSAuth && IMSAuth.state && IMSAuth.state.role;
-  if (!role || role === 'publisher' || !monitorAccess) return true;
+  if (!role || role === 'publisher') return true;
+  var acc = IMSAuth.state.access; if (acc && key in acc) return acc[key] !== false;
+  if (!monitorAccess) return true;
   var a = monitorAccess[role];
   return !(a && a[key] === false);
 }
@@ -1750,6 +1755,100 @@ async function getSocial(idx) {
   callClaude(`You are the social media manager at InsideMDSports. Draft platform-specific posts for this story. Include a link placeholder [LINK]. Write in a sharp, direct sports news voice — not overly promotional.\n\nX/Twitter (280 chars max): \nFacebook (2-3 sentences): \nInstagram caption: \n\nStory: ${a.headline}\nSummary: ${a.summary || ''}${examples}`, `output-${idx}`, services.length ? 'Social copy · styled on your best-performing posts' : 'Social copy');
 }
 
+// "Request records": stories about coach hires/firings/contracts/buyouts
+// (tier 1), sponsorship and game/event deals (tier 2) and other business news
+// (tier 3) usually have a document behind them that a public body must release
+// under public-records law. The scan tags each story's tier (recordsTier, from
+// api/_records.js) and the button only appears on those; api/records-request.js
+// decides whether the records are actually obtainable and drafts the letter,
+// which a person reviews, edits and sends (or opens in their own email).
+// Nothing goes out without a click. (Restored 2026-10-06: these functions
+// were dropped by accident on 2026-10-03 while the button stayed, so clicking
+// Request records did nothing.)
+function recordsWorthy(a) { return (a && a.recordsTier) || 0; }
+const recordsDrafts = {};
+async function requestRecords(idx, btn) {
+  const a = allAlerts[idx];
+  const out = document.getElementById(`output-${idx}`);
+  out.className = 'aaction-output visible';
+  out.innerHTML = '<h4>Public records request</h4><i class="ti ti-loader spin"></i> Checking whether public-records law covers this and drafting a request…';
+  if (btn) btn.disabled = true;
+  try {
+    const res = await IMSAuth.authFetch('/api/records-request', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'draft', alert: { headline: a.headline, summary: a.summary, source: a.source, url: a.url } })
+    });
+    const d = await res.json();
+    if (!res.ok || d.error) throw new Error(d.error || 'Draft failed');
+    recordsDrafts[idx] = d;
+    renderRecordsDraft(idx);
+  } catch (e) {
+    out.innerHTML = '<h4>Public records request</h4>Couldn’t draft it — ' + escapeHtml(e.message || e);
+  } finally {
+    if (btn) btn.disabled = false;
+  }
+}
+function renderRecordsDraft(idx) {
+  const d = recordsDrafts[idx], out = document.getElementById(`output-${idx}`);
+  if (!d.eligible) {
+    out.innerHTML = '<h4>Public records request</h4>' + escapeHtml(d.reason || 'These records don’t look obtainable under public-records law.');
+    return;
+  }
+  const me = (IMSAuth.state.user && IMSAuth.state.user.email) || '';
+  const canSend = !IMSAuth.state.configured || IMSAuth.isEditor();
+  const fld = 'width:100%;box-sizing:border-box;font:inherit;font-size:12px;padding:6px 8px;border:1px solid var(--border);border-radius:6px;background:#fff;color:var(--text);margin:2px 0 8px;';
+  out.innerHTML = `<h4>Public records request</h4>
+    <div style="margin-bottom:6px;">${escapeHtml(d.reason || '')}</div>
+    ${d.law ? `<div style="margin-bottom:6px;"><b>Law:</b> ${escapeHtml(d.law)}${d.agency ? ' · <b>To:</b> ' + escapeHtml(d.agency) : ''}</div>` : ''}
+    ${d.records.length ? `<div style="margin-bottom:8px;"><b>Asks for:</b><ul style="margin:4px 0 0 18px;padding:0;">${d.records.map(r => '<li>' + escapeHtml(r) + '</li>').join('')}</ul></div>` : ''}
+    <label style="font-size:11px;font-weight:700;">Records office email</label>
+    <input id="rr-to-${idx}" type="email" value="${escapeHtml(d.to || '')}" placeholder="records office email address" style="${fld}">
+    ${d.to && /^https?:/.test(d.toSource || '') ? `<div style="margin:-4px 0 8px;color:var(--text3);">Found on <a href="${escapeHtml(d.toSource)}" target="_blank" rel="noopener">${escapeHtml(d.toSource.replace(/^https?:\/\//, '').slice(0, 70))}</a>. Worth a quick check before sending.</div>` : ''}
+    ${!d.to ? `<div style="margin:-4px 0 8px;color:var(--text3);">${d.portal ? 'This office takes requests through an online form: <a href="' + escapeHtml(d.portal) + '" target="_blank" rel="noopener">open the request portal</a> and paste the letter there.' : 'Couldn’t find a published records email for ' + escapeHtml(d.agency || 'this agency') + '. Check its website for “public records” or “FOIA” and paste the address here.'}</div>` : (d.portal ? `<div style="margin:-4px 0 8px;color:var(--text3);">They also take requests online: <a href="${escapeHtml(d.portal)}" target="_blank" rel="noopener">request portal</a>.</div>` : '')}
+    <label style="font-size:11px;font-weight:700;">CC (you're always copied${me ? ' at ' + escapeHtml(me) : ''}; replies come to you)</label>
+    <input id="rr-cc-${idx}" type="text" value="" placeholder="${me ? 'anyone else, optional' : 'your email (required, so the office can reply to you)'}" style="${fld}">
+    <label style="font-size:11px;font-weight:700;">Subject</label>
+    <input id="rr-subject-${idx}" type="text" value="${escapeHtml(d.subject || '')}" style="${fld}">
+    <label style="font-size:11px;font-weight:700;">Letter — review and edit before sending</label>
+    <textarea id="rr-body-${idx}" rows="16" style="${fld}resize:vertical;line-height:1.5;">${escapeHtml(d.body || '')}</textarea>
+    ${d.response_note ? `<div style="margin-bottom:8px;color:var(--text3);">${escapeHtml(d.response_note)}</div>` : ''}
+    <div style="display:flex;gap:6px;flex-wrap:wrap;">
+      ${canSend ? `<button class="aaction" style="font-weight:700;" onclick="sendRecordsRequest(${idx}, this)"><i class="ti ti-send"></i> Send request</button>` : ''}
+      <button class="aaction" onclick="mailtoRecordsRequest(${idx})"><i class="ti ti-mail"></i> Open in my email</button>
+      <button class="aaction" onclick="navigator.clipboard.writeText(document.getElementById('rr-body-${idx}').value);this.innerHTML='<i class=&quot;ti ti-check&quot;></i> Copied'"><i class="ti ti-copy"></i> Copy letter</button>
+    </div>
+    <div id="rr-status-${idx}" style="margin-top:6px;"></div>`;
+}
+function mailtoRecordsRequest(idx) {
+  const v = id => document.getElementById(`rr-${id}-${idx}`).value.trim();
+  window.location.href = 'mailto:' + encodeURIComponent(v('to')) + '?subject=' + encodeURIComponent(v('subject')) +
+    (v('cc') ? '&cc=' + encodeURIComponent(v('cc')) : '') + '&body=' + encodeURIComponent(v('body'));
+}
+async function sendRecordsRequest(idx, btn) {
+  const a = allAlerts[idx], d = recordsDrafts[idx];
+  const v = id => document.getElementById(`rr-${id}-${idx}`).value.trim();
+  const status = document.getElementById(`rr-status-${idx}`);
+  if (!v('to')) { status.textContent = 'Enter the records office email address first.'; return; }
+  if (!confirm(`Send this records request to ${v('to')}?\n\nIt goes out under your name from the CoPublisher mailbox. You're CC'd, and replies come straight to you.`)) return;
+  btn.disabled = true;
+  status.innerHTML = '<i class="ti ti-loader spin"></i> Sending…';
+  try {
+    const res = await IMSAuth.authFetch('/api/records-request', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'send', to: v('to'), cc: v('cc'), subject: v('subject'), body: v('body'),
+        agency: d.agency, law: d.law, responseNote: d.response_note,
+        alert: { headline: a.headline, summary: a.summary, source: a.source, url: a.url } })
+    });
+    const r = await res.json();
+    if (!res.ok || r.error) throw new Error(r.error || 'Send failed');
+    status.innerHTML = '<b>Sent</b> to ' + escapeHtml(r.request.to) + (r.request.cc.length ? ' (CC ' + escapeHtml(r.request.cc.join(', ')) + ')' : '') + '. ' + escapeHtml(d.response_note || '');
+    btn.innerHTML = '<i class="ti ti-check"></i> Sent';
+  } catch (e) {
+    status.textContent = 'Couldn’t send — ' + (e.message || e);
+    btn.disabled = false;
+  }
+}
+
 // "Write it": drafts an article from this alert server-side (same generator as
 // the automatic rating-4/5 breaking drafts), saves it to Editorial Desk drafts
 // and opens the Content Editor on it. A story that already has a draft just
@@ -2549,7 +2648,7 @@ function renderTeam(team, prefs) {
   const teamPrefs = {};
   ((prefs && prefs.team) || []).forEach(t => teamPrefs[t.userId] = t.prefs);
   const roleSel = (cur, attrs) => `<select ${attrs} style="font-size:12px;padding:3px 6px;border:1px solid var(--border);border-radius:5px;">
-    ${['publisher','editor','writer'].map(r => `<option value="${r}"${r===cur?' selected':''}>${r}</option>`).join('')}</select>`;
+    ${['publisher','editor','writer','contributor','viewer'].map(r => `<option value="${r}"${r===cur?' selected':''}>${r}</option>`).join('')}</select>`;
 
   let h = '<div style="display:flex;flex-direction:column;gap:10px;">';
   (team.members || []).forEach(m => {
@@ -2583,7 +2682,7 @@ function renderTeam(team, prefs) {
     <div style="display:flex;gap:6px;flex-wrap:wrap;">
       <input id="inviteEmail" type="email" placeholder="email" style="flex:1;min-width:160px;font-size:13px;padding:7px 9px;border:1px solid var(--border);border-radius:6px;">
       <select id="inviteRole" style="font-size:13px;padding:7px 9px;border:1px solid var(--border);border-radius:6px;">
-        <option value="writer">writer</option><option value="editor">editor</option><option value="publisher">publisher</option>
+        <option value="writer">writer</option><option value="contributor">contributor (freelancer)</option><option value="viewer">viewer (read-only)</option><option value="editor">editor</option><option value="publisher">publisher</option>
       </select>
       <button class="pill" onclick="sendInvite()">Send invite</button>
     </div>
