@@ -63,6 +63,9 @@ module.exports = async function handler(req, res) {
     var maxAge = (body.force ? 5 : 30) * 60 * 1000;
     var sharedCopy = latest && Object.assign({}, latest.response, { scannedAt: latest.at, shared: true });
     if (latest && Date.now() - latest.at < maxAge) return res.status(200).json(sharedCopy);
+    // Opening the page (savedOnly) shows the latest saved scan whatever its
+    // age; only "Scan now" or the scheduled scans spend on a new one.
+    if (latest && body.savedOnly) return res.status(200).json(sharedCopy);
     if (!(await Latest.claim())) {
       if (sharedCopy) return res.status(200).json(Object.assign(sharedCopy, { refreshing: true }));
       return res.status(200).json({ refreshing: true });
