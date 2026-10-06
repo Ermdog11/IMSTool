@@ -79,6 +79,7 @@ async function save(input, by) {
     if (input.data.auto != null) doc.auto = !!input.data.auto;
   }
   if (input.names) doc.names = input.names;
+  if (Array.isArray(input.breaks)) doc.breaks = input.breaks.filter(Number.isInteger).slice(0, 5000);
   var sp = {}; (doc.utterances || []).forEach(function (u) { if (u.speaker != null) sp[u.speaker] = 1; });
   doc.speakers = Object.keys(sp).length;
   if (!doc.title) doc.title = (await titleFor(plainText(doc), doc.sourceName, doc.names)) || doc.sourceName || 'Transcript';
@@ -95,6 +96,7 @@ async function update(id, patch) {
   if (!doc) { var e = new Error('Not found'); e.status = 404; throw e; }
   if (patch.title != null && String(patch.title).trim()) doc.title = String(patch.title).trim().slice(0, 160);
   if (patch.names) doc.names = patch.names;
+  if (Array.isArray(patch.breaks)) doc.breaks = patch.breaks.filter(Number.isInteger).slice(0, 5000);
   doc.updatedAt = new Date().toISOString();
   await writeJson(itemPath(id), doc);
   var idx = await list();

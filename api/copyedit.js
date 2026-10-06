@@ -193,7 +193,10 @@ async function runAgenticLoop(key, systemPrompt, userContent, tools, finalToolNa
 // the web before answering. Same idea as talking to Claude about a draft,
 // but grounded when the question calls for it.
 async function handleRefine(res, key, body) {
-  var current = (body.refine.current || '').toString().slice(0, 24000);
+  // Long enough for a two-hour press conference transcript pasted in whole
+  // (it was 24,000 characters, which cut a presser off about 20 minutes in).
+  var current = (body.refine.current || '').toString().slice(0, 150000);
+  var writerProfile = (body.writerProfile || '').toString().slice(0, 6000);
   var instruction = (body.refine.instruction || '').toString().slice(0, 2000).trim();
   var styleGuide = (body.styleGuide || '').toString().slice(0, 12000);
   var writerName = (body.writerName || 'the writer').toString().slice(0, 80);
@@ -211,10 +214,30 @@ async function handleRefine(res, key, body) {
     ' You can do anything a good editor or writer would on command: answer questions, make edits, and write new copy (a whole story from notes or directions, a new section, a lede, a kicker, headlines, social posts, interview questions), just as you would in a regular conversation with Claude.' +
     (styleGuide ? ('\n\nHOUSE STYLE:\n' + styleGuide) : '');
 
+  // Writing a story (Jeff, 2026-10-06, on an article written from Mike
+  // Locksley's press-conference transcript: "the writing has very poor
+  // logic"): give it the same grounding as Write it (date, roster, roster
+  // changes, our coverage, calendar) and real story-writing rules.
+  var hasTranscript = /^TRANSCRIPT\b|\[\d{1,2}:\d{2}(?::\d{2})?\]/m.test(current);
+  var wantsWriting = /\b(write|draft|story|article|recap|piece|turn (this|it) into)\b/i.test(instruction);
+  var grounding = '';
+  if (wantsWriting || hasTranscript) {
+    try { grounding = await require('./_breaking-draft').groundingText(instruction + ' ' + current.slice(0, 3000)); } catch (e) { grounding = ''; }
+  }
+  if (writerProfile) sys += '\n\nTHE WRITER\'S VOICE (write in it):\n' + writerProfile;
+  sys += '\n\nWHEN YOU WRITE A STORY (from notes, a transcript, or directions):\n' +
+    '- Structure it like a sharp beat writer: lead with the single most newsworthy thing that was said or happened, then a paragraph on why it matters, then the rest organized by topic in order of news value (not in the order things were said). Each section opens with a clear point, then the quote that backs it up.\n' +
+    '- From a transcript: quote word for word, only what is in the transcript; attribute each quote to the right person (use the speaker names given; never guess who a speaker is); paraphrase the routine parts and save direct quotes for the strongest, most revealing lines; skip pleasantries, the moderator and logistics. Reporters\' questions can be paraphrased for context ("Asked about the quarterback spot, Locksley said...").\n' +
+    '- Your own memory of rosters, staffs and seasons is out of date. Use only the article/transcript, the CONTEXT below and your research. Never name a player or describe a past season, game or result unless it appears there; anyone in RECENT ROSTER CHANGES as departed is gone.\n' +
+    '- Short declarative sentences, no filler ("legitimate weapons", "heading into the season", "remains to be seen"), no guessing at what anyone thinks, no predictions, no rhetorical questions. Every paragraph must follow logically from the one before.\n' +
+    '- A headline-ready first sentence; 500-900 words for a full press conference unless told otherwise.\n' +
+    '- When the draft is a transcript or notes and you write the story from it, "edited" is the finished story alone, without the transcript or notes (they stay saved elsewhere).';
+
   var convo = history.map(function (h) { return (h.role === 'user' ? 'EDITOR: ' : 'YOU: ') + h.text; }).join('\n');
   var user =
     (isDraftStage ? 'CURRENT DRAFT (Markdown, may be partial or empty):\n' : 'CURRENT ARTICLE (Markdown):\n') + (current || '(nothing written yet)') + '\n\n' +
     (convo ? 'EARLIER IN THIS CONVERSATION:\n' + convo + '\n\n' : '') +
+    (grounding ? 'CONTEXT (current facts for the beat; trust this over your memory):\n' + grounding + '\n\n' : '') +
     'THE EDITOR NOW SAYS:\n' + instruction + '\n\n' +
     'Decide first: is this a CHANGE to the article, a direction to WRITE something, or a QUESTION (including "what do you know about X" / background lookups)?\n' +
     'If doing it well needs current information you\'re not sure of — a stat line, an injury update, a roster/depth-chart move, this week\'s news, a score, a schedule — use the web_search tool first. Prefer reputable sports sources (247Sports, ESPN, ' + (teamName ? 'official ' + teamName + ' athletics' : 'the team\'s official site') + ') and note in the reply when something came from a live search vs. what you already knew. Skip searching for stable facts, or when the article itself already has what you need.\n' +

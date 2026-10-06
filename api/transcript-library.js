@@ -3,7 +3,7 @@
 //   GET ?id=<id>             -> the full transcript { id, title, utterances, text, names, duration, ... }
 //   POST { action:'save', id, source, sourceName, sourceUrl, data:{utterances,text,duration,auto}, names }
 //                            -> { id, title } (titled by Claude the first time it's saved)
-//   POST { action:'update', id, title?, names? }
+//   POST { action:'update', id, title?, names?, breaks? }  (breaks: AI paragraph starts, /api/transcript-tidy)
 //   POST { action:'delete', id }   (whoever made it, or an editor/publisher)
 // Same access as Transcribe (tab_transcribe). Fails open without Supabase.
 var S = require('./_supabase');
@@ -33,7 +33,7 @@ module.exports = async function handler(req, res) {
       return res.status(200).json({ id: saved.id, title: saved.title, createdAt: saved.createdAt });
     }
     if (b.action === 'update') {
-      var up = await Lib.update(String(b.id || ''), { title: b.title, names: b.names });
+      var up = await Lib.update(String(b.id || ''), { title: b.title, names: b.names, breaks: b.breaks });
       return res.status(200).json({ id: up.id, title: up.title });
     }
     if (b.action === 'delete') {
