@@ -188,6 +188,10 @@ module.exports = async function handler(req, res) {
       }
     } catch (e) { console.error('Coverage Desk: AI calendar failed (non-fatal):', e.message); }
 
+    // Ombudsman: daily quality review of our last 3 days of articles (best-effort).
+    var ombReview = null;
+    try { ombReview = await require('./_ombudsman.js').review({}); } catch (e) { console.error('Coverage Desk: ombudsman review failed (non-fatal):', e.message); }
+
     // Today's calendar: shown at the top of the email and given to the memo.
     var todayEvents = [];
     try { todayEvents = await require('./_calendar').eventsOn(); } catch (e) { console.error('Coverage Desk: calendar failed (non-fatal):', e.message); }
@@ -229,6 +233,7 @@ module.exports = async function handler(req, res) {
       '<div style="background:#0f1b2d;padding:12px 16px;border-radius:8px 8px 0 0"><span style="color:#fff;font-weight:700">Coverage Desk &mdash; ' + today + '</span></div>' +
       '<div style="background:#fff;border:1px solid #e8e6e1;border-top:none;border-radius:0 0 8px 8px;padding:18px;font-size:14px;line-height:1.55">' +
       calendarHtml(todayEvents) +
+      require('./_ombudsman.js').reviewHtml(ombReview) +
       glanceHtml(yesterday) +
       memo +
       '<p style="color:#888;font-size:11px;margin-top:20px;border-top:1px solid #eee;padding-top:10px">Auto-generated from this morning’s scan of ' + alerts.length + ' rated stories. A starting point &mdash; review before assigning.</p>' +

@@ -6,6 +6,7 @@
 //   GET                         -> { disliked:[{title, angle, at}], beat:{outletName, coverage, short} }
 //   POST {dislike:{title,angle}} -> { ok:true }
 //   POST {action:'ombudsman', alerts} -> { ideas } (the Ombudsman's five, on demand)
+//   POST {action:'ombudsman-review'}  -> { review } (the Ombudsman's quality review of our recent articles)
 //
 // Small Vercel Blob list per site (story-ideas-feedback.json), newest first,
 // capped at 60. Best-effort like the other Blob state.
@@ -38,12 +39,16 @@ module.exports = async function handler(req, res) {
         disliked: (all[SITE] || []).slice(0, 40),
         beat: { outletName: b.outletName, coverage: b.coverage, short: b.team.short },
         // The Ombudsman's latest five (from the last update email), for the Story backlog tab.
-        ombudsman: await require('./_ombudsman.js').latest().catch(function () { return null; })
+        ombudsman: await require('./_ombudsman.js').latest().catch(function () { return null; }),
+        review: await require('./_ombudsman.js').latestReview().catch(function () { return null; })
       });
     }
     if (req.method !== 'POST') return res.status(405).json({ error: 'GET or POST' });
     // "💡 Get 5 ideas now" on the Story backlog tab: run the Ombudsman on
     // demand (one Claude call) from the latest scan the page has.
+    if (req.body && req.body.action === 'ombudsman-review') {
+      return res.status(200).json({ review: await require('./_ombudsman.js').review({}) });
+    }
     if (req.body && req.body.action === 'ombudsman') {
       var alerts = Array.isArray(req.body.alerts) ? req.body.alerts.slice(0, 40).map(function (a) {
         return { headline: String(a.headline || '').slice(0, 300), summary: String(a.summary || '').slice(0, 400), rating: +a.rating || 0, source: String(a.source || '').slice(0, 60) };
