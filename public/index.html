@@ -207,6 +207,19 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; b
 .bb-tag { font-size: 11px; font-weight: 600; color: var(--nav-on); }
 body { padding-bottom: 40px; }
 body.no-opps .acc-opps,body.no-write .acc-write,body.no-flag .acc-flag,body.no-flag #excludeCard{display:none!important}
+.cal-box{background:var(--bg2);border:1px solid var(--border);border-radius:10px;padding:12px;margin:8px 0 12px}
+.cal-sel{font-size:12.5px;padding:4px 6px;border:1px solid var(--border);border-radius:6px;background:var(--bg2);color:var(--text)}
+.cal-day{font-size:.78rem;font-weight:700;text-transform:uppercase;letter-spacing:.03em;color:var(--text2);margin:14px 0 6px}
+.cal-ev{display:flex;gap:12px;align-items:flex-start;flex-wrap:wrap;padding:10px 12px;background:var(--bg2);border:1px solid var(--border);border-radius:8px;margin-bottom:6px}
+.cal-time{width:70px;flex-shrink:0;font-weight:700;font-size:.85rem}
+.cal-main{flex:1;min-width:180px}
+.cal-kind{font-size:.68rem;font-weight:700;border-radius:4px;padding:1px 6px;margin-left:6px;vertical-align:1px;background:var(--bg);border:1px solid var(--border);color:var(--text2)}
+.cal-kind.deadline{background:#fef2f2;border-color:#fecaca;color:#b91c1c}
+.cal-kind.game{background:#eff6ff;border-color:#bfdbfe;color:#1d4ed8}
+.cal-kind.media{background:#f5f3ff;border-color:#ddd6fe;color:#6d28d9}
+.cal-rem{display:flex;gap:6px;align-items:center;flex-wrap:wrap;font-size:.78rem;color:var(--text2)}
+.cal-x{border:0;background:none;color:var(--text3);cursor:pointer;font-size:16px;line-height:1;padding:0 2px}
+@media (max-width:600px){.cal-time{width:auto}.cal-rem{width:100%}}
 </style>
 </head>
 <body>
@@ -242,6 +255,7 @@ body.no-opps .acc-opps,body.no-write .acc-write,body.no-flag .acc-flag,body.no-f
   <button class="nav-tab" id="tab-btn-11" onclick="switchTab(11)">📈 Analytics</button>
   <button class="nav-tab" id="tab-btn-12" onclick="switchTab(12)">🏈 Roster watch</button>
   <button class="nav-tab" id="tab-btn-13" onclick="switchTab(13)">👀 Opp Watch</button>
+  <button class="nav-tab" id="tab-btn-14" onclick="switchTab(14)">📅 Calendar</button>
 </div>
 
 <!-- ALERTS TAB -->
@@ -804,6 +818,37 @@ body.no-opps .acc-opps,body.no-write .acc-write,body.no-flag .acc-flag,body.no-f
   <div id="oppsList"><div class="empty"><i class="ti ti-eye"></i>Loading…</div></div>
 </div>
 
+<!-- CALENDAR TAB -->
+<div class="page" id="page-14">
+  <div style="padding:16px 0 8px;">
+    <h3 style="margin:0;font-size:1.1rem;">📅 Calendar</h3>
+    <p style="color:var(--text2);font-size:.85rem;margin:4px 0 0;max-width:72ch;" id="calIntro">Deadlines, games, media days and events, pulled out of emails and notes and summarized. Set a reminder by email or text, from 30 minutes to 6 hours before.</p>
+  </div>
+  <div class="cal-box">
+    <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:6px;"><b style="font-size:.9rem;">Add from an email or note</b><span style="font-size:.78rem;color:var(--text3);">Paste it and CoPublisher pulls out every date.</span></div>
+    <textarea id="calText" rows="4" placeholder="Paste an email, a schedule, or a note with dates…" style="width:100%;font-size:13px;padding:8px 10px;border:1px solid var(--border);border-radius:6px;font-family:inherit;"></textarea>
+    <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:6px;">
+      <button class="pill" id="calAddBtn" onclick="calAddText()">Add to calendar</button>
+      <details style="font-size:.8rem;"><summary style="cursor:pointer;color:var(--text2);">or add one by hand</summary>
+        <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:6px;">
+          <input id="calTitle" placeholder="What" style="flex:2;min-width:150px;font-size:13px;padding:6px 8px;border:1px solid var(--border);border-radius:6px;">
+          <input id="calDate" type="date" style="font-size:13px;padding:6px 8px;border:1px solid var(--border);border-radius:6px;">
+          <input id="calTime" type="time" style="font-size:13px;padding:6px 8px;border:1px solid var(--border);border-radius:6px;">
+          <input id="calWhere" placeholder="Where (optional)" style="flex:1;min-width:120px;font-size:13px;padding:6px 8px;border:1px solid var(--border);border-radius:6px;">
+          <button class="pill" onclick="calAddManual()">Add</button>
+        </div></details>
+    </div>
+    <div id="calMsg" style="font-size:12.5px;margin-top:6px;color:var(--text3);"></div>
+  </div>
+  <div class="cal-box" style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;font-size:.85rem;">
+    <b>My default reminder</b><span style="color:var(--text3);font-size:.78rem;">for events I add</span>
+    <select id="calDefMin" onchange="calSaveDefault()" class="cal-sel"></select>
+    <select id="calDefCh" onchange="calSaveDefault()" class="cal-sel"><option value="email">by email</option><option value="text">by text</option></select>
+    <span id="calDefMsg" style="font-size:.78rem;color:var(--text3);"></span>
+  </div>
+  <div id="calList"><div class="empty"><i class="ti ti-calendar"></i>Loading…</div></div>
+</div>
+
 <div class="bottom-bar">
   <span class="bb-brand">INSIDEMDSPORTS</span>
   <span class="bb-tag">TERPS NEWS MONITOR</span>
@@ -882,7 +927,7 @@ const SCAN_MS = 30 * 60 * 1000;
 // scan run on /alerts still feeds /digest, /podcasts, etc. without
 // re-fetching. vercel.json rewrites every path below back to this file.
 // ============================================================
-var TAB_PATHS = ['/alerts','/digest','/social','/chat','/backlog','/recruiting','/trending','/podcasts','/youtube','/bluesky','/settings','/analytics','/roster','/opps'];
+var TAB_PATHS = ['/alerts','/digest','/social','/chat','/backlog','/recruiting','/trending','/podcasts','/youtube','/bluesky','/settings','/analytics','/roster','/opps','/calendar'];
 function pathToTab(p) {
   p = String(p || '/').replace(/\/+$/, '') || '/';
   if (p === '/' || p === '/index.html' || p === '/index') return 0;
@@ -894,7 +939,7 @@ function pathToTab(p) {
 // (site profile editorAccess; api/_access.js also enforces it on the routes
 // that spend credits or show private numbers). Unset = allowed; the publisher
 // and a login-free setup always have everything. Alerts and Settings always show.
-var MON_ACCESS = { 1:'mon_digest', 2:'mon_social', 3:'mon_chat', 4:'mon_backlog', 5:'mon_recruiting', 6:'mon_trending', 7:'mon_podcasts', 8:'mon_youtube', 9:'mon_bluesky', 11:'mon_analytics', 12:'mon_roster', 13:'mon_opps' };
+var MON_ACCESS = { 1:'mon_digest', 2:'mon_social', 3:'mon_chat', 4:'mon_backlog', 5:'mon_recruiting', 6:'mon_trending', 7:'mon_podcasts', 8:'mon_youtube', 9:'mon_bluesky', 11:'mon_analytics', 12:'mon_roster', 13:'mon_opps', 14:'mon_calendar' };
 var monitorAccess = null;
 function accessAllows(key) {
   var role = window.IMSAuth && IMSAuth.state && IMSAuth.state.role;
@@ -930,6 +975,7 @@ function switchTab(idx, fromPop) {
   if (idx === 11) { renderAnalyticsConnections(); loadAnalyticsSuggestions(); }
   if (idx === 12) loadRosterWatch();
   if (idx === 13) loadOppsSpy();
+  if (idx === 14) loadCalendar();
   window.scrollTo(0, 0);
   if (!fromPop) {
     try { history.pushState({ imsTab: idx }, '', TAB_PATHS[idx]); } catch (e) {}
@@ -3399,6 +3445,100 @@ async function oppsFollow() {
   var ok = await oppsAct({ action: 'follow', name: n.value.trim(), site: st.value.trim(), alertEmail: document.getElementById('oppsAddEmail').checked, alertText: document.getElementById('oppsAddText').checked },
     'Following ' + (n.value.trim() || st.value.trim()) + '.');
   if (ok) { n.value = ''; st.value = ''; }
+}
+
+
+// ---- Calendar (/api/calendar; see api/_calendar.js) -------------------------
+var calData = { events: [], steps: [] };
+function calEsc(s) { return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); }
+function calMinLabel(m) { return m < 60 ? m + ' min' : (m % 60 ? (m / 60).toFixed(1) : m / 60) + ' hr'; }
+function calOpts(sel, none) {
+  return '<option value="0">' + none + '</option>' + (calData.steps || []).map(function (m) { return '<option value="' + m + '"' + (m === sel ? ' selected' : '') + '>' + calMinLabel(m) + ' before</option>'; }).join('');
+}
+async function calFetch(body) {
+  var f = window.IMSAuth ? IMSAuth.authFetch : fetch;
+  var r = body ? await f('/api/calendar', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }) : await f('/api/calendar');
+  var d = await r.json().catch(function () { return {}; });
+  if (!r.ok || d.error) throw new Error(d.error || ('HTTP ' + r.status));
+  return d;
+}
+async function loadCalendar() {
+  try {
+    calData = await calFetch();
+    if (calData.address) document.getElementById('calIntro').innerHTML = 'Email anything with dates to <a href="mailto:' + calEsc(calData.address) + '"><b>' + calEsc(calData.address) + '</b></a> (forward it from your team email), or paste it below. Each date is summarized in a line, and you can get a reminder by email or text, 30 minutes to 6 hours before.';
+    var def = calData.myDefault || {};
+    document.getElementById('calDefMin').innerHTML = calOpts(def.minutes || 0, 'Off');
+    document.getElementById('calDefCh').value = def.channel || 'email';
+    renderCalendar();
+  } catch (e) {
+    document.getElementById('calList').innerHTML = '<div class="empty" style="padding:12px;">Couldn\'t load the calendar: ' + calEsc(e.message) + '</div>';
+  }
+}
+function renderCalendar() {
+  var el = document.getElementById('calList');
+  var evs = (calData.events || []).slice().sort(function (a, b) { return a.start.localeCompare(b.start); });
+  if (!evs.length) { el.innerHTML = '<div class="empty" style="padding:18px;"><i class="ti ti-calendar"></i>Nothing on the calendar yet. Email or paste something with dates.</div>'; return; }
+  var tz = calData.tz || 'America/New_York', me = calData.me || '', html = '', lastDay = '';
+  var now = Date.now();
+  evs.forEach(function (e) {
+    var d = new Date(e.start);
+    var day = d.toLocaleDateString('en-US', { timeZone: tz, weekday: 'long', month: 'long', day: 'numeric' });
+    if (day !== lastDay) { html += '<div class="cal-day">' + calEsc(day) + '</div>'; lastDay = day; }
+    var past = Date.parse(e.start) < now;
+    var mine = (e.reminders || []).filter(function (r) { return r.email === me; })[0];
+    var time = e.allDay ? 'All day' : d.toLocaleTimeString('en-US', { timeZone: tz, hour: 'numeric', minute: '2-digit' });
+    html += '<div class="cal-ev" style="' + (past ? 'opacity:.55;' : '') + '">' +
+      '<div class="cal-time">' + calEsc(time) + '</div>' +
+      '<div class="cal-main"><b>' + calEsc(e.title) + '</b><span class="cal-kind ' + calEsc(e.kind) + '">' + calEsc(e.kind || 'event') + '</span>' +
+        (e.location ? '<div style="font-size:.8rem;color:var(--text2);">📍 ' + calEsc(e.location) + '</div>' : '') +
+        (e.note ? '<div style="font-size:.8rem;color:var(--text2);margin-top:2px;">' + calEsc(e.note) + '</div>' : '') +
+        (e.sourceSubject ? '<div style="font-size:.72rem;color:var(--text3);margin-top:3px;" title="' + calEsc(e.groupSummary || '') + '">From: ' + calEsc(e.sourceSubject) + '</div>' : '') +
+      '</div>' +
+      (past ? '' : '<div class="cal-rem">🔔 <select class="cal-sel" onchange="calRemind(\'' + e.id + '\',this.value,this.nextElementSibling.value)">' + calOpts(mine ? mine.minutes : 0, 'No reminder') + '</select>' +
+        '<select class="cal-sel" onchange="calRemind(\'' + e.id + '\',this.previousElementSibling.value,this.value)"><option value="email"' + (mine && mine.channel === 'text' ? '' : ' selected') + '>Email</option><option value="text"' + (mine && mine.channel === 'text' ? ' selected' : '') + '>Text</option></select>' +
+        (mine && mine.sentAt ? '<span style="color:var(--green);">sent</span>' : '') + '</div>') +
+      '<button class="cal-x" title="Delete" onclick="calDelete(\'' + e.id + '\')">×</button>' +
+    '</div>';
+  });
+  el.innerHTML = html;
+}
+function calSay(t, err) { var m = document.getElementById('calMsg'); m.style.color = err ? 'var(--hot)' : 'var(--text3)'; m.innerHTML = t; }
+async function calAddText() {
+  var t = document.getElementById('calText'), b = document.getElementById('calAddBtn');
+  if (!t.value.trim()) return calSay('Paste something with dates first.', true);
+  b.disabled = true; calSay('Reading it…');
+  try {
+    var d = await calFetch({ action: 'add-text', text: t.value });
+    calSay(d.events.length ? '<b style="color:var(--green);">Added ' + d.events.length + ' item' + (d.events.length === 1 ? '' : 's') + '.</b> ' + calEsc(d.summary || '') : 'No dates found in that, so nothing was added.');
+    if (d.events.length) t.value = '';
+    await loadCalendar();
+  } catch (e) { calSay('Couldn\'t add it: ' + calEsc(e.message), true); }
+  b.disabled = false;
+}
+async function calAddManual() {
+  var g = function (id) { return document.getElementById(id).value.trim(); };
+  try {
+    await calFetch({ action: 'add', title: g('calTitle'), date: g('calDate'), time: g('calTime'), location: g('calWhere') });
+    ['calTitle', 'calDate', 'calTime', 'calWhere'].forEach(function (id) { document.getElementById(id).value = ''; });
+    calSay('Added.'); await loadCalendar();
+  } catch (e) { calSay(calEsc(e.message), true); }
+}
+async function calRemind(id, minutes, channel) {
+  try {
+    await calFetch({ action: 'remind', id: id, minutes: +minutes, channel: channel });
+    calSay(+minutes ? 'Reminder set: ' + calMinLabel(+minutes) + ' before, by ' + (channel === 'text' ? 'text (by email until texting is connected)' : 'email') + '.' : 'Reminder off.');
+    await loadCalendar();
+  } catch (e) { calSay('Couldn\'t set it: ' + calEsc(e.message), true); }
+}
+async function calSaveDefault() {
+  var m = +document.getElementById('calDefMin').value, ch = document.getElementById('calDefCh').value, s = document.getElementById('calDefMsg');
+  try { await calFetch({ action: 'default', minutes: m, channel: ch }); s.style.color = 'var(--green)'; s.textContent = m ? 'Saved: new events you add get a ' + calMinLabel(m) + ' reminder.' : 'Saved: no default reminder.'; }
+  catch (e) { s.style.color = 'var(--hot)'; s.textContent = e.message; }
+}
+async function calDelete(id) {
+  var ev = (calData.events || []).filter(function (e) { return e.id === id; })[0];
+  if (!confirm('Delete "' + (ev ? ev.title : 'this event') + '" from the calendar?')) return;
+  try { await calFetch({ action: 'delete', id: id }); await loadCalendar(); } catch (e) { calSay(calEsc(e.message), true); }
 }
 
 async function loadRosterWatch() {

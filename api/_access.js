@@ -37,6 +37,7 @@ var FEATURES = [
   { key: 'mon_analytics',  label: 'Analytics (traffic and audience numbers)' },
   { key: 'mon_roster',     label: 'Roster watch' },
   { key: 'mon_opps',       label: 'Opp Watch' },
+  { key: 'mon_calendar',   label: 'Calendar' },
   // News Monitor actions
   { key: 'act_write_story',label: 'Write it: draft an article from an alert or story idea' },
   { key: 'act_flag_block', label: 'Flag junk and block sources for the whole newsroom' },
