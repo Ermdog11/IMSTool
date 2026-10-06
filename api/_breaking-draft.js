@@ -213,4 +213,24 @@ async function generateBreakingDraft(alert, styleGuide) {
   return parsed;
 }
 
-module.exports = { generateBreakingDraft: generateBreakingDraft };
+// The same grounding for any writing tool (the Content Editor's "Give
+// directions" box when it writes a story, e.g. from a press-conference
+// transcript): today's date, our recent coverage of the topic, the current
+// roster and staff, recent roster changes, the beat's people and the calendar.
+// No AI calls; each part is best-effort.
+async function groundingText(topic) {
+  var S = require('./_supabase');
+  var sb = S.isConfigured() ? S.admin() : null;
+  var beat = await require('./_beat').getBeat(sb).catch(function () { return null; });
+  var alert = { headline: String(topic || '').slice(0, 300), summary: String(topic || '').slice(300, 1200), category: '' };
+  var today = new Date().toLocaleDateString('en-US', { timeZone: 'America/New_York', weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+  var got = await Promise.all([sb ? recentCoverage(sb, alert) : '', beat ? currentRoster(beat, alert) : '', rosterChanges(), calendarNotes()]);
+  return 'TODAY: ' + today +
+    '\n\nOUR RECENT COVERAGE (our own archive, newest first; for current context only):\n' + (got[0] || '(none found)') +
+    '\n\nCURRENT ROSTER AND STAFF (from our roster watch):\n' + (got[1] || '(not available)') +
+    '\n\nRECENT ROSTER AND STAFF CHANGES (departures, arrivals; newest first):\n' + (got[2] || '(none recorded)') +
+    '\n\nPEOPLE ON OUR BEAT (from our beat profile):\n' + ((beat && beatPeople(beat)) || '(not set)') +
+    '\n\nCALENDAR (last week and the next three weeks):\n' + (got[3] || '(nothing on it)');
+}
+
+module.exports = { generateBreakingDraft: generateBreakingDraft, groundingText: groundingText };

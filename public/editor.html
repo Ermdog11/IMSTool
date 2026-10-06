@@ -1241,7 +1241,7 @@ async function askEditorPre(){
     var draftNow=document.getElementById('ed-draft').value||'';
     var r=await fetch('/api/copyedit',{method:'POST',headers:{'Content-Type':'application/json'},
       body:JSON.stringify({refine:{current:draftNow,instruction:q,history:_preChatHistory,stage:'draft'},
-        styleGuide:document.getElementById('sg').value, writerName:(wi!==''?((w[wi]&&w[wi].name)||''):'')})});
+        styleGuide:document.getElementById('sg').value, writerName:(wi!==''?((w[wi]&&w[wi].name)||''):''), writerProfile:(wi!==''?((w[wi]&&w[wi].profile)||''):'')})});
     var res=await r.json();
     wait.remove();
     if(res.error){ log.innerHTML+='<div style="align-self:flex-start;color:var(--hot);font-size:13px">'+esc(res.error)+'</div>'; }
@@ -1276,7 +1276,7 @@ async function askEditor(){
     var wi=document.getElementById('ed-writer').value, w=getWriters();
     var r=await fetch('/api/copyedit',{method:'POST',headers:{'Content-Type':'application/json'},
       body:JSON.stringify({refine:{current:lastEdit.d.edited||'',instruction:q,history:_chatHistory},
-        styleGuide:document.getElementById('sg').value, writerName:(wi!==''?((w[wi]&&w[wi].name)||''):'')})});
+        styleGuide:document.getElementById('sg').value, writerName:(wi!==''?((w[wi]&&w[wi].name)||''):''), writerProfile:(wi!==''?((w[wi]&&w[wi].profile)||''):'')})});
     var res=await r.json();
     wait.remove();
     if(res.error){ log.innerHTML+='<div style="align-self:flex-start;color:var(--hot);font-size:13px">'+esc(res.error)+'</div>'; }
@@ -2192,7 +2192,8 @@ function renderTranscript(){
     '<h2 style="margin:0">'+esc(trState.name||'Transcript')+'<span style="font-weight:400;font-size:13px;color:var(--muted)">'+dur+'</span>'+
       (trState.libId?' <a href="#" style="font-size:12px;font-weight:400" onclick="trRename();return false">Rename</a> <span style="font-size:12px;font-weight:400;color:var(--green,#16a34a)">✓ Saved to library</span>':(trState.saved?' <span style="font-size:12px;font-weight:400;color:var(--muted)">Saving…</span>':''))+'</h2>'+
     '<div><button class="btn ghost" style="margin:0 6px 0 0" onclick="trCopyAll(this)">Copy all</button>'+
-    '<button class="btn ghost" style="margin:0" onclick="trAllToDraft()">Send to Content Editor</button></div></div>'+
+    '<button class="btn ghost" style="margin:0 6px 0 0" onclick="trAllToDraft()">Send to Content Editor</button>'+
+    '<button class="btn" style="margin:0" onclick="trWriteStory()">✍️ Write a story from this</button></div></div>'+
     '<div style="display:flex;gap:10px;flex-wrap:wrap;margin:12px 0 4px">'+speakers.map(function(sp){
       return '<label style="margin:0;display:flex;align-items:center;gap:6px;font-weight:400">Speaker '+esc(sp)+' is '+
         '<input value="'+esc(trState.names[sp]||'').replace(/"/g,'&quot;')+'" placeholder="name" style="width:150px;padding:5px 7px" onchange="trState.names[\''+esc(sp)+'\']=this.value.trim();trSaveNames();renderTranscript()"></label>';
@@ -2361,6 +2362,20 @@ function trAppend(text){
   ta.value=base.replace(/\s+$/,'')+(base.trim()?'\n\n':'')+text+(pod?'\n\n'+pod[0].trim()+'\n':'');
 }
 function trToDraft(i,btn){ var u=trUtterances()[i]; trAppend('“'+u.text+'”'+(u.speaker!=null?' '+trName(u.speaker)+' said.':'')); trFlash(btn,'Added ✓'); }
+// One tap from a transcript to a written story: the whole transcript goes into
+// the Content Editor draft and its "Give directions" box is asked to write the
+// story, with the same grounding and story rules as Write it (copyedit.js).
+function trWriteStory(){
+  var unnamed=trUtterances().some(function(u){ return u.speaker!=null&&!trState.names[u.speaker]; });
+  if(unnamed&&!confirm('Some speakers don\u2019t have names yet, so quotes may be attributed to "Speaker A". Name them first for a better story?\n\nOK = write it anyway, Cancel = go back and name them.')) return;
+  var ta=document.getElementById('ed-draft');
+  if(ta.value.trim()&&!confirm('Replace what\u2019s in the Content Editor draft with this transcript?')) return;
+  ta.value='TRANSCRIPT \u2014 '+(trState.name||'')+'\n\n'+trPlain();
+  show(0);
+  var inp=document.getElementById('pre-ed-ask');
+  inp.value='Write a news story from this transcript.';
+  askEditorPre();
+}
 function trAllToDraft(){ trAppend('TRANSCRIPT — '+(trState.name||'')+'\n\n'+trPlain()); show(0); }
 (function(){
   var dz=document.getElementById('tr-drop'); if(!dz) return;

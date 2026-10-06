@@ -6,7 +6,7 @@
       "maxDuration": 300
     },
     "api/copyedit.js": {
-      "maxDuration": 180
+      "maxDuration": 300
     },
     "api/fact-check.js": {
       "maxDuration": 180
