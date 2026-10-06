@@ -126,7 +126,7 @@ function emailHtml(ideas) {
   if (!ideas || !ideas.length) return '';
   var e = function (x) { return String(x == null ? '' : x).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); };
   return '<div style="margin-bottom:22px;border:1px solid #c7d2fe;background:#eef2ff;border-radius:8px;padding:12px 14px;">' +
-    '<div style="font-size:12px;font-weight:700;color:#4338ca;text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px;">💡 Ombudsman <span style="font-weight:400;text-transform:none;letter-spacing:0;color:#555;">· ' + (ideas.length === 5 ? 'five' : ideas.length) + ' story ideas</span></div>' +
+    '<div style="font-size:12px;font-weight:700;color:#4338ca;text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px;">💡 Ombudsman <span style="font-weight:400;text-transform:none;letter-spacing:0;color:#555;">· ' + (ideas.length === 5 ? 'five' : ideas.length) + ' story idea' + (ideas.length === 1 ? '' : 's') + '</span></div>' +
     ideas.map(function (i, n) {
       return '<div style="padding:7px 0;border-top:1px solid #dfe3fb;">' +
         '<div style="font-size:14px;font-weight:600;color:#1a1a1a;">' + (n + 1) + '. ' + e(i.title) + ' <span style="font-size:11px;font-weight:600;color:#4338ca;background:#fff;border:1px solid #c7d2fe;border-radius:10px;padding:0 6px;">' + e(KIND_LABEL[i.kind] || i.kind) + '</span></div>' +
