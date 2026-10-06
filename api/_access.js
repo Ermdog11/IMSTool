@@ -17,6 +17,7 @@ var FEATURES = [
   { key: 'mode_links',     label: 'Hotlinks only' },
   { key: 'add_with_edit',  label: 'Add podcast, related links and promos' },
   { key: 'ask_editor',     label: 'Ask the editor (chat)' },
+  { key: 'act_fact_check', label: 'Extra fact-check' },
   { key: 'tab_transcribe', label: 'Transcribe' },
   { key: 'tab_social',     label: 'From social' },
   { key: 'tab_house_style',label: 'House style' },
