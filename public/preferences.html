@@ -283,7 +283,8 @@ function loadEditorDefaults(){
     podcast:d.podcast!==false, related:d.related!==false, promos:!!d.promos, factCheck:!!d.factCheck, ads:d.ads!==false, affiliate:d.affiliate!==false,
     podcastPosition:pct(d.podcastPosition!=null?d.podcastPosition:pod.position),
     relatedPosition:pct(d.relatedPosition),
-    relatedCount:+(d.relatedCount||3), relatedScope:d.relatedScope==='web'?'web':'site'
+    relatedCount:+(d.relatedCount||3), relatedScope:d.relatedScope==='web'?'web':'site',
+    tierMode:d.tierMode==='free'||d.tierMode==='vip'?d.tierMode:'both'
   };
   renderEditorDefaults();
 }
@@ -299,6 +300,7 @@ function renderEditorDefaults(){
     '<div class="row"><div class="name"><span><b>Placement %</b> is how far down the article the box goes, counted in paragraphs: 0% is above the first paragraph, 50% the middle, 100% after the last. In a 10-paragraph story, 40% goes after paragraph 4.</span></div></div>'+
     '<div class="row"><div class="name"><b>How many related links</b></div>'+seg('relatedCount',[[1,'1'],[2,'2'],[3,'3'],[4,'4']])+'</div>'+
     '<div class="row"><div class="name"><b>Related links point to</b></div>'+seg('relatedScope',[['site','Our site only'],['web','Anywhere on the web']])+'</div>'+
+    '<div class="row"><div class="name"><b>What you publish</b><span>If you only publish free or only paywalled stories, the Tier pull-down comes off the Content Editor and every article uses that tier (its promos and ad slots).</span></div>'+seg('tierMode',[['both','Free and paywalled'],['free','Only free'],['vip','Only paywalled']])+'</div>'+
     '<div class="row"><div class="name"><b>📣 Promos for the article’s tier</b><span>Every free or VIP promo set up in the Content Editor, each at its usual spot.</span></div>'+sw('promos')+'</div>'+
     '<div class="row"><div class="name"><b>💰 Ad slots</b><span>Your ad units, at their set spots (set them up on the Content Editor’s Inserts tab).</span></div>'+sw('ads')+'</div>'+
     '<div class="row"><div class="name"><b>💸 Affiliate links</b><span>Links to gear, ticket and other partner sites earn your newsroom a share through CoPublisher AI\u2019s affiliate programs.</span></div>'+sw('affiliate')+'</div>'+

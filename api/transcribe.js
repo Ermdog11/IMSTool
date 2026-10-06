@@ -14,6 +14,11 @@
 //                                          stream mic or shared-tab audio without seeing our key
 //   GET  ?id=<transcript id>            -> { status, text, utterances:[{speaker,start,end,text}],
 //                                            duration, error }
+//   POST { action:'youtube', url }      -> a YouTube video's own captions as a transcript, right
+//                                          away (no AssemblyAI, no cost; _youtube-transcript.js)
+//                                          -> { id:'yt-<video id>', status:'completed', title, text,
+//                                               utterances, duration, auto }
+//                                          GET ?id=yt-<video id> fetches it again (Recent transcripts)
 //
 // Any signed-in member can use it (writers transcribe their own interviews).
 // Fails open like the rest of the app when Supabase isn't configured.
@@ -111,6 +116,7 @@ module.exports = async function handler(req, res) {
       }
       var id = String((req.query && req.query.id) || '');
       if (!/^[A-Za-z0-9_-]{6,80}$/.test(id)) return res.status(400).json({ error: 'Missing transcript id.' });
+      if (/^yt-[A-Za-z0-9_-]{11}$/.test(id)) return res.status(200).json(await require('./_youtube-transcript').transcript(id.slice(3)));
       var t = await aaiJson('/transcript/' + id, { headers: { authorization: aaiKey() } });
       var utterances = (t.utterances || []).map(function (u) {
         return { speaker: u.speaker, start: u.start, end: u.end, text: u.text };
@@ -144,6 +150,11 @@ module.exports = async function handler(req, res) {
       return res.status(200).json(out);
     }
 
+    if (body.action === 'youtube') {
+      await auth(req);
+      return res.status(200).json(await require('./_youtube-transcript').transcript(body.url));
+    }
+
     if (body.action === 'start') {
       await auth(req);
       aaiKey();
@@ -156,7 +167,7 @@ module.exports = async function handler(req, res) {
         var u = String(body.url).trim();
         if (!/^https?:\/\//i.test(u)) return res.status(400).json({ error: 'Paste a full link starting with http.' });
         if (/youtube\.com|youtu\.be|twitter\.com|x\.com\//i.test(u)) {
-          return res.status(400).json({ error: 'That\'s a video page, not a media file. Use Live from a browser tab instead, or paste a direct link to the .mp3/.mp4.' });
+          return res.status(400).json({ error: /youtu/i.test(u) ? 'For YouTube, use the YouTube link option (it reads the video\'s captions).' : 'That\'s a video page, not a media file. Use Live from a browser tab instead, or paste a direct link to the .mp3/.mp4.' });
         }
         started = await startTranscript(u);
       } else {
