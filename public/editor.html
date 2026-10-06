@@ -141,7 +141,7 @@ body.no-factcheck .acc-factcheck,body.no-add #ed-autoadd,body.no-add #pre-tabs-w
           <label>Writer</label>
           <select id="ed-writer"><option value="">House style only</option></select>
         </div>
-        <div style="flex:1;min-width:160px">
+        <div style="flex:1;min-width:160px" id="ed-tier-wrap">
           <label>Tier</label>
           <select id="ed-tier" onchange="if(preTab==='promos')renderPrePanel();updatePromoCount()"><option value="free">Free</option><option value="vip">VIP</option></select>
         </div>
@@ -933,7 +933,7 @@ function getPodcastSettings(){
   f('/api/site-profile').then(function(r){return r.json();}).then(function(d){
     if(d&&d.profile&&d.profile.podcast){ window._profilePodcast=d.profile.podcast; if(typeof loadPodcastSettingsForm==='function') loadPodcastSettingsForm(); }
     if(d&&d.profile){ window._adsCfg=d.profile.ads||{units:[]}; renderAds();
-      window._editorDefaults=d.profile.editorDefaults||{}; window._editorAccess=d.profile.editorAccess||{}; applyAccess(); if(!window._aaTouched) loadAutoAdd(); }
+      window._editorDefaults=d.profile.editorDefaults||{}; window._editorAccess=d.profile.editorAccess||{}; applyAccess(); applyTierMode(); if(!window._aaTouched) loadAutoAdd(); }
   }).catch(function(){});
 })();
 function podPlatformHint(){var el=document.getElementById('pod-platform-hint');if(el)el.textContent=POD_HINTS[document.getElementById('pod-platform').value]||'';}
@@ -1555,7 +1555,7 @@ function renderDraftsList(){
   c.innerHTML='<div class="dm-row head"><input type="checkbox" title="Select all on this page" '+(allOn?'checked ':'')+'onchange="dmSelectPage(this.checked)"><span>Headline</span><span>Status</span><span>Writer</span><span>Updated</span><span></span></div>'+
     rows.map(function(d){
       var src=d.source||'copydesk';
-      var badges=(d.tier==='vip'?'<span class="dm-badge vip">VIP</span>':'')+(src!=='copydesk'?'<span class="dm-badge '+(src==='email'?'email':src==='breaking'?'breaking':'')+'">'+esc(DM_SOURCES[src]||src)+'</span>':'');
+      var badges=(d.tier==='vip'&&!singleTier()?'<span class="dm-badge vip">VIP</span>':'')+(src!=='copydesk'?'<span class="dm-badge '+(src==='email'?'email':src==='breaking'?'breaking':'')+'">'+esc(DM_SOURCES[src]||src)+'</span>':'');
       var st=d.status||'submitted';
       var opts=DM_STATUSES.indexOf(st)===-1?DM_STATUSES.concat([st]):DM_STATUSES;
       return '<div class="dm-row" id="draft-item-'+d.id+'">'+
@@ -1655,7 +1655,7 @@ async function dmToCopydesk(id,btn){
     var text=(d.headline?d.headline+'\n\n':'')+(tmp.textContent||'').replace(/\n{3,}/g,'\n\n').trim();
     show(0);
     var ta=document.getElementById('ed-draft'); ta.value=text; ta.focus();
-    if(d.tier){ var t=document.getElementById('ed-tier'); if(t){ t.value=d.tier; updatePromoCount(); } }
+    if(d.tier){ var t=document.getElementById('ed-tier'); if(t){ t.value=d.tier; applyTierMode(); updatePromoCount(); } }
     document.getElementById('ed-status').textContent='Loaded “'+(d.headline||'draft').slice(0,60)+'” from Drafts. Pick a mode and click Edit draft.';
     renderPreTabs();
   }catch(e){ dmToast('Couldn’t load it: '+e.message); }
@@ -1869,6 +1869,16 @@ function loadAutoAdd(){
   updatePromoCount();
   var sv=document.getElementById('aa-save-default');
   if(sv) sv.style.display=(window.IMSAuth&&IMSAuth.isPublisher())?'':'none';
+}
+// A newsroom that only publishes free or only paywalled stories hides the
+// Tier pull-down and every article uses that tier (Jeff, 2026-10-06: "give an
+// option to remove the tier pull-down ... for those who only publish
+// paywalled or free content"). Set on Permissions & preferences.
+function singleTier(){ var m=(window._editorDefaults||{}).tierMode; return m==='free'||m==='vip'?m:null; }
+function applyTierMode(){
+  var m=singleTier(), wrap=document.getElementById('ed-tier-wrap'), sel=document.getElementById('ed-tier');
+  if(wrap) wrap.style.display=m?'none':'';
+  if(m&&sel&&sel.value!==m){ sel.value=m; if(typeof preTab!=='undefined'&&preTab==='promos') renderPrePanel(); updatePromoCount(); }
 }
 function updatePromoCount(){
   var n=adsForTier().length, row=document.getElementById('aa-ads-row'), lab=document.getElementById('aa-ads-label');
