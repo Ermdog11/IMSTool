@@ -671,7 +671,7 @@ module.exports = async function handler(req, res) {
               // The page's own publish date, when it has one, replaces an
               // unknown or crawl-based age and is shown to the deep rater.
               var pub = ArticleDate.fromHtml(html.slice(0, 400000));
-              if (!isNaN(pub)) { p.publishedAt = pub; p.orig.age = Math.max(0, Math.round((Date.now() - pub) / 3600000)); }
+              if (!isNaN(pub)) { p.publishedAt = pub; p.orig.pageDated = pub; p.orig.age = Math.max(0, Math.round((Date.now() - pub) / 3600000)); }
               return html.replace(/<script[\s\S]*?<\/script>/gi, ' ').replace(/<style[\s\S]*?<\/style>/gi, ' ')
                 .replace(/<[^>]+>/g, ' ').replace(/&nbsp;/g, ' ').replace(/&amp;/g, '&')
                 .replace(/&#?[a-z0-9]+;/gi, ' ').replace(/\s+/g, ' ').trim().slice(0, 2800);
@@ -715,6 +715,41 @@ module.exports = async function handler(req, res) {
         } catch (e) { /* deep pass is best-effort — keep the headline ratings */ }
       }
     }
+
+    // FRESHNESS CHECK (every scan, no AI cost). A feed's "8h ago" can be the
+    // time Google News re-indexed a months-old article (2026-10-06, Jeff: a
+    // Stefon Diggs story from 2025 was rated 4 and shown under Today). For
+    // every story rated 4-5, read its real publish date: from the address
+    // (/2025/12/18/) when it has one, else from the article page itself. Older
+    // than STALE_DAYS -> republished (shown under ♻️ Republished, never as new
+    // and never pushed as breaking).
+    var STALE_DAYS = 14;
+    var staleCut = Date.now() - STALE_DAYS * 86400000;
+    var freshCands = parsed.map(function(item) { return { item: item, orig: stories[item.idx - 1] }; })
+      .filter(function(p) { return p.item && !p.item.irrelevant && !p.item.republished && (p.item.rating || 0) >= 4 && p.orig && p.orig.url; })
+      .slice(0, 15);
+    await Promise.allSettled(freshCands.map(async function(p) {
+      var pub = p.orig.pageDated || ArticleDate.fromUrl(p.orig.url);
+      if (!pub || isNaN(pub)) {
+        var url = p.orig.url;
+        if (/news\.google\.com/i.test(url)) { try { url = (await resolveGoogleNewsUrl(url)) || url; } catch (e) {} }
+        if (/news\.google\.com/i.test(url)) return;
+        pub = ArticleDate.fromUrl(url);
+        if (isNaN(pub)) {
+          try {
+            var r = await fetchWithTimeout(url, { headers: { 'User-Agent': BROWSER_UA } }, 7000);
+            pub = ArticleDate.fromHtml((await r.text()).slice(0, 400000));
+          } catch (e) { return; }
+        }
+      }
+      if (isNaN(pub)) return;
+      p.orig.age = Math.max(0, Math.round((Date.now() - pub) / 3600000));
+      if (pub < staleCut) {
+        p.item.republished = true;
+        p.item.publishedOn = new Date(pub).toISOString().slice(0, 10);
+        console.log('Freshness: ' + String(p.item.headline || '').slice(0, 80) + ' is from ' + p.item.publishedOn + ', marked republished');
+      }
+    }));
 
     // Drop stories Claude marked as having no connection to our beat
     parsed = parsed.filter(function(item) { return !item.irrelevant; });
