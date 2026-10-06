@@ -162,6 +162,9 @@ module.exports = async function handler(req, res) {
     }).concat(feedConfigs.map(function(f) {
       // Scraped HTML pages 403 without a browser UA; RSS endpoints don't care either way.
       var opts = f.scrapeSlugs ? { headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0 Safari/537.36' } } : {};
+      // An outlet read straight from its own site (feed discovery or home
+      // page links), for sites search engines don't index: see _site-feed.js.
+      if (f.site) return require('./_site-feed.js').fetchSite(f.url);
       return fetchWithTimeout(f.url, opts, 8000);
     }));
 
@@ -319,6 +322,9 @@ module.exports = async function handler(req, res) {
           // Bing wraps the real publisher URL in an apiclick redirect: ...&url=<encoded>&...
           var bingUrl = (link + ' ' + realUrl).replace(/&amp;/g, '&').match(/[?&]url=(https?%3[Aa][^&"\s<]+)/);
           if (bingUrl) { try { realUrl = decodeURIComponent(bingUrl[1]); } catch (e) {} }
+          // A site's own feed: the item's link is the article (its description
+          // may link elsewhere).
+          if (cfg.site && link) realUrl = link.trim();
           // Plain-text snippet from the feed (Bing + direct site feeds carry a real one;
           // Google News descriptions are just "<a>Title</a> Publisher" and get skipped)
           snippet = '';
