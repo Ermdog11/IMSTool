@@ -217,6 +217,11 @@ body.no-opps .acc-opps,body.no-write .acc-write,body.no-flag .acc-flag,body.no-f
 .cal-kind.deadline{background:#fef2f2;border-color:#fecaca;color:#b91c1c}
 .cal-kind.game{background:#eff6ff;border-color:#bfdbfe;color:#1d4ed8}
 .cal-kind.media{background:#f5f3ff;border-color:#ddd6fe;color:#6d28d9}
+.cal-kind.heat{background:#fff7ed;border-color:#fed7aa;color:#c2410c}
+.cal-ev.heat{border-left:3px solid #f97316}
+.cal-mode-btn{flex:1;min-width:240px;text-align:left;border:1px solid var(--border);background:var(--surface,#fff);border-radius:8px;padding:10px 12px;cursor:pointer;font:inherit;color:var(--text)}
+.cal-mode-btn:hover{border-color:#60a5fa}
+.cal-mode-btn span{display:block;font-size:.8rem;color:var(--text2);margin-top:3px;line-height:1.4}
 .cal-rem{display:flex;gap:6px;align-items:center;flex-wrap:wrap;font-size:.78rem;color:var(--text2)}
 .cal-x{border:0;background:none;color:var(--text3);cursor:pointer;font-size:16px;line-height:1;padding:0 2px}
 @media (max-width:600px){.cal-time{width:auto}.cal-rem{width:100%}}
@@ -246,7 +251,6 @@ body.no-opps .acc-opps,body.no-write .acc-write,body.no-flag .acc-flag,body.no-f
   <button class="nav-tab" id="tab-btn-2" onclick="switchTab(2)">Hot social</button>
   <button class="nav-tab" id="tab-btn-3" onclick="switchTab(3)">Team chat</button>
   <button class="nav-tab" id="tab-btn-4" onclick="switchTab(4)">Story backlog</button>
-  <button class="nav-tab" id="tab-btn-5" onclick="switchTab(5)">Recruiting tracker</button>
   <button class="nav-tab" id="tab-btn-6" onclick="switchTab(6)">🔥 Trending</button>
   <button class="nav-tab" id="tab-btn-7" onclick="switchTab(7)">🎙️ Podcasts</button>
   <button class="nav-tab" id="tab-btn-8" onclick="switchTab(8)">📺 YouTube</button>
@@ -799,8 +803,11 @@ body.no-opps .acc-opps,body.no-write .acc-write,body.no-flag .acc-flag,body.no-f
   <div id="oppsManage" class="acc-opps" style="background:var(--bg2);border:1px solid var(--border);border-radius:10px;padding:12px;margin:8px 0 12px;">
     <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
       <b style="font-size:.9rem;">Follow a competitor</b>
-      <input id="oppsAddName" placeholder="Name (e.g. On3 Maryland)" style="flex:1;min-width:150px;font-size:13px;padding:7px 9px;border:1px solid var(--border);border-radius:6px;">
+      <input id="oppsAddName" list="oppsKnownNames" placeholder="Competitor name (fills in the rest)" oninput="oppsNameInput()" onchange="oppsAutofill()" style="flex:1;min-width:170px;font-size:13px;padding:7px 9px;border:1px solid var(--border);border-radius:6px;" autocomplete="off">
+      <datalist id="oppsKnownNames"></datalist>
       <input id="oppsAddSite" placeholder="Website or RSS feed" style="flex:1.4;min-width:180px;font-size:13px;padding:7px 9px;border:1px solid var(--border);border-radius:6px;" onkeydown="if(event.key==='Enter')oppsFollow()">
+      <input id="oppsAddX" list="oppsKnownX" placeholder="@X handle" style="flex:.8;min-width:120px;font-size:13px;padding:7px 9px;border:1px solid var(--border);border-radius:6px;" autocomplete="off" onkeydown="if(event.key==='Enter')oppsFollow()">
+      <datalist id="oppsKnownX"></datalist>
       <label style="font-size:.8rem;display:flex;gap:4px;align-items:center;"><input type="checkbox" id="oppsAddEmail" checked> ✉️ Email me</label>
       <label style="font-size:.8rem;display:flex;gap:4px;align-items:center;" title="Saved now; texts start once texting is connected"><input type="checkbox" id="oppsAddText"> 💬 Text me</label>
       <select id="oppsAddEyes" title="How closely to watch them" style="font-size:.8rem;padding:4px 6px;border:1px solid var(--border);border-radius:6px;"><option value="5">👁 ×5 must-watch</option><option value="4">👁 ×4</option><option value="3" selected>👁 ×3</option><option value="2">👁 ×2</option><option value="1">👁 ×1 glance</option></select>
@@ -825,6 +832,14 @@ body.no-opps .acc-opps,body.no-write .acc-write,body.no-flag .acc-flag,body.no-f
     <h3 style="margin:0;font-size:1.1rem;">📅 Calendar</h3>
     <p style="color:var(--text2);font-size:.85rem;margin:4px 0 0;max-width:72ch;" id="calIntro">Deadlines, games, media days and events, pulled out of emails and notes and summarized. Set a reminder by email or text, from 30 minutes to 6 hours before.</p>
   </div>
+  <div class="cal-box" id="calModeAsk" style="display:none;border-color:#93c5fd;background:#f0f7ff;">
+    <b style="font-size:.95rem;">How should CoPublisher run your calendar?</b>
+    <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:8px;">
+      <button class="cal-mode-btn" onclick="calSetMode('ai')"><b>🤖 Let the AI help</b><span>It adds your games each week, this week's 🔥 heat spots, and dated things it spots in the news (press conferences, decision dates, signing day). Delete anything you don't want and it won't come back.</span></button>
+      <button class="cal-mode-btn" onclick="calSetMode('manual')"><b>✋ Only what we add</b><span>Nothing goes on the calendar unless someone on the team adds it (by email, paste or by hand). No heat spots.</span></button>
+    </div>
+  </div>
+  <div id="calModeLine" style="font-size:.78rem;color:var(--text3);margin:0 0 8px;display:none;"></div>
   <div class="cal-box">
     <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:6px;"><b style="font-size:.9rem;">Add from an email or note</b><span style="font-size:.78rem;color:var(--text3);">Paste it and CoPublisher pulls out every date.</span></div>
     <textarea id="calText" rows="4" placeholder="Paste an email, a schedule, or a note with dates…" style="width:100%;font-size:13px;padding:8px 10px;border:1px solid var(--border);border-radius:6px;font-family:inherit;"></textarea>
@@ -846,6 +861,20 @@ body.no-opps .acc-opps,body.no-write .acc-write,body.no-flag .acc-flag,body.no-f
     <select id="calDefMin" onchange="calSaveDefault()" class="cal-sel"></select>
     <select id="calDefCh" onchange="calSaveDefault()" class="cal-sel"><option value="email">by email</option><option value="text">by text</option></select>
     <span id="calDefMsg" style="font-size:.78rem;color:var(--text3);"></span>
+  </div>
+  <div class="cal-box" id="calHeatBox" style="font-size:.85rem;">
+    <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+      <b>🔥 Heat spots</b><span style="color:var(--text3);font-size:.78rem;">the 5 best times to publish this week, ranked from your last 4 weeks of site readers and social engagement</span>
+    </div>
+    <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:6px;">
+      <label style="display:flex;gap:5px;align-items:center;" id="calHeatOnWrap"><input type="checkbox" id="calHeatOn" onchange="calHeatToggle(this.checked)" style="width:auto"> Show on the calendar</label>
+      <button class="pill" id="calHeatRefresh" onclick="calHeatRefresh()">Refresh</button>
+      <span style="color:var(--text3);">·</span>
+      <span>Remind me before each</span>
+      <select id="calHeatMin" onchange="calHeatRemind()" class="cal-sel"></select>
+      <select id="calHeatCh" onchange="calHeatRemind()" class="cal-sel"><option value="email">by email</option><option value="text">by text</option></select>
+    </div>
+    <div id="calHeatMsg" style="font-size:.78rem;color:var(--text3);margin-top:4px;"></div>
   </div>
   <div id="calList"><div class="empty"><i class="ti ti-calendar"></i>Loading…</div></div>
 </div>
@@ -3546,7 +3575,7 @@ function renderOpps() {
   }
   cards.innerHTML = comps.map(function (c) {
     return '<div style="background:var(--bg2);border:1px solid var(--border);border-radius:10px;padding:12px;">' +
-      '<div style="display:flex;justify-content:space-between;gap:6px;align-items:flex-start;"><b>' + oppsEsc(c.name) + '</b>' +
+      '<div style="display:flex;justify-content:space-between;gap:6px;align-items:flex-start;"><b>' + oppsEsc(c.name) + (c.x ? ' <a href="https://x.com/' + oppsEsc(c.x) + '" target="_blank" rel="noopener" style="font-weight:400;font-size:.75rem;color:var(--text3);">@' + oppsEsc(c.x) + '</a>' : '') + '</b>' +
         '<button class="acc-opps" title="Unfollow" onclick="oppsAct({action:\'unfollow\',domain:\'' + oppsEsc(c.key || c.domain).replace(/'/g, '') + '\'},\'Unfollowed ' + oppsEsc(c.name).replace(/'/g, '') + '.\')" style="border:0;background:none;color:var(--text3);cursor:pointer;font-size:15px;line-height:1;padding:0 2px;">×</button></div>' +
         oppsEyesHtml(c) +
         '<div style="display:flex;gap:12px;font-size:.75rem;margin-top:4px;color:var(--text2);">' +
@@ -3587,12 +3616,55 @@ function oppsEyesHtml(c) {
   return '<div style="font-size:.9rem;letter-spacing:1px;margin-top:3px;" aria-label="' + n + ' of 5 eyes">' + h + '</div>';
 }
 
+// Follow box autofill (Jeff, 2026-10-06: "follow a competition should be a
+// box where twitter names autofill"): names and handles suggest as you type
+// (the beat's outlets and the watched X accounts); picking or finishing a
+// name fills in its website and X handle, from the beat or one web search.
+function oppsFillLists() {
+  var known = oppsData.known || [], xs = {};
+  document.getElementById('oppsKnownNames').innerHTML = known.map(function (o) { return '<option value="' + oppsEsc(o.name) + '">' + oppsEsc(o.site || '') + '</option>'; }).join('');
+  known.forEach(function (o) { if (o.x) xs[o.x.toLowerCase()] = '@' + o.x + ' (' + o.name + ')'; });
+  (oppsData.xHandles || []).forEach(function (h) { if (!xs[String(h).toLowerCase()]) xs[String(h).toLowerCase()] = '@' + h; });
+  document.getElementById('oppsKnownX').innerHTML = Object.keys(xs).map(function (k) { return '<option value="@' + oppsEsc(xs[k].split(' ')[0].slice(1)) + '">' + oppsEsc(xs[k]) + '</option>'; }).join('');
+}
+var _oppsNameTimer = null, _oppsLookedUp = '';
+function oppsNameInput() {
+  var v = document.getElementById('oppsAddName').value.trim().toLowerCase();
+  var hit = (oppsData.known || []).filter(function (o) { return o.name.toLowerCase() === v; })[0];
+  if (hit) return oppsApplyFound(hit, 'From your beat.');
+}
+function oppsApplyFound(o, note) {
+  var st = document.getElementById('oppsAddSite'), x = document.getElementById('oppsAddX'), m = document.getElementById('oppsMsg');
+  if (o.site && !st.value.trim()) st.value = o.site;
+  if (o.x && !x.value.trim()) x.value = '@' + o.x;
+  if (o.name) document.getElementById('oppsAddName').value = o.name;
+  m.style.color = 'var(--text3)';
+  m.textContent = (o.site || o.x) ? (note || '') + ' Check them, then Follow.' : 'Couldn\'t find their site or X account. Add them by hand.';
+}
+async function oppsAutofill() {
+  var n = document.getElementById('oppsAddName').value.trim(), st = document.getElementById('oppsAddSite'), x = document.getElementById('oppsAddX');
+  if (n.length < 3 || (st.value.trim() && x.value.trim()) || _oppsLookedUp === n.toLowerCase()) return;
+  var hit = (oppsData.known || []).filter(function (o) { return o.name.toLowerCase() === n.toLowerCase(); })[0];
+  if (hit && hit.site && hit.x) return oppsApplyFound(hit, 'From your beat.');
+  _oppsLookedUp = n.toLowerCase();
+  var m = document.getElementById('oppsMsg'); m.style.color = 'var(--text3)'; m.textContent = 'Looking up ' + n + '\'s site and X account…';
+  try {
+    var fetcher = window.IMSAuth ? IMSAuth.authFetch : fetch;
+    var r = await fetcher('/api/opps-spy', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'lookup', name: n }) });
+    var d = await r.json().catch(function () { return {}; });
+    if (!r.ok || d.error) throw new Error(d.error || ('HTTP ' + r.status));
+    if (document.getElementById('oppsAddName').value.trim().toLowerCase() !== n.toLowerCase()) return; // they kept typing
+    oppsApplyFound(d, d.from === 'search' ? 'Found online.' : 'From your beat.');
+  } catch (e) { m.style.color = 'var(--hot)'; m.textContent = 'Lookup failed: ' + e.message + '. Add them by hand.'; }
+}
+
 // Manage who Opp Watch follows without the setup wizard (Jeff, 2026-10-06).
 function renderOppsAvail() {
+  oppsFillLists();
   var el = document.getElementById('oppsAvail'); if (!el) return;
   var av = (oppsData.available || []).slice(0, 12);
   el.innerHTML = av.length ? '<span style="font-size:.78rem;color:var(--text3);">From your beat:</span>' + av.map(function (o) {
-    return '<button class="chip" style="font-size:.75rem;padding:3px 9px;" title="' + oppsEsc(o.domain) + '" onclick="oppsAct({action:\'follow\',name:this.dataset.n,site:this.dataset.d,alertEmail:true},\'Following ' + oppsEsc(o.name).replace(/'/g, '') + '.\')" data-n="' + oppsEsc(o.name) + '" data-d="' + oppsEsc(o.domain) + '">+ ' + oppsEsc(o.name) + '</button>';
+    return '<button class="chip" style="font-size:.75rem;padding:3px 9px;" title="' + oppsEsc(o.domain) + '" onclick="oppsAct({action:\'follow\',name:this.dataset.n,site:this.dataset.d,x:this.dataset.x||\'\',alertEmail:true},\'Following ' + oppsEsc(o.name).replace(/'/g, '') + '.\')" data-n="' + oppsEsc(o.name) + '" data-d="' + oppsEsc(o.domain) + '" data-x="' + oppsEsc(o.x || '') + '">+ ' + oppsEsc(o.name) + '</button>';
   }).join('') : '';
 }
 async function oppsAct(body, okMsg) {
@@ -3616,9 +3688,10 @@ async function oppsAct(body, okMsg) {
 async function oppsFollow() {
   var n = document.getElementById('oppsAddName'), st = document.getElementById('oppsAddSite');
   if (!st.value.trim()) { document.getElementById('oppsMsg').textContent = 'Add their website or RSS feed.'; return; }
-  var ok = await oppsAct({ action: 'follow', name: n.value.trim(), site: st.value.trim(), alertEmail: document.getElementById('oppsAddEmail').checked, alertText: document.getElementById('oppsAddText').checked, eyes: +document.getElementById('oppsAddEyes').value },
-    'Following ' + (n.value.trim() || st.value.trim()) + '.');
-  if (ok) { n.value = ''; st.value = ''; }
+  var xh = document.getElementById('oppsAddX');
+  var ok = await oppsAct({ action: 'follow', name: n.value.trim(), site: st.value.trim(), x: xh.value.trim(), alertEmail: document.getElementById('oppsAddEmail').checked, alertText: document.getElementById('oppsAddText').checked, eyes: +document.getElementById('oppsAddEyes').value },
+    'Following ' + (n.value.trim() || st.value.trim()) + (xh.value.trim() ? ' (and ' + xh.value.trim().replace(/^@?/, '@') + ' on X)' : '') + '.');
+  if (ok) { n.value = ''; st.value = ''; xh.value = ''; _oppsLookedUp = ''; }
 }
 
 
@@ -3643,6 +3716,7 @@ async function loadCalendar() {
     var def = calData.myDefault || {};
     document.getElementById('calDefMin').innerHTML = calOpts(def.minutes || 0, 'Off');
     document.getElementById('calDefCh').value = def.channel || 'email';
+    renderHeatBox();
     renderCalendar();
   } catch (e) {
     document.getElementById('calList').innerHTML = '<div class="empty" style="padding:12px;">Couldn\'t load the calendar: ' + calEsc(e.message) + '</div>';
@@ -3661,12 +3735,13 @@ function renderCalendar() {
     var past = Date.parse(e.start) < now;
     var mine = (e.reminders || []).filter(function (r) { return r.email === me; })[0];
     var time = e.allDay ? 'All day' : d.toLocaleTimeString('en-US', { timeZone: tz, hour: 'numeric', minute: '2-digit' });
-    html += '<div class="cal-ev" style="' + (past ? 'opacity:.55;' : '') + '">' +
+    html += '<div class="cal-ev' + (e.kind === 'heat' ? ' heat' : '') + '" style="' + (past ? 'opacity:.55;' : '') + '">' +
       '<div class="cal-time">' + calEsc(time) + '</div>' +
       '<div class="cal-main"><b>' + calEsc(e.title) + '</b><span class="cal-kind ' + calEsc(e.kind) + '">' + calEsc(e.kind || 'event') + '</span>' +
         (e.location ? '<div style="font-size:.8rem;color:var(--text2);">📍 ' + calEsc(e.location) + '</div>' : '') +
         (e.note ? '<div style="font-size:.8rem;color:var(--text2);margin-top:2px;">' + calEsc(e.note) + '</div>' : '') +
         (e.sourceSubject ? '<div style="font-size:.72rem;color:var(--text3);margin-top:3px;" title="' + calEsc(e.groupSummary || '') + '">From: ' + calEsc(e.sourceSubject) + '</div>' : '') +
+        (e.source === 'ai' ? '<div style="font-size:.72rem;color:var(--text3);margin-top:3px;">🤖 Added by CoPublisher' + (e.sourceUrl ? ' · <a href="' + calEsc(e.sourceUrl) + '" target="_blank" rel="noopener">source</a>' : '') + '</div>' : '') +
       '</div>' +
       (past ? '' : '<div class="cal-rem">🔔 <select class="cal-sel" onchange="calRemind(\'' + e.id + '\',this.value,this.nextElementSibling.value)">' + calOpts(mine ? mine.minutes : 0, 'No reminder') + '</select>' +
         '<select class="cal-sel" onchange="calRemind(\'' + e.id + '\',this.previousElementSibling.value,this.value)"><option value="email"' + (mine && mine.channel === 'text' ? '' : ' selected') + '>Email</option><option value="text"' + (mine && mine.channel === 'text' ? ' selected' : '') + '>Text</option></select>' +
@@ -3675,6 +3750,52 @@ function renderCalendar() {
     '</div>';
   });
   el.innerHTML = html;
+}
+function renderCalMode() {
+  var h = calData.heat || {}, m = calData.mode, ask = document.getElementById('calModeAsk'), line = document.getElementById('calModeLine');
+  ask.style.display = !m && h.canManage ? '' : 'none';
+  document.getElementById('calHeatBox').style.display = m === 'manual' ? 'none' : '';
+  if (m) {
+    line.style.display = '';
+    line.innerHTML = (m === 'ai' ? '🤖 AI-assisted: CoPublisher adds games, heat spots and dated items from the news.' : '✋ Only what the team adds.') +
+      (h.canManage ? ' <a href="#" onclick="calSetMode(\'' + (m === 'ai' ? 'manual' : 'ai') + '\');return false;">Switch to ' + (m === 'ai' ? 'only what we add' : 'AI-assisted') + '</a>' : '');
+  } else line.style.display = 'none';
+}
+async function calSetMode(m) {
+  if (m === 'manual' && calData.mode === 'ai' && !confirm('Switch to only what the team adds? Upcoming heat spots and items the AI added will be removed.')) return;
+  calSay(m === 'ai' ? 'Setting up: finding your upcoming games… (this can take up to a minute)' : 'Saving…');
+  try {
+    var d = await calFetch({ action: 'mode', mode: m });
+    await loadCalendar();
+    calSay(m === 'ai' ? '<b style="color:var(--green);">AI-assisted calendar on.</b> ' + (d.added ? 'Added ' + d.added + ' upcoming game' + (d.added === 1 ? '' : 's') + '.' : 'No new games found for the next three weeks.') + ' It checks for games every Monday and for dated news every morning.' : 'Saved: only what the team adds.');
+  } catch (e) { calSay('Couldn\'t save: ' + calEsc(e.message), true); }
+}
+function renderHeatBox() {
+  renderCalMode();
+  var h = calData.heat || {}, mine = h.mine || {};
+  document.getElementById('calHeatOn').checked = h.on !== false;
+  document.getElementById('calHeatOn').disabled = !h.canManage;
+  document.getElementById('calHeatRefresh').style.display = h.canManage && h.on !== false ? '' : 'none';
+  document.getElementById('calHeatMin').innerHTML = calOpts(mine.minutes || 0, 'Off');
+  document.getElementById('calHeatCh').value = mine.channel || 'email';
+  var n = (calData.events || []).filter(function (e) { return e.kind === 'heat' && Date.parse(e.start) > Date.now(); }).length;
+  document.getElementById('calHeatMsg').textContent = h.on === false ? 'Off for the newsroom.' + (h.canManage ? '' : ' An editor or publisher can turn it on.')
+    : h.note ? h.note : (n ? n + ' still ahead this week' + (h.basis ? ', based on ' + h.basis : '') + '. New ones arrive every Monday morning.' : 'No heat spots left this week. New ones arrive Monday morning.');
+}
+async function calHeatToggle(on) {
+  var m = document.getElementById('calHeatMsg'); m.textContent = on ? 'Working out this week\'s heat spots…' : 'Turning off…';
+  try { await calFetch({ action: 'heat-on', on: on }); await loadCalendar(); } catch (e) { m.textContent = e.message; }
+}
+async function calHeatRefresh() {
+  var b = document.getElementById('calHeatRefresh'), m = document.getElementById('calHeatMsg');
+  b.disabled = true; m.textContent = 'Recomputing from the latest numbers…';
+  try { await calFetch({ action: 'heat-refresh' }); await loadCalendar(); } catch (e) { m.textContent = 'Couldn\'t refresh: ' + e.message; }
+  b.disabled = false;
+}
+async function calHeatRemind() {
+  var mins = +document.getElementById('calHeatMin').value, ch = document.getElementById('calHeatCh').value, m = document.getElementById('calHeatMsg');
+  try { await calFetch({ action: 'heat-remind', minutes: mins, channel: ch }); await loadCalendar(); m.textContent = mins ? 'You\'ll get a reminder ' + calMinLabel(mins) + ' before every heat spot, by ' + (ch === 'text' ? 'text (email until texting is connected)' : 'email') + '.' : 'Heat spot reminders off.'; }
+  catch (e) { m.textContent = e.message; }
 }
 function calSay(t, err) { var m = document.getElementById('calMsg'); m.style.color = err ? 'var(--hot)' : 'var(--text3)'; m.innerHTML = t; }
 async function calAddText() {

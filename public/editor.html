@@ -168,10 +168,11 @@ body.no-factcheck .acc-factcheck,body.no-add #ed-autoadd,body.no-add #pre-tabs-w
       </div>
       <div class="hint" id="ed-mode-hint" style="margin-top:2px"></div>
       <div id="pre-ask-wrap" style="margin:14px 0;padding-bottom:14px;border-bottom:1px solid var(--border)">
-        <div class="hint" style="margin-bottom:8px">Ask a question or tell it what to do while you write or edit &mdash; can search the web for current stats, injuries, and this week's news when a question needs it; sources cited below the reply.</div>
+        <div style="font-weight:600;font-size:14px;margin-bottom:2px">Give directions / ask a question</div>
+        <div class="hint" style="margin-bottom:8px">Tell it what to write or change (&ldquo;write a 600-word preview from my notes below&rdquo;, &ldquo;add a section on the injury report&rdquo;, &ldquo;give me five headlines&rdquo;), or ask anything. It searches the web for current stats, injuries and this week's news when it needs to, and cites its sources below the reply.</div>
         <div id="pre-ed-chat" style="display:flex;flex-direction:column;gap:8px;margin-bottom:8px"></div>
         <div style="display:flex;gap:6px">
-          <input id="pre-ed-ask" placeholder="Ask a question, or tell it what to change in the draft below…" style="flex:1;font-size:13px;padding:8px 10px;border:1px solid var(--border);border-radius:6px" onkeydown="if(event.key==='Enter')askEditorPre()">
+          <input id="pre-ed-ask" placeholder="Give directions (write, rewrite, add a section…) or ask a question" style="flex:1;font-size:13px;padding:8px 10px;border:1px solid var(--border);border-radius:6px" onkeydown="if(event.key==='Enter')askEditorPre()">
           <button class="btn" onclick="askEditorPre()">Send</button>
         </div>
       </div>
@@ -179,7 +180,7 @@ body.no-factcheck .acc-factcheck,body.no-add #ed-autoadd,body.no-add #pre-tabs-w
       <textarea id="ed-draft" rows="16" placeholder="Paste the writer's draft here…"></textarea>
       <div id="ed-autoadd" style="font-size:13px;margin-top:10px;border:1px solid var(--border);border-radius:8px;padding:8px 10px">
         <div style="font-weight:600;margin-bottom:4px">Add with this edit:</div>
-        <div class="aa-row"><label class="aa-lab"><input type="checkbox" id="aa-podcast" style="width:auto"> 🎙️ Latest podcast episode</label>
+        <div class="aa-row"><label class="aa-lab"><input type="checkbox" id="aa-podcast" style="width:auto"> 🎙️ Your latest podcast episode</label>
           <span class="aa-pos" title="How far down the article it goes: 0% is above the first paragraph, 100% after the last. In a 10-paragraph story, 40% goes after paragraph 4.">Top <input type="range" id="aa-podcast-pos" min="0" max="100" step="20" value="100" oninput="this.nextElementSibling.textContent=this.value+'%'"> <b>100%</b> Bottom</span></div>
         <div class="aa-row"><label class="aa-lab"><input type="checkbox" id="aa-related" style="width:auto"> 🔗 Related links box</label>
           <span class="aa-pos" title="How far down the article it goes: 0% is above the first paragraph, 100% after the last. In a 10-paragraph story, 40% goes after paragraph 4.">Top <input type="range" id="aa-related-pos" min="0" max="100" step="20" value="100" oninput="this.nextElementSibling.textContent=this.value+'%'"> <b>100%</b> Bottom</span></div>
@@ -279,7 +280,7 @@ body.no-factcheck .acc-factcheck,body.no-add #ed-autoadd,body.no-add #pre-tabs-w
           <input id="tr-url" placeholder="https://…/episode.mp3">
         </div>
         <button class="btn ghost" style="margin-top:0" onclick="transcribeUrl()">Transcribe link</button>
-        <button class="btn ghost" style="margin-top:0" onclick="transcribeLatestEpisode(this)">🎙️ Latest podcast episode</button>
+        <button class="btn ghost" style="margin-top:0" onclick="transcribeLatestEpisode(this)">🎙️ Your latest podcast episode</button>
       </div>
       <div style="margin-top:14px;padding-top:12px;border-top:1px solid var(--border)">
         <label style="margin-top:0">Or transcribe live, as it plays</label>
@@ -715,7 +716,7 @@ function renderEdit(d){
        '<div class="hint" style="margin-bottom:8px">Can search the web for current stats, injuries, and this week\'s news when a question needs it — sources are cited below the reply. Still double-check anything you\'ll publish.</div>'+
        '<div id="ed-chat" style="display:flex;flex-direction:column;gap:8px;margin-bottom:8px"></div>'+
        '<div style="display:flex;gap:6px">'+
-         '<input id="ed-ask" placeholder="Ask for a change, or a question about the piece…" style="flex:1;font-size:13px;padding:8px 10px;border:1px solid var(--border);border-radius:6px" onkeydown="if(event.key===\'Enter\')askEditor()">'+
+         '<input id="ed-ask" placeholder="Give directions (rewrite, add, cut…) or ask a question" style="flex:1;font-size:13px;padding:8px 10px;border:1px solid var(--border);border-radius:6px" onkeydown="if(event.key===\'Enter\')askEditor()">'+
          '<button class="btn" onclick="askEditor()">Send</button>'+
        '</div>'+
      '</div>'+
@@ -1036,7 +1037,7 @@ function podcastPanel(){
   if(!preTabState().podcast||!q){
     return '<div style="font-size:12.5px;margin-bottom:8px">Add your latest episode’s player to this article.</div>'+
       '<button class="btn" style="margin:0" onclick="queueLatestEpisode(this)">Add latest episode</button>'+
-      '<div style="'+TIP_STYLE+'"><b>Tip:</b> the simplest way is the <b>Latest podcast episode</b> box under the draft: it’s added in the same pass as the edit, at the spot set on the slider next to it, and you can still slide it in the Inserts card afterwards.</div>';
+      '<div style="'+TIP_STYLE+'"><b>Tip:</b> the simplest way is the <b>Your latest podcast episode</b> box under the draft: it’s added in the same pass as the edit, at the spot set on the slider next to it, and you can still slide it in the Inserts card afterwards.</div>';
   }
   var pos=pct(pick(window._podPos,getPodcastSettings().position));
   return '<div style="font-size:12.5px;margin-bottom:6px">Added the embed code for <b>'+esc(q.title)+'</b> to your draft. It stays exactly as is when you edit, and it’s included when you copy, save or send the article.</div>'+
@@ -1239,7 +1240,7 @@ async function askEditorPre(){
         ?'<div style="margin-top:5px;padding-top:5px;border-top:1px solid var(--border);font-size:11px;color:var(--muted)">Sources: '+
           res.sources.map(function(s){return '<a href="'+esc(s.url)+'" target="_blank" rel="noopener">'+esc(s.title)+'</a>';}).join(' · ')+'</div>'
         :'';
-      log.innerHTML+='<div style="align-self:flex-start;background:#f1efe9;padding:6px 10px;border-radius:10px 10px 10px 2px;font-size:13px;max-width:85%">'+esc(res.reply||(res.changed?'Done.':'—'))+sourcesHtml+'</div>';
+      log.innerHTML+='<div style="align-self:flex-start;background:#f1efe9;padding:6px 10px;border-radius:10px 10px 10px 2px;font-size:13px;max-width:85%">'+esc(res.reply||(res.changed?'Done.':'—')).replace(/\n/g,'<br>')+sourcesHtml+'</div>';
       _preChatHistory.push({role:'user',text:q});
       _preChatHistory.push({role:'assistant',text:res.reply||''});
       if(res.changed && res.edited) document.getElementById('ed-draft').value=res.edited;
@@ -1274,7 +1275,7 @@ async function askEditor(){
         ?'<div style="margin-top:5px;padding-top:5px;border-top:1px solid var(--border);font-size:11px;color:var(--muted)">Sources: '+
           res.sources.map(function(s){return '<a href="'+esc(s.url)+'" target="_blank" rel="noopener">'+esc(s.title)+'</a>';}).join(' · ')+'</div>'
         :'';
-      log.innerHTML+='<div style="align-self:flex-start;background:#f1efe9;padding:6px 10px;border-radius:10px 10px 10px 2px;font-size:13px;max-width:85%">'+esc(res.reply||(res.changed?'Done.':'—'))+sourcesHtml+'</div>';
+      log.innerHTML+='<div style="align-self:flex-start;background:#f1efe9;padding:6px 10px;border-radius:10px 10px 10px 2px;font-size:13px;max-width:85%">'+esc(res.reply||(res.changed?'Done.':'—')).replace(/\n/g,'<br>')+sourcesHtml+'</div>';
       _chatHistory.push({role:'user',text:q});
       _chatHistory.push({role:'assistant',text:res.reply||''});
       if(res.changed && res.edited){
