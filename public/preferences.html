@@ -25,6 +25,10 @@ a{color:var(--blue)}
 .wrap{max-width:860px;margin:0 auto;padding:24px 16px 60px}
 h1{font-size:22px;margin-bottom:4px}
 .lead{color:var(--text2);margin-bottom:16px;max-width:68ch}
+.lead.how{background:#fff;border:1px solid var(--border);border-radius:12px;padding:14px 16px;line-height:1.55}
+.lead.how p{margin:0 0 8px}
+.lead.how ol{margin:0;padding-left:20px}
+.lead.how li{margin:5px 0}
 .jump{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:18px}
 .jump a{font-size:12px;font-weight:600;padding:5px 11px;border-radius:20px;border:1px solid var(--border);background:#fff;color:var(--text2);text-decoration:none}
 .card{background:var(--bg2);border:1px solid var(--border);border-radius:12px;padding:20px;margin-bottom:16px;scroll-margin-top:12px}
@@ -96,7 +100,16 @@ tr.you td{background:var(--red-light)}
 </div>
 <div class="wrap">
   <h1>Permissions &amp; preferences</h1>
-  <p class="lead">Your own alerts, the Content Editor's defaults, who on the team can do what, and where every other setting lives.</p>
+  <div class="lead how">
+    <p><b>How this page works.</b> Everything here saves the moment you change it, unless a section has its own Save button. Jump to a section with the buttons below.</p>
+    <ol>
+      <li><b>Your alerts:</b> turn each email or text on or off for yourself. Tap ⏰ under an alert to choose the days and hours you want it (Eastern time); outside those, it's skipped for you. These only change what <i>you</i> get.</li>
+      <li><b>Content Editor defaults</b> (publisher): what gets added to every article, like your podcast, related links, promos and ads, and where in the story it goes. Writers can still change it for a single article.</li>
+      <li><b>What each role can do</b> and <b>Who can do what</b>: switch features on or off for editors, writers, contributors and viewers. Set each person's role in <a href="/settings">Settings › Team &amp; alerts</a>.</li>
+      <li><b>All settings:</b> a map of every setting in the app and where to change it.</li>
+      <li><b>Your account:</b> privacy, terms, support, and deleting your account.</li>
+    </ol>
+  </div>
   <div class="jump">
     <a href="#alerts">Your alerts</a><a href="#editor">Content Editor defaults</a><a href="#access">What each role can do</a><a href="#permissions">Who can do what</a><a href="#everything">All settings</a><a href="#account">Your account</a>
   </div>
@@ -104,7 +117,7 @@ tr.you td{background:var(--red-light)}
 
   <section class="card" id="alerts">
     <h2>Your alerts</h2>
-    <div class="sub">Which emails come to you. Changes save as you flip them. The publisher can also set these for anyone in <a href="/settings">Settings › Team &amp; alerts</a>.</div>
+    <div class="sub"><b>On</b> (blue) means the alert comes to you; tap the switch to turn it off. Changes save right away. The publisher can also change these for anyone in <a href="/settings">Settings › Team &amp; alerts</a>.</div>
     <div id="alert-list"><div class="sub">Loading…</div></div>
   </section>
 
@@ -288,7 +301,7 @@ async function loadAlerts(){
     var r=await fetch('/api/alert-prefs'); var d=await r.json();
     if(!r.ok) throw new Error(d.error||('HTTP '+r.status));
     SCHED=d.schedules||{};
-    $('alert-list').innerHTML='<div class="sub" style="margin:0 0 6px">Tap <b>⏰</b> under any alert to pick the days and hours you want it (Eastern time). Outside them it\u2019s skipped for you.</div>'+(d.types||[]).map(function(t){
+    $('alert-list').innerHTML='<div class="sub" style="margin:0 0 6px">Tap <b>⏰</b> under any alert to pick the days and hours you want it (Eastern time), for example weekdays 8am to 10pm. Outside them it\u2019s skipped for you, not saved for later.</div>'+(d.types||[]).map(function(t){
       return '<div class="row"><div class="name"><b>'+esc(t.label)+'</b><br>'+schedLink(t.key)+'</div><label class="switch"><input type="checkbox" data-t="'+esc(t.key)+'" '+(d.me[t.key]?'checked':'')+' onchange="setAlert(this)"><i></i></label>'+schedEditor(t.key)+'</div>';
     }).join('')+'<div id="hot12-row"></div><div class="sub" id="alert-msg" style="margin:6px 0 0"></div>';
     loadHot12();
