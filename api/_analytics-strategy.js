@@ -30,15 +30,15 @@ var TOOL = {
   input_schema: {
     type: 'object',
     properties: {
-      overview: { type: 'string', description: 'The big picture across every channel, with the key numbers: 2-4 short paragraphs of 1-3 sentences each, separated by a blank line (one idea per paragraph, e.g. the dominant story, how each channel is doing, the biggest opportunity). Plain text, no markdown.' },
+      overview: { type: 'string', description: 'The big picture across every channel, interpreted rather than recapped (cite only the numbers that make a point): 2-4 short paragraphs of 1-3 sentences each, separated by a blank line (one idea per paragraph, e.g. the dominant story, how each channel is doing, the biggest opportunity). Plain text, no markdown.' },
       channels: {
         type: 'array', description: 'One per connected channel.',
         items: { type: 'object', properties: {
           channel: { type: 'string' },
           role: { type: 'string', description: 'What this channel does for us and who it reaches, in one sentence.' },
           wins: { type: 'string', description: 'What kind of story or post wins here, with the evidence.' },
-          bestTime: { type: 'string', description: 'Best day/time to publish or post here, if the data shows one; else empty.' }
-        }, required: ['channel', 'role', 'wins', 'bestTime'] }
+          bestTime: { type: 'string', description: 'Leave empty: best times are on the Analytics tab.' }
+        }, required: ['channel', 'role', 'wins'] }
       },
       overlap: {
         type: 'array', description: 'Topics/stories that won on two or more channels, and ones that only won on one.',
@@ -105,8 +105,9 @@ async function run(sb, siteId) {
   var data = JSON.stringify({ sources: contexts, siteTopPagesLast30Days: pages }).slice(0, 90000);
   var prompt = 'You are the audience and social strategy lead for ' + beat.outletName + ', which covers ' + beat.coverage + '. ' +
     'Study ALL of the analytics below together, not one source at a time: compare channels, find where the same topics and stories win across channels (overlap) and where they don\'t, and find the missed connections between channels (gaps). ' +
-    'Then give the strategy: what each channel is for, what wins where, when to post where, and the most valuable moves for this week. ' +
-    'Every claim must point to a number in the data. Never invent numbers. If a source is missing or thin, work with what is there and say so briefly in the overview.\n\n' +
+    'Then give the strategy: what each channel is for, what wins where, and the most valuable moves for this week. ' +
+    'This read lives on Xs and Os, next to the Analytics tab, which already shows every source\'s raw numbers, top posts, best day and hour, and trends (Jeff, 2026-10-06: Xs and Os must not repeat Analytics). So interpret, don\'t recap: say what the numbers mean and what to do about them, citing only the one or two numbers that make each point, and leave best posting times to Analytics (leave bestTime empty). ' +
+    'Every claim must rest on the data. Never invent numbers. If a source is missing or thin, work with what is there and say so briefly in the overview.\n\n' +
     'OUR STORIES, LAST 30 DAYS (date, headline):\n' + (heads.join('\n') || '(none in the knowledge base)') + '\n\n' +
     'ANALYTICS (JSON):\n' + data + '\n\nCall submit_strategy.';
   var r = await fetch('https://api.anthropic.com/v1/messages', {

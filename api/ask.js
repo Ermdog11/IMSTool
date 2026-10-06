@@ -10,12 +10,21 @@
 var S = require('./_supabase');
 var W = require('./_writer');
 
+// Home's sample questions, a new set each day (api/_daily-questions.js); the
+// core ones (weight 4) come up most days.
 var SUGGESTIONS = [
-  'Is there anything on the calendar this week?',
-  'How are we doing this week?',
-  'What should we write about today?',
+  { q: 'What should we publish today?', weight: 4 },
+  { q: 'What\'s working for us right now?', weight: 4 },
+  { q: 'How did this week go?', weight: 4 },
+  { q: 'Is there anything on the calendar this week?', weight: 4 },
   'What drafts are waiting on an edit?',
-  'When is our next hot spot?'
+  'When is our next hot spot?',
+  'What did we miss in the news today?',
+  'What\'s the biggest story on our beat right now?',
+  'Which story should we push on social today?',
+  'Who should we be following up with this week?',
+  'What should we plan for this weekend?',
+  'How does this week compare with last week?'
 ];
 
 function when(t) {
@@ -61,7 +70,7 @@ module.exports = async function handler(req, res) {
     try { ctx = await S.requireUser(req); }
     catch (e) { return res.status(e.status || 401).json({ error: e.message }); }
   }
-  if (req.method === 'GET') return res.status(200).json({ suggestions: SUGGESTIONS });
+  if (req.method === 'GET') return res.status(200).json({ suggestions: require('./_daily-questions').pick(SUGGESTIONS, 4, 'home') });
   if (req.method !== 'POST') return res.status(405).json({ error: 'GET or POST' });
   var key = process.env.ANTHROPIC_API_KEY;
   if (!key) return res.status(500).json({ error: 'Missing ANTHROPIC_API_KEY.' });

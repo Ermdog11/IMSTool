@@ -150,24 +150,25 @@ var REVIEW_TOOL = {
   input_schema: {
     type: 'object',
     properties: {
-      column: { type: 'string', description: 'The ombudsman column: 3-5 plain sentences on the coverage as a whole, fairness, balance (sports, people, positive vs negative), sourcing habits, and anything readers may reasonably object to. Specific, not generic.' },
+      column: { type: 'string', description: 'The overall read, in ONE or TWO short sentences (under 40 words): the single most important thing about our coverage as a whole (fairness, balance, sourcing). Name any article you mean by its headline in quotes. Leave empty if there is only one article (its note says it).' },
       articles: {
         type: 'array',
         items: {
           type: 'object',
           properties: {
             n: { type: 'integer', description: 'The article number given below.' },
+            note: { type: 'string', description: 'The verdict on this article in ONE plain sentence, under 20 words (e.g. "Solid sourcing on the AD story, but two lines read as opinion, not reporting").' },
             verdict: { type: 'string', enum: ['clean', 'fix', 'correction'], description: 'correction: a likely factual error readers would need corrected; fix: should be improved before/after publishing; clean: nothing worth raising.' },
             findings: {
-              type: 'array',
+              type: 'array', maxItems: 3, description: 'At most 3, the most important first.',
               items: {
                 type: 'object',
                 properties: {
                   type: { type: 'string', enum: ['accuracy', 'headline', 'sourcing', 'speculation', 'fairness', 'context', 'tone', 'consistency', 'disclosure', 'clarity'] },
                   severity: { type: 'string', enum: ['correction', 'fix', 'note'] },
-                  quote: { type: 'string', description: 'The exact words from the article this is about (short).' },
-                  issue: { type: 'string', description: 'What is wrong or questionable, in one sentence. Say "verify" when it needs checking rather than being clearly wrong.' },
-                  suggestion: { type: 'string', description: 'The fix: suggested wording, or what to check and with whom.' }
+                  quote: { type: 'string', description: 'The exact words from the article this is about, under 12 words.' },
+                  issue: { type: 'string', description: 'What is wrong or questionable, under 15 words. Say "verify" when it needs checking rather than being clearly wrong.' },
+                  suggestion: { type: 'string', description: 'The fix in under 20 words: suggested wording, or what to check and with whom.' }
                 },
                 required: ['type', 'severity', 'quote', 'issue', 'suggestion']
               }
@@ -212,6 +213,7 @@ async function review(opts) {
   var today = new Date().toLocaleDateString('en-US', { timeZone: 'America/New_York', weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' });
   var prompt = 'You are the ombudsman (public editor) of ' + beat.outletName + ', which covers ' + beat.coverage + '. Today is ' + today + '. ' +
     'Your job is to hold our own published work to account for readers: accuracy, fair and sourced reporting, honest headlines, and balance. Review each article below. Be specific and useful, quote the exact words you mean, and give the fix. ' +
+    'Be brief: editors read this on a phone. One-sentence note per article, at most 3 findings each, short words. ' +
     'Do not nitpick style or grammar (the copy desk handles that) and do not invent problems: if an article is fine, mark it clean with no findings. ' +
     'Only use severity "correction" for a likely factual error (it contradicts itself, our earlier coverage, or a fact you are sure of); anything you can\'t confirm is a "fix" or "note" that says "verify". Never state a fact about a real person you are not sure of.\n\n' +
     'OUR EARLIER HEADLINES (for consistency):\n' + (earlier.join('\n') || '(none)') + '\n\n' +
@@ -228,13 +230,13 @@ async function review(opts) {
   var out = ((d.content || []).filter(function (b) { return b.type === 'tool_use'; })[0] || {}).input || {};
   var result = {
     at: new Date().toISOString(),
-    column: line(out.column, 1500),
+    column: line(out.column, 400),
     articles: (out.articles || []).map(function (x) {
       var a = arts[(x.n || 0) - 1]; if (!a) return null;
       return {
         headline: a.headline, url: a.url || '', writer: a.writer_name || '', date: String(a.published_at || a.created_at).slice(0, 10),
-        verdict: x.verdict || 'clean',
-        findings: (x.findings || []).slice(0, 8).map(function (f) { return { type: f.type, severity: f.severity, quote: line(f.quote, 300), issue: line(f.issue, 400), suggestion: line(f.suggestion, 500) }; })
+        verdict: x.verdict || 'clean', note: line(x.note, 220),
+        findings: (x.findings || []).slice(0, 3).map(function (f) { return { type: f.type, severity: f.severity, quote: line(f.quote, 140), issue: line(f.issue, 200), suggestion: line(f.suggestion, 240) }; })
       };
     }).filter(Boolean)
   };
