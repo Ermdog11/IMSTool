@@ -63,6 +63,9 @@ module.exports = async function handler(req, res) {
     var maxAge = (body.force ? 5 : 30) * 60 * 1000;
     var sharedCopy = latest && Object.assign({}, latest.response, { scannedAt: latest.at, shared: true });
     if (latest && Date.now() - latest.at < maxAge) return res.status(200).json(sharedCopy);
+    // Opening the page (savedOnly) shows the latest saved scan whatever its
+    // age; only "Scan now" or the scheduled scans spend on a new one.
+    if (latest && body.savedOnly) return res.status(200).json(sharedCopy);
     if (!(await Latest.claim())) {
       if (sharedCopy) return res.status(200).json(Object.assign(sharedCopy, { refreshing: true }));
       return res.status(200).json({ refreshing: true });
@@ -133,29 +136,9 @@ module.exports = async function handler(req, res) {
 
     var BROWSER_UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0 Safari/537.36';
 
-    // Resolve a news.google.com/rss/articles/<id> redirect to the real publisher URL.
-    // Google no longer embeds the URL in the id; it takes a page fetch (for the signature
-    // + timestamp) then a batchexecute POST. Best-effort — returns null on any failure.
-    async function resolveGoogleNewsUrl(gurl) {
-      try {
-        var m = String(gurl).match(/\/articles\/([^?/]+)/);
-        if (!m) return null;
-        var id = m[1];
-        var page = await fetchWithTimeout('https://news.google.com/rss/articles/' + id, { headers: { 'User-Agent': BROWSER_UA } }, 8000).then(function(r) { return r.text(); });
-        var ts = (page.match(/data-n-a-ts="([^"]+)"/) || [])[1];
-        var sg = (page.match(/data-n-a-sg="([^"]+)"/) || [])[1];
-        if (!ts || !sg) return null;
-        var inner = '["garturlreq",[["X","X",["X","X"],null,null,1,1,"US:en",null,1,null,null,null,null,null,0,1],"en-US","US",1,[2,3,4,8],1,0,"655000234",0,0,null,0],"' + id + '",' + ts + ',"' + sg + '"]';
-        var freq = JSON.stringify([[['Fbv4je', inner, null, 'generic']]]);
-        var resp = await fetchWithTimeout('https://news.google.com/_/DotsSplashUi/data/batchexecute', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8', 'User-Agent': BROWSER_UA },
-          body: 'f.req=' + encodeURIComponent(freq)
-        }, 8000).then(function(r) { return r.text(); });
-        var um = resp.match(/https?:\/\/[^\\"]+/);
-        return (um && !/news\.google\.com/.test(um[0])) ? um[0] : null;
-      } catch (e) { return null; }
-    }
+    // Resolve a news.google.com/rss/articles/<id> redirect to the real publisher
+    // URL (shared with the draft writer: api/_gnews.js). Null on any failure.
+    function resolveGoogleNewsUrl(gurl) { return require('./_gnews.js').resolve(gurl); }
 
     var fetches = redditFetches.map(function(f) {
       return fetchWithTimeout(f.url, { headers: { 'User-Agent': 'IMSTool/1.0' } }, 8000);
