@@ -107,7 +107,28 @@ function itemHTML(item, overflowByTopic) {
   return html;
 }
 
-function buildEmailHTML(alerts, date, slot, overflowByTopic) {
+// "📄 Suggested records requests" at the top of the update email: each new
+// suggestion from the records-suggest cron goes in the next update that's
+// sent (Jeff, 2026-10-06: "include this information in the email that day,
+// or the next if it's been sent").
+function recordsHTML(list) {
+  if (!list || !list.length) return '';
+  var e = function (x) { return String(x == null ? '' : x).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); };
+  return '<div style="margin-bottom:22px;border:1px solid #f0d78a;background:#fffbeb;border-radius:8px;padding:12px 14px;">' +
+    '<div style="font-size:12px;font-weight:700;color:#b45309;text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px;">📄 Suggested records requests (' + list.length + ')</div>' +
+    list.map(function (s) {
+      var d = s.draft || {};
+      var mailto = d.to ? 'mailto:' + encodeURIComponent(d.to) + '?subject=' + encodeURIComponent(d.subject || '') + '&body=' + encodeURIComponent(d.body || '') : '';
+      return '<div style="padding:8px 0;border-top:1px solid #f3e6bd;">' +
+        '<div style="font-size:14px;font-weight:600;">' + (s.url ? '<a href="' + e(s.url) + '" style="color:#1a1a1a;text-decoration:none;">' + e(s.headline) + '</a>' : e(s.headline)) + '</div>' +
+        '<div style="font-size:12px;color:#555;line-height:1.5;margin-top:2px;">' + e(d.reason) + '</div>' +
+        '<div style="font-size:12px;color:#555;margin-top:3px;"><b>To:</b> ' + (d.agency ? e(d.agency) + ' · ' : '') + (d.to ? e(d.to) : d.toUnconfirmed ? e(d.toUnconfirmed) + ' (check it)' : 'no published email') + '</div>' +
+        '<div style="font-size:12px;margin-top:5px;">' + (mailto ? '<a href="' + mailto + '" style="color:#2563eb;margin-right:12px;">Send it from my email</a>' : '') + '<a href="https://ims-tool.vercel.app/alerts#records" style="color:#2563eb;">Review in CoPublisher</a></div>' +
+      '</div>';
+    }).join('') + '</div>';
+}
+
+function buildEmailHTML(alerts, date, slot, overflowByTopic, recordsList) {
   // Group by calendar day
   var days = {};
   alerts.forEach(function(a) {
@@ -141,9 +162,10 @@ function buildEmailHTML(alerts, date, slot, overflowByTopic) {
     body += '</div>';
   });
 
+  body = recordsHTML(recordsList) + body;
   var bodyMsg = alerts.length
     ? '<p style="font-size:13px;color:#555;margin-bottom:20px;">' + alerts.length + ' new ' + (alerts.length === 1 ? 'story' : 'stories') + ' since the last update.</p>' + body
-    : '<p style="font-size:13px;color:#555;margin-bottom:20px;">No new Terps stories since the last update.</p>';
+    : '<p style="font-size:13px;color:#555;margin-bottom:20px;">No new Terps stories since the last update.</p>' + body;
 
   return '<!DOCTYPE html><html><head></head><body style="font-family:-apple-system,sans-serif;background:#f7f6f3;margin:0;padding:20px;">' +
     '<div style="max-width:600px;margin:0 auto;background:white;border-radius:10px;overflow:hidden;">' +
@@ -211,12 +233,17 @@ module.exports = async function handler(req, res) {
 
     var date = new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' });
 
+    var recordsList = [];
+    try { recordsList = await require('./_records.js').pendingForDigest('insidemdsports'); } catch (e) { console.error('Records for digest failed (non-fatal):', e.message); }
     var mailResult = await mailer.sendMail({
       subject: alerts.length
         ? 'InsideMDSports ' + SLOT_LABEL[slot] + ' update — ' + alerts.length + ' new ' + (alerts.length === 1 ? 'story' : 'stories')
         : 'InsideMDSports ' + SLOT_LABEL[slot] + ' update — nothing new',
-      html: buildEmailHTML(alerts, date, slot, overflowByTopic)
+      html: buildEmailHTML(alerts, date, slot, overflowByTopic, recordsList)
     });
+    if (recordsList.length && mailResult && !mailResult.error) {
+      try { await require('./_records.js').markInDigest('insidemdsports', recordsList.map(function(x) { return x.id; })); } catch (e) { console.error('Records digest mark failed:', e.message); }
+    }
 
     // Auto-draft a ready-to-review article for each NEW rating-4+ story (never
     // re-draft one still sitting in the window on a later run this slot),

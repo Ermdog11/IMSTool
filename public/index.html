@@ -260,6 +260,7 @@ body.no-opps .acc-opps,body.no-write .acc-write,body.no-flag .acc-flag,body.no-f
 
 <!-- ALERTS TAB -->
 <div class="page active" id="page-0">
+  <div id="recordsSuggest" style="display:none;margin-bottom:12px;"></div>
   <div class="metrics">
     <div class="metric metric-link" role="button" tabindex="0" title="Show these stories" onclick="metricFilter('all')" onkeydown="if(event.key==='Enter')metricFilter('all')"><div class="metric-label">Total alerts</div><div class="metric-value" id="m-total">—</div><div class="metric-sub">this scan</div></div>
     <div class="metric metric-link" role="button" tabindex="0" title="Show these stories" onclick="metricFilter('5')" onkeydown="if(event.key==='Enter')metricFilter('5')"><div class="metric-label">Breaking (5)</div><div class="metric-value" id="m-r5">—</div><div class="metric-sub">immediate email</div></div>
@@ -868,6 +869,7 @@ body.no-opps .acc-opps,body.no-write .acc-write,body.no-flag .acc-flag,body.no-f
     if (s && s.user) {
       var slot = document.querySelector('.topbar-right');
       if (slot) IMSAuth.mountMenu(slot);
+      loadRecordSuggestions();
       syncFeedPrefsFromServer().then(function () {
         renderBlockedSources(); renderOwnSites();
         if (typeof applyExclusions === 'function') applyExclusions();
@@ -1803,8 +1805,9 @@ function renderRecordsDraft(idx) {
     ${d.records.length ? `<div style="margin-bottom:8px;"><b>Asks for:</b><ul style="margin:4px 0 0 18px;padding:0;">${d.records.map(r => '<li>' + escapeHtml(r) + '</li>').join('')}</ul></div>` : ''}
     <label style="font-size:11px;font-weight:700;">Records office email</label>
     <input id="rr-to-${idx}" type="email" value="${escapeHtml(d.to || '')}" placeholder="records office email address" style="${fld}">
-    ${d.to && /^https?:/.test(d.toSource || '') ? `<div style="margin:-4px 0 8px;color:var(--text3);">Found on <a href="${escapeHtml(d.toSource)}" target="_blank" rel="noopener">${escapeHtml(d.toSource.replace(/^https?:\/\//, '').slice(0, 70))}</a>. Worth a quick check before sending.</div>` : ''}
-    ${!d.to ? `<div style="margin:-4px 0 8px;color:var(--text3);">${d.portal ? 'This office takes requests through an online form: <a href="' + escapeHtml(d.portal) + '" target="_blank" rel="noopener">open the request portal</a> and paste the letter there.' : 'Couldn’t find a published records email for ' + escapeHtml(d.agency || 'this agency') + '. Check its website for “public records” or “FOIA” and paste the address here.'}</div>` : (d.portal ? `<div style="margin:-4px 0 8px;color:var(--text3);">They also take requests online: <a href="${escapeHtml(d.portal)}" target="_blank" rel="noopener">request portal</a>.</div>` : '')}
+    ${d.to && /^https?:/.test(d.toSource || '') ? `<div style="margin:-4px 0 8px;color:var(--text3);">✓ Confirmed on the agency's page: <a href="${escapeHtml(d.toSource)}" target="_blank" rel="noopener">${escapeHtml(d.toSource.replace(/^https?:\/\//, '').slice(0, 70))}</a>.</div>` : ''}
+    ${!d.to && d.toUnconfirmed ? `<div style="margin:-4px 0 8px;color:#92400e;">Possible address: <b>${escapeHtml(d.toUnconfirmed)}</b>, but it isn't printed on ${/^https?:/.test(d.toSource || '') ? '<a href="' + escapeHtml(d.toSource) + '" target="_blank" rel="noopener">the agency page</a>' : 'the agency page'}, so check it. <a href="#" onclick="document.getElementById('rr-to-${idx}').value='${escapeHtml(d.toUnconfirmed).replace(/'/g, '')}';return false">Use it</a></div>` : ''}
+    ${!d.to && !d.toUnconfirmed ? `<div style="margin:-4px 0 8px;color:var(--text3);">${d.portal ? 'This office takes requests through an online form: <a href="' + escapeHtml(d.portal) + '" target="_blank" rel="noopener">open the request portal</a> and paste the letter there.' : 'Couldn’t find a published records email for ' + escapeHtml(d.agency || 'this agency') + '. Check its website for “public records” or “FOIA” and paste the address here.'}</div>` : (d.portal ? `<div style="margin:-4px 0 8px;color:var(--text3);">They also take requests online: <a href="${escapeHtml(d.portal)}" target="_blank" rel="noopener">request portal</a>.</div>` : '')}
     <label style="font-size:11px;font-weight:700;">CC (you're always copied${me ? ' at ' + escapeHtml(me) : ''}; replies come to you)</label>
     <input id="rr-cc-${idx}" type="text" value="" placeholder="${me ? 'anyone else, optional' : 'your email (required, so the office can reply to you)'}" style="${fld}">
     <label style="font-size:11px;font-weight:700;">Subject</label>
@@ -1813,19 +1816,69 @@ function renderRecordsDraft(idx) {
     <textarea id="rr-body-${idx}" rows="16" style="${fld}resize:vertical;line-height:1.5;">${escapeHtml(d.body || '')}</textarea>
     ${d.response_note ? `<div style="margin-bottom:8px;color:var(--text3);">${escapeHtml(d.response_note)}</div>` : ''}
     <div style="display:flex;gap:6px;flex-wrap:wrap;">
-      ${canSend ? `<button class="aaction" style="font-weight:700;" onclick="sendRecordsRequest(${idx}, this)"><i class="ti ti-send"></i> Send request</button>` : ''}
-      <button class="aaction" onclick="mailtoRecordsRequest(${idx})"><i class="ti ti-mail"></i> Open in my email</button>
+      ${canSend ? `<button class="aaction" style="font-weight:700;" onclick="sendRecordsRequest('${idx}', this)"><i class="ti ti-send"></i> Send request</button>` : ''}
+      <button class="aaction" onclick="mailtoRecordsRequest('${idx}')"><i class="ti ti-mail"></i> Open in my email</button>
+      ${d._suggestionId ? `<button class="aaction" onclick="recSugStatus('${d._suggestionId}','sent')"><i class="ti ti-check"></i> Mark as sent</button><button class="aaction" onclick="recSugStatus('${d._suggestionId}','dismissed')"><i class="ti ti-x"></i> Not needed</button>` : ''}
       <button class="aaction" onclick="navigator.clipboard.writeText(document.getElementById('rr-body-${idx}').value);this.innerHTML='<i class=&quot;ti ti-check&quot;></i> Copied'"><i class="ti ti-copy"></i> Copy letter</button>
     </div>
     <div id="rr-status-${idx}" style="margin-top:6px;"></div>`;
 }
+// Suggested records requests (api/records-suggest.js cron, every 2 hours):
+// a banner on Alerts when there are new ones, each opening the same review
+// and send form as an alert card's "Request records" (Jeff, 2026-10-06).
+let recSuggestions = [];
+async function loadRecordSuggestions() {
+  const box = document.getElementById('recordsSuggest');
+  if (!box || !window.IMSAuth) return;
+  try {
+    const r = await IMSAuth.authFetch('/api/records-request?suggestions=1');
+    const d = await r.json();
+    recSuggestions = (d.suggestions || []).filter(s => s.status === 'new');
+  } catch (e) { recSuggestions = []; }
+  renderRecordSuggestions();
+}
+function renderRecordSuggestions(open) {
+  const box = document.getElementById('recordsSuggest');
+  if (!recSuggestions.length) { box.style.display = 'none'; box.innerHTML = ''; return; }
+  const n = recSuggestions.length;
+  box.style.display = '';
+  box.innerHTML = `<div style="background:#fffbeb;border:1px solid #f0d78a;border-radius:10px;padding:10px 14px;">
+    <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;cursor:pointer;" onclick="document.getElementById('recSugList').style.display=document.getElementById('recSugList').style.display==='none'?'':'none'">
+      <b style="color:#92400e;">📄 ${n} new suggested records request${n === 1 ? '' : 's'}</b>
+      <span style="font-size:12px;color:var(--text3);">From the news: coaching contracts, buyouts, sponsorship and game deals. Click to review.</span></div>
+    <div id="recSugList" style="${open || location.hash === '#records' ? '' : 'display:none;'}margin-top:8px;">
+      ${recSuggestions.map((s, i) => `<div style="border-top:1px solid #f3e6bd;padding:8px 0;">
+        <div style="font-weight:600;">${s.url ? `<a href="${escapeHtml(s.url)}" target="_blank" rel="noopener" style="color:var(--text);">${escapeHtml(s.headline)}</a>` : escapeHtml(s.headline)}
+          <span style="font-size:11px;color:var(--text3);font-weight:400;">· ${escapeHtml(s.tierLabel || '')} · ${new Date(s.at).toLocaleString()}</span></div>
+        <div style="font-size:12.5px;color:var(--text2);margin:2px 0 6px;">${escapeHtml((s.draft || {}).reason || '')}</div>
+        <button class="aaction" style="font-weight:700;" onclick="openRecSuggestion(${i})"><i class="ti ti-file-search"></i> Review &amp; send</button>
+        <button class="aaction" onclick="recSugStatus('${s.id}','dismissed')"><i class="ti ti-x"></i> Not needed</button>
+        <div class="aaction-output" id="output-s${i}" style="margin-top:6px;"></div></div>`).join('')}
+    </div></div>`;
+}
+function openRecSuggestion(i) {
+  const s = recSuggestions[i]; if (!s) return;
+  const d = Object.assign({ eligible: true, records: [] }, s.draft || {});
+  d._suggestionId = s.id; d._story = { headline: s.headline, url: s.url, source: s.source, summary: '' };
+  recordsDrafts['s' + i] = d;
+  const out = document.getElementById('output-s' + i);
+  out.classList.add('visible'); out.style.display = 'block';
+  renderRecordsDraft('s' + i);
+}
+async function recSugStatus(id, status, quiet) {
+  try {
+    await IMSAuth.authFetch('/api/records-request', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'suggestion-status', id, status }) });
+  } catch (e) {}
+  if (!quiet) { recSuggestions = recSuggestions.filter(s => s.id !== id); renderRecordSuggestions(true); }
+}
+
 function mailtoRecordsRequest(idx) {
   const v = id => document.getElementById(`rr-${id}-${idx}`).value.trim();
   window.location.href = 'mailto:' + encodeURIComponent(v('to')) + '?subject=' + encodeURIComponent(v('subject')) +
     (v('cc') ? '&cc=' + encodeURIComponent(v('cc')) : '') + '&body=' + encodeURIComponent(v('body'));
 }
 async function sendRecordsRequest(idx, btn) {
-  const a = allAlerts[idx], d = recordsDrafts[idx];
+  const d = recordsDrafts[idx], a = allAlerts[idx] || d._story || {};
   const v = id => document.getElementById(`rr-${id}-${idx}`).value.trim();
   const status = document.getElementById(`rr-status-${idx}`);
   if (!v('to')) { status.textContent = 'Enter the records office email address first.'; return; }
@@ -1843,6 +1896,7 @@ async function sendRecordsRequest(idx, btn) {
     if (!res.ok || r.error) throw new Error(r.error || 'Send failed');
     status.innerHTML = '<b>Sent</b> to ' + escapeHtml(r.request.to) + (r.request.cc.length ? ' (CC ' + escapeHtml(r.request.cc.join(', ')) + ')' : '') + '. ' + escapeHtml(d.response_note || '');
     btn.innerHTML = '<i class="ti ti-check"></i> Sent';
+    if (d._suggestionId) recSugStatus(d._suggestionId, 'sent', true);
   } catch (e) {
     status.textContent = 'Couldn’t send — ' + (e.message || e);
     btn.disabled = false;
