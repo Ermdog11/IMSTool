@@ -404,7 +404,12 @@ function startFreshBeat(){
 function $(id){return document.getElementById(id);}
 function esc(s){var d=document.createElement('div');d.textContent=s==null?'':String(s);return d.innerHTML;}
 function lines(v){return String(v||'').split(/\n|,/).map(function(x){return x.trim();}).filter(Boolean);}
-var api=function(url,opts){ return (window.IMSAuth?IMSAuth.authFetch:fetch)(url,opts).then(function(r){return r.json();}); };
+var api=function(url,opts){
+  // Preview: the AI suggestion steps say so, which lets any member run them and
+  // keeps the house-style step from saving (api/site-profile.js).
+  if(PREVIEW&&opts&&typeof opts.body==='string'&&/"action":"(suggest-|build-house-style)/.test(opts.body)){ try{ var b=JSON.parse(opts.body); b.preview=true; opts=Object.assign({},opts,{body:JSON.stringify(b)}); }catch(e){} }
+  return (window.IMSAuth?IMSAuth.authFetch:fetch)(url,opts).then(function(r){return r.json();});
+};
 
 function renderSteps(){
   $('steps').innerHTML=steps.map(function(s,i){
@@ -895,7 +900,7 @@ async function load(){
   if(PREVIEW) $('notice').innerHTML='<div class="notice"><b>Preview mode.</b> Try the setup on any beat. Nothing is saved, and your live News Monitor doesn\u2019t change. <a href="/setup">Leave preview</a></div>';
   if(window.IMSAuth){
     var s=await IMSAuth.guard();
-    if(s && s.user && s.role && s.role!=='publisher'){
+    if(s && s.user && s.role && s.role!=='publisher' && !PREVIEW){
       $('notice').innerHTML='<div class="notice">Only the publisher can change these settings. You can look around, but changes won\'t save.</div>';
     }
   }
