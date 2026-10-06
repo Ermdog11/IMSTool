@@ -93,7 +93,7 @@ button.btn:disabled{opacity:.6;cursor:default}
 .aa-pos{display:flex;align-items:center;gap:6px;font-size:12px;color:var(--muted)}
 .aa-pos input{width:130px;padding:0}
 .aa-pos b{color:var(--text);min-width:16px}
-body.no-add #ed-autoadd,body.no-add #pre-tabs-wrap,body.no-add #pre-panel,body.no-ask #pre-ask-wrap,body.no-ask #ed-ask-wrap{display:none!important}
+body.no-factcheck .acc-factcheck,body.no-add #ed-autoadd,body.no-add #pre-tabs-wrap,body.no-add #pre-panel,body.no-ask #pre-ask-wrap,body.no-ask #ed-ask-wrap{display:none!important}
 </style>
 </head>
 <body>
@@ -184,6 +184,7 @@ body.no-add #ed-autoadd,body.no-add #pre-tabs-wrap,body.no-add #pre-panel,body.n
         <div class="aa-row"><label class="aa-lab"><input type="checkbox" id="aa-related" style="width:auto"> 🔗 Related links box</label>
           <span class="aa-pos">Top <input type="range" id="aa-related-pos" min="1" max="10" step="1" value="10" oninput="this.nextElementSibling.textContent=this.value"> <b>10</b> Bottom</span></div>
         <div class="aa-row"><label class="aa-lab"><input type="checkbox" id="aa-promos" style="width:auto"> 📣 <span id="aa-promos-label">Promos for this tier</span></label></div>
+        <div class="aa-row acc-factcheck"><label class="aa-lab"><input type="checkbox" id="aa-factcheck" style="width:auto"> 🔎 Extra fact-check</label><span class="aa-pos">Checks every name, number and date against live sources. About a minute more.</span></div>
         <div style="font-size:12px;color:var(--muted);margin-top:4px;display:flex;gap:4px 12px;flex-wrap:wrap;align-items:center">
           <span id="aa-default-note">Ticks and spots start from your newsroom’s defaults.</span>
           <a href="#" id="aa-save-default" style="display:none" onclick="saveAutoAddDefault(this);return false">Make these the default</a>
@@ -307,6 +308,7 @@ body.no-add #ed-autoadd,body.no-add #pre-tabs-wrap,body.no-add #pre-panel,body.n
       </div>
       <label>What you know (optional)</label>
       <textarea id="fs-note" rows="2" placeholder="e.g. Chris Kelley played at our school; Gerald Dixon is our current GM"></textarea>
+      <label class="acc-factcheck" style="display:flex;align-items:center;gap:6px;font-weight:400;margin:10px 0 0;color:var(--text)"><input type="checkbox" id="fs-factcheck" style="width:auto"> 🔎 Extra fact-check the draft (about a minute more)</label>
       <button class="btn" id="fs-go" onclick="fsWrite()">Find the angle &amp; write it</button>
       <div id="fs-status" style="display:none;margin-top:12px;font-size:13px"></div>
     </div>
@@ -659,6 +661,7 @@ async function runEdit(){
       document.getElementById('copydesk-card').style.display='none';   // result goes to the top
       renderEdit(d);
       window.scrollTo(0,0);
+      if(aa.factCheck) runEditFactCheck(document.querySelector('#fc-edit button'));
     }
   }catch(e){clearInterval(timer);document.getElementById('ed-status').textContent='Failed: '+e.message;}
   setTimeout(function(){wrap.style.display='none';bar.style.width='0%';},400);
@@ -716,6 +719,7 @@ function renderEdit(d){
     h+='<div class="card"><h2>'+(kept?'What a full edit would change':'Editor’s notes')+'</h2><ul class="notes">'+d.notes.map(function(n){return '<li>'+esc(n)+'</li>';}).join('')+'</ul></div>';
   if(d.addedContext&&d.addedContext.length)
     h+='<div class="card"><h2>'+(kept?'Context you could add':'Context added')+'</h2>'+d.addedContext.map(function(c){return '<div class="ctx">'+esc(c).replace(/\[VERIFY\]/g,'<b>[VERIFY]</b>')+'</div>';}).join('')+'</div>';
+  h+='<div id="fc-edit" class="acc-factcheck">'+fcButton('runEditFactCheck(this)')+'</div>';
   if(d.factsToCheck&&d.factsToCheck.length)
     h+='<div class="card"><h2>Questions to resolve</h2><ul class="notes">'+d.factsToCheck.map(function(n){return '<li>'+esc(n)+'</li>';}).join('')+'</ul></div>';
   if(d.seo){
@@ -1292,6 +1296,47 @@ async function submitArticle(btn,action){
 
 var TIER_LABELS={vip:'VIP',free:'Free'};
 
+// ---- Extra fact-check (/api/fact-check) --------------------------------------
+// Opt-in deeper check: every name, number and date in the piece against live
+// sources and the newsroom's past coverage (api/_fact-check.js). Offered under
+// the draft (runs after the edit), on the edit result, on any open draft and
+// in From social.
+var FC_LABEL={conflict:['#b91c1c','#fef2f2','Conflict'],unverified:['#92400e','#fffbeb','Unverified'],confirmed:['#15803d','#f0fdf4','Confirmed']};
+function fcButton(onclick){
+  return '<div class="card" style="padding:12px 16px"><div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap"><b>🔎 Extra fact-check</b><span class="hint" style="margin:0;flex:1;min-width:180px">Checks every name, number and date against live sources. About a minute.</span><button class="btn ghost" style="margin:0" onclick="'+onclick+'">Run it</button></div></div>';
+}
+function fcHtml(r){
+  var n={conflict:0,unverified:0,confirmed:0}; (r.claims||[]).forEach(function(c){ n[c.status]=(n[c.status]||0)+1; });
+  return '<div class="card"><h2>🔎 Extra fact-check</h2>'+
+    '<div style="font-size:13.5px;margin-bottom:8px">'+esc(r.summary||'')+' <span style="color:var(--muted)">('+n.conflict+' conflict'+(n.conflict===1?'':'s')+', '+n.unverified+' unverified, '+n.confirmed+' confirmed)</span></div>'+
+    (r.claims||[]).map(function(c){
+      var L=FC_LABEL[c.status]||FC_LABEL.unverified;
+      return '<div style="border-left:3px solid '+L[0]+';background:'+L[1]+';padding:7px 10px;margin:6px 0;border-radius:0 6px 6px 0;font-size:13.5px">'+
+        '<b style="color:'+L[0]+'">'+L[2]+':</b> '+esc(c.claim)+(c.detail?'<div style="color:var(--muted);font-size:12.5px;margin-top:2px">'+esc(c.detail)+
+        (c.url?' <a href="'+esc(c.url)+'" target="_blank" rel="noopener">'+esc(c.source||'source')+'</a>':c.source?' ('+esc(c.source)+')':'')+'</div>':'')+'</div>';
+    }).join('')+
+    (r.checkedAt?'<div class="hint" style="margin-top:6px">Checked '+new Date(r.checkedAt).toLocaleString()+'. Still read it yourself: sources can be wrong too.</div>':'')+
+  '</div>';
+}
+async function runFactCheck(body,box,btn){
+  if(btn){ btn.disabled=true; btn.innerHTML='<span class="spin" style="border-color:var(--border);border-top-color:var(--muted)"></span>Checking…'; }
+  try{
+    var r=await fetch('/api/fact-check',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
+    var d=await r.json().catch(function(){return {};});
+    if(!r.ok||d.error) throw new Error(d.error||('HTTP '+r.status));
+    box.innerHTML=fcHtml(d);
+    return d;
+  }catch(e){
+    if(btn){ btn.disabled=false; btn.textContent='Try again'; }
+    box.insertAdjacentHTML('beforeend','<div style="color:var(--hot);font-size:12.5px;margin:-6px 0 10px">Fact-check failed: '+esc(e.message)+'</div>');
+  }
+}
+function runEditFactCheck(btn){
+  var art=document.getElementById('ed-article'); if(!art) return;
+  var heds=lastEdit&&lastEdit.d&&lastEdit.d.headlines||[];
+  runFactCheck({article:art.innerText,headline:(heds[0]&&heds[0].text)||''},document.getElementById('fc-edit'),btn);
+}
+
 // ---- Drafts manager ----------------------------------------------------------
 // A searchable, filterable list (Jeff, 2026-10-06: "the current draft system is
 // very clunky ... needs a quick delete or quick edit"): rename a headline or
@@ -1524,6 +1569,7 @@ async function openDraft(id){
       '<label>Article</label>'+
       '<div id="draft-preview" style="border:1px solid var(--border);border-radius:8px;padding:12px 14px;background:#fff;font-size:15px;line-height:1.6;max-height:520px;overflow:auto">'+(safeHtml(d.html)||'<i>(empty)</i>')+'</div>'+
       ((d.factsToCheck||[]).length?'<label>Verify before publishing</label><ul style="margin:4px 0 0 18px;padding:0;font-size:13.5px">'+d.factsToCheck.map(function(f){return '<li>'+esc(f)+'</li>';}).join('')+'</ul>':'')+
+      '<div id="fc-draft" class="acc-factcheck" style="margin-top:12px">'+(d.factCheck?fcHtml(d.factCheck):fcButton('runFactCheck({draftId:\''+d.id+'\'},document.getElementById(\'fc-draft\'),this)'))+'</div>'+
       ((d.notes||[]).length?'<label>Notes</label><ul style="margin:4px 0 0 18px;padding:0;font-size:13.5px;color:var(--muted)">'+d.notes.map(function(n){return '<li>'+esc(n)+'</li>';}).join('')+'</ul>':'')+
       '<label>Status</label>'+
       '<select id="draft-status">'+['draft','submitted','in review','ready to publish','published'].map(function(s){return '<option value="'+s+'"'+(d.status===s?' selected':'')+'>'+s+'</option>';}).join('')+'</select>'+
@@ -1633,6 +1679,7 @@ function applyAccess(){
   if(first===null) document.getElementById('ed-status').textContent='Editing is turned off for your role. Ask your publisher.';
   document.body.classList.toggle('no-add',!canUse('add_with_edit'));
   document.body.classList.toggle('no-ask',!canUse('ask_editor'));
+  document.body.classList.toggle('no-factcheck',!canUse('act_fact_check'));
   Object.keys(TAB_ACCESS).forEach(function(i){ var b=document.getElementById('nav-'+i); if(b) b.style.display=canUse(TAB_ACCESS[i])?'':'none'; });
   var on=document.querySelector('.nav button.active, nav button.active');
   var cur=on&&on.id?+on.id.replace('nav-',''):0;
@@ -1648,7 +1695,7 @@ function applyAccess(){
 function editorDefaults(){
   var d=window._editorDefaults||{}, pod=getPodcastSettings();
   return {
-    podcast:d.podcast!==false, related:d.related!==false, promos:!!d.promos,
+    podcast:d.podcast!==false, related:d.related!==false, promos:!!d.promos, factCheck:!!d.factCheck,
     podcastPosition:+(d.podcastPosition||pod.position||10),
     relatedPosition:+(d.relatedPosition||10),
     relatedCount:+(d.relatedCount||3), relatedScope:d.relatedScope==='web'?'web':'site'
@@ -1658,6 +1705,7 @@ function getAutoAdd(){
   var c={};
   var addOk=canUse('add_with_edit');
   ['podcast','related','promos'].forEach(function(k){ var el=document.getElementById('aa-'+k); c[k]=addOk&&!!(el&&el.checked); });
+  var fc=document.getElementById('aa-factcheck'); c.factCheck=canUse('act_fact_check')&&!!(fc&&fc.checked);
   ['podcast','related'].forEach(function(k){ var el=document.getElementById('aa-'+k+'-pos'); c[k+'Position']=el?+el.value:10; });
   return c;
 }
@@ -1667,8 +1715,9 @@ function setAaPos(k,v){
 }
 function loadAutoAdd(){
   var d=editorDefaults();
-  ['podcast','related','promos'].forEach(function(k){ var el=document.getElementById('aa-'+k); if(el) el.checked=d[k]; });
+  ['podcast','related','promos','factCheck'].forEach(function(k){ var el=document.getElementById('aa-'+k.toLowerCase()); if(el) el.checked=d[k]; });
   setAaPos('podcast',d.podcastPosition); setAaPos('related',d.relatedPosition);
+  var fsf=document.getElementById('fs-factcheck'); if(fsf) fsf.checked=d.factCheck;
   updatePromoCount();
   var sv=document.getElementById('aa-save-default');
   if(sv) sv.style.display=(window.IMSAuth&&IMSAuth.isPublisher())?'':'none';
@@ -1682,7 +1731,7 @@ function updatePromoCount(){
 }
 async function saveAutoAddDefault(link){
   var c=getAutoAdd();
-  var next=Object.assign({}, window._editorDefaults||{}, {podcast:c.podcast, related:c.related, promos:c.promos, podcastPosition:c.podcastPosition, relatedPosition:c.relatedPosition});
+  var next=Object.assign({}, window._editorDefaults||{}, {podcast:c.podcast, related:c.related, promos:c.promos, factCheck:c.factCheck, podcastPosition:c.podcastPosition, relatedPosition:c.relatedPosition});
   var note=document.getElementById('aa-default-note');
   try{
     var r=await fetch('/api/site-profile',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({profile:{editorDefaults:next}})});
@@ -2030,7 +2079,13 @@ async function fsWrite(){
       '<div style="margin-bottom:8px">'+esc(d.angle)+'</div>'+
       (people?'<div style="font-size:13px;font-weight:700;margin-top:6px">Connections found</div><ul style="margin:4px 0 8px 18px;padding:0;font-size:13.5px">'+people+'</ul>':'')+
       (d.id?'<div style="margin-top:6px"><b>'+esc(d.headline)+'</b></div><button class="btn" onclick="show(3);loadDrafts().then(function(){openDraft(\''+d.id+'\');})">Open the draft</button>':'')+
-      '</div>';
+      '</div><div id="fc-social"></div>';
+    var fcBox=document.getElementById('fs-factcheck');
+    if(d.id && fcBox && fcBox.checked && canUse('act_fact_check')){
+      var fs=document.getElementById('fc-social');
+      fs.innerHTML='<div class="card"><span class="spin" style="border-color:var(--border);border-top-color:var(--muted)"></span> Fact-checking the draft…</div>';
+      runFactCheck({draftId:d.id},fs,null);
+    }
   }catch(e){ st.textContent='Couldn’t write it: '+e.message; }
   finally{ btn.disabled=false; }
 }
