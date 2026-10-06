@@ -61,6 +61,33 @@ button.btn:disabled{opacity:.6;cursor:default}
 .spin{display:inline-block;width:14px;height:14px;border:2px solid rgba(255,255,255,.4);border-top-color:#fff;border-radius:50%;animation:sp .7s linear infinite;vertical-align:-2px;margin-right:6px}
 @keyframes sp{to{transform:rotate(360deg)}}
 .savedmsg{color:var(--green);font-size:12px;font-weight:600;margin-left:8px}
+.dm-filters{display:grid;grid-template-columns:2fr 1fr 1fr 1fr;gap:8px;margin-bottom:8px}
+.dm-filters input,.dm-filters select{margin:0;font-size:13px;padding:7px 9px}
+.dm-bulk{display:flex;align-items:center;gap:10px;font-size:12.5px;color:var(--muted);min-height:30px}
+.dm-row{display:grid;grid-template-columns:22px minmax(0,1fr) 128px 120px 110px 178px;gap:10px;align-items:center;padding:9px 4px;border-top:1px solid var(--border);font-size:13px}
+.dm-row.head{border-top:0;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.03em;color:var(--muted);padding-top:2px}
+.dm-row input[type=checkbox]{width:auto;margin:0}
+.dm-row:not(.head):hover{background:#fafbfd}
+.dm-hl{min-width:0}
+.dm-hl a{color:var(--text);font-weight:600;text-decoration:none;cursor:pointer}
+.dm-hl a:hover{color:var(--blue);text-decoration:underline}
+.dm-hl input{margin:0;font-size:13px;padding:5px 7px}
+.dm-badge{display:inline-block;font-size:10.5px;font-weight:700;padding:1px 6px;border-radius:4px;background:#f1f3f7;color:var(--muted);margin-left:6px;vertical-align:1px;white-space:nowrap}
+.dm-badge.vip{background:#fde8e8;color:#9b1c1c}
+.dm-badge.email{background:#e8f0fe;color:#1e40af}
+.dm-badge.breaking{background:#fff1e6;color:#9a3412}
+.dm-row select{margin:0;font-size:12.5px;padding:4px 6px}
+.dm-meta{color:var(--muted);font-size:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.dm-acts{display:flex;gap:4px;justify-content:flex-end;flex-wrap:nowrap}
+.dm-acts button{font:inherit;font-size:12px;border:1px solid var(--border);background:#fff;border-radius:6px;padding:4px 8px;cursor:pointer;color:var(--text)}
+.dm-acts button:hover{border-color:var(--blue);color:var(--blue)}
+.dm-acts button.del:hover{border-color:var(--hot);color:var(--hot)}
+.dm-pager{display:flex;gap:6px;align-items:center;justify-content:flex-end;margin-top:10px;font-size:12.5px;color:var(--muted)}
+.dm-pager button{font:inherit;font-size:12.5px;border:1px solid var(--border);background:#fff;border-radius:6px;padding:4px 10px;cursor:pointer}
+.dm-pager button:disabled{opacity:.4;cursor:default}
+.dm-toast{position:fixed;left:50%;bottom:20px;transform:translateX(-50%);background:#1f2937;color:#fff;font-size:13px;padding:10px 14px;border-radius:8px;box-shadow:0 6px 20px rgba(0,0,0,.25);z-index:50;display:flex;gap:14px;align-items:center;max-width:92vw}
+.dm-toast button{font:inherit;font-size:13px;font-weight:700;background:none;border:0;color:#93c5fd;cursor:pointer}
+@media (max-width:760px){.dm-filters{grid-template-columns:1fr 1fr}.dm-filters input{grid-column:1/-1}.dm-row{grid-template-columns:22px minmax(0,1fr) auto;gap:6px 8px}.dm-row.head{display:none}.dm-row .dm-st{grid-column:2}.dm-row .dm-who{display:none}.dm-row .dm-when{grid-column:3;grid-row:2;text-align:right}.dm-row .dm-acts{grid-column:2/-1;justify-content:flex-start}}
 .aa-row{display:flex;align-items:center;gap:4px 14px;flex-wrap:wrap;padding:3px 0}
 .aa-lab{display:flex;align-items:center;gap:6px;margin:0;font-weight:400;color:var(--text);min-width:200px}
 .aa-pos{display:flex;align-items:center;gap:6px;font-size:12px;color:var(--muted)}
@@ -287,12 +314,27 @@ body.no-add #ed-autoadd,body.no-add #pre-tabs-wrap,body.no-add #pre-panel,body.n
   </div>
 
   <div class="page" id="page-3">
-    <div class="card">
-      <h2>Drafts</h2>
-      <div class="hint">Articles submitted from Copydesk land here, staged for your review &mdash; nothing here is published. Click one to view, edit, and copy the final HTML.</div>
+    <div class="card" id="drafts-manager">
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap">
+        <h2 style="margin:0">Drafts</h2>
+        <div style="display:flex;gap:6px;flex-wrap:wrap">
+          <button class="btn ghost" style="margin:0" onclick="checkEmailDrafts(this)">Check email now</button>
+          <button class="btn" style="margin:0" onclick="show(0)">New draft</button>
+        </div>
+      </div>
+      <div class="hint" id="drafts-inbox" style="margin:6px 0 10px">Nothing here is published. Click a headline to open it.</div>
+      <div class="dm-filters">
+        <input id="dm-q" placeholder="Search headlines" oninput="dmState.page=0;renderDraftsList()">
+        <select id="dm-writer" onchange="dmState.page=0;renderDraftsList()"><option value="">All writers</option></select>
+        <select id="dm-status" onchange="dmState.page=0;renderDraftsList()"><option value="">All statuses</option></select>
+        <select id="dm-source" onchange="dmState.page=0;renderDraftsList()"><option value="">All sources</option></select>
+      </div>
+      <div class="dm-bulk" id="dm-bulk"></div>
       <div id="drafts-list"><div class="empty">Loading&hellip;</div></div>
+      <div class="dm-pager" id="dm-pager"></div>
     </div>
     <div id="draft-detail"></div>
+    <div id="dm-toast" class="dm-toast" style="display:none"></div>
   </div>
 
 </div>
@@ -1250,36 +1292,206 @@ async function submitArticle(btn,action){
 
 var TIER_LABELS={vip:'VIP',free:'Free'};
 
-async function loadDrafts(){
+// ---- Drafts manager ----------------------------------------------------------
+// A searchable, filterable list (Jeff, 2026-10-06: "the current draft system is
+// very clunky ... needs a quick delete or quick edit"): rename a headline or
+// change status/tier right in the row, delete with one click (Undo for a few
+// seconds), bulk delete, duplicate, or send a draft to Copydesk to edit.
+var DM_SOURCES={copydesk:'Copydesk',email:'Emailed in',breaking:'Breaking auto-draft',alert:'Write it',social:'From social'};
+var DM_STATUSES=['draft','submitted','in review','ready to publish','published'];
+var DM_PAGE=25;
+var dmState={all:[],page:0,sel:{},pendingDelete:null};
+async function loadDrafts(keepDetail){
   var c=document.getElementById('drafts-list');
-  c.innerHTML='<div class="empty">Loading&hellip;</div>';
-  document.getElementById('draft-detail').innerHTML='';
+  if(!dmState.all.length) c.innerHTML='<div class="empty">Loading&hellip;</div>';
+  if(!keepDetail) closeDraftDetail();
   try{
     var r=await fetch('/api/drafts');
     var d=await r.json();
-    renderDraftsList(d.drafts||[]);
+    dmState.all=(d.drafts||[]).filter(function(x){ return !dmState.pendingDelete||dmState.pendingDelete.ids.indexOf(x.id)===-1; });
+    fillDraftFilters();
+    renderDraftsList();
   }catch(e){c.innerHTML='<div class="empty">Failed to load: '+esc(e.message)+'</div>';}
+  loadDraftInbox();
 }
-
-function renderDraftsList(drafts){
-  var c=document.getElementById('drafts-list');
-  if(!drafts.length){c.innerHTML='<div class="empty">No drafts yet &mdash; submit one from Copydesk.</div>';return;}
-  c.innerHTML=drafts.map(function(d){
-    return '<div class="writer-item" id="draft-item-'+d.id+'" style="cursor:pointer" onclick="openDraft(\''+d.id+'\')">'+
-      '<div class="whead" style="cursor:pointer" onclick="openDraft(\''+d.id+'\')"><b>'+esc(d.headline||'(no headline)')+'</b>'+
-        '<span><span class="pill">'+esc(TIER_LABELS[d.tier]||d.tier)+'</span> <span class="pill">'+esc(d.status||'submitted')+'</span> '+
-        '<button class="btn ghost" onclick="event.stopPropagation();deleteDraftItem(\''+d.id+'\')">Delete</button></span></div>'+
-      '<div class="hint" style="margin:4px 0 0;cursor:pointer" onclick="openDraft(\''+d.id+'\')">'+esc(d.writerName||'')+' &middot; '+new Date(d.updatedAt).toLocaleString()+'</div>'+
-    '</div>';
-  }).join('');
-}
-
-async function deleteDraftItem(id){
-  if(!confirm('Delete this draft? This cannot be undone.'))return;
+var _dmInbox=null;
+async function loadDraftInbox(){
+  if(_dmInbox) return;
   try{
-    await fetch('/api/drafts?id='+encodeURIComponent(id),{method:'DELETE'});
-    loadDrafts();
+    var r=await fetch('/api/drafts?inbox=1'); var d=await r.json(); _dmInbox=d;
+    if(d&&d.address) document.getElementById('drafts-inbox').innerHTML='Nothing here is published. <b>Email an article in:</b> send it to <a href="mailto:'+esc(d.address)+'">'+esc(d.address)+'</a> from your team email (paste it in the email or attach a Word file) and it shows up here as a draft within 5 minutes.';
   }catch(e){}
+}
+function fillDraftFilters(){
+  var keep=function(id,vals,labels){
+    var el=document.getElementById(id), cur=el.value, first=el.options[0].outerHTML;
+    el.innerHTML=first+vals.map(function(v){return '<option value="'+esc(v)+'">'+esc(labels?labels[v]||v:v)+'</option>';}).join('');
+    el.value=vals.indexOf(cur)!==-1?cur:'';
+  };
+  var uniq=function(k){ var o={}; dmState.all.forEach(function(d){ if(d[k]) o[d[k]]=1; }); return Object.keys(o).sort(); };
+  keep('dm-writer',uniq('writerName'));
+  keep('dm-status',DM_STATUSES.concat(uniq('status').filter(function(x){return DM_STATUSES.indexOf(x)===-1;})));
+  keep('dm-source',Object.keys(DM_SOURCES),DM_SOURCES);
+}
+function filteredDrafts(){
+  var q=(document.getElementById('dm-q').value||'').trim().toLowerCase();
+  var w=document.getElementById('dm-writer').value, st=document.getElementById('dm-status').value, src=document.getElementById('dm-source').value;
+  return dmState.all.filter(function(d){
+    if(q && String(d.headline||'').toLowerCase().indexOf(q)===-1) return false;
+    if(w && d.writerName!==w) return false;
+    if(st && (d.status||'submitted')!==st) return false;
+    if(src && (d.source||'copydesk')!==src) return false;
+    return true;
+  }).sort(function(a,b){ return String(b.updatedAt||'').localeCompare(String(a.updatedAt||'')); });
+}
+function dmWhen(iso){
+  if(!iso) return '';
+  var d=new Date(iso), now=new Date();
+  var t=d.toLocaleTimeString([], {hour:'numeric',minute:'2-digit'});
+  if(d.toDateString()===now.toDateString()) return 'Today '+t;
+  var y=new Date(now); y.setDate(now.getDate()-1);
+  if(d.toDateString()===y.toDateString()) return 'Yesterday '+t;
+  return d.toLocaleDateString([], {month:'short',day:'numeric'})+' '+t;
+}
+function renderDraftsList(){
+  var c=document.getElementById('drafts-list');
+  var list=filteredDrafts();
+  var pages=Math.max(1,Math.ceil(list.length/DM_PAGE));
+  if(dmState.page>=pages) dmState.page=pages-1;
+  var rows=list.slice(dmState.page*DM_PAGE,(dmState.page+1)*DM_PAGE);
+  if(!dmState.all.length){ c.innerHTML='<div class="empty">No drafts yet. Save one from Copydesk, or email one in.</div>'; document.getElementById('dm-pager').innerHTML=''; renderDmBulk(); return; }
+  if(!list.length){ c.innerHTML='<div class="empty">No drafts match.</div>'; document.getElementById('dm-pager').innerHTML=''; renderDmBulk(); return; }
+  var allOn=rows.length&&rows.every(function(d){return dmState.sel[d.id];});
+  c.innerHTML='<div class="dm-row head"><input type="checkbox" title="Select all on this page" '+(allOn?'checked ':'')+'onchange="dmSelectPage(this.checked)"><span>Headline</span><span>Status</span><span>Writer</span><span>Updated</span><span></span></div>'+
+    rows.map(function(d){
+      var src=d.source||'copydesk';
+      var badges=(d.tier==='vip'?'<span class="dm-badge vip">VIP</span>':'')+(src!=='copydesk'?'<span class="dm-badge '+(src==='email'?'email':src==='breaking'?'breaking':'')+'">'+esc(DM_SOURCES[src]||src)+'</span>':'');
+      var st=d.status||'submitted';
+      var opts=DM_STATUSES.indexOf(st)===-1?DM_STATUSES.concat([st]):DM_STATUSES;
+      return '<div class="dm-row" id="draft-item-'+d.id+'">'+
+        '<input type="checkbox" '+(dmState.sel[d.id]?'checked ':'')+'onchange="dmSelect(\''+d.id+'\',this.checked)">'+
+        '<div class="dm-hl" id="dm-hl-'+d.id+'"><a onclick="openDraft(\''+d.id+'\')">'+esc(d.headline||'(no headline)')+'</a>'+badges+'</div>'+
+        '<div class="dm-st"><select title="Change status" onchange="dmQuick(\''+d.id+'\',{status:this.value})">'+opts.map(function(o){return '<option'+(o===st?' selected':'')+'>'+esc(o)+'</option>';}).join('')+'</select></div>'+
+        '<div class="dm-meta dm-who" title="'+esc(d.writerName||'')+'">'+esc(d.writerName||'')+'</div>'+
+        '<div class="dm-meta dm-when" title="'+esc(d.updatedAt?new Date(d.updatedAt).toLocaleString():'')+'">'+esc(dmWhen(d.updatedAt))+'</div>'+
+        '<div class="dm-acts">'+
+          '<button title="Rename" onclick="dmRename(\''+d.id+'\')">✎</button>'+
+          '<button title="Load it into Copydesk to edit" onclick="dmToCopydesk(\''+d.id+'\',this)">Edit</button>'+
+          '<button title="Make a copy" onclick="dmDuplicate(\''+d.id+'\',this)">Copy</button>'+
+          '<button class="del" title="Delete" onclick="dmDelete([\''+d.id+'\'])">🗑</button>'+
+        '</div></div>';
+    }).join('');
+  var pg=document.getElementById('dm-pager');
+  pg.innerHTML=pages>1?'<span>'+(dmState.page*DM_PAGE+1)+'–'+Math.min(list.length,(dmState.page+1)*DM_PAGE)+' of '+list.length+'</span><button '+(dmState.page?'':'disabled ')+'onclick="dmState.page--;renderDraftsList()">‹ Prev</button><button '+(dmState.page<pages-1?'':'disabled ')+'onclick="dmState.page++;renderDraftsList()">Next ›</button>':'<span>'+list.length+' draft'+(list.length===1?'':'s')+'</span>';
+  renderDmBulk();
+}
+function dmSelect(id,on){ if(on) dmState.sel[id]=1; else delete dmState.sel[id]; renderDmBulk(); }
+function dmSelectPage(on){
+  var list=filteredDrafts().slice(dmState.page*DM_PAGE,(dmState.page+1)*DM_PAGE);
+  list.forEach(function(d){ if(on) dmState.sel[d.id]=1; else delete dmState.sel[d.id]; });
+  renderDraftsList();
+}
+function renderDmBulk(){
+  var ids=Object.keys(dmState.sel).filter(function(id){ return dmState.all.some(function(d){return d.id===id;}); });
+  document.getElementById('dm-bulk').innerHTML=ids.length?'<b style="color:var(--text)">'+ids.length+' selected</b> <button class="btn ghost" style="margin:0;padding:4px 10px;font-size:12px" onclick="dmDelete(Object.keys(dmState.sel))">Delete selected</button> <a href="#" onclick="dmState.sel={};renderDraftsList();return false">Clear</a>':'';
+}
+// Quick edits save straight away; the row updates in place.
+async function dmQuick(id,fields){
+  var d=dmState.all.filter(function(x){return x.id===id;})[0]; if(!d) return;
+  var before=Object.assign({},d);
+  Object.assign(d,fields,{updatedAt:new Date().toISOString()});
+  renderDraftsList();
+  try{
+    var r=await fetch('/api/drafts',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(Object.assign({id:id},fields))});
+    var res=await r.json().catch(function(){return {};});
+    if(!r.ok||res.error) throw new Error(res.error||('HTTP '+r.status));
+    dmToast('Saved.');
+  }catch(e){ Object.assign(d,before); renderDraftsList(); dmToast('Couldn’t save: '+e.message); }
+}
+function dmRename(id){
+  var d=dmState.all.filter(function(x){return x.id===id;})[0]; if(!d) return;
+  var cell=document.getElementById('dm-hl-'+id); if(!cell) return;
+  cell.innerHTML='<input value="'+esc(d.headline||'')+'" onkeydown="if(event.key===\'Enter\')this.blur();if(event.key===\'Escape\'){this.dataset.cancel=1;this.blur();}" onblur="dmRenameDone(\''+id+'\',this)">';
+  var inp=cell.querySelector('input'); inp.focus(); inp.select();
+}
+function dmRenameDone(id,inp){
+  var d=dmState.all.filter(function(x){return x.id===id;})[0];
+  var v=inp.value.trim();
+  if(inp.dataset.cancel||!d||!v||v===d.headline){ renderDraftsList(); return; }
+  dmQuick(id,{headline:v});
+}
+// One-click delete with a few seconds to undo; the server delete happens when
+// the toast closes (or right away if another delete starts).
+function dmDelete(ids){
+  ids=ids.filter(Boolean); if(!ids.length) return;
+  dmFlushDelete();
+  var removed=dmState.all.filter(function(d){return ids.indexOf(d.id)!==-1;});
+  dmState.all=dmState.all.filter(function(d){return ids.indexOf(d.id)===-1;});
+  ids.forEach(function(id){ delete dmState.sel[id]; });
+  renderDraftsList();
+  var label=removed.length===1?'“'+(removed[0].headline||'Draft').slice(0,50)+'”':removed.length+' drafts';
+  var timer=setTimeout(dmFlushDelete,6000);
+  dmState.pendingDelete={ids:ids,removed:removed,timer:timer};
+  dmToast('Deleted '+esc(label)+'.',function(){
+    var p=dmState.pendingDelete; if(!p||p.ids!==ids) return;
+    clearTimeout(p.timer); dmState.pendingDelete=null;
+    dmState.all=dmState.all.concat(p.removed); renderDraftsList(); dmToast('Restored.');
+  },6000);
+}
+function dmFlushDelete(){
+  var p=dmState.pendingDelete; if(!p) return;
+  clearTimeout(p.timer); dmState.pendingDelete=null;
+  fetch('/api/drafts?ids='+encodeURIComponent(p.ids.join(',')),{method:'DELETE'}).then(function(r){ if(!r.ok) throw new Error('HTTP '+r.status); })
+    .catch(function(e){ dmState.all=dmState.all.concat(p.removed); renderDraftsList(); dmToast('Couldn’t delete: '+e.message); });
+}
+window.addEventListener('beforeunload',dmFlushDelete);
+async function dmDuplicate(id,btn){
+  btn.disabled=true;
+  try{
+    var r=await fetch('/api/drafts',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({id:id,action:'duplicate'})});
+    var res=await r.json(); if(!r.ok||res.error) throw new Error(res.error||('HTTP '+r.status));
+    dmToast('Copy made.'); loadDrafts();
+  }catch(e){ dmToast('Couldn’t copy: '+e.message); btn.disabled=false; }
+}
+// Puts the draft's text into Copydesk, ready for "Edit draft".
+async function dmToCopydesk(id,btn){
+  if(btn) btn.disabled=true;
+  try{
+    var r=await fetch('/api/drafts?id='+encodeURIComponent(id)); var d=await r.json();
+    if(d.error) throw new Error(d.error);
+    var tmp=document.createElement('div'); tmp.innerHTML=safeHtml(d.html||'');
+    tmp.querySelectorAll('p,h1,h2,h3,h4,li,blockquote').forEach(function(el){ el.insertAdjacentText('afterend','\n\n'); });
+    tmp.querySelectorAll('br').forEach(function(el){ el.replaceWith('\n'); });
+    var text=(d.headline?d.headline+'\n\n':'')+(tmp.textContent||'').replace(/\n{3,}/g,'\n\n').trim();
+    show(0);
+    var ta=document.getElementById('ed-draft'); ta.value=text; ta.focus();
+    if(d.tier){ var t=document.getElementById('ed-tier'); if(t){ t.value=d.tier; updatePromoCount(); } }
+    document.getElementById('ed-status').textContent='Loaded “'+(d.headline||'draft').slice(0,60)+'” from Drafts. Pick a mode and click Edit draft.';
+    renderPreTabs();
+  }catch(e){ dmToast('Couldn’t load it: '+e.message); }
+  if(btn) btn.disabled=false;
+}
+function dmToast(html,undo,ms){
+  var t=document.getElementById('dm-toast'); if(!t) return;
+  t.innerHTML='<span>'+html+'</span>'+(undo?'<button>Undo</button>':'');
+  if(undo) t.querySelector('button').onclick=function(){ t.style.display='none'; undo(); };
+  t.style.display='flex';
+  clearTimeout(t._h); t._h=setTimeout(function(){ t.style.display='none'; },ms||2500);
+}
+async function checkEmailDrafts(btn){
+  btn.disabled=true; var old=btn.textContent; btn.textContent='Checking…';
+  try{
+    var r=await fetch('/api/email-drafts'); var d=await r.json();
+    if(d.error) throw new Error(d.error);
+    if(d.configured===false) dmToast('Email-in isn’t set up: the app’s Gmail sign-in is missing.');
+    else dmToast(d.saved.length?d.saved.length+' new draft'+(d.saved.length>1?'s':'')+' from email.':'No new emailed articles.'+(d.skipped.length?' Skipped '+d.skipped.length+' ('+esc(d.skipped[0].why)+').':''),null,4000);
+    if(d.saved&&d.saved.length) loadDrafts();
+  }catch(e){ dmToast('Couldn’t check email: '+e.message); }
+  btn.disabled=false; btn.textContent=old;
+}
+function closeDraftDetail(){
+  var m=document.getElementById('drafts-manager'); if(m) m.style.display='';
+  var c=document.getElementById('draft-detail'); if(c) c.innerHTML='';
 }
 
 // Preview-safe copy of a draft's HTML: drops scripts, inline event handlers
@@ -1298,16 +1510,16 @@ function safeHtml(html){
 // appear off-screen ("nothing happens"): mark the tapped item and scroll to it.
 async function openDraft(id){
   var c=document.getElementById('draft-detail');
-  document.querySelectorAll('#drafts-list .writer-item').forEach(function(el){ el.style.outline=''; });
-  var item=document.getElementById('draft-item-'+id); if(item) item.style.outline='2px solid var(--blue)';
+  document.getElementById('drafts-manager').style.display='none';
   c.innerHTML='<div class="card"><div class="empty">Loading&hellip;</div></div>';
-  c.scrollIntoView({behavior:'smooth',block:'start'});
+  window.scrollTo(0,0);
   try{
     var r=await fetch('/api/drafts?id='+encodeURIComponent(id));
     var d=await r.json();
     if(d.error){c.innerHTML='<div class="card"><div class="empty">'+esc(d.error)+'</div></div>';return;}
     c.innerHTML='<div class="card">'+
-      '<h2>'+esc(d.headline||'(no headline)')+'</h2>'+
+      '<a href="#" onclick="closeDraftDetail();renderDraftsList();return false" style="font-size:13px">&larr; All drafts</a>'+
+      '<h2 style="margin-top:8px">'+esc(d.headline||'(no headline)')+'</h2>'+
       '<div class="hint">'+esc(d.writerName||'')+' &middot; '+esc(TIER_LABELS[d.tier]||d.tier)+' &middot; last updated '+new Date(d.updatedAt).toLocaleString()+'</div>'+
       '<label>Article</label>'+
       '<div id="draft-preview" style="border:1px solid var(--border);border-radius:8px;padding:12px 14px;background:#fff;font-size:15px;line-height:1.6;max-height:520px;overflow:auto">'+(safeHtml(d.html)||'<i>(empty)</i>')+'</div>'+
@@ -1321,11 +1533,11 @@ async function openDraft(id){
         '<button class="btn ghost" onclick="saveDraftEdit(\''+d.id+'\',false)">Save changes</button>'+
         '<button class="btn" onclick="saveDraftEdit(\''+d.id+'\',true)">Send to publisher</button>'+
         '<button class="btn ghost" onclick="copyDraftHtml()">Copy HTML</button>'+
+        '<button class="btn ghost" onclick="dmToCopydesk(\''+d.id+'\',this)">Edit in Copydesk</button>'+
         '<span id="draft-save-status" style="font-size:12px;color:var(--muted)"></span>'+
       '</div>'+
     '</div>';
-    c.scrollIntoView({behavior:'smooth',block:'start'});
-  }catch(e){c.innerHTML='<div class="card"><div class="empty">Failed: '+esc(e.message)+'</div></div>';}
+  }catch(e){c.innerHTML='<div class="card"><a href="#" onclick="closeDraftDetail();return false" style="font-size:13px">&larr; All drafts</a><div class="empty">Failed: '+esc(e.message)+'</div></div>';}
 }
 
 async function saveDraftEdit(id,send){
@@ -1336,7 +1548,7 @@ async function saveDraftEdit(id,send){
       body:JSON.stringify({id:id,html:document.getElementById('draft-html').value,status:send?'submitted':document.getElementById('draft-status').value,notify:!!send})});
     var res=await r.json();
     if(res.error){status.textContent='Failed: '+res.error;}
-    else{status.textContent=send?'Sent — publisher notified by email.':'Saved.';loadDrafts();}
+    else{status.textContent=send?'Sent — publisher notified by email.':'Saved.';loadDrafts(true);}
   }catch(e){status.textContent='Failed: '+e.message;}
 }
 

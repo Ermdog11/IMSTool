@@ -8,6 +8,8 @@ module.exports = async function handler(req, res) {
   catch (authErr) { return res.status(authErr.status || 401).json({ error: authErr.message || 'Not signed in' }); }
   try {
     if (req.method === 'GET') {
+      // The "email an article in" address shown on the Drafts tab.
+      if (req.query && req.query.inbox) return res.status(200).json(require('./_email-drafts').inboxInfo());
       var id = req.query && req.query.id;
       if (id) {
         var doc = await loadDraft(id);
@@ -23,8 +25,24 @@ module.exports = async function handler(req, res) {
       if (!body.id) return res.status(400).json({ error: 'id required' });
       var existing = await loadDraft(body.id);
       if (!existing) return res.status(404).json({ error: 'Draft not found' });
+      // Duplicate: a new draft with the same content (Drafts list "Duplicate").
+      if (body.action === 'duplicate') {
+        var now = new Date().toISOString();
+        var copy = Object.assign({}, existing, {
+          id: Date.now().toString(36) + Math.random().toString(36).slice(2, 8),
+          headline: (existing.headline || '(no headline)') + ' (copy)',
+          status: 'draft', createdAt: now, updatedAt: now, sourceUrl: null,
+          source: require('./_drafts').sourceOf(existing)
+        });
+        await saveDraft(copy);
+        return res.status(200).json({ ok: true, id: copy.id });
+      }
+      // Quick edits from the list (headline, status, tier) and full edits
+      // from the open draft (html) all land here; only what's sent changes.
       var updated = Object.assign({}, existing, {
         html: body.html != null ? body.html : existing.html,
+        headline: typeof body.headline === 'string' && body.headline.trim() ? body.headline.trim().slice(0, 300) : existing.headline,
+        tier: body.tier === 'vip' || body.tier === 'free' ? body.tier : existing.tier,
         status: body.status || existing.status,
         updatedAt: new Date().toISOString()
       });
@@ -38,10 +56,11 @@ module.exports = async function handler(req, res) {
     }
 
     if (req.method === 'DELETE') {
-      var delId = req.query && req.query.id;
-      if (!delId) return res.status(400).json({ error: 'id required' });
-      await deleteDraft(delId);
-      return res.status(200).json({ ok: true });
+      // ?id=a or ?ids=a,b,c (bulk delete from the list).
+      var ids = String((req.query && (req.query.ids || req.query.id)) || '').split(',').map(function (x) { return x.trim(); }).filter(Boolean).slice(0, 200);
+      if (!ids.length) return res.status(400).json({ error: 'id required' });
+      await require('./_drafts').deleteDrafts(ids);
+      return res.status(200).json({ ok: true, deleted: ids.length });
     }
 
     return res.status(405).json({ error: 'GET, POST, or DELETE only' });

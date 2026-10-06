@@ -29,12 +29,23 @@ async function loadDraft(id) {
   } catch (e) { return null; }
 }
 
+// Where a draft came from, for the Drafts list's filter and badge. Older
+// drafts have no `source`, so it's worked out from who wrote them.
+function sourceOf(doc) {
+  if (doc.source) return doc.source;
+  var w = String(doc.writerName || '');
+  if (/breaking/i.test(w)) return 'breaking';
+  if (/Write it/i.test(w)) return 'alert';
+  if (/From social/i.test(w)) return 'social';
+  return 'copydesk';
+}
+
 async function saveDraft(doc) {
   await put('drafts/' + doc.id + '.json', JSON.stringify(doc), {
     access: 'private', addRandomSuffix: false, allowOverwrite: true, contentType: 'application/json'
   });
   var index = await loadIndex();
-  var entry = { id: doc.id, headline: doc.headline || '', writerName: doc.writerName || '', tier: doc.tier || 'free', status: doc.status || 'submitted', updatedAt: doc.updatedAt, sourceUrl: doc.sourceUrl || null };
+  var entry = { id: doc.id, headline: doc.headline || '', writerName: doc.writerName || '', tier: doc.tier || 'free', status: doc.status || 'submitted', updatedAt: doc.updatedAt, createdAt: doc.createdAt || null, sourceUrl: doc.sourceUrl || null, source: sourceOf(doc) };
   var i = index.findIndex(function(e) { return e.id === doc.id; });
   if (i === -1) index.unshift(entry); else index[i] = entry;
   await saveIndex(index);
@@ -51,6 +62,14 @@ async function deleteDraft(id) {
   await saveIndex(index.filter(function(e) { return e.id !== id; }));
 }
 
+// Several at once (bulk delete from the Drafts list): one index write.
+async function deleteDrafts(ids) {
+  await Promise.all(ids.map(function (id) { return del('drafts/' + id + '.json').catch(function () {}); }));
+  var gone = {}; ids.forEach(function (id) { gone[id] = 1; });
+  var index = await loadIndex();
+  await saveIndex(index.filter(function(e) { return !gone[e.id]; }));
+}
+
 // Dedup for anything auto-generated from an external source (e.g. the
 // breaking-news auto-draft in rolling-digest.js) — don't draft the same
 // story twice just because it's still in the scan window on a later run.
@@ -60,4 +79,4 @@ async function findBySourceUrl(url) {
   return index.find(function(e) { return e.sourceUrl === url; }) || null;
 }
 
-module.exports = { loadIndex: loadIndex, loadDraft: loadDraft, saveDraft: saveDraft, deleteDraft: deleteDraft, findBySourceUrl: findBySourceUrl };
+module.exports = { sourceOf: sourceOf, loadIndex: loadIndex, loadDraft: loadDraft, saveDraft: saveDraft, deleteDraft: deleteDraft, deleteDrafts: deleteDrafts, findBySourceUrl: findBySourceUrl };
