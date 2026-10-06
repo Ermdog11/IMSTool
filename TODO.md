@@ -58,6 +58,9 @@
 
 ## Done
 
+- **2026-10-06 — Content Editor box is now "Give directions / ask a question" and writes on command.** `handleRefine` in `copyedit.js` handles CHANGE, WRITE (a full story, section or lede goes into the draft; headlines, posts and questions go in the reply) and QUESTION, with replies as long as needed. Its prompt now reads outlet and team from the beat profile instead of a hard-coded "InsideMDSports, a Maryland Terrapins site". Also renamed the podcast insert to "Your latest podcast episode".
+- [ ] **copyedit.js still hard-codes Maryland / InsideMDSports** in the main edit prompt, headline modes and related-link search (pre-existing; found 2026-10-06). Move these to the beat profile before a second newsroom.
+
 - **2026-10-06 — Bluesky tab removed from the News Monitor header** (Jeff: "it doesn't account for enough traffic"). The page still works at `/bluesky`; the tab highlight now matches by id instead of position, so removing a header button can't shift the others.
 
 - **2026-10-06 — Coverage Desk email includes the day's calendar events.** `_calendar.eventsOn()` (New York date, all-day items included) feeds a "📅 Today on the calendar" box at the top of the memo, and the list goes to the memo prompt so today's priorities account for them. No events = no box.

@@ -290,7 +290,7 @@ function renderEditorDefaults(){
   function pos(k){ return '<span class="pos">Top <input type="range" min="1" max="10" step="1" value="'+ed[k]+'"'+dis+' oninput="ed.'+k+'=+this.value;this.nextElementSibling.textContent=this.value"> <b>'+ed[k]+'</b> Bottom</span>'; }
   function seg(k,opts){ return '<span class="seg">'+opts.map(function(o){ return '<button type="button"'+dis+' class="'+(ed[k]===o[0]?'on':'')+'" onclick="ed.'+k+'='+JSON.stringify(o[0]).replace(/"/g,'&quot;')+';renderEditorDefaults()">'+o[1]+'</button>'; }).join('')+'</span>'; }
   $('ed-defaults').innerHTML=
-    '<div class="row"><div class="name"><b>🎙️ Latest podcast episode</b><span>The newest episode’s player, from your podcast feed.</span></div>'+pos('podcastPosition')+sw('podcast')+'</div>'+
+    '<div class="row"><div class="name"><b>🎙️ Your latest podcast episode</b><span>The newest episode’s player, from your podcast feed.</span></div>'+pos('podcastPosition')+sw('podcast')+'</div>'+
     '<div class="row"><div class="name"><b>🔗 Related links box</b><span>Links to related stories, picked from the finished article.</span></div>'+pos('relatedPosition')+sw('related')+'</div>'+
     '<div class="row"><div class="name"><b>How many related links</b></div>'+seg('relatedCount',[[1,'1'],[2,'2'],[3,'3'],[4,'4']])+'</div>'+
     '<div class="row"><div class="name"><b>Related links point to</b></div>'+seg('relatedScope',[['site','Our site only'],['web','Anywhere on the web']])+'</div>'+
