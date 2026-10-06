@@ -303,6 +303,7 @@ function weekKey(ms) {
   return nyDay(ms);
 }
 
+var HEAT_V = 2; // 2026-10-06: site readers lead, social capped (no more 7 AM spots from one viral post)
 function heatOn(data) { return mode(data) !== 'manual' && !(data.settings && data.settings.heatSpots === false); }
 
 function heatReminders(data) {
@@ -316,7 +317,8 @@ async function ensureHeatSpots(sb, siteId, force) {
   var data = await load();
   var wk = weekKey();
   if (!heatOn(data)) return { on: false, spots: [] };
-  if (!force && data.heat && data.heat.week === wk) {
+  // HEAT_V: bump when the scoring changes, so this week's spots are redone.
+  if (!force && data.heat && data.heat.week === wk && data.heat.v === HEAT_V) {
     return { on: true, spots: data.events.filter(function (e) { return e.kind === 'heat' && e.heatWeek === wk; }), basis: data.heat.basis, note: data.heat.note };
   }
   var got = await require('./_heat-spots').compute(sb, siteId);
@@ -333,7 +335,7 @@ async function ensureHeatSpots(sb, siteId, force) {
     };
   });
   data.events = data.events.concat(added).sort(function (a, b) { return a.start.localeCompare(b.start); });
-  data.heat = { week: wk, at: new Date().toISOString(), basis: got.basis, note: got.note };
+  data.heat = { week: wk, v: HEAT_V, at: new Date().toISOString(), basis: got.basis, note: got.note };
   await save(data);
   return { on: true, spots: added, basis: got.basis, note: got.note };
 }
@@ -414,4 +416,4 @@ async function fromEmail(text, meta) {
   return { summary: got.summary, events: saved };
 }
 
-module.exports = { mode: mode, setMode: setMode, addAiEvents: addAiEvents, sameItem: sameItem, ensureHeatSpots: ensureHeatSpots, setHeatOn: setHeatOn, setHeatReminder: setHeatReminder, heatOn: heatOn, weekKey: weekKey, eventsOn: eventsOn, timeOf: timeOf, load: load, extract: extract, addEvents: addEvents, setReminder: setReminder, setDefault: setDefault, updateEvent: updateEvent, deleteEvent: deleteEvent, sendDueReminders: sendDueReminders, fromEmail: fromEmail, zonedIso: zonedIso, STEPS: STEPS, TZ: TZ };
+module.exports = { HEAT_V: HEAT_V, mode: mode, setMode: setMode, addAiEvents: addAiEvents, sameItem: sameItem, ensureHeatSpots: ensureHeatSpots, setHeatOn: setHeatOn, setHeatReminder: setHeatReminder, heatOn: heatOn, weekKey: weekKey, eventsOn: eventsOn, timeOf: timeOf, load: load, extract: extract, addEvents: addEvents, setReminder: setReminder, setDefault: setDefault, updateEvent: updateEvent, deleteEvent: deleteEvent, sendDueReminders: sendDueReminders, fromEmail: fromEmail, zonedIso: zonedIso, STEPS: STEPS, TZ: TZ };

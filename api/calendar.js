@@ -41,7 +41,7 @@ module.exports = async function handler(req, res) {
     if (req.method === 'GET') {
       var data = await Cal.load();
       // First look this week: fill in the week's heat spots (stored analytics only, no Claude).
-      if (Cal.heatOn(data) && !(data.heat && data.heat.week === Cal.weekKey())) {
+      if (Cal.heatOn(data) && !(data.heat && data.heat.week === Cal.weekKey() && data.heat.v === Cal.HEAT_V)) {
         try { var ref0 = await siteRef(ctx); if (ref0) { await Cal.ensureHeatSpots(ref0.sb, ref0.id, false); data = await Cal.load(); } }
         catch (e) { console.error('Heat spots on load failed:', e.message); }
       }

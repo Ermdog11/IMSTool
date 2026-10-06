@@ -60,6 +60,11 @@
 
 ## Done
 
+- **2026-10-06 — Heat spots fixed: no more spots from one viral post** (Jeff, on "#2: publish by 7 AM ... site readers run 39% below typical; posts get 2133% above the usual engagement": "this makes no sense").
+  - **Cause:** social got a third of the score, and a single viral 7 AM post (21x average) outweighed low site readers.
+  - **Fix:** when Chartbeat is connected, site readers decide. Social only nudges a slot by about ±15%, each post is capped at 3x average, and an hour with below-typical site readers is never picked. A day/hour with few readings leans on the general curve (n/(n+3)).
+  - **Wording:** big ratios read as "2.7x typical", and social is only mentioned when it supports the pick. The calendar tag reads "best time to publish".
+  - **This week's spots:** they recompute after deploy (`HEAT_V` bump in `_calendar.js`).
 - **2026-10-06 — Team Chat looks like Slack, with profile photos** (Jeff: "team chat needs to look like a chat/Slack, not a headline list"; "give users options to upload a photo that will show next to their name in chat").
   - **Layout:** each message is a row with the photo (or colored initials), bold name and time, then the text. A run of messages from one person within 5 minutes groups under one header (time shows on hover). Day dividers read Today, Yesterday or a date. Links are clickable.
   - **Bot posts:** alerts, breaking drafts, calendar items and kudos come from "🤖 CoPublisher AI" with a small tag.
