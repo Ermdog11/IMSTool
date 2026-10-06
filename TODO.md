@@ -58,6 +58,8 @@
 
 ## Done
 
+- **2026-10-06 — Placement sliders are percentages in 20% steps, with the meaning spelled out** (Jeff). 0% is above the first paragraph and 100% after the last, counted in paragraphs; 40% of a 10-paragraph story lands after paragraph 4. Placements are saved as `pct0`–`pct100`. Old `pos1`–`pos10` placements and saved 1–10 defaults convert to the nearest 20% (`pct()` in editor.html and preferences.html; `placementIndex` in submit-article.js reads both).
+
 - **2026-10-06 — Bluesky tab removed from the News Monitor header** (Jeff: "it doesn't account for enough traffic"). The page still works at `/bluesky`; the tab highlight now matches by id instead of position, so removing a header button can't shift the others.
 
 - **2026-10-06 — Coverage Desk email includes the day's calendar events.** `_calendar.eventsOn()` (New York date, all-day items included) feeds a "📅 Today on the calendar" box at the top of the memo, and the list goes to the memo prompt so today's priorities account for them. No events = no box.

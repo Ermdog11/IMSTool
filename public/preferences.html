@@ -273,12 +273,16 @@ async function setAlert(el){
 // ---- Content Editor defaults (site profile editorDefaults) -------------------
 // Same shape and fallbacks as editorDefaults() in editor.html.
 var ed={};
+// Placement is a percentage in 20% steps: how far down the article, counted in
+// paragraphs (0% above the first, 100% after the last). Older 1-10 values
+// convert to the nearest step. Same as pct() in editor.html.
+function pct(v){ v=(v===undefined||v===null||v==='')?100:+v; if(isNaN(v)) v=100; if(v>=1&&v<=10) v=(v-1)/9*100; return Math.max(0,Math.min(100,Math.round(v/20)*20)); }
 function loadEditorDefaults(){
   var d=profile.editorDefaults||{}, pod=profile.podcast||{};
   ed={
     podcast:d.podcast!==false, related:d.related!==false, promos:!!d.promos, factCheck:!!d.factCheck, ads:d.ads!==false, affiliate:d.affiliate!==false,
-    podcastPosition:+(d.podcastPosition||pod.position||10),
-    relatedPosition:+(d.relatedPosition||10),
+    podcastPosition:pct(d.podcastPosition!=null?d.podcastPosition:pod.position),
+    relatedPosition:pct(d.relatedPosition),
     relatedCount:+(d.relatedCount||3), relatedScope:d.relatedScope==='web'?'web':'site'
   };
   renderEditorDefaults();
@@ -287,11 +291,12 @@ function renderEditorDefaults(){
   var can=ROLE==='publisher';
   var dis=can?'':' disabled';
   function sw(k){ return '<label class="switch"><input type="checkbox"'+dis+(ed[k]?' checked':'')+' onchange="ed.'+k+'=this.checked"><i></i></label>'; }
-  function pos(k){ return '<span class="pos">Top <input type="range" min="1" max="10" step="1" value="'+ed[k]+'"'+dis+' oninput="ed.'+k+'=+this.value;this.nextElementSibling.textContent=this.value"> <b>'+ed[k]+'</b> Bottom</span>'; }
+  function pos(k){ return '<span class="pos" title="How far down the article: 0% is above the first paragraph, 100% after the last">Top <input type="range" min="0" max="100" step="20" value="'+ed[k]+'"'+dis+' oninput="ed.'+k+'=+this.value;this.nextElementSibling.textContent=this.value+\'%\'"> <b>'+ed[k]+'%</b> Bottom</span>'; }
   function seg(k,opts){ return '<span class="seg">'+opts.map(function(o){ return '<button type="button"'+dis+' class="'+(ed[k]===o[0]?'on':'')+'" onclick="ed.'+k+'='+JSON.stringify(o[0]).replace(/"/g,'&quot;')+';renderEditorDefaults()">'+o[1]+'</button>'; }).join('')+'</span>'; }
   $('ed-defaults').innerHTML=
     '<div class="row"><div class="name"><b>🎙️ Latest podcast episode</b><span>The newest episode’s player, from your podcast feed.</span></div>'+pos('podcastPosition')+sw('podcast')+'</div>'+
     '<div class="row"><div class="name"><b>🔗 Related links box</b><span>Links to related stories, picked from the finished article.</span></div>'+pos('relatedPosition')+sw('related')+'</div>'+
+    '<div class="row"><div class="name"><span><b>Placement %</b> is how far down the article the box goes, counted in paragraphs: 0% is above the first paragraph, 50% the middle, 100% after the last. In a 10-paragraph story, 40% goes after paragraph 4.</span></div></div>'+
     '<div class="row"><div class="name"><b>How many related links</b></div>'+seg('relatedCount',[[1,'1'],[2,'2'],[3,'3'],[4,'4']])+'</div>'+
     '<div class="row"><div class="name"><b>Related links point to</b></div>'+seg('relatedScope',[['site','Our site only'],['web','Anywhere on the web']])+'</div>'+
     '<div class="row"><div class="name"><b>📣 Promos for the article’s tier</b><span>Every free or VIP promo set up in the Content Editor, each at its usual spot.</span></div>'+sw('promos')+'</div>'+
