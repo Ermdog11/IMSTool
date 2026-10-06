@@ -89,18 +89,26 @@ function senderVerified(parsed, fromAddr) {
 }
 
 // Team members' sign-in emails -> their byline, plus the digest list.
+// Registered senders also map to their CoPublisher account (SENDER_IDS), so
+// the draft is theirs and carries their byline (Jeff, 2026-10-06: "match the
+// writers email address with their co-publisher account for bylines, unless
+// the email isn't registered").
+var SENDER_IDS = {};
 async function allowedSenders() {
   var map = {};
+  SENDER_IDS = {};
   require('./_mailer').digestList().forEach(function (e) { map[e.toLowerCase()] = ''; });
   if (!S.isConfigured()) return map;
   try {
     var sb = S.admin();
     var site = await sb.from('sites').select('id').eq('slug', require('./_site').slug()).single();
     if (!site.data) return map;
-    var mem = await sb.from('memberships').select('byline, profiles(email, full_name)').eq('site_id', site.data.id);
+    var mem = await sb.from('memberships').select('user_id, byline, profiles(email, full_name)').eq('site_id', site.data.id);
     (mem.data || []).forEach(function (m) {
       var e = m.profiles && m.profiles.email;
-      if (e) map[e.toLowerCase()] = m.byline || (m.profiles && m.profiles.full_name) || '';
+      if (!e) return;
+      map[e.toLowerCase()] = m.byline || (m.profiles && m.profiles.full_name) || '';
+      SENDER_IDS[e.toLowerCase()] = m.user_id || null;
     });
   } catch (e) { console.error('email-drafts: team lookup failed:', e.message); }
   return map;
@@ -170,7 +178,7 @@ async function aiPass(parsed, art, fromName, subject) {
     var pdf = pdfOf(parsed);
     var sys = 'You work the drafts inbox for ' + beat.outletName + ', which covers ' + beat.coverage + '. ' + fromName + ', a member of the newsroom, emailed something in. Decide what it is.\n' +
       '- keep: their own finished or nearly finished article, sent to be saved as a draft. Do not rewrite it.\n' +
-      '- write: source material (a press release, statement, notes, a transcript, a PDF, a link) and/or instructions for what to write. Write the article: follow the sender\'s instructions exactly (angle, length, what to lead with, what to leave out). Report it as ' + beat.outletName + '\'s own story with the source attributed ("' + beat.team.short + ' announced Tuesday ..."), not as a reprint of the release. Lead with the news, not the release\'s throat-clearing. Quote the release only word for word, and only its strongest lines. Background on people and the program comes only from the CONTEXT and your research, never from memory.\n' +
+      '- write: source material (a press release, statement, notes, a transcript, a PDF, a link) and/or instructions for what to write. Write the article: follow the sender\'s instructions exactly (angle, length, what to lead with, what to leave out). Report it as ' + beat.outletName + '\'s own story with the source attributed ("' + beat.team.short + ' announced Tuesday ..."), not as a reprint of the release. Lead with the news, not the release\'s throat-clearing. Quote the release only word for word, and only its strongest lines. Before writing, search_knowledge_base for our own past coverage of the people and topic, and web_search for current facts (this season\'s roster, stats, schedule, anything the release mentions); background comes only from those and the CONTEXT, never from memory.\n' +
       'If the email says nothing either way, an article-shaped piece written by the sender is keep and a press release or notes is write.\n\n' +
       '=== HOUSE STYLE GUIDE (write in this voice) ===\n' + (houseStyle || '(none set: AP style, active voice, tight sentences, attribute claims, no cliches)');
     var blocks = [];
@@ -180,7 +188,7 @@ async function aiPass(parsed, art, fromName, subject) {
       (same ? '' : '\n\nATTACHED ' + art.from + ':\n' + artText) + (pdf ? '\n\n(The attached PDF ' + (pdf.filename || '') + ' is included above.)' : '') });
     var out = await require('./_writer').writeGrounded({
       key: key, system: sys, topic: (subject + ' ' + bodyText + ' ' + artText).slice(0, 1500),
-      content: blocks, tool: WRITE_TOOL, web: 2, maxTokens: 6000
+      content: blocks, tool: WRITE_TOOL, web: 3, maxTokens: 6000
     });
     if (!out || out.action !== 'write' || !String(out.article || '').trim()) return null;
     return out;
@@ -246,9 +254,12 @@ async function run() {
         var ai = await aiPass(parsed, art, fromName, headline);
         if (ai) {
           await Drafts.saveDraft({
-            id: id, writerName: 'AI draft (from email) for ' + fromName, tier: 'free',
+            // The sender's own byline when they have an account; otherwise
+            // the name on their email, marked as an AI draft.
+            id: id, writerName: senders[fromAddr] ? senders[fromAddr] : 'AI draft (from email) for ' + fromName, tier: 'free',
+            ownerId: SENDER_IDS[fromAddr] || null,
             headline: ai.headline || headline, headlines: [{ label: '', text: ai.headline || headline }], html: mdToHtml(ai.article),
-            notes: ['Written from your email: ' + (ai.why || headline)].concat(ai.notes || []), factsToCheck: ai.factsToCheck || [],
+            notes: ['AI-written from your email: ' + (ai.why || headline)].concat(ai.notes || []), factsToCheck: ai.factsToCheck || [],
             sourceHtml: art.html, autoGenerated: true,
             status: 'draft', source: 'email', emailedBy: fromAddr, ownerEmail: fromAddr, emailedFrom: art.from,
             createdAt: now, updatedAt: now
@@ -256,7 +267,7 @@ async function run() {
           headline = ai.headline || headline;
         } else {
         await Drafts.saveDraft({
-          id: id, writerName: fromName, tier: 'free', headline: headline, html: art.html,
+          id: id, writerName: fromName, tier: 'free', headline: headline, html: art.html, ownerId: SENDER_IDS[fromAddr] || null,
           status: 'draft', source: 'email', emailedBy: fromAddr, ownerEmail: fromAddr, emailedFrom: art.from,
           createdAt: now, updatedAt: now
         });
