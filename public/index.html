@@ -873,7 +873,10 @@ body.no-opps .acc-opps,body.no-write .acc-write,body.no-flag .acc-flag,body.no-f
         if (typeof applyExclusions === 'function') applyExclusions();
       });
     }
-    if (s && s.role && s.role !== 'publisher') {
+    // Contributors (freelancers) work in the Content Editor only.
+    if (s && s.access && s.access.use_monitor === false) { location.replace('/editor'); return; }
+    if (s && s.access && s.role !== 'publisher') applyMonitorAccess();
+    if (s && s.role && s.role !== 'publisher' && !s.access) {
       IMSAuth.authFetch('/api/site-profile').then(function (r) { return r.json(); }).then(function (d) {
         monitorAccess = (d && d.profile && d.profile.editorAccess) || {};
         applyMonitorAccess();
@@ -945,7 +948,9 @@ var MON_ACCESS = { 1:'mon_digest', 2:'mon_social', 3:'mon_chat', 4:'mon_backlog'
 var monitorAccess = null;
 function accessAllows(key) {
   var role = window.IMSAuth && IMSAuth.state && IMSAuth.state.role;
-  if (!role || role === 'publisher' || !monitorAccess) return true;
+  if (!role || role === 'publisher') return true;
+  var acc = IMSAuth.state.access; if (acc && key in acc) return acc[key] !== false;
+  if (!monitorAccess) return true;
   var a = monitorAccess[role];
   return !(a && a[key] === false);
 }
@@ -2549,7 +2554,7 @@ function renderTeam(team, prefs) {
   const teamPrefs = {};
   ((prefs && prefs.team) || []).forEach(t => teamPrefs[t.userId] = t.prefs);
   const roleSel = (cur, attrs) => `<select ${attrs} style="font-size:12px;padding:3px 6px;border:1px solid var(--border);border-radius:5px;">
-    ${['publisher','editor','writer'].map(r => `<option value="${r}"${r===cur?' selected':''}>${r}</option>`).join('')}</select>`;
+    ${['publisher','editor','writer','contributor','viewer'].map(r => `<option value="${r}"${r===cur?' selected':''}>${r}</option>`).join('')}</select>`;
 
   let h = '<div style="display:flex;flex-direction:column;gap:10px;">';
   (team.members || []).forEach(m => {
@@ -2583,7 +2588,7 @@ function renderTeam(team, prefs) {
     <div style="display:flex;gap:6px;flex-wrap:wrap;">
       <input id="inviteEmail" type="email" placeholder="email" style="flex:1;min-width:160px;font-size:13px;padding:7px 9px;border:1px solid var(--border);border-radius:6px;">
       <select id="inviteRole" style="font-size:13px;padding:7px 9px;border:1px solid var(--border);border-radius:6px;">
-        <option value="writer">writer</option><option value="editor">editor</option><option value="publisher">publisher</option>
+        <option value="writer">writer</option><option value="contributor">contributor (freelancer)</option><option value="viewer">viewer (read-only)</option><option value="editor">editor</option><option value="publisher">publisher</option>
       </select>
       <button class="pill" onclick="sendInvite()">Send invite</button>
     </div>

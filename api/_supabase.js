@@ -73,7 +73,7 @@ async function requireUser(req, opts) {
 }
 
 // Convenience: require a specific role (or higher). publisher > editor > writer.
-var RANK = { writer: 1, editor: 2, publisher: 3 };
+var RANK = { viewer: 0, contributor: 1, writer: 1, editor: 2, publisher: 3 };
 async function requireRole(req, minRole, opts) {
   var ctx = await requireUser(req, opts);
   if ((RANK[ctx.membership.role] || 0) < (RANK[minRole] || 99)) {
