@@ -1167,12 +1167,12 @@ body.other-newsroom .other-only { display: block !important; }
   <div id="xosCards" class="lay-cards" data-layout="xos">
   <div class="settings-card" data-card="social">
     <h3><i class="ti ti-brand-instagram"></i> Social media check</h3>
-    <div style="font-size:12px;color:var(--text3);margin-bottom:10px;line-height:1.5;">Quick reads on your social accounts from their real numbers (Buffer, Facebook/Instagram, X).</div>
+    <div style="font-size:12px;color:var(--text3);margin-bottom:10px;line-height:1.5;">What your social numbers mean and what to do next. The numbers themselves are on the Analytics tab.</div>
     <div style="display:flex;flex-wrap:wrap;gap:6px;">
-      <button class="chip" onclick="xosAsk('How did our social posts do this week, and which ones worked best?')">How did social do this week?</button>
+      <button class="chip" onclick="xosAsk('What is working on social for us right now, what is not, and why?')">What's working on social, and why?</button>
       <button class="chip" onclick="xosAsk('Which recent stories are worth re-sharing on social today?')">What should we re-share today?</button>
       <button class="chip" onclick="xosAsk('Which stories got big traffic but little social promotion?')">Traffic we didn't promote</button>
-      <button class="chip" onclick="xosAsk('What time should we post on X and Facebook?')">Best times to post</button>
+      <button class="chip" onclick="xosAsk('Which kinds of posts should we stop doing or change, based on how they performed?')">What should we change?</button>
     </div>
   </div>
   <div class="settings-card" data-card="strategy">
@@ -3847,7 +3847,7 @@ function renderStrategy(d) {
   box.innerHTML =
     '<div style="font-size:13.5px;line-height:1.55;">' + strategyParagraphs(d.overview) + '</div>' +
     sec('This week\'s moves') + (d.actions || []).map((a, i) => '<div style="padding:7px 0;border-top:1px solid var(--border);"><b>' + (i + 1) + '. ' + escapeHtml(a.title) + '</b> ' + chips(a.channels) + '<div style="font-size:12.5px;color:var(--text2);">' + escapeHtml(a.why) + '</div></div>').join('') +
-    sec('What each channel is for') + '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:8px;">' + (d.channels || []).map(c => '<div style="border:1px solid var(--border);border-radius:8px;padding:9px 11px;background:var(--bg2);"><b>' + escapeHtml(c.channel) + '</b><div style="font-size:12.5px;margin-top:3px;">' + escapeHtml(c.role) + '</div><div style="font-size:12px;color:var(--text2);margin-top:4px;">Wins: ' + escapeHtml(c.wins) + '</div>' + (c.bestTime ? '<div style="font-size:12px;color:var(--text2);margin-top:2px;">Best time: ' + escapeHtml(c.bestTime) + '</div>' : '') + '</div>').join('') + '</div>' +
+    sec('What each channel is for') + '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:8px;">' + (d.channels || []).map(c => '<div style="border:1px solid var(--border);border-radius:8px;padding:9px 11px;background:var(--bg2);"><b>' + escapeHtml(c.channel) + '</b><div style="font-size:12.5px;margin-top:3px;">' + escapeHtml(c.role) + '</div><div style="font-size:12px;color:var(--text2);margin-top:4px;">Wins: ' + escapeHtml(c.wins) + '</div>' + ('') + '</div>').join('') + '</div>' +
     sec('Overlap across channels') + ((d.overlap || []).length ? (d.overlap || []).map(o => '<div style="padding:6px 0;border-top:1px solid var(--border);font-size:13px;"><b>' + escapeHtml(o.topic) + '</b> ' + chips(o.channels) + '<div style="font-size:12.5px;color:var(--text2);">' + escapeHtml(o.read) + '</div></div>').join('') : '<div style="font-size:12.5px;color:var(--text3);">Not enough overlapping data yet.</div>') +
     sec('Gaps between channels') + ((d.gaps || []).length ? (d.gaps || []).map(g => '<div style="padding:6px 0;border-top:1px solid var(--border);font-size:13px;"><b>' + escapeHtml(g.gap) + '</b><div style="font-size:12.5px;color:var(--text2);">' + escapeHtml(g.evidence) + ' <span style="color:var(--green);">→ ' + escapeHtml(g.action) + '</span></div></div>').join('') : '<div style="font-size:12.5px;color:var(--text3);">No gaps found.</div>') +
     '<div style="font-size:11px;color:var(--text3);margin-top:10px;">From ' + escapeHtml((d.sources || []).join(', ')) + ' · ' + escapeHtml(new Date(d.generatedAt).toLocaleString([], { weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })) + '</div>';

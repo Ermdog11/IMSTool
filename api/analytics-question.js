@@ -15,22 +15,20 @@ var Context = require('./_analytics-context');
 // what's happening ("How did our Locksley job-status coverage do on social vs
 // the site?"). Cached per day in Blob, so it's one small Claude call a day.
 var EVERGREEN = [
-  'What content is our audience clicking on most this week?',
-  'What\'s getting the most social media engagement right now?',
-  'What were our five best-performing social posts this week?',
-  'What time of day is best for us to publish?',
-  'Which day of the week gets us the most readers?',
+  // Questions that ask what the numbers mean or what to do, not what they are:
+  // the Analytics tab already shows the numbers (Jeff, 2026-10-06).
+  'What should we write more of, based on what readers want?',
+  'What\'s working on social right now, and why?',
   'Which stories got big traffic but little social promotion?',
-  'Where are our readers coming from: search, social or direct?',
-  'What are people searching on Google to find us?',
-  'Which platform is growing fastest for us?',
-  'What topics should we write more about, based on reader interest?',
-  'Which headlines or post styles get the most engagement?',
-  'How does this week compare with last week?',
-  'Which of our stories kept readers engaged the longest?',
-  'What\'s our best time to post on X versus Facebook?',
   'Which recent stories are worth re-sharing on social today?',
-  'Are we getting traffic from Google Discover or Google News?'
+  'What kinds of stories should we stop spending time on?',
+  'Which headlines or post styles work best for us, and why?',
+  'Where are we losing readers we should be keeping?',
+  'What are people searching for that we haven\'t written?',
+  'Which platform deserves more of our time this week?',
+  'How should we promote our next big story across channels?',
+  'What did readers care about this week that we under-covered?',
+  'What would grow our audience fastest this month?'
 ];
 var SUGGEST_PATH = 'analytics-question-suggestions.json';
 
@@ -63,7 +61,7 @@ async function suggestions(sb) {
         body: JSON.stringify({
           model: 'claude-sonnet-4-6', max_tokens: 300, tools: [tool], tool_choice: { type: 'tool', name: 'suggest' },
           messages: [{ role: 'user', content: 'You help the editor of ' + beat.outletName + ' (' + beat.coverage + ') use their audience analytics (site traffic, social posts and engagement, Google search). ' +
-            'Write 2 short questions (under 14 words each) the editor could ask their analytics TODAY about the biggest current storylines below, e.g. how that coverage performed on the site vs social, or what readers want next on it. ' +
+            'Write 2 short questions (under 14 words each) the editor could ask their analytics TODAY about the biggest current storylines below, e.g. what readers want next on it, or how to promote it better (ask what to do, not for numbers already on the Analytics tab). ' +
             'Questions only; no facts or numbers in them.\n\nTop current stories:\n' + stories.join('\n') }]
         })
       });
@@ -111,8 +109,9 @@ module.exports = async function handler(req, res) {
     var beat = await require('./_beat').getBeat(ctx.supabase);
     var sys = 'You are an audience-analytics analyst for ' + beat.outletName + ', covering ' + beat.coverage + '. ' +
       'Answer the editor\'s question using ONLY the JSON data below — never invent numbers, trends, or claims beyond it. ' +
-      'If the data doesn\'t cover what they asked, say so plainly instead of guessing. Be specific and cite real numbers ' +
-      'from the data when you have them. Keep it short and easy to scan on a phone (Jeff, 2026-10-03: one big paragraph was too much text): ' +
+      'If the data doesn\'t cover what they asked, say so plainly instead of guessing. ' +
+      'This box lives on Xs and Os, next to the Analytics tab, which already shows every source\'s raw numbers, top posts, best day and hour, and trends, so don\'t recap them (Jeff, 2026-10-06): say what the numbers mean and what to do, citing only the one or two real numbers that make the point. '  +
+      'Keep it short and easy to scan on a phone (Jeff, 2026-10-03: one big paragraph was too much text): ' +
       'start with a one-sentence bottom line in **bold**, then at most 3-4 short points as "- " bullets (one per source or idea, ' +
       'one or two sentences each, only the numbers that matter), and end with one "**Do next:**" line if there is a clear action. ' +
       'Under 150 words total. Use blank lines between parts. ' +
