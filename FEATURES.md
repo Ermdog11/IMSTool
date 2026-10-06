@@ -101,6 +101,7 @@ Last updated: 2026-09-13
 - **Faster scans** — reduce scan time without cutting coverage.
 
 ### Mid term
+- **Text with CoPublisher (key future feature, Jeff 2026-10-06)** — a two-way text conversation with CoPublisher as a newsroom assistant: it keeps track of what's going on and organizes it, sends reminders, asks what needs to be done, and texts you when something needs you now (a social post going viral, breaking news, a competitor scoop). You can text back to act on it ("write it", "remind me at 3", "what's on today?") or text in an article to become a draft. Each person sets how much they hear from it (everything, important only, a daily summary, quiet hours) in Permissions & preferences.
 - **Article templates** — pick a structure (game recap, transfer-portal piece, positional ranking, interview feature), paste raw notes, get an ~80%-done draft fast.
 - **Archive fact-checker** — before publishing, cross-references claims in a draft against the newsroom's own past coverage to catch contradictions. Builds on the knowledge base.
 - **Assignment board** — writers claim stories from the scan results so nobody duplicates coverage, and everyone can see who's on what.
