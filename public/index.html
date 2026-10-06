@@ -804,6 +804,7 @@ body.no-opps .acc-opps,body.no-write .acc-write,body.no-flag .acc-flag,body.no-f
       <input id="oppsAddSite" placeholder="Website or RSS feed" style="flex:1.4;min-width:180px;font-size:13px;padding:7px 9px;border:1px solid var(--border);border-radius:6px;" onkeydown="if(event.key==='Enter')oppsFollow()">
       <label style="font-size:.8rem;display:flex;gap:4px;align-items:center;"><input type="checkbox" id="oppsAddEmail" checked> ✉️ Email me</label>
       <label style="font-size:.8rem;display:flex;gap:4px;align-items:center;" title="Saved now; texts start once texting is connected"><input type="checkbox" id="oppsAddText"> 💬 Text me</label>
+      <select id="oppsAddEyes" title="How closely to watch them" style="font-size:.8rem;padding:4px 6px;border:1px solid var(--border);border-radius:6px;"><option value="5">👁 ×5 must-watch</option><option value="4">👁 ×4</option><option value="3" selected>👁 ×3</option><option value="2">👁 ×2</option><option value="1">👁 ×1 glance</option></select>
       <button class="pill" onclick="oppsFollow()">Follow</button>
     </div>
     <div id="oppsAvail" style="margin-top:8px;display:flex;flex-wrap:wrap;gap:6px;align-items:center;"></div>
@@ -813,6 +814,7 @@ body.no-opps .acc-opps,body.no-write .acc-write,body.no-flag .acc-flag,body.no-f
   <div style="display:flex;gap:8px;align-items:center;margin-bottom:8px;flex-wrap:wrap;">
     <b style="font-size:.95rem;">Latest from the competition</b>
     <label style="font-size:.82rem;color:var(--text2);display:flex;gap:5px;align-items:center;margin-left:auto;"><input type="checkbox" id="oppsGapsOnly" onchange="renderOpps()"> Gaps only</label>
+    <select id="oppsEyes" onchange="renderOpps()" title="Only outlets you watch at least this closely" style="font-size:.82rem;padding:4px 6px;border:1px solid var(--border);border-radius:6px;"><option value="0">All eyes</option><option value="2">👁 2+</option><option value="3">👁 3+</option><option value="4">👁 4+</option><option value="5">👁 5 only</option></select>
     <select id="oppsOutlet" onchange="renderOpps()" style="font-size:.82rem;padding:4px 6px;border:1px solid var(--border);border-radius:6px;"><option value="">All outlets</option></select>
   </div>
   <div id="oppsList"><div class="empty"><i class="ti ti-eye"></i>Loading…</div></div>
@@ -2069,6 +2071,12 @@ function renderChatMessage(m) {
     const tag = m.tag ? `<span style="background:var(--red);color:#fff;font-size:10px;font-weight:700;padding:1px 7px;border-radius:20px;margin-right:6px;vertical-align:1px;">${m.tag}</span>` : '';
     const link = (m.meta && m.meta.reviewUrl) ? ` — <a href="${m.meta.reviewUrl}" target="_blank" rel="noopener">open draft</a>` : '';
     div.innerHTML = `<div class="alert-headline">${tag}🚨 ${m.text}${link}</div><div class="alert-meta">${new Date(m.created_at).toLocaleString()}</div>`;
+  } else if (m.kind === 'calendar') {
+    // Calendar items come from emailed text: always escaped.
+    div.className = 'chat-msg alert-drop';
+    div.style.background = 'var(--blue-light)'; div.style.borderColor = '#bfdbfe';
+    const e = s => String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    div.innerHTML = `<div class="alert-headline" style="color:var(--blue)"><span style="background:var(--blue);color:#fff;font-size:10px;font-weight:700;padding:1px 7px;border-radius:20px;margin-right:6px;vertical-align:1px;">${e(m.tag || 'Calendar')}</span>📅 ${e(m.text)} — <a href="#" onclick="switchTab(14);return false">open calendar</a></div><div class="alert-meta">${new Date(m.created_at).toLocaleString()}</div>`;
   } else if (m.kind === 'system') {
     div.className = 'chat-msg system';
     div.textContent = m.text;
@@ -3389,6 +3397,7 @@ function renderOpps() {
     return '<div style="background:var(--bg2);border:1px solid var(--border);border-radius:10px;padding:12px;">' +
       '<div style="display:flex;justify-content:space-between;gap:6px;align-items:flex-start;"><b>' + oppsEsc(c.name) + '</b>' +
         '<button class="acc-opps" title="Unfollow" onclick="oppsAct({action:\'unfollow\',domain:\'' + oppsEsc(c.key || c.domain).replace(/'/g, '') + '\'},\'Unfollowed ' + oppsEsc(c.name).replace(/'/g, '') + '.\')" style="border:0;background:none;color:var(--text3);cursor:pointer;font-size:15px;line-height:1;padding:0 2px;">×</button></div>' +
+        oppsEyesHtml(c) +
         '<div style="display:flex;gap:12px;font-size:.75rem;margin-top:4px;color:var(--text2);">' +
           '<label style="display:flex;gap:4px;align-items:center;"><input type="checkbox" ' + (c.alertEmail ? 'checked ' : '') + (accessAllows('act_opps_edit') ? '' : 'disabled ') + 'onchange="oppsAct({action:\'set\',domain:\'' + oppsEsc(c.key || c.domain).replace(/'/g, '') + '\',alertEmail:this.checked})"> ✉️ Email</label>' +
           '<label style="display:flex;gap:4px;align-items:center;" title="Saved now; texts start once texting is connected"><input type="checkbox" ' + (c.alertText ? 'checked ' : '') + (accessAllows('act_opps_edit') ? '' : 'disabled ') + 'onchange="oppsAct({action:\'set\',domain:\'' + oppsEsc(c.key || c.domain).replace(/'/g, '') + '\',alertText:this.checked})"> 💬 Text</label></div>' +
@@ -3402,7 +3411,9 @@ function renderOpps() {
   }).join('');
   renderOppsAvail();
   var gapsOnly = document.getElementById('oppsGapsOnly').checked, only = document.getElementById('oppsOutlet').value;
-  var items = (oppsData.items || []).filter(function (i) { return (!gapsOnly || !i.covered) && (!only || i.outlet === only); });
+  var minEyes = +(document.getElementById('oppsEyes') || {}).value || 0;
+  var eyesOf = {}; comps.forEach(function (c) { eyesOf[c.name] = c.eyes || 3; });
+  var items = (oppsData.items || []).filter(function (i) { return (!gapsOnly || !i.covered) && (!only || i.outlet === only) && (eyesOf[i.outlet] || 3) >= minEyes; });
   list.innerHTML = items.length ? items.map(function (i) {
     return '<div style="display:flex;gap:10px;align-items:flex-start;padding:10px 12px;background:var(--bg2);border:1px solid var(--border);border-radius:8px;margin-bottom:6px;">' +
       '<div style="flex:1;min-width:0;"><div style="font-size:.75rem;color:var(--text3);">' + oppsEsc(i.outlet) + ' · ' + oppsAgo(i.at) + '</div>' +
@@ -3411,6 +3422,18 @@ function renderOpps() {
         : '<span style="font-size:.72rem;color:#fff;background:var(--hot);border-radius:10px;padding:2px 8px;white-space:nowrap;">Gap</span>') +
       '</div>';
   }).join('') : '<div class="empty" style="padding:14px;">' + (gapsOnly ? 'No gaps. We\'ve covered everything they have.' : 'No stories yet. New ones appear within 15 minutes of publishing.') + '</div>';
+}
+
+// 1-5 eyeballs: how closely to watch each competitor (Jeff, 2026-10-06:
+// "opps should be ranked on whether you want to keep 1-5 eyeballs on them").
+// Cards sort by it and the story list can be filtered by it.
+function oppsEyesHtml(c) {
+  var n = c.eyes || 3, can = accessAllows('act_opps_edit'), h = '';
+  for (var k = 1; k <= 5; k++) {
+    h += '<span ' + (can ? 'role="button" tabindex="0" style="cursor:pointer;' : 'style="') + (k <= n ? '' : 'opacity:.18;filter:grayscale(1);') + '" title="' + k + ' of 5: ' + ['glance', 'light', 'normal', 'close', 'must-watch'][k - 1] + '"' +
+      (can ? ' onclick="oppsAct({action:\'set\',domain:\'' + oppsEsc(c.key || c.domain).replace(/'/g, '') + '\',eyes:' + k + '},\'Watching ' + oppsEsc(c.name).replace(/'/g, '') + ' at ' + k + ' of 5.\')"' : '') + '>👁</span>';
+  }
+  return '<div style="font-size:.9rem;letter-spacing:1px;margin-top:3px;" aria-label="' + n + ' of 5 eyes">' + h + '</div>';
 }
 
 // Manage who Opp Watch follows without the setup wizard (Jeff, 2026-10-06).
@@ -3442,7 +3465,7 @@ async function oppsAct(body, okMsg) {
 async function oppsFollow() {
   var n = document.getElementById('oppsAddName'), st = document.getElementById('oppsAddSite');
   if (!st.value.trim()) { document.getElementById('oppsMsg').textContent = 'Add their website or RSS feed.'; return; }
-  var ok = await oppsAct({ action: 'follow', name: n.value.trim(), site: st.value.trim(), alertEmail: document.getElementById('oppsAddEmail').checked, alertText: document.getElementById('oppsAddText').checked },
+  var ok = await oppsAct({ action: 'follow', name: n.value.trim(), site: st.value.trim(), alertEmail: document.getElementById('oppsAddEmail').checked, alertText: document.getElementById('oppsAddText').checked, eyes: +document.getElementById('oppsAddEyes').value },
     'Following ' + (n.value.trim() || st.value.trim()) + '.');
   if (ok) { n.value = ''; st.value = ''; }
 }

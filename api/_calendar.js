@@ -124,7 +124,7 @@ async function extract(text, opts) {
 async function addEvents(list, meta) {
   meta = meta || {};
   var data = await load();
-  var saved = [];
+  var saved = [], fresh = [];
   list.forEach(function (e) {
     var dupe = data.events.filter(function (x) { return x.start === e.start && x.title.toLowerCase() === e.title.toLowerCase(); })[0];
     if (dupe) { saved.push(dupe); return; }
@@ -132,11 +132,44 @@ async function addEvents(list, meta) {
     var def = meta.by && data.prefs[meta.by.toLowerCase()];
     if (def && def.minutes) ev.reminders.push({ email: meta.by.toLowerCase(), minutes: def.minutes, channel: def.channel || 'email', sentAt: null });
     data.events.push(ev);
-    saved.push(ev);
+    saved.push(ev); fresh.push(ev);
   });
   data.events.sort(function (a, b) { return a.start.localeCompare(b.start); });
   await save(data);
+  if (fresh.length) await announce(fresh, meta);
   return saved;
+}
+
+// New items go to Team Chat and to everyone with the "New calendar items"
+// alert on (Jeff, 2026-10-06: "when a new calendar event is added, it should
+// auto post in chat and there should be permissions for getting an alert").
+// Best-effort: never blocks the add.
+async function announce(events, meta) {
+  var S = require('./_supabase');
+  var lines = events.map(function (e) { return fmtWhen(e) + ': ' + e.title + (e.location ? ' (' + e.location + ')' : ''); });
+  var who = meta.by ? meta.by.split('@')[0] : '';
+  try {
+    if (S.isConfigured()) {
+      await require('./_chat-store').postSystemMessage(S.admin(), {
+        senderName: 'CoPublisher AI', kind: 'calendar', tag: 'Calendar',
+        text: (events.length === 1 ? 'Added to the calendar: ' : events.length + ' items added to the calendar: ') + lines.join(' · '),
+        meta: { events: events.map(function (e) { return { id: e.id, title: e.title, start: e.start }; }), by: meta.by || null, subject: meta.subject || null, url: '/calendar' }
+      });
+    }
+  } catch (e) { console.error('Calendar chat post failed:', e.message); }
+  try {
+    var to = await S.recipientsFor('calendar');
+    if (to.length) {
+      await require('./_mailer').sendMail({
+        to: to,
+        subject: 'Calendar: ' + (events.length === 1 ? events[0].title + ' (' + fmtWhen(events[0]) + ')' : events.length + ' new items' + (meta.subject ? ' from "' + meta.subject + '"' : '')),
+        html: '<div style="font-family:-apple-system,Segoe UI,sans-serif;font-size:14px">' +
+          (meta.summary ? '<p>' + esc(meta.summary) + '</p>' : '') +
+          '<ul>' + events.map(function (e) { return '<li><b>' + esc(fmtWhen(e)) + '</b>: ' + esc(e.title) + (e.note ? ' <span style="color:#666">' + esc(e.note) + '</span>' : '') + '</li>'; }).join('') + '</ul>' +
+          '<p style="font-size:12px;color:#888">Added' + (who ? ' by ' + esc(who) : '') + '. <a href="https://ims-tool.vercel.app/calendar">Open the calendar</a> to set a reminder. Change who gets these in Permissions &amp; preferences.</p></div>'
+      });
+    }
+  } catch (e) { console.error('Calendar alert email failed:', e.message); }
 }
 
 async function setReminder(id, email, minutes, channel) {

@@ -12,7 +12,7 @@
 //                Jeff, 2026-10-06: "editing Opp Watch and adding opps shouldn't
 //                require a trip to the setup wizard"):
 //                { action:'follow', name, site, alertEmail?, alertText? }  (site: website or RSS URL)
-//                { action:'set', domain, alertEmail?, alertText? }
+//                { action:'set', domain, alertEmail?, alertText?, eyes? }  (eyes: 1-5, how closely to watch them)
 //                { action:'unfollow', domain }
 //                Saved into the beat profile's outlets, the same list the wizard edits.
 //
@@ -150,7 +150,7 @@ function stats(beat, state) {
     var skip = STOP.concat(words(beat.team.name), words(beat.team.short), beat.team.nicknames.map(function (n) { return n.toLowerCase(); }));
     week.forEach(function (i) { words(i.title).forEach(function (w) { if (skip.indexOf(w) === -1 && !/^\d+$/.test(w)) freq[w] = (freq[w] || 0) + 1; }); });
     return {
-      name: o.name, domain: o.domain || '', key: key(o), alertEmail: !!o.alertEmail, alertText: !!o.alertText,
+      name: o.name, domain: o.domain || '', key: key(o), eyes: Number(o.eyes) || 3, alertEmail: !!o.alertEmail, alertText: !!o.alertText,
       last24: mine.filter(function (i) { return now - i.at < 86400000; }).length,
       last7: week.length,
       gaps7: week.filter(function (i) { return !i.covered; }).length,
@@ -212,12 +212,14 @@ async function manage(req, res, ctx) {
     if (site.section) o.section = site.section;
     o.spy = true; o.blocked = false;
     o.alertEmail = !!body.alertEmail; o.alertText = !!body.alertText;
+    if (body.eyes) o.eyes = Math.max(1, Math.min(5, Math.round(+body.eyes) || 3));
   } else if (body.action === 'set') {
     var t = find(body.domain);
     if (!t) return res.status(404).json({ error: 'Not found' });
     t.spy = true;
     if (body.alertEmail !== undefined) t.alertEmail = !!body.alertEmail;
     if (body.alertText !== undefined) t.alertText = !!body.alertText;
+    if (body.eyes !== undefined) t.eyes = Math.max(1, Math.min(5, Math.round(+body.eyes) || 3));
   } else if (body.action === 'unfollow') {
     var u = find(body.domain);
     if (!u) return res.status(404).json({ error: 'Not found' });
@@ -250,7 +252,8 @@ module.exports = async function handler(req, res) {
     state.items = state.items || [];
     var names = competitors(beat2).map(function (o) { return o.name; });
     return res.status(200).json({
-      competitors: stats(beat2, state),
+      // Most-watched first (eyes 5 -> 1), then most active this week.
+      competitors: stats(beat2, state).sort(function (a, b) { return (b.eyes - a.eyes) || (b.last7 - a.last7); }),
       items: state.items.filter(function (i) { return names.indexOf(i.outlet) !== -1; }).slice(0, 120),
       // Beat outlets not followed yet, for one-click follow in the tab.
       available: beat2.outlets.filter(function (o) { return !o.blocked && o.domain && names.indexOf(o.name) === -1; })
