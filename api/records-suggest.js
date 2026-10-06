@@ -89,7 +89,7 @@ module.exports = async function handler(req, res) {
         var mail = null;
         if (recipients.length) {
           try {
-            mail = await mailer.sendMail({ to: recipients, subject: '📄 Records request ready: ' + story.headline.slice(0, 120), html: emailHtml(story, d, tierLabel) });
+            mail = await mailer.sendMail({ to: recipients, alertType: 'records', subject: '📄 Records request ready: ' + story.headline.slice(0, 120), html: emailHtml(story, d, tierLabel) });
           } catch (e) { mail = { error: e.message }; }
         }
         results.push({ headline: story.headline, eligible: true, to: d.to, agency: d.agency, recipients: recipients.length, mail: mail });

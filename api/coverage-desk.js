@@ -261,7 +261,7 @@ module.exports = async function handler(req, res) {
       '<p style="color:#888;font-size:11px;margin-top:20px;border-top:1px solid #eee;padding-top:10px">Auto-generated from this morning’s scan of ' + alerts.length + ' rated stories. A starting point &mdash; review before assigning.</p>' +
       '</div></div>';
 
-    var mailResult = await mailer.sendMail({ subject: 'Coverage Desk — ' + today, html: html });
+    var mailResult = await mailer.sendMail({ alertType: 'coverage_desk', subject: 'Coverage Desk — ' + today, html: html });
 
     console.log('Coverage Desk sent | alerts:', alerts.length, '| own index:', ownIndex.length, '| analytics:', hasNumbers, '| calendar:', todayEvents.length, '| heat:', heatList ? heatList.split('\n').length : 0, '| mail:', JSON.stringify(mailResult));
     return res.status(200).json({ ok: true, alerts: alerts.length, ownIndex: ownIndex.length, analytics: hasNumbers ? { site: !!(yesterday.site && yesterday.site.readings), social: !!yesterday.social, x: !!(yesterday.x && yesterday.x.totals), errors: yesterday.errors } : null, mail: mailResult });

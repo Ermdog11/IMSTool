@@ -82,6 +82,7 @@ module.exports = async function handler(req, res) {
     var date = new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' });
 
     await mailer.sendMail({
+      alertType: 'digest_nightly',
       subject: 'InsideMDSports nightly digest — ' + date,
       html: buildDigestEmailHTML(alerts, date)
     });

@@ -16,7 +16,7 @@ function digestList() {
     });
 }
 
-// opts: { subject, html, text?, to?, cc?, replyTo?, fromName? }. replyTo/cc are
+// opts: { subject, html, text?, to?, cc?, replyTo?, fromName?, alertType? }. replyTo/cc are
 // for mail sent on a staff member's behalf (records requests), so replies go
 // straight to them rather than to the CoPublisher mailbox.
 async function sendMail(opts) {
@@ -30,6 +30,12 @@ async function sendMail(opts) {
       .map(function(e) { return e.trim().replace(/[<>]/g, ''); }).filter(Boolean)
     : digestList();
   if (!recipients.length) throw new Error(opts.to ? 'No valid recipients in opts.to' : 'ALERT_EMAIL not set');
+  // An alert email (opts.alertType) goes only to people who have that alert
+  // on and whose days/hours for it include now (_alert-schedule.js).
+  if (opts.alertType) {
+    recipients = await require('./_alert-schedule').filter(recipients, opts.alertType);
+    if (!recipients.length) return { skipped: 'nobody has this alert on right now', alertType: opts.alertType };
+  }
 
   if (GMAIL_USER && GMAIL_APP_PASSWORD) {
     var transporter = nodemailer.createTransport({
