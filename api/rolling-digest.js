@@ -262,6 +262,7 @@ module.exports = async function handler(req, res) {
     var recordsList = [];
     try { recordsList = await require('./_records.js').pendingForDigest('insidemdsports'); } catch (e) { console.error('Records for digest failed (non-fatal):', e.message); }
     var mailResult = await mailer.sendMail({
+      alertType: 'digest_rolling',
       subject: alerts.length
         ? 'InsideMDSports ' + SLOT_LABEL[slot] + ' update — ' + alerts.length + ' new ' + (alerts.length === 1 ? 'story' : 'stories')
         : 'InsideMDSports ' + SLOT_LABEL[slot] + ' update — nothing new',
@@ -346,7 +347,7 @@ module.exports = async function handler(req, res) {
           if (recipients.length) {
             try {
               mailToBreaking = await mailer.sendMail({
-                to: recipients,
+                to: recipients, alertType: 'breaking',
                 subject: ((story.rating || 0) >= 5 ? '🚨 Breaking' : 'Major story') + (check.status === 'single' ? ' (single source)' : '') + ': ' + draft.headline,
                 html: '<div style="font-family:Arial,sans-serif;max-width:600px">' +
                   '<p style="color:#b91c1c;font-weight:700">CoPublisher AI drafted this from a ' + ((story.rating || 0) >= 5 ? 'breaking' : 'major') + ' story. Review it before publishing.</p>' +

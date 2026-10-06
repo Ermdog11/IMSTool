@@ -27,6 +27,17 @@ h1{font-size:22px;margin-bottom:4px}
 .row .name{flex:1 1 220px;min-width:0}
 .row .name b{font-size:13.5px;font-weight:600}
 .row .name span{display:block;font-size:12px;color:var(--muted)}
+.sched-link{display:inline-block;margin-top:3px;font-size:12px;color:var(--muted);text-decoration:none;cursor:pointer}
+.sched-link:hover{color:var(--text);text-decoration:underline}
+.sched-link.set{color:#2563eb;font-weight:600}
+.sched-ed{flex-basis:100%;display:none;padding:8px 10px;margin:2px 0 4px;background:var(--bg,#f7f7f8);border:1px solid var(--border);border-radius:8px;font-size:12.5px}
+.sched-ed.open{display:block}
+.sched-days{display:flex;gap:4px;flex-wrap:wrap;margin:4px 0 8px}
+.sched-days label{margin:0;cursor:pointer}
+.sched-days input{display:none}
+.sched-days span{display:inline-block;min-width:38px;text-align:center;padding:4px 6px;border:1px solid var(--border);border-radius:6px;font-weight:600;font-size:12px;color:var(--muted)}
+.sched-days input:checked+span{background:#2563eb;border-color:#2563eb;color:#fff}
+.sched-ed select{width:auto;margin:0 4px;padding:3px 6px;font-size:12.5px}
 .switch{position:relative;display:inline-block;width:40px;height:22px;flex-shrink:0}
 .switch input{opacity:0;width:0;height:0}
 .switch i{position:absolute;inset:0;background:#cfd6e2;border-radius:22px;cursor:pointer;transition:.15s}
@@ -255,12 +266,52 @@ async function loadAlerts(){
   try{
     var r=await fetch('/api/alert-prefs'); var d=await r.json();
     if(!r.ok) throw new Error(d.error||('HTTP '+r.status));
-    $('alert-list').innerHTML=(d.types||[]).map(function(t){
-      return '<div class="row"><div class="name"><b>'+esc(t.label)+'</b></div><label class="switch"><input type="checkbox" data-t="'+esc(t.key)+'" '+(d.me[t.key]?'checked':'')+' onchange="setAlert(this)"><i></i></label></div>';
+    SCHED=d.schedules||{};
+    $('alert-list').innerHTML='<div class="sub" style="margin:0 0 6px">Tap <b>⏰</b> under any alert to pick the days and hours you want it (Eastern time). Outside them it\u2019s skipped for you.</div>'+(d.types||[]).map(function(t){
+      return '<div class="row"><div class="name"><b>'+esc(t.label)+'</b><br>'+schedLink(t.key)+'</div><label class="switch"><input type="checkbox" data-t="'+esc(t.key)+'" '+(d.me[t.key]?'checked':'')+' onchange="setAlert(this)"><i></i></label>'+schedEditor(t.key)+'</div>';
     }).join('')+'<div id="hot12-row"></div><div class="sub" id="alert-msg" style="margin:6px 0 0"></div>';
     loadHot12();
   }catch(e){ $('alert-list').innerHTML='<div class="msg err" style="margin:0">Couldn’t load your alerts: '+esc(e.message)+'</div>'; }
 }
+// Days and hours per alert (Jeff, 2026-10-06: "something next to them where
+// you can denote what days of the week you want these actions, and specific
+// time of day preferences"). Saved per person via /api/alert-prefs
+// { type, schedule } (api/_alert-schedule.js); Eastern time.
+var SCHED={}, DAYN=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+function hmLabel(hm){ var h=+hm.slice(0,2); return (h%12||12)+(hm.slice(3)!=='00'?':'+hm.slice(3):'')+(h<12?' AM':' PM'); }
+function schedText(s){
+  if(!s) return 'Any day, any time';
+  var d=s.days||[0,1,2,3,4,5,6], ds=d.length===7?'Every day':(d.join()==='1,2,3,4,5'?'Weekdays':(d.join()==='0,6'?'Weekends':d.map(function(i){return DAYN[i];}).join(', ')));
+  return ds+(s.from?', '+hmLabel(s.from)+'\u2013'+hmLabel(s.to):', any time');
+}
+function schedLink(type){ var s=SCHED[type]; return '<a class="sched-link'+(s?' set':'')+'" id="sl-'+type+'" onclick="toggleSched(\''+type+'\')">⏰ '+esc(schedText(s))+'</a>'; }
+function hourOpts(sel){ var o='<option value="">any time</option>'; for(var h=0;h<24;h++){ var v=String(h).padStart(2,'0')+':00'; o+='<option value="'+v+'"'+(sel===v?' selected':'')+'>'+hmLabel(v)+'</option>'; } return o; }
+function schedEditor(type){
+  var s=SCHED[type]||{days:[0,1,2,3,4,5,6]};
+  return '<div class="sched-ed" id="se-'+type+'"><b>Days</b><div class="sched-days">'+DAYN.map(function(n,i){ return '<label><input type="checkbox" value="'+i+'"'+(s.days.indexOf(i)!==-1?' checked':'')+'><span>'+n+'</span></label>'; }).join('')+'</div>'+
+    '<b>Hours</b> from <select class="sf">'+hourOpts(s.from||'')+'</select> to <select class="st">'+hourOpts(s.to||'')+'</select>'+
+    '<div style="margin-top:8px"><button class="btn" style="padding:4px 12px;font-size:12px" onclick="saveSched(\''+type+'\',this)">Save</button> <a href="#" style="margin-left:8px;font-size:12px" onclick="saveSched(\''+type+'\',this,true);return false">Reset to any day, any time</a></div></div>';
+}
+function toggleSched(type){ var el=$('se-'+type); if(el) el.classList.toggle('open'); }
+async function saveSched(type,btn,reset){
+  var el=$('se-'+type), m=$('alert-msg');
+  var days=Array.from(el.querySelectorAll('.sched-days input:checked')).map(function(x){return +x.value;});
+  var from=el.querySelector('.sf').value, to=el.querySelector('.st').value;
+  if(!reset&&!days.length){ m.className='sub msg err'; m.textContent='Pick at least one day (or switch the alert off).'; return; }
+  if(!reset&&(!!from!==!!to)){ m.className='sub msg err'; m.textContent='Pick both a start and an end hour, or leave both as any time.'; return; }
+  btn.disabled=true;
+  try{
+    var r=await fetch('/api/alert-prefs',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({type:type,schedule:reset?null:{days:days,from:from,to:to}})});
+    var d=await r.json().catch(function(){return {};});
+    if(!r.ok) throw new Error(d.error||('HTTP '+r.status));
+    if(d.schedule) SCHED[type]=d.schedule; else delete SCHED[type];
+    var link=$('sl-'+type); link.outerHTML=schedLink(type);
+    if(reset){ el.outerHTML=schedEditor(type); } else el.classList.remove('open');
+    m.className='sub msg ok'; m.textContent='Saved: '+schedText(SCHED[type])+'.';
+  }catch(e){ m.className='sub msg err'; m.textContent='Couldn\u2019t save: '+e.message; }
+  btn.disabled=false;
+}
+
 // "A hot spot is within 12 hours" (Jeff, 2026-10-06): yours, email or text,
 // saved with the calendar (api/calendar.js action 'hot12').
 async function loadHot12(){
@@ -270,9 +321,9 @@ async function loadHot12(){
     if(!r.ok) return; // no calendar access: leave the row out
     var mine=d.heat&&d.heat.hot12, off=d.heat&&!d.heat.on;
     box.innerHTML='<div class="row"><div class="name"><b>🔥 A hot spot is within 12 hours</b>'+
-      '<div class="sub" style="margin:2px 0 0">One heads-up per hot spot (the best times to publish), so a story is ready. Never between 10 PM and 7 AM; early-morning ones come the evening before.'+(off?' Hot spots are switched off for the newsroom right now.':'')+'</div></div>'+
+      '<div class="sub" style="margin:2px 0 0">One heads-up per hot spot (the best times to publish), so a story is ready. Never between 10 PM and 7 AM; early-morning ones come the evening before.'+(off?' Hot spots are switched off for the newsroom right now.':'')+'</div>'+schedLink('hot_spot')+'</div>'+
       '<select id="hot12-ch" onchange="setHot12()" style="width:auto;margin:0 10px 0 0"><option value="email">Email</option><option value="text">Text</option></select>'+
-      '<label class="switch"><input type="checkbox" id="hot12-on" '+(mine?'checked':'')+' onchange="setHot12()"><i></i></label></div>';
+      '<label class="switch"><input type="checkbox" id="hot12-on" '+(mine?'checked':'')+' onchange="setHot12()"><i></i></label>'+schedEditor('hot_spot')+'</div>';
     $('hot12-ch').value=(mine&&mine.channel)||'email';
   }catch(e){}
 }

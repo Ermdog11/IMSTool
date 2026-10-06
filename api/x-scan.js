@@ -180,7 +180,7 @@ module.exports = async function handler(req, res) {
           if (recipients.length) {
             try {
               mailResult = await mailer.sendMail({
-                to: recipients,
+                to: recipients, alertType: 'breaking',
                 subject: '🚨 Breaking (X/Twitter' + (check.status === 'single' ? ', single source' : '') + '): ' + draft.headline,
                 html: '<div style="font-family:Arial,sans-serif;max-width:600px">' +
                   '<p style="color:#b91c1c;font-weight:700">CoPublisher AI drafted this from a breaking X/Twitter post. Review it before publishing.</p>' +

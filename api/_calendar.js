@@ -161,7 +161,7 @@ async function announce(events, meta) {
     var to = await S.recipientsFor('calendar');
     if (to.length) {
       await require('./_mailer').sendMail({
-        to: to,
+        to: to, alertType: 'calendar',
         subject: 'Calendar: ' + (events.length === 1 ? events[0].title + ' (' + fmtWhen(events[0]) + ')' : events.length + ' new items' + (meta.subject ? ' from "' + meta.subject + '"' : '')),
         html: '<div style="font-family:-apple-system,Segoe UI,sans-serif;font-size:14px">' +
           (meta.summary ? '<p>' + esc(meta.summary) + '</p>' : '') +
@@ -439,6 +439,7 @@ async function sendDueReminders() {
   }
   // Hot spot within 12 hours, for everyone who opted in.
   var hotPeople = Object.keys(data.prefs || {}).filter(function (em) { return data.prefs[em] && data.prefs[em].hot12; });
+  var schedAll = hotPeople.length ? await require('./_alert-schedule').load() : null;
   if (hotPeople.length && heatOn(data)) {
     for (var k = 0; k < data.events.length; k++) {
       var he = data.events[k];
@@ -447,6 +448,9 @@ async function sendDueReminders() {
       for (var q = 0; q < hotPeople.length; q++) {
         var em = hotPeople[q];
         if (he.hot12Sent.indexOf(em) !== -1) continue;
+        // Outside this person's days/hours for hot-spot alerts: wait (the
+        // cron tries again every 5 minutes while the spot is still ahead).
+        if (!(await require('./_alert-schedule').allows(em, 'hot_spot', now, schedAll))) continue;
         var hs = startMs(he), when = new Date(hs).toLocaleString('en-US', { timeZone: TZ, weekday: 'long', hour: 'numeric', minute: '2-digit' });
         try {
           await Mailer.sendMail({

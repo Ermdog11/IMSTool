@@ -2,6 +2,7 @@
 //
 //   GET                                 -> { types, me:{type:bool}, team:[{userId,name,email,role,prefs}] }  (team only for publisher)
 //   POST { userId?, type, enabled }      -> set one pref. Omit userId for yourself.
+//   POST { type, schedule }              -> your own days/hours for that alert (_alert-schedule.js)
 //                                          Setting someone else's requires publisher.
 //
 // Default when a row is absent: enabled (opt-out model), EXCEPT 'article_started'
@@ -17,8 +18,12 @@ var ALERT_TYPES = [
   { key: 'roster_change',   label: 'Roster changes',                 defaultOn: 'all' },
   { key: 'hot_story',       label: 'A story goes hot (real-time spike)', defaultOn: 'all' },
   { key: 'records',         label: 'Public-records request suggestions', defaultOn: 'editors' },
-  { key: 'calendar',        label: 'New calendar items',               defaultOn: 'editors' }
+  { key: 'calendar',        label: 'New calendar items',               defaultOn: 'editors' },
+  { key: 'coverage_desk',   label: 'Coverage Desk memo (7 AM)',        defaultOn: 'all' }
 ];
+// Types that can have days/hours (_alert-schedule.js): every alert above, plus
+// the hot-spot alert (its on/off lives with the calendar: api/calendar.js 'hot12').
+var SCHEDULABLE = ALERT_TYPES.map(function (t) { return t.key; }).concat(['hot_spot']);
 var VALID = ALERT_TYPES.map(function (t) { return t.key; });
 
 function defaultFor(typeKey, role) {
@@ -48,7 +53,8 @@ module.exports = async function handler(req, res) {
     VALID.forEach(function (k) { mine[k] = defaultFor(k, ctx.membership.role); });
     (mineRes.data || []).forEach(function (r) { mine[r.alert_type] = r.enabled; });
 
-    var out = { types: ALERT_TYPES, me: mine };
+    var schedAll = await require('./_alert-schedule').load();
+    var out = { types: ALERT_TYPES, me: mine, schedules: schedAll[String(ctx.user.email || '').toLowerCase()] || {} };
 
     if (ctx.membership.role === 'publisher') {
       var mem = await sb.from('memberships')
@@ -78,6 +84,12 @@ module.exports = async function handler(req, res) {
 
   var body = req.body || {};
   var type = body.type;
+  // Your own days/hours for one alert: { type, schedule:{ days:[0-6], from:'HH:MM', to:'HH:MM' } | null }
+  if (body.schedule !== undefined) {
+    if (SCHEDULABLE.indexOf(type) === -1) return res.status(400).json({ error: 'Unknown alert type.' });
+    var saved = await require('./_alert-schedule').set(ctx.user.email, type, body.schedule);
+    return res.status(200).json({ ok: true, schedule: saved });
+  }
   if (VALID.indexOf(type) === -1) return res.status(400).json({ error: 'Unknown alert type.' });
   var enabled = !!body.enabled;
   var targetUser = body.userId || ctx.user.id;
