@@ -1292,6 +1292,11 @@ function applyNewsroom(s) {
       if (gsrch) gsrch.hidden = false;
       var xs = document.getElementById('xSettingsCardWrap');
       if (xs) xs.hidden = false;
+      // Opened straight on /settings: its loaders ran before sign-in showed
+      // these publisher cards and skipped them ("Loading team…" forever;
+      // Jeff, 2026-10-06). Load them now.
+      var p10 = document.getElementById('page-10');
+      if (p10 && p10.classList.contains('active')) switchTab(10, true);
     }
     if (s && s.preview) {
       var bar = document.createElement('div');
