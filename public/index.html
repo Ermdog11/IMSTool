@@ -302,6 +302,49 @@ body.no-opps .acc-opps,body.no-write .acc-write,body.no-flag .acc-flag,body.no-f
   .myrate button, [id^="myrate-"] button { min-width: 38px; min-height: 38px; }
   .chip { min-height: 36px; }
 }
+
+/* News search */
+.alert-search { display: flex; align-items: center; gap: 8px; background: #fff; border: 1px solid var(--border); border-radius: 10px; padding: 0 12px; margin: 0 0 10px; }
+.alert-search i { color: var(--text3); }
+.alert-search input { flex: 1; border: 0; outline: 0; font: inherit; font-size: 14px; padding: 9px 0; background: transparent; min-width: 0; }
+/* HOME (page-16) */
+.home-hello h2 { font-size: 22px; margin: 2px 0 0; }
+.home-date { color: var(--text2); font-size: 13px; margin-top: 2px; }
+.home-search { display: flex; align-items: center; gap: 8px; background: #fff; border: 1px solid var(--border); border-radius: 12px; padding: 6px 6px 6px 14px; margin: 14px 0 16px; }
+.home-search i { color: var(--text3); font-size: 18px; }
+.home-search input { flex: 1; border: 0; outline: 0; font: inherit; font-size: 15px; background: transparent; min-width: 0; padding: 8px 0; }
+.home-search button { background: var(--red); color: #fff; border: 0; border-radius: 8px; padding: 9px 16px; font: inherit; font-weight: 600; cursor: pointer; }
+.home-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 14px; }
+.home-card { background: #fff; border: 1px solid var(--border); border-radius: 12px; padding: 14px 16px; min-width: 0; }
+.home-card.hc-news { grid-column: 1 / -1; }
+.hc-head { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; margin-bottom: 8px; }
+.hc-head h3 { font-size: 16px; margin: 0; }
+.hc-head a { font-size: 13px; font-weight: 600; color: var(--red); text-decoration: none; white-space: nowrap; }
+.hc-stats { font-size: 13px; color: var(--text2); margin-bottom: 8px; }
+.hc-stats b { color: var(--fg); }
+.hc-story { display: flex; gap: 10px; align-items: flex-start; padding: 9px 0; border-top: 1px solid var(--border); text-decoration: none; color: inherit; }
+.hc-story:first-child { border-top: 0; }
+.hc-story .hc-r { flex: 0 0 auto; font-size: 11px; font-weight: 800; border-radius: 5px; padding: 2px 6px; background: #f1f0ec; color: var(--text2); }
+.hc-story .hc-r.r5 { background: var(--red); color: #fff; }
+.hc-story .hc-r.r4 { background: #e8b923; color: #1a1a1a; }
+.hc-story b { display: block; font-size: 14px; line-height: 1.35; }
+.hc-story small { color: var(--text3); font-size: 12px; }
+.hc-actions { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 10px; }
+.hc-actions button { font: inherit; font-size: 13px; font-weight: 600; border: 1px solid var(--border); background: #fff; border-radius: 20px; padding: 7px 14px; cursor: pointer; }
+.hc-quick { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
+.hc-quick a { display: flex; flex-direction: column; align-items: center; gap: 4px; text-align: center; font-size: 12px; font-weight: 600; color: var(--fg); text-decoration: none; background: var(--bg2, #f7f6f2); border-radius: 10px; padding: 10px 4px; min-height: 64px; justify-content: center; }
+.hc-quick a span { font-size: 22px; line-height: 1; }
+.hc-quick a em { font-style: normal; font-weight: 500; color: var(--text3); font-size: 11px; }
+.hc-list { margin-top: 10px; }
+.hc-item { display: block; padding: 8px 0; border-top: 1px solid var(--border); font-size: 13.5px; color: inherit; text-decoration: none; }
+.hc-item:first-child { border-top: 0; }
+.hc-item small { display: block; color: var(--text3); font-size: 12px; }
+.hc-empty { color: var(--text3); font-size: 13px; padding: 4px 0; }
+@media (max-width: 700px) {
+  .home-grid { grid-template-columns: 1fr; gap: 12px; }
+  .home-search input { font-size: 16px; }
+  .hc-quick { grid-template-columns: repeat(4, 1fr); }
+}
 /* Another newsroom (multi-newsroom): hide InsideMDSports' own static panels. */
 body.other-newsroom .ims-only { display: none !important; }
 body.other-newsroom .other-only { display: block !important; }
@@ -326,6 +369,7 @@ body.other-newsroom .other-only { display: block !important; }
 </div>
 
 <div class="nav">
+  <button class="nav-tab" id="tab-btn-16" onclick="switchTab(16)">🏠 Home</button>
   <button class="nav-tab active" id="tab-btn-0" onclick="switchTab(0)">Alerts</button>
   <button class="nav-tab" id="tab-btn-1" onclick="switchTab(1)">Nightly digest</button>
   <button class="nav-tab" id="tab-btn-2" onclick="switchTab(2)">Hot social</button>
@@ -367,6 +411,7 @@ body.other-newsroom .other-only { display: block !important; }
       <button class="scan-btn" id="scanBtn" onclick="runScan(true)" title="Run a fresh scan now (about 2 minutes; skipped if the last one is under 5 minutes old). Opening the page just shows the latest saved scan."><i class="ti ti-refresh"></i> Scan now</button>
     </div>
   </div>
+  <div class="alert-search" id="alertSearchWrap"><i class="ti ti-search"></i><input id="alertSearchInput" type="search" placeholder="Search these stories…" oninput="setAlertQuery(this.value)" autocomplete="off"></div>
   <div class="filters">
     <button class="chip active" onclick="setFilter('all',this)">All</button>
     <button class="chip" onclick="setFilter('5',this)">Breaking (5)</button>
@@ -1008,11 +1053,71 @@ body.other-newsroom .other-only { display: block !important; }
   <div class="table-scroll" style="overflow-x:auto;"><table id="lbTable" class="lb-table"></table></div>
 </div>
 
+<!-- HOME (the landing page: every main part of the app at a glance; Jeff,
+     2026-10-06: "The home page of the app shouldn't be only centered on
+     search. It needs to display the key elements") -->
+<div class="page" id="page-16">
+  <div class="home-hello"><div><h2 id="homeHello">Welcome</h2><div class="home-date" id="homeDate"></div></div></div>
+  <form class="home-search" onsubmit="homeSearch(event)">
+    <i class="ti ti-search"></i>
+    <input id="homeSearchInput" type="search" placeholder="Search the latest news…" autocomplete="off" enterkeyhint="search">
+    <button type="submit">Search</button>
+  </form>
+  <div class="home-grid">
+    <section class="home-card hc-news" data-tab="0">
+      <div class="hc-head"><h3>📰 Latest news</h3><a href="/alerts" onclick="switchTab(0);return false">All news ›</a></div>
+      <div class="hc-stats" id="homeNewsStats">Loading the latest scan…</div>
+      <div id="homeNewsList"></div>
+      <div class="hc-actions"><button onclick="switchTab(0);runScan(true)"><i class="ti ti-refresh"></i> Scan now</button><button onclick="setHomeFilter('5')">Breaking only</button></div>
+    </section>
+    <section class="home-card hc-write" data-editor="1">
+      <div class="hc-head"><h3>✍️ Content Editor</h3><a href="/editor">Open ›</a></div>
+      <div class="hc-quick">
+        <a href="/editor"><span>📝</span>Edit a story</a>
+        <a href="/transcribe"><span>🎙️</span>Transcribe</a>
+        <a href="/editor#6"><span>📲</span>From social</a>
+        <a href="/editor#3"><span>🗂️</span>Drafts</a>
+      </div>
+      <div id="homeDrafts" class="hc-list"></div>
+    </section>
+    <section class="home-card hc-chat" data-tab="3">
+      <div class="hc-head"><h3>💬 Team chat</h3><a href="/chat" onclick="switchTab(3);return false">Open chat ›</a></div>
+      <div id="homeChat" class="hc-list"><div class="hc-empty">Loading…</div></div>
+    </section>
+    <section class="home-card hc-cal" data-tab="14">
+      <div class="hc-head"><h3>📅 Coming up</h3><a href="/calendar" onclick="switchTab(14);return false">Calendar ›</a></div>
+      <div id="homeCal" class="hc-list"><div class="hc-empty">Loading…</div></div>
+    </section>
+    <section class="home-card hc-money">
+      <div class="hc-head"><h3>💰 Advertising &amp; audience</h3></div>
+      <div class="hc-quick">
+        <a href="/editor#2" data-editor="1"><span>💵</span>Ads &amp; promos<em id="homeAdsCount"></em></a>
+        <a href="/analytics" data-tab="11" onclick="switchTab(11);return false"><span>📈</span>Analytics</a>
+        <a href="/social" data-tab="2" onclick="switchTab(2);return false"><span>📣</span>Hot social</a>
+        <a href="/leaderboard" data-tab="15" onclick="switchTab(15);return false"><span>🏆</span>Leaderboard</a>
+      </div>
+    </section>
+    <section class="home-card hc-more">
+      <div class="hc-head"><h3>🧭 Your beat</h3></div>
+      <div class="hc-quick">
+        <a href="/backlog" data-tab="4" onclick="switchTab(4);return false"><span>💡</span>Story ideas</a>
+        <a href="/roster" data-tab="12" onclick="switchTab(12);return false"><span>🏈</span>Roster watch</a>
+        <a href="/opps" data-tab="13" onclick="switchTab(13);return false"><span>👀</span>Opp Watch</a>
+        <a href="/digest" data-tab="1" onclick="switchTab(1);return false"><span>🗞️</span>Digest</a>
+        <a href="/podcasts" data-tab="7" onclick="switchTab(7);return false"><span>🎧</span>Podcasts</a>
+        <a href="/youtube" data-tab="8" onclick="switchTab(8);return false"><span>📺</span>YouTube</a>
+        <a href="/settings" data-tab="10" onclick="switchTab(10);return false"><span>⚙️</span>Settings</a>
+        <a href="/preferences"><span>🔔</span>My alerts</a>
+      </div>
+    </section>
+  </div>
+</div>
+
 <!-- Phone navigation (under 700px only; see the PHONES CSS block) -->
 <nav class="mnav" id="mnav" aria-label="Sections">
-  <button data-tab="0" onclick="switchTab(0)"><span class="mi">📰</span>Alerts</button>
+  <button data-tab="16" onclick="switchTab(16)"><span class="mi">🏠</span>Home</button>
+  <button data-tab="0" onclick="switchTab(0)"><span class="mi">📰</span>News</button>
   <button data-tab="3" onclick="switchTab(3)"><span class="mi">💬</span>Chat</button>
-  <button data-tab="14" onclick="switchTab(14)"><span class="mi">📅</span>Calendar</button>
   <a href="/editor"><span class="mi">✍️</span>Write</a>
   <button id="mnavMore" onclick="openMoreSheet()"><span class="mi">☰</span>More</button>
 </nav>
@@ -1142,10 +1247,10 @@ function nextScheduledScan() {
 // scan run on /alerts still feeds /digest, /podcasts, etc. without
 // re-fetching. vercel.json rewrites every path below back to this file.
 // ============================================================
-var TAB_PATHS = ['/alerts','/digest','/social','/chat','/backlog','/recruiting','/trending','/podcasts','/youtube','/bluesky','/settings','/analytics','/roster','/opps','/calendar','/leaderboard'];
+var TAB_PATHS = ['/alerts','/digest','/social','/chat','/backlog','/recruiting','/trending','/podcasts','/youtube','/bluesky','/settings','/analytics','/roster','/opps','/calendar','/leaderboard','/home'];
 function pathToTab(p) {
   p = String(p || '/').replace(/\/+$/, '') || '/';
-  if (p === '/' || p === '/index.html' || p === '/index') return 0;
+  if (p === '/' || p === '/index.html' || p === '/index') return 16;  // Home
   var i = TAB_PATHS.indexOf(p);
   return i === -1 ? 0 : i;
 }
@@ -1204,6 +1309,7 @@ function switchTab(idx, fromPop) {
   if (idx === 13) loadOppsSpy();
   if (idx === 14) loadCalendar();
   if (idx === 15) loadLeaderboard();
+  if (idx === 16) loadHome();
   syncMobileNav(idx);
   window.scrollTo(0, 0);
   if (!fromPop) {
@@ -1213,11 +1319,86 @@ function switchTab(idx, fromPop) {
   }
 }
 
+// ============================================================
+// HOME (page-16): every main part of the app at a glance. Reads only what's
+// already stored (the latest shared scan, drafts, chat, calendar, ad slots):
+// opening it never runs a scan or spends Claude credits.
+// ============================================================
+let alertQuery = '';
+function setAlertQuery(q) { alertQuery = String(q || '').trim(); renderAlerts(); }
+function homeSearch(e) {
+  if (e) e.preventDefault();
+  const q = document.getElementById('homeSearchInput').value.trim();
+  const box = document.getElementById('alertSearchInput'); if (box) box.value = q;
+  switchTab(0);
+  setAlertQuery(q);
+}
+function setHomeFilter(f) {
+  switchTab(0);
+  const chip = Array.from(document.querySelectorAll('.filters .chip')).find(c => (c.getAttribute('onclick') || '').indexOf("setFilter('" + f + "'") === 0);
+  if (chip) setFilter(f, chip);
+}
+function homeAgo(t) {
+  const ms = Date.now() - (typeof t === 'number' ? t : Date.parse(t));
+  if (!isFinite(ms)) return '';
+  const m = Math.round(ms / 60000);
+  if (m < 60) return Math.max(1, m) + 'm ago';
+  const h = Math.round(m / 60); if (h < 24) return h + 'h ago';
+  return Math.round(h / 24) + 'd ago';
+}
+function renderHomeNews() {
+  const list = document.getElementById('homeNewsList'), stats = document.getElementById('homeNewsStats');
+  if (!list || !stats) return;
+  const fresh = allAlerts.filter(a => !a.republished);
+  if (!fresh.length) { stats.textContent = scanInProgress ? 'Loading the latest scan…' : 'No stories yet. Tap Scan now for the latest news.'; list.innerHTML = ''; return; }
+  const r5 = fresh.filter(a => a.rating === 5).length, r4 = fresh.filter(a => a.rating === 4).length;
+  stats.innerHTML = '<b>' + fresh.length + '</b> stories · <b>' + r5 + '</b> breaking · <b>' + r4 + '</b> high' + (lastSharedScanAt ? ' · scanned ' + homeAgo(lastSharedScanAt) : '');
+  const top = fresh.slice().sort((a, b) => (b.rating - a.rating) || ((b.publishedAt || 0) - (a.publishedAt || 0))).slice(0, window.innerWidth < 700 ? 3 : 5);
+  list.innerHTML = top.map(a => '<a class="hc-story" href="' + escapeHtml(a.url || '#') + '" target="_blank" rel="noopener"><span class="hc-r r' + a.rating + '">' + a.rating + '</span><span><b>' + escapeHtml(a.headline) + '</b><small>' + escapeHtml(a.source || '') + (a.publishedAt ? ' · ' + homeAgo(a.publishedAt) : '') + '</small></span></a>').join('');
+}
+async function loadHome() {
+  const s = (window.IMSAuth && IMSAuth.state) || {};
+  const first = s.user && (s.user.full_name || '').split(' ')[0];
+  const hr = new Date().getHours();
+  document.getElementById('homeHello').textContent = (hr < 12 ? 'Good morning' : hr < 17 ? 'Good afternoon' : 'Good evening') + (first ? ', ' + first : '');
+  document.getElementById('homeDate').textContent = new Date().toLocaleDateString([], { weekday: 'long', month: 'long', day: 'numeric' }) + (s.site && s.site.name ? ' · ' + s.site.name : '');
+  // Cards and shortcuts this person's role can't use are hidden.
+  const canEditor = !(s.access && s.access.use_editor === false);
+  document.querySelectorAll('#page-16 [data-tab]').forEach(el => { el.style.display = monitorCanUse(+el.dataset.tab) ? '' : 'none'; });
+  document.querySelectorAll('#page-16 [data-editor]').forEach(el => { el.style.display = canEditor ? '' : 'none'; });
+  renderHomeNews();
+  const f = window.IMSAuth ? IMSAuth.authFetch : fetch;
+  const esc = escapeHtml;
+  if (canEditor) {
+    f('/api/drafts').then(r => r.json()).then(d => {
+      const ds = (d.drafts || []).slice().sort((a, b) => String(b.updatedAt || '').localeCompare(String(a.updatedAt || ''))).slice(0, 3);
+      document.getElementById('homeDrafts').innerHTML = ds.length ? ds.map(x => '<a class="hc-item" href="/editor#3">' + esc(x.headline || '(no headline)') + '<small>' + esc(x.status || 'draft') + (x.author ? ' · ' + esc(x.author) : '') + (x.updatedAt ? ' · ' + homeAgo(x.updatedAt) : '') + '</small></a>').join('') : '<div class="hc-empty">No drafts yet.</div>';
+    }).catch(() => { document.getElementById('homeDrafts').innerHTML = ''; });
+    f('/api/site-profile').then(r => r.json()).then(d => {
+      const n = ((d.profile && d.profile.ads && d.profile.ads.units) || []).length;
+      document.getElementById('homeAdsCount').textContent = n ? n + ' ad slot' + (n === 1 ? '' : 's') : 'Set up ads';
+    }).catch(() => {});
+  }
+  if (monitorCanUse(3)) {
+    f('/api/chat').then(r => r.json()).then(d => {
+      const ms = (d.messages || []).slice().sort((a, b) => String(b.created_at).localeCompare(String(a.created_at))).slice(0, 3);
+      document.getElementById('homeChat').innerHTML = ms.length ? ms.map(m => '<a class="hc-item" href="/chat" onclick="switchTab(3);return false"><b>' + esc(m.sender_name || 'CoPublisher') + ':</b> ' + esc(String(m.text || '').slice(0, 140)) + '<small>' + homeAgo(m.created_at) + '</small></a>').join('') : '<div class="hc-empty">No messages yet. Say hello to the team.</div>';
+    }).catch(() => { document.getElementById('homeChat').innerHTML = '<div class="hc-empty">Couldn\'t load chat.</div>'; });
+  }
+  if (monitorCanUse(14)) {
+    calFetch().then(d => {
+      const now = Date.now();
+      const evs = (d.events || []).filter(e => Date.parse(e.start) > now - 3600000).sort((a, b) => a.start.localeCompare(b.start)).slice(0, 4);
+      document.getElementById('homeCal').innerHTML = evs.length ? evs.map(e => '<a class="hc-item" href="/calendar" onclick="switchTab(14);return false">' + (e.kind === 'heat' ? '🔥 ' : '') + esc(e.title || '') + '<small>' + new Date(e.start).toLocaleString([], { weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }) + '</small></a>').join('') : '<div class="hc-empty">Nothing on the calendar this week.</div>';
+    }).catch(() => { document.getElementById('homeCal').innerHTML = '<div class="hc-empty">Couldn\'t load the calendar.</div>'; });
+  }
+}
+
 // Phone bottom bar and its More sheet: every tab this person can use (the
 // same buttons as the desktop tab row, which hides tabs their role can't see),
 // plus the Content Editor and Preferences.
 function syncMobileNav(idx) {
-  var main = { 0: 1, 3: 1, 14: 1 };
+  var main = { 16: 1, 0: 1, 3: 1 };
   document.querySelectorAll('#mnav [data-tab]').forEach(function (b) {
     var t = +b.dataset.tab;
     b.classList.toggle('on', t === idx);
@@ -1247,11 +1428,11 @@ window.addEventListener('popstate', function (e) {
 // Pick the starting section from the URL. Old #N hash links still work.
 (function () {
   var start = pathToTab(location.pathname);
-  if (start === 0 && /^#\d+$/.test(location.hash || '')) {
+  if (start === 16 && /^#\d+$/.test(location.hash || '')) {
     var h = parseInt(location.hash.slice(1), 10);
     if (h >= 0 && h < TAB_PATHS.length) start = h;
   }
-  try { history.replaceState({ imsTab: start }, '', TAB_PATHS[start]); } catch (e) {}
+  try { history.replaceState({ imsTab: start }, '', start === 16 && location.pathname === '/' ? '/' : TAB_PATHS[start]); } catch (e) {}
   if (start !== 0) {
     // Deferred until the whole script has run: switchTab() touches state
     // declared further down (e.g. chatPollTimer, ANALYTICS_SOURCES), and
@@ -1260,7 +1441,7 @@ window.addEventListener('popstate', function (e) {
     // (/analytics, /settings…) came up half-built.
     setTimeout(function () { switchTab(start, true); }, 0);
     var b = document.getElementById('backBtn');
-    if (b) b.style.display = 'inline-flex';
+    if (b && start !== 16) b.style.display = 'inline-flex';
   }
 
   // Facebook OAuth lands back here as a plain navigation (api/meta-oauth-callback.js
@@ -1329,6 +1510,7 @@ function alertDayLabel(a) {
 
 function renderAlerts() {
   const c = document.getElementById('alertsContainer');
+  renderHomeNews();
   let filtered = allAlerts;
   if (currentFilter === 'republished') {
     filtered = allAlerts.filter(a => a.republished === true);
@@ -1345,6 +1527,11 @@ function renderAlerts() {
     else if (currentFilter === 'social') filtered = fresh.filter(a => ['social','podcast'].includes(a.category));
   }
 
+  if (alertQuery) {
+    const words = alertQuery.toLowerCase().split(/\s+/).filter(Boolean);
+    filtered = filtered.filter(a => { const t = ((a.headline || '') + ' ' + (a.summary || '') + ' ' + (a.source || '')).toLowerCase(); return words.every(w => t.includes(w)); });
+    if (!filtered.length) { c.innerHTML = '<div class="empty"><i class="ti ti-search"></i>No stories in the latest scan match “' + escapeHtml(alertQuery) + '”.</div>'; return; }
+  }
   if (!filtered.length) { c.innerHTML = '<div class="empty"><i class="ti ti-mood-empty"></i>No alerts in this category.</div>'; return; }
 
   filtered = sortByDayThenRating(filtered);
