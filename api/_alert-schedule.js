@@ -103,4 +103,12 @@ async function filter(emails, type, nowMs) {
   });
 }
 
-module.exports = { load: load, set: set, allows: allows, filter: filter, openAt: openAt, clean: clean };
+// Remove all of one person's schedules (account deletion).
+async function clearAll(email) {
+  var all = await load(); email = String(email || '').toLowerCase();
+  if (!all[email]) return;
+  delete all[email];
+  await put(PATH, JSON.stringify(all), { access: 'private', addRandomSuffix: false, allowOverwrite: true, contentType: 'application/json' });
+}
+
+module.exports = { clearAll: clearAll, load: load, set: set, allows: allows, filter: filter, openAt: openAt, clean: clean };

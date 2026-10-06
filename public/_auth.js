@@ -144,6 +144,7 @@
 
   window.IMSAuth = {
     state: STATE,
+    signOut: signOut,
     guard: guard,
     authFetch: authFetch,
     token: token,
