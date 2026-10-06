@@ -50,4 +50,13 @@ async function postSystemMessage(sb, opts) {
   }
 }
 
-module.exports = { resolveSiteId: resolveSiteId, recent: recent, post: post, postSystemMessage: postSystemMessage };
+// Publisher clean-up: removes these messages (this site's only). Returns how many.
+async function remove(sb, siteId, ids) {
+  ids = (ids || []).map(String).filter(function (x) { return /^[0-9a-f-]{8,40}$/i.test(x); }).slice(0, 500);
+  if (!ids.length) return 0;
+  var del = await sb.from('chat_messages').delete().eq('site_id', siteId).in('id', ids).select('id');
+  if (del.error) throw new Error(del.error.message);
+  return (del.data || []).length;
+}
+
+module.exports = { resolveSiteId: resolveSiteId, recent: recent, post: post, postSystemMessage: postSystemMessage, remove: remove };

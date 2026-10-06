@@ -58,6 +58,7 @@
 
 ## Done
 
+- **2026-10-06 — Publisher can mass-delete Team Chat messages** (Jeff). The publisher gets "☑️ Select to delete" on Team Chat, with a checkbox per message (or click the message), Select all, and Delete selected after a confirm. `POST /api/chat {action:'delete', ids}` is publisher-only and deletes only this site's rows (`_chat-store.remove`).
 - **2026-10-06 — No more "Breaking" on previews and speculation** (Jeff, on an opponent site's "Five Things to Know" preview rated 5: "labeling breaking on things that aren't even close ... will be bad for credibility"). The cause: the preview mentioned the coach's job status ("tenure nearing its end") and an injury, and the always-5 rules for coaching changes and major injuries pulled it to 5. Now:
   - `_rating-rules.capFormats` caps previews, listicles and analysis formats, plus job-status speculation, at 3 in code after the rater. It logs each cap.
   - The rater prompt (`_beat.js`) says these formats are never 4-5 whatever topics they touch. Speculation isn't a coaching change or a transfer, and opponents' injuries and roster moves are their news (1-2, at most 3).
