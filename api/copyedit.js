@@ -201,8 +201,14 @@ async function handleRefine(res, key, body) {
   var isDraftStage = body.refine.stage === 'draft';
   if (!instruction) return res.status(200).json({ error: 'Say what you want changed or ask a question.' });
 
-  var sys = 'You are the copy chief for InsideMDSports, a Maryland Terrapins sports site, working with a writer or editor on ' +
+  // Outlet and beat from the newsroom's beat profile, never hard-coded.
+  var beat = {};
+  try { var S0 = require('./_supabase'); beat = await require('./_beat').getBeat(S0.isConfigured() ? S0.admin() : null); } catch (e) { /* generic wording below */ }
+  var outlet = beat.outletName || 'the outlet';
+  var teamName = (beat.team && (beat.team.school || beat.team.name)) || '';
+  var sys = 'You are the copy chief and a staff writer for ' + outlet + (beat.coverage ? ', which covers ' + beat.coverage : '') + ', working with a writer or editor on ' +
     (isDraftStage ? 'a draft still being written — it may be rough, partial, or even empty so far.' : 'a piece that has already been through a first edit.') +
+    ' You can do anything a good editor or writer would on command: answer questions, make edits, and write new copy (a whole story from notes or directions, a new section, a lede, a kicker, headlines, social posts, interview questions), just as you would in a regular conversation with Claude.' +
     (styleGuide ? ('\n\nHOUSE STYLE:\n' + styleGuide) : '');
 
   var convo = history.map(function (h) { return (h.role === 'user' ? 'EDITOR: ' : 'YOU: ') + h.text; }).join('\n');
@@ -210,11 +216,12 @@ async function handleRefine(res, key, body) {
     (isDraftStage ? 'CURRENT DRAFT (Markdown, may be partial or empty):\n' : 'CURRENT ARTICLE (Markdown):\n') + (current || '(nothing written yet)') + '\n\n' +
     (convo ? 'EARLIER IN THIS CONVERSATION:\n' + convo + '\n\n' : '') +
     'THE EDITOR NOW SAYS:\n' + instruction + '\n\n' +
-    'Decide first: is this a CHANGE request or a QUESTION (including "what do you know about X" / background lookups)?\n' +
-    'If answering well needs current information you\'re not sure of — a stat line, an injury update, a roster/depth-chart move, this week\'s news, a score — use the web_search tool first. Prefer reputable sports sources (247Sports, ESPN, official Maryland Athletics) and note in the reply when something came from a live search vs. what you already knew. Skip searching for stable facts, or when the article itself already has what you need.\n' +
-    'If the question is about whether/how InsideMDSports has covered something before (a prior story, an earlier stance, internal consistency), use search_knowledge_base instead — that is our own archive, not the open web.\n' +
+    'Decide first: is this a CHANGE to the article, a direction to WRITE something, or a QUESTION (including "what do you know about X" / background lookups)?\n' +
+    'If doing it well needs current information you\'re not sure of — a stat line, an injury update, a roster/depth-chart move, this week\'s news, a score, a schedule — use the web_search tool first. Prefer reputable sports sources (247Sports, ESPN, ' + (teamName ? 'official ' + teamName + ' athletics' : 'the team\'s official site') + ') and note in the reply when something came from a live search vs. what you already knew. Skip searching for stable facts, or when the article itself already has what you need.\n' +
+    'If it is about whether/how ' + outlet + ' has covered something before (a prior story, an earlier stance, internal consistency), use search_knowledge_base instead — that is our own archive, not the open web.\n' +
     'If it is a CHANGE: set "changed":true, make ONLY that change (plus anything it directly requires) keeping ' + writerName + '\'s voice and house style, put the FULL updated article in "edited", and a one-line "reply" saying what you did.\n' +
-    'If it is a QUESTION: set "changed":false and do NOT fill in "edited" at all (leave it out / empty — do not re-type the article, it wastes time). Answer fully in "reply".\n' +
+    'If it is a direction to WRITE: write it in full, in ' + writerName + '\'s voice and house style, as well as you can. If what you wrote belongs in the article (a whole story when the draft is empty or is just notes, a new section, a new lede or ending), set "changed":true and put the FULL article with your writing in place in "edited", with a one-line "reply". If it is separate from the article (headline options, social posts, interview questions, an email, a summary), set "changed":false and put the full writing in "reply".\n' +
+    'If it is a QUESTION: set "changed":false and do NOT fill in "edited" at all (leave it out / empty — do not re-type the article, it wastes time). Answer fully in "reply", as long as the answer needs.\n' +
     'Never invent quotes, stats, or facts when making a change — including a person\'s job title, position, or role (e.g. calling a player a "coach", or guessing which position they play). If a change would require a fact you do not have and can\'t find, say so in "reply" and set "changed":false.\n' +
     'Always finish by calling the respond tool with your final answer — never leave it as plain text, even after searching.';
 
@@ -226,7 +233,7 @@ async function handleRefine(res, key, body) {
       properties: {
         changed: { type: 'boolean', description: 'true only if you are returning a modified article in "edited".' },
         edited: { type: 'string', description: 'Omit or leave empty for a question. Only include this, with the FULL article, when changed is true.' },
-        reply: { type: 'string', description: 'One to three sentences: what you changed, or the answer to their question.' }
+        reply: { type: 'string', description: 'For a change: one line on what you did. For a question: the full answer. For writing that is not going in the article: the full text you wrote.' }
       },
       required: ['changed', 'reply']
     }
