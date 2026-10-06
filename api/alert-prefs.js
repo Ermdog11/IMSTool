@@ -10,16 +10,27 @@
 
 var S = require('./_supabase');
 
+// `about`: what the alert is and when it comes, shown under each switch on
+// Permissions & preferences (Jeff, 2026-10-06: "this also needs an explainer").
 var ALERT_TYPES = [
-  { key: 'breaking',        label: 'Breaking news (rating 5)',       defaultOn: 'all' },
-  { key: 'article_started', label: 'A writer starts an article',     defaultOn: 'publisher' },
-  { key: 'digest_nightly',  label: 'Nightly digest (8 PM)',          defaultOn: 'all' },
-  { key: 'digest_rolling',  label: 'Rolling updates (3×/day)',       defaultOn: 'all' },
-  { key: 'roster_change',   label: 'Roster changes',                 defaultOn: 'all' },
-  { key: 'hot_story',       label: 'A story goes hot (real-time spike)', defaultOn: 'all' },
-  { key: 'records',         label: 'Public-records request suggestions', defaultOn: 'editors' },
-  { key: 'calendar',        label: 'New calendar items',               defaultOn: 'editors' },
-  { key: 'coverage_desk',   label: 'Coverage Desk memo (7 AM)',        defaultOn: 'all' }
+  { key: 'breaking',        label: 'Breaking news (rating 5)',       defaultOn: 'all',
+    about: 'The moment the scanner finds a story rated 5 out of 5, any time of day. The biggest news on your beat only.' },
+  { key: 'article_started', label: 'A writer starts an article',     defaultOn: 'publisher',
+    about: 'When someone on the team starts a new draft in the Content Editor, so you know who is writing what.' },
+  { key: 'digest_nightly',  label: 'Nightly digest (8 PM)',          defaultOn: 'all',
+    about: 'One email each evening with the day\'s stories on your beat, most important first.' },
+  { key: 'digest_rolling',  label: 'Rolling updates (3×/day)',       defaultOn: 'all',
+    about: 'Around 8 AM, noon and 5 PM: everything new since the last update that wasn\'t big enough for a breaking alert.' },
+  { key: 'roster_change',   label: 'Roster changes',                 defaultOn: 'all',
+    about: 'When a player, coach or staff member is added to or removed from the official roster pages you watch.' },
+  { key: 'hot_story',       label: 'A story goes hot (real-time spike)', defaultOn: 'all',
+    about: 'When one of your stories suddenly has a lot of people reading it at once, so you can push it on social while it\'s hot.' },
+  { key: 'records',         label: 'Public-records request suggestions', defaultOn: 'editors',
+    about: 'When a story is worth a public-records request (coach hires and firings first), with the request drafted for you.' },
+  { key: 'calendar',        label: 'New calendar items',               defaultOn: 'editors',
+    about: 'When a new date lands on the newsroom calendar, from an email forwarded to the calendar address or added in the app.' },
+  { key: 'coverage_desk',   label: 'Coverage Desk memo (7 AM)',        defaultOn: 'all',
+    about: 'A short morning memo: today\'s priorities, stories we haven\'t covered yet, follow-ups and what worked yesterday.' }
 ];
 // Types that can have days/hours (_alert-schedule.js): every alert above, plus
 // the hot-spot alert (its on/off lives with the calendar: api/calendar.js 'hot12').
