@@ -408,6 +408,19 @@ function hot12Due(e, now) {
   return h >= 20 && nyDay(s) === tomorrow && etHour(s) < 12;
 }
 
+// Account deletion: drop one person's calendar preferences and pending reminders.
+async function forgetPerson(email) {
+  email = String(email || '').toLowerCase();
+  var data = await load(), changed = false;
+  if (data.prefs && data.prefs[email]) { delete data.prefs[email]; changed = true; }
+  data.events.forEach(function (e) {
+    var n = (e.reminders || []).length;
+    e.reminders = (e.reminders || []).filter(function (r) { return r.email !== email; });
+    if (e.reminders.length !== n) changed = true;
+  });
+  if (changed) await save(data);
+}
+
 // Cron: send every reminder that's due. Returns how many went out.
 async function sendDueReminders() {
   var data = await load();
@@ -490,4 +503,4 @@ async function fromEmail(text, meta) {
   return { summary: got.summary, events: saved };
 }
 
-module.exports = { HEAT_V: HEAT_V, mode: mode, setMode: setMode, addAiEvents: addAiEvents, sameItem: sameItem, ensureHeatSpots: ensureHeatSpots, setHeatOn: setHeatOn, setHeatReminder: setHeatReminder, heatOn: heatOn, weekKey: weekKey, eventsOn: eventsOn, timeOf: timeOf, load: load, extract: extract, addEvents: addEvents, setReminder: setReminder, setDefault: setDefault, updateEvent: updateEvent, deleteEvent: deleteEvent, sendDueReminders: sendDueReminders, reminderDueMs: reminderDueMs, setHot12: setHot12, hot12Due: hot12Due, fromEmail: fromEmail, zonedIso: zonedIso, STEPS: STEPS, TZ: TZ };
+module.exports = { HEAT_V: HEAT_V, mode: mode, setMode: setMode, addAiEvents: addAiEvents, sameItem: sameItem, ensureHeatSpots: ensureHeatSpots, setHeatOn: setHeatOn, setHeatReminder: setHeatReminder, heatOn: heatOn, weekKey: weekKey, eventsOn: eventsOn, timeOf: timeOf, load: load, extract: extract, addEvents: addEvents, setReminder: setReminder, setDefault: setDefault, updateEvent: updateEvent, deleteEvent: deleteEvent, sendDueReminders: sendDueReminders, reminderDueMs: reminderDueMs, setHot12: setHot12, hot12Due: hot12Due, forgetPerson: forgetPerson, fromEmail: fromEmail, zonedIso: zonedIso, STEPS: STEPS, TZ: TZ };
