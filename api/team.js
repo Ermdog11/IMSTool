@@ -11,7 +11,13 @@
 // last remaining publisher.
 
 var S = require('./_supabase');
-var ROLES = ['publisher', 'editor', 'writer'];
+var ROLES = ['publisher', 'editor', 'writer', 'contributor', 'viewer'];
+// The contributor and viewer roles need one database update (db/schema.sql).
+function friendly(msg) {
+  return /invalid input value for enum/i.test(msg || '')
+    ? 'The contributor and viewer roles need a one-time database update: run db/schema.sql in the Supabase SQL editor, then try again.'
+    : msg;
+}
 
 module.exports = async function handler(req, res) {
   res.setHeader('Cache-Control', 'no-store');
@@ -77,7 +83,7 @@ module.exports = async function handler(req, res) {
     var up = await sb.from('invites').upsert({
       site_id: siteId, email: email, role: role, byline: body.byline || null, invited_by: ctx.user.id, accepted_at: null
     }, { onConflict: 'site_id,email' }).select().single();
-    if (up.error) return res.status(500).json({ error: up.error.message });
+    if (up.error) return res.status(500).json({ error: friendly(up.error.message) });
     return res.status(200).json({ ok: true, invite: up.data, note: 'They get access the first time they sign in at /login with this email.' });
   }
 
@@ -86,14 +92,14 @@ module.exports = async function handler(req, res) {
     if (!role2) return res.status(400).json({ error: 'Unknown role.' });
     if (body.inviteId) {
       var u1 = await sb.from('invites').update({ role: role2 }).eq('id', body.inviteId).eq('site_id', siteId).select().single();
-      return u1.error ? res.status(500).json({ error: u1.error.message }) : res.status(200).json({ ok: true });
+      return u1.error ? res.status(500).json({ error: friendly(u1.error.message) }) : res.status(200).json({ ok: true });
     }
     if (body.userId) {
       if (body.userId === ctx.user.id && role2 !== 'publisher' && (await publisherCount()) <= 1) {
         return res.status(400).json({ error: "You're the only publisher — promote someone else first." });
       }
       var u2 = await sb.from('memberships').update({ role: role2 }).eq('user_id', body.userId).eq('site_id', siteId).select().single();
-      return u2.error ? res.status(500).json({ error: u2.error.message }) : res.status(200).json({ ok: true });
+      return u2.error ? res.status(500).json({ error: friendly(u2.error.message) }) : res.status(200).json({ ok: true });
     }
     return res.status(400).json({ error: 'Need userId or inviteId.' });
   }

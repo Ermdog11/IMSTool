@@ -23,6 +23,8 @@ module.exports = async function handler(req, res) {
     if (body.draftId) {
       draft = await Drafts.loadDraft(String(body.draftId));
       if (!draft) return res.status(404).json({ error: 'Draft not found' });
+      if (who && who.membership) who.drafts_all = await Access.allowed(who, 'drafts_all');
+      if (!Drafts.canSee(who, draft)) return res.status(403).json({ error: 'That draft isn\'t yours.' });
     }
     var article = body.article || (draft && draft.html) || '';
     var headline = body.headline || (draft && draft.headline) || '';

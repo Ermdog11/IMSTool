@@ -63,7 +63,7 @@ module.exports = async function handler(req, res) {
       // Mail goes out to a third party under a staff member's name: a signed-in
       // editor or publisher only (cron and in-process callers never send).
       if (auth && (auth.cron || auth.internal)) return res.status(403).json({ error: 'Records requests are sent by a person, not a scheduled job' });
-      if (auth && auth.membership && auth.membership.role === 'writer') return res.status(403).json({ error: 'Ask an editor to send it, or use "Open in my email" to send it yourself' });
+      if (auth && auth.membership && ['writer', 'contributor', 'viewer'].indexOf(auth.membership.role) !== -1) return res.status(403).json({ error: 'Ask an editor to send it, or use "Open in my email" to send it yourself' });
       var to = String(body.to || '').trim();
       var subject = String(body.subject || '').trim().slice(0, 300);
       var text = String(body.body || '').trim().slice(0, 20000);

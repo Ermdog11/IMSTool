@@ -66,7 +66,8 @@ function composeFinalHtml(edited, promos) {
 }
 
 module.exports = async function handler(req, res) {
-  try { await require('./_supabase').requireUserOrCron(req, res); }
+  var who;
+  try { who = await require('./_supabase').requireUserOrCron(req, res); }
   catch (authErr) { return res.status(authErr.status || 401).json({ error: authErr.message || 'Not signed in' }); }
   if (req.method !== 'POST') return res.status(405).json({ error: 'POST only' });
   var body = req.body || {};
@@ -94,6 +95,7 @@ module.exports = async function handler(req, res) {
     status: action === 'save' ? 'draft' : 'submitted',
     createdAt: now, updatedAt: now
   };
+  Object.assign(doc, require('./_drafts').ownerOf(who));
   try {
     await saveDraft(doc);
   } catch (e) {

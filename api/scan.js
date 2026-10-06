@@ -29,8 +29,11 @@ function rateChunks(stories, topicStop) {
 }
 
 module.exports = async function handler(req, res) {
-  try { await require('./_supabase').requireUserOrCron(req, res); }
+  var scanWho;
+  try { scanWho = await require('./_supabase').requireUserOrCron(req, res); }
   catch (authErr) { return res.status(authErr.status || 401).json({ error: authErr.message || 'Not signed in' }); }
+  // Contributors (freelancers) work in the Content Editor only.
+  if (!(await require('./_access').allowed(scanWho, 'use_monitor'))) return require('./_access').deny(res);
   var key = process.env.ANTHROPIC_API_KEY;
   if (!key) return res.status(500).json({ error: 'no key set' });
 

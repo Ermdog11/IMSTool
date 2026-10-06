@@ -365,7 +365,7 @@ module.exports = async function handler(req, res) {
     catch (e) { return res.status(e.status || 401).json({ error: e.message }); }
     try {
       var sb = S.admin();
-      return res.status(200).json({ profile: await Store.getProfile(sb), houseStyle: await Store.getHouseStyle(sb), beat: wizardBeat(await Beat.getBeat(sb)) });
+      return res.status(200).json({ profile: await Store.getProfile(sb), houseStyle: await Store.getHouseStyle(sb), beat: wizardBeat(await Beat.getBeat(sb)), accessDefaults: require('./_access').ROLE_DEFAULTS });
     } catch (e) {
       return res.status(200).json({ profile: {}, houseStyle: null, beat: null });
     }

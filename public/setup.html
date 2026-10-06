@@ -777,7 +777,7 @@ function addInviteRow(email,role){
   var row=document.createElement('div'); row.className='grid2 invite-row'; row.style.marginBottom='6px';
   var n=document.querySelectorAll('.invite-row').length;
   row.innerHTML='<div><label for="inv-e'+n+'">Email</label><input id="inv-e'+n+'" class="inv-email" type="email" placeholder="name@example.com" value="'+esc(email||'')+'"></div>'+
-    '<div><label for="inv-r'+n+'">Role</label><select id="inv-r'+n+'" class="inv-role"><option value="writer">Writer</option><option value="editor">Editor</option><option value="publisher">Publisher</option></select></div>';
+    '<div><label for="inv-r'+n+'">Role</label><select id="inv-r'+n+'" class="inv-role"><option value="writer">Writer</option><option value="contributor">Contributor (freelancer)</option><option value="viewer">Viewer (read-only)</option><option value="editor">Editor</option><option value="publisher">Publisher</option></select></div>';
   $('invites').appendChild(row);
   if(role) row.querySelector('.inv-role').value=role;
 }
