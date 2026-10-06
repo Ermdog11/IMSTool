@@ -583,7 +583,19 @@ module.exports = async function handler(req, res) {
     var undatedNote = stories.some(function(s) { return s.age == null; })
       ? '\n\nPUBLISH DATE UNKNOWN: stories marked "(publish date unknown)" came from a web search or feed that could not say when they were published, so they may be old articles that were re-indexed. Never assume they are new. Use the snippet and your own knowledge: if the event they report happened more than about 2 weeks ago, set republished:true. If you would rate one 4 or 5, also set needsContext:true so the full article is checked first.'
       : '';
-    var sharedNotes = flaggedNote + ownCoverageNote + profileNote + B.weightNote(beat) + editorNote + undatedNote;
+    // What we've written about most in the last two weeks (Jeff, 2026-10-06:
+    // "give higher breaking news ratings to stories involving topics we have
+    // written about a lot recently"). See _our-topics.js.
+    var ourTopicsNote = '';
+    try {
+      var ourTopics = await require('./_our-topics.js').ourHotTopics(beat, ownHeadlines, SB.isConfigured() ? SB.admin() : null, 8);
+      if (ourTopics.length) {
+        ourTopicsNote = '\n\nWHAT WE HAVE WRITTEN ABOUT MOST LATELY (number of our articles in about the last two weeks): ' +
+          ourTopics.map(function(t) { return t.name + ' (' + t.count + ')'; }).join(', ') + '.\n' +
+          'These are our readers\' hottest topics right now. A story with a genuinely NEW development about one of them (a decision, a status change, a commitment, a hire or firing, an injury, a new report that moves it forward) rates ONE POINT HIGHER than you otherwise would, and a major new development about one of the top three can be 5. This does not apply to a story that only repeats what is already known, to reaction or analysis, or to anything the NOT BREAKING, FOLLOW-UP COVERAGE or ALREADY COVERED rules cap; those rules still win.';
+      }
+    } catch (e) { console.error('Our topics failed (non-fatal):', e.message); }
+    var sharedNotes = flaggedNote + ownCoverageNote + ourTopicsNote + profileNote + B.weightNote(beat) + editorNote + undatedNote;
 
     // Rate in parallel chunks (Jeff, 2026-09-10: scans took ~3 min, almost all
     // of it one Claude call writing ratings for ~110 stories). Each call gets
