@@ -7,9 +7,9 @@
 //   POST { action:'delete', id }
 //   POST { action:'remind', id, minutes, channel }   (minutes 0 = no reminder)
 //   POST { action:'default', minutes, channel }      (your default for events you add)
-//   POST { action:'heat-remind', minutes, channel }  (your reminder before every heat spot)
-//   POST { action:'heat-on', on }                    (heat spots on/off for the newsroom; editors+)
-//   POST { action:'heat-refresh' }                   (recompute this week's heat spots; editors+)
+//   POST { action:'heat-remind', minutes, channel }  (your reminder before every hot spot)
+//   POST { action:'heat-on', on }                    (hot spots on/off for the newsroom; editors+)
+//   POST { action:'heat-refresh' }                   (recompute this week's hot spots; editors+)
 //   POST { action:'mode', mode:'ai'|'manual' }       (who runs the calendar; editors+. 'ai' adds the games now)
 
 var S = require('./_supabase');
@@ -17,7 +17,7 @@ var Access = require('./_access');
 var Cal = require('./_calendar');
 
 // The newsroom's Supabase client and site id, for the analytics the heat
-// spots read. Null when login isn't configured (heat spots then just skip).
+// spots read. Null when login isn't configured (hot spots then just skip).
 async function siteRef(ctx) {
   if (ctx && ctx.supabase && ctx.site) return { sb: ctx.supabase, id: ctx.site.id };
   if (!S.isConfigured()) return null;
@@ -40,10 +40,10 @@ module.exports = async function handler(req, res) {
   try {
     if (req.method === 'GET') {
       var data = await Cal.load();
-      // First look this week: fill in the week's heat spots (stored analytics only, no Claude).
+      // First look this week: fill in the week's hot spots (stored analytics only, no Claude).
       if (Cal.heatOn(data) && !(data.heat && data.heat.week === Cal.weekKey() && data.heat.v === Cal.HEAT_V)) {
         try { var ref0 = await siteRef(ctx); if (ref0) { await Cal.ensureHeatSpots(ref0.sb, ref0.id, false); data = await Cal.load(); } }
-        catch (e) { console.error('Heat spots on load failed:', e.message); }
+        catch (e) { console.error('Hot spots on load failed:', e.message); }
       }
       var since = Date.now() - 2 * 86400000;
       var info = require('./_email-drafts').inboxInfo();
@@ -74,7 +74,7 @@ module.exports = async function handler(req, res) {
     if (b.action === 'remind') return res.status(200).json({ event: await Cal.setReminder(b.id, me, b.minutes, b.channel) });
     if (b.action === 'heat-remind') { await Cal.setHeatReminder(me, b.minutes, b.channel); return res.status(200).json({ ok: true }); }
     if (b.action === 'heat-on' || b.action === 'heat-refresh') {
-      if (!canManage(ctx)) return res.status(403).json({ error: 'Editors and publishers can change heat spots.' });
+      if (!canManage(ctx)) return res.status(403).json({ error: 'Editors and publishers can change hot spots.' });
       if (b.action === 'heat-on') await Cal.setHeatOn(!!b.on);
       var ref = await siteRef(ctx);
       var heat = (b.action === 'heat-refresh' || b.on) && ref ? await Cal.ensureHeatSpots(ref.sb, ref.id, true) : { on: !!b.on, spots: [] };
@@ -87,7 +87,7 @@ module.exports = async function handler(req, res) {
       if (b.mode === 'ai') {
         var ref1 = await siteRef(ctx);
         if (ref1) {
-          try { await Cal.ensureHeatSpots(ref1.sb, ref1.id, false); } catch (e) { console.error('Heat spots on mode change failed:', e.message); }
+          try { await Cal.ensureHeatSpots(ref1.sb, ref1.id, false); } catch (e) { console.error('Hot spots on mode change failed:', e.message); }
           try { added = await require('./_ai-calendar').addGames(ref1.sb); } catch (e) { console.error('AI calendar games failed:', e.message); }
         }
       }

@@ -7,7 +7,7 @@
 //   - what we've published lately (our own recent headlines), so it doesn't
 //     pitch what we already did, and finds follow-ups to what we did
 //   - Opp Watch: what competitors ran in the last 3 days that we haven't
-//   - the calendar's next 7 days (games, pressers, deadlines, heat spots)
+//   - the calendar's next 7 days (games, pressers, deadlines, hot spots)
 //   - "Fewer like this" feedback from the Story backlog tab
 // One Claude call (forced tool use), best-effort: any failure means the email
 // goes out without ideas. The latest five are saved so the Story backlog tab

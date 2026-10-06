@@ -128,7 +128,29 @@ function recordsHTML(list) {
     }).join('') + '</div>';
 }
 
-function buildEmailHTML(alerts, date, slot, overflowByTopic, recordsList, ideas) {
+// Evening update: tomorrow's early hot spots (before 11 AM Eastern), so a
+// story can be ready the night before; the morning memo comes too late for them.
+async function earlyHotSpotsHtml() {
+  try {
+    var Cal = require('./_calendar');
+    var data = await Cal.load();
+    if (!Cal.heatOn(data)) return '';
+    var tomorrow = new Date(Date.now() + 86400000).toLocaleDateString('en-CA', { timeZone: 'America/New_York' });
+    var early = (data.events || []).filter(function (e) {
+      if (e.kind !== 'heat') return false;
+      var d = new Date(e.start);
+      return d.toLocaleDateString('en-CA', { timeZone: 'America/New_York' }) === tomorrow &&
+        Number(new Intl.DateTimeFormat('en-US', { timeZone: 'America/New_York', hour: '2-digit', hourCycle: 'h23' }).format(d)) % 24 < 11;
+    });
+    if (!early.length) return '';
+    return '<div style="background:#fff7ed;border:1px solid #fed7aa;border-radius:8px;padding:12px 14px;margin:0 0 16px;font-size:14px;color:#7c2d12">' +
+      '<b>🔥 Tomorrow morning\'s hot spot' + (early.length > 1 ? 's' : '') + ':</b> ' + early.map(function (e) {
+        return new Date(e.start).toLocaleTimeString('en-US', { timeZone: 'America/New_York', hour: 'numeric', minute: '2-digit' }) + (e.note ? ' (' + String(e.note).replace(/[<>&]/g, '') + ')' : '');
+      }).join('; ') + '. That\'s before the morning memo, so have a story written and scheduled tonight.</div>';
+  } catch (e) { return ''; }
+}
+
+function buildEmailHTML(alerts, date, slot, overflowByTopic, recordsList, ideas, hotSpotsHtml) {
   // Group by calendar day
   var days = {};
   alerts.forEach(function(a) {
@@ -162,7 +184,7 @@ function buildEmailHTML(alerts, date, slot, overflowByTopic, recordsList, ideas)
     body += '</div>';
   });
 
-  body = recordsHTML(recordsList) + body + require('./_ombudsman.js').emailHtml(ideas);
+  body = (hotSpotsHtml || '') + recordsHTML(recordsList) + body + require('./_ombudsman.js').emailHtml(ideas);
   var bodyMsg = alerts.length
     ? '<p style="font-size:13px;color:#555;margin-bottom:20px;">' + alerts.length + ' new ' + (alerts.length === 1 ? 'story' : 'stories') + ' since the last update.</p>' + body
     : '<p style="font-size:13px;color:#555;margin-bottom:20px;">No new Terps stories since the last update.</p>' + body;
@@ -243,7 +265,7 @@ module.exports = async function handler(req, res) {
       subject: alerts.length
         ? 'InsideMDSports ' + SLOT_LABEL[slot] + ' update — ' + alerts.length + ' new ' + (alerts.length === 1 ? 'story' : 'stories')
         : 'InsideMDSports ' + SLOT_LABEL[slot] + ' update — nothing new',
-      html: buildEmailHTML(alerts, date, slot, overflowByTopic, recordsList, ideas)
+      html: buildEmailHTML(alerts, date, slot, overflowByTopic, recordsList, ideas, slot === 'evening' ? await earlyHotSpotsHtml() : '')
     });
     if (recordsList.length && mailResult && !mailResult.error) {
       try { await require('./_records.js').markInDigest('insidemdsports', recordsList.map(function(x) { return x.id; })); } catch (e) { console.error('Records digest mark failed:', e.message); }

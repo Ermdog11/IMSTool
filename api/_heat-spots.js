@@ -1,5 +1,5 @@
-// Heat spots: the five best times to publish this week, in order, from the
-// newsroom's own past numbers (Jeff, 2026-10-06: "an option for heat spots on
+// Hot spots: the five best times to publish this week, in order, from the
+// newsroom's own past numbers (Jeff, 2026-10-06: "an option for hot spots on
 // the calendar - the five best times to publish that week, in order, based on
 // previous data ... a few sentences in coverage desk and auto added to the
 // calendar with a reminder option").
@@ -121,7 +121,7 @@ function relative(list) {
   var avg = mean(list.map(function (p) { return p.v; }));
   if (!avg) return [];
   // Capped at 3x the average: one viral post shouldn't make its hour a
-  // "heat spot" (Jeff, 2026-10-06, on a 7 AM spot from a single +2133% post).
+  // "hot spot" (Jeff, 2026-10-06, on a 7 AM spot from a single +2133% post).
   return list.map(function (p) { var q = parts(p.at); return { dow: q.dow, hour: q.hour, v: Math.min(p.v / avg, 3) }; });
 }
 
@@ -133,8 +133,10 @@ function pct(x) {
 
 // The week's slots still ahead: [{ ms, ymd, dow, hour }] from the next whole
 // hour through Sunday 11 PM.
+// Starts 3 hours out: a spot sooner than that can't be acted on (the Monday
+// cron runs at 6 AM Eastern; a 7 AM spot from it would arrive too late).
 function slotsAhead(nowMs) {
-  var out = [], start = Math.ceil((nowMs + 1) / 3600000) * 3600000;
+  var out = [], start = Math.ceil((nowMs + 3 * 3600000) / 3600000) * 3600000;
   var startDow = parts(nowMs).dow, today = parts(nowMs).ymd;
   var daysLeft = startDow === 0 ? 1 : 8 - startDow; // through Sunday
   for (var ms = start; ms < nowMs + daysLeft * 86400000; ms += 3600000) {
@@ -151,7 +153,7 @@ async function compute(sb, siteId, nowMs) {
   nowMs = nowMs || Date.now();
   var site = await siteSamples(sb, siteId), social = await socialSamples(sb, siteId);
   var siteM = model(site, 2), socM = model(social, 2);
-  if (!siteM && !socM) return { spots: [], basis: null, note: 'Not enough history yet: heat spots need about two days of Chartbeat readings or a few weeks of Buffer/X posts.' };
+  if (!siteM && !socM) return { spots: [], basis: null, note: 'Not enough history yet: hot spots need about two days of Chartbeat readings or a few weeks of Buffer/X posts.' };
   var scored = slotsAhead(nowMs).map(function (s) {
     var a = siteM ? siteM(s.dow, s.hour) : null, b = socM ? socM(s.dow, s.hour) : null;
     // With site readers known, they decide; social nudges by at most about
