@@ -1764,6 +1764,7 @@ async function openDraft(id){
       '<a href="#" onclick="closeDraftDetail();renderDraftsList();return false" style="font-size:13px">&larr; All drafts</a>'+
       '<h2 style="margin-top:8px">'+esc(d.headline||'(no headline)')+'</h2>'+
       '<div class="hint">'+esc(d.writerName||'')+' &middot; '+esc(TIER_LABELS[d.tier]||d.tier)+' &middot; last updated '+new Date(d.updatedAt).toLocaleString()+'</div>'+
+      draftRewriteHtml(d)+
       '<label>Article</label>'+
       '<div id="draft-preview" style="border:1px solid var(--border);border-radius:8px;padding:12px 14px;background:#fff;font-size:15px;line-height:1.6;max-height:520px;overflow:auto">'+(safeHtml(d.html)||'<i>(empty)</i>')+'</div>'+
       ((d.factsToCheck||[]).length?'<label>Verify before publishing</label><ul style="margin:4px 0 0 18px;padding:0;font-size:13.5px">'+d.factsToCheck.map(function(f){return '<li>'+esc(f)+'</li>';}).join('')+'</ul>':'')+
@@ -1782,6 +1783,31 @@ async function openDraft(id){
       '</div>'+
     '</div>';
   }catch(e){c.innerHTML='<div class="card"><a href="#" onclick="closeDraftDetail();return false" style="font-size:13px">&larr; All drafts</a><div class="empty">Failed: '+esc(e.message)+'</div></div>';}
+}
+
+// AI drafts from a news story can be written again with today's facts (our
+// knowledge base, current roster, roster changes). Ones written before those
+// rules (GROUNDED_SINCE in api/write-story.js) get a warning: they can name
+// players who are long gone (Jeff, 2026-10-06).
+var DRAFT_GROUNDED_SINCE='2026-10-06T16:02:00Z';
+function draftRewriteHtml(d){
+  if(!/^AI\b/.test(d.writerName||'')||!d.sourceUrl) return '';
+  var old=Date.parse(d.createdAt||0)<Date.parse(DRAFT_GROUNDED_SINCE);
+  return '<div style="margin:10px 0;padding:10px 12px;border-radius:8px;font-size:13.5px;'+(old?'background:#fff4e5;border:1px solid #f5c27a':'background:var(--bg2,#f7f6f2);border:1px solid var(--border)')+'">'+
+    (old?'<b>⚠️ Written before the fact checks.</b> This AI draft can name players or staff who have left. Rewrite it with today\'s roster and our coverage before using it.<br>':'')+
+    '<button class="btn'+(old?'':' ghost')+'" style="margin-top:6px" onclick="rewriteDraft(\''+d.id+'\',this)">🔄 Rewrite with current facts</button> <span id="draft-rewrite-msg" style="font-size:12px;color:var(--muted)"></span></div>';
+}
+async function rewriteDraft(id,btn){
+  var msg=document.getElementById('draft-rewrite-msg');
+  if(!confirm('Rewrite this draft from the original story with current facts? Any edits made to it here will be replaced.')) return;
+  btn.disabled=true; msg.textContent='Rewriting… about a minute.';
+  try{
+    var g=await (await fetch('/api/drafts?id='+encodeURIComponent(id))).json();
+    var r=await fetch('/api/write-story',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({rewrite:true,alert:{headline:g.headline,url:g.sourceUrl}})});
+    var d=await r.json();
+    if(d.error) throw new Error(d.error);
+    openDraft(d.id||id);
+  }catch(e){ msg.textContent='Failed: '+e.message; btn.disabled=false; }
 }
 
 async function saveDraftEdit(id,send){

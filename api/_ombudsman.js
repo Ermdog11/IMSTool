@@ -101,7 +101,7 @@ async function suggest(alerts, opts) {
   var r = await fetch('https://api.anthropic.com/v1/messages', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', 'x-api-key': key, 'anthropic-version': '2023-06-01' },
-    body: JSON.stringify({ model: 'claude-sonnet-4-6', max_tokens: 1800, tools: [TOOL], tool_choice: { type: 'tool', name: TOOL.name }, messages: [{ role: 'user', content: prompt.toWellFormed() }] })
+    body: JSON.stringify({ model: 'claude-sonnet-4-6', max_tokens: 1800, system: (await groundedSystem(prompt)).toWellFormed(), tools: [TOOL], tool_choice: { type: 'tool', name: TOOL.name }, messages: [{ role: 'user', content: prompt.toWellFormed() }] })
   });
   var d = await r.json();
   if (d.error) throw new Error('Ombudsman: ' + (d.error.message || JSON.stringify(d.error)));
@@ -221,7 +221,7 @@ async function review(opts) {
   var r = await fetch('https://api.anthropic.com/v1/messages', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', 'x-api-key': key, 'anthropic-version': '2023-06-01' },
-    body: JSON.stringify({ model: 'claude-sonnet-4-6', max_tokens: 4000, tools: [REVIEW_TOOL], tool_choice: { type: 'tool', name: REVIEW_TOOL.name }, messages: [{ role: 'user', content: prompt.toWellFormed() }] })
+    body: JSON.stringify({ model: 'claude-sonnet-4-6', max_tokens: 4000, system: (await groundedSystem(prompt)).toWellFormed(), tools: [REVIEW_TOOL], tool_choice: { type: 'tool', name: REVIEW_TOOL.name }, messages: [{ role: 'user', content: prompt.toWellFormed() }] })
   });
   var d = await r.json();
   if (d.error) throw new Error('Ombudsman review: ' + (d.error.message || JSON.stringify(d.error)));
@@ -287,3 +287,11 @@ function emailHtml(ideas) {
 }
 
 module.exports = { suggest: suggest, latest: latest, emailHtml: emailHtml, review: review, latestReview: latestReview, reviewHtml: reviewHtml };
+
+// Grounded like every writing tool (api/_writer.js): the rules, our coverage,
+// current roster, roster changes and calendar, so ideas and reviews never
+// treat players who have left as current.
+async function groundedSystem(topic) {
+  var W = require('./_writer');
+  return W.rules() + '\n\nCONTEXT (from our knowledge base and records; trust it over your memory):\n' + (await W.context(String(topic || '').slice(0, 1500)));
+}

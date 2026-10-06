@@ -146,87 +146,11 @@ var WEB_SEARCH_TOOL = { type: 'web_search_20250305', name: 'web_search', max_use
 // queried it back out until now. Distinct from web_search: this is for "have
 // we already covered this" / consistency / a real internal-link target
 // beyond the front-page scrape's ~30 recent items, not current/breaking facts.
-var KB_SEARCH_TOOL = {
-  name: 'search_knowledge_base',
-  description: 'Full-text search over InsideMDSports\' own past published/submitted articles. Use to check whether this site already reported something (for consistency, avoiding contradictions, or finding a real internal link beyond the recent-articles list already given to you) — NOT for current facts or breaking news, use web_search for that.',
-  input_schema: {
-    type: 'object',
-    properties: { query: { type: 'string', description: 'Search terms — a name, topic, or event.' } },
-    required: ['query']
-  }
-};
-
-// Unlike web_search this is OUR tool, so a call to it must be answered with a
-// tool_result before Claude can continue — best-effort throughout, same
-// fails-open philosophy as every other Supabase read in this codebase: no
-// connection or no rows just means "nothing found," never a hard error that
-// blocks the edit.
-async function searchKnowledgeBase(query, excludeDraftId) {
-  query = (query || '').toString().trim().slice(0, 200);
-  if (!query) return { error: 'Empty query.' };
-  try {
-    var S = require('./_supabase');
-    if (!S.isConfigured()) return { error: 'Knowledge base not connected.' };
-    var sb = S.admin();
-    var siteId = await require('./_chat-store').resolveSiteId(sb);
-    var got = await sb.from('content_items')
-      .select('headline, body, url, published_at, draft_id')
-      .eq('site_id', siteId)
-      .textSearch('fts', query, { type: 'websearch', config: 'english' })
-      .order('created_at', { ascending: false })
-      .limit(5);
-    if (got.error) return { error: got.error.message };
-    var rows = (got.data || []).filter(function (r) { return !excludeDraftId || r.draft_id !== excludeDraftId; });
-    if (!rows.length) return { results: [], note: 'No matching past coverage found — this may be new ground for the site.' };
-    return {
-      results: rows.map(function (r) {
-        return {
-          headline: r.headline || '(untitled)',
-          excerpt: (r.body || '').replace(/\s+/g, ' ').trim().slice(0, 400),
-          url: r.url || null,
-          publishedAt: r.published_at || null
-        };
-      })
-    };
-  } catch (e) {
-    return { error: e.message };
-  }
-}
-
-// Shared agentic loop: keeps calling Claude, resolving our own
-// search_knowledge_base tool calls (web_search resolves server-side inline,
-// nothing for us to do there) and feeding results back, until Claude calls
-// `finalToolName` or gives up and answers in plain text. Bounded so a model
-// that won't stop searching can't loop forever / run up cost.
-async function runAgenticLoop(key, systemPrompt, userContent, tools, finalToolName, maxRounds) {
-  var messages = [{ role: 'user', content: userContent }];
-  var lastContent = [];
-  for (var round = 0; round < (maxRounds || 4); round++) {
-    var cr = await fetch('https://api.anthropic.com/v1/messages', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'x-api-key': key, 'anthropic-version': '2023-06-01' },
-      body: JSON.stringify({ model: 'claude-sonnet-4-6', max_tokens: 8000, system: systemPrompt, tools: tools, messages: messages })
-    });
-    var cd = await cr.json();
-    if (cd.error) return { error: cd.error };
-
-    var content = cd.content || [];
-    lastContent = content;
-    var finalUse = content.filter(function (b) { return b.type === 'tool_use' && b.name === finalToolName; }).pop();
-    if (finalUse) return { input: finalUse.input, content: content };
-
-    var kbUses = content.filter(function (b) { return b.type === 'tool_use' && b.name === 'search_knowledge_base'; });
-    if (!kbUses.length) return { content: content }; // no client tool call, no final call — done, caller salvages from text
-
-    var kbResults = await Promise.all(kbUses.map(function (u) { return searchKnowledgeBase(u.input && u.input.query); }));
-    messages.push({ role: 'assistant', content: content });
-    messages.push({
-      role: 'user',
-      content: kbUses.map(function (u, i) { return { type: 'tool_result', tool_use_id: u.id, content: JSON.stringify(kbResults[i]) }; })
-    });
-  }
-  return { content: lastContent };
-}
+// Shared with every writing tool (api/_writer.js).
+var W = require('./_writer');
+var KB_SEARCH_TOOL = W.KB_SEARCH_TOOL;
+var searchKnowledgeBase = W.searchKnowledgeBase;
+var runAgenticLoop = W.runAgenticLoop;
 
 // Conversational follow-up on a piece — either a raw draft still being
 // written (stage:'draft', asked from the Copydesk compose box before it's
@@ -364,13 +288,18 @@ module.exports = async function handler(req, res) {
   var styleGuide = (body.styleGuide || '').toString().slice(0, 12000);
   var writerProfile = (body.writerProfile || '').toString().slice(0, 6000);
   var writerName = (body.writerName || 'the writer').toString().slice(0, 80);
+  // Outlet and team from the newsroom's beat profile, never hard-coded.
+  var ceBeat = {};
+  try { var S1 = require('./_supabase'); ceBeat = await require('./_beat').getBeat(S1.isConfigured() ? S1.admin() : null); } catch (e) { /* generic wording */ }
+  var ceOutlet = ceBeat.outletName || 'the outlet';
+  var ceShort = (ceBeat.team && ceBeat.team.short) || 'the team';
   var HL_STYLES = {
-    mixed:     'THREE options, one of each voice: (1) Straight news — clear, factual, names the subject; (2) Punchy — sharper, more voice, still accurate, no clickbait; (3) SEO-first — leads with the terms a reader would search (name + Maryland + topic).',
+    mixed:     'THREE options, one of each voice: (1) Straight news — clear, factual, names the subject; (2) Punchy — sharper, more voice, still accurate, no clickbait; (3) SEO-first — leads with the terms a reader would search (name + ' + ceShort + ' + topic).',
     straight:  'THREE straight-news headlines — clear, factual, each names the subject. Vary the angle and what leads.',
     punchy:    'THREE punchy headlines — sharper, more voice and rhythm, still fully accurate. No clickbait, no fake stakes.',
     curiosity: 'THREE curiosity / mystery headlines — open a genuine information gap that makes a reader want to click. The gap MUST be real and the article MUST pay it off; never imply something the piece does not deliver, never mislead.',
     fun:       'THREE fun / playful headlines — wordplay, lightness, a wink. Still clear about who and what the story is about.',
-    seo:       'THREE SEO-first headlines — lead with the key search terms (player/coach name + Maryland + the topic). Aim under 60 characters.'
+    seo:       'THREE SEO-first headlines — lead with the key search terms (player/coach name + ' + ceShort + ' + the topic). Aim under 60 characters.'
   };
   var headlineStyle = (body.headline === false || body.headlineStyle === 'none') ? 'none'
     : (HL_STYLES[body.headlineStyle] ? body.headlineStyle
@@ -385,7 +314,7 @@ module.exports = async function handler(req, res) {
   var relatedList = related.map(function (r, i) { return (i + 1) + '. ' + r.headline + '  ->  ' + r.url; }).join('\n');
 
   var sys =
-    'You are the copy chief for InsideMDSports, a Maryland Terrapins sports site. You edit staff drafts to publish-ready quality.\n\n' +
+    'You are the copy chief for ' + ceOutlet + (ceBeat.coverage ? ', which covers ' + ceBeat.coverage : '') + '. You edit staff drafts to publish-ready quality.\n\n' +
     '=== HOUSE STYLE GUIDE ===\n' + (styleGuide || '(No house style guide provided — apply standard clean sports-news style: AP style, active voice, tight sentences, attribute claims, no cliches.)') +
     (writerProfile ? ('\n\n=== THIS WRITER\'S STYLE PROFILE (' + writerName + ') — preserve this voice ===\n' + writerProfile) : '');
 
@@ -395,10 +324,10 @@ module.exports = async function handler(req, res) {
 
   var linkRule = mode === 'keep'
     ? '- Do NOT change the text or insert links. Put internal-link ideas in relatedSuggestions: 2-5 of the related articles below that genuinely relate, each with the phrase in the draft it would sit near. Do not force it. If the RELATED ARTICLES list below has nothing strong, try search_knowledge_base for older coverage on the same person/topic before giving up on a suggestion.\n'
-    : '- Insert Markdown links to related InsideMDSports articles from the list below. Aim for 2-4 links unless the list genuinely has nothing connected to this story (a recruiting story links to other recruiting coverage; a game story to the preview or a player feature; a coaching story to earlier staff news). Attach each link to a real phrase, do not link the same article twice, and do not invent URLs — use only the list, or a search_knowledge_base result that has a real (non-null) url — a knowledge-base hit with no url is still useful for context/consistency but is never a link target. Leave relatedSuggestions empty.\n';
+    : '- Insert Markdown links to related ' + ceOutlet + ' articles from the list below. Aim for 2-4 links unless the list genuinely has nothing connected to this story (a recruiting story links to other recruiting coverage; a game story to the preview or a player feature; a coaching story to earlier staff news). Attach each link to a real phrase, do not link the same article twice, and do not invent URLs — use only the list, or a search_knowledge_base result that has a real (non-null) url — a knowledge-base hit with no url is still useful for context/consistency but is never a link target. Leave relatedSuggestions empty.\n';
 
   var researchRule =
-    '- You have two research tools. search_knowledge_base checks InsideMDSports\' OWN past coverage — use it to avoid contradicting or flatly re-explaining something already reported, and to find a stronger internal link than the recent-articles list below when it falls short. web_search checks the open web for CURRENT facts you are not sure of (a stat, an injury status, a score) — do not invent instead of checking when a quick search would settle it. Use either zero or more times before calling submit_copyedit; do not mention "I searched" in the output, just use what you found.\n';
+    '- You have two research tools. search_knowledge_base checks ' + ceOutlet + '\'s OWN past coverage — use it to avoid contradicting or flatly re-explaining something already reported, and to find a stronger internal link than the recent-articles list below when it falls short. web_search checks the open web for CURRENT facts you are not sure of (a stat, an injury status, a score) — do not invent instead of checking when a quick search would settle it. Use either zero or more times before calling submit_copyedit; do not mention "I searched" in the output, just use what you found.\n';
 
   var user;
   if (mode === 'links') {
@@ -494,6 +423,10 @@ module.exports = async function handler(req, res) {
     // the final submit_copyedit call; runAgenticLoop answers our own
     // search_knowledge_base calls and continues the conversation
     // (web_search resolves inline, nothing for us to do there).
+    // Grounded like every writing tool (api/_writer.js): anything it adds
+    // (context, headlines, fact flags) is checked against our coverage, the
+    // current roster and roster changes, not the model's memory.
+    sys += '\n\n' + W.rules() + '\n\nCONTEXT (from our knowledge base and records; trust it over your memory):\n' + (await W.context(draft.slice(0, 3000)));
     var loopResult = await runAgenticLoop(key, sys, user, [WEB_SEARCH_TOOL, KB_SEARCH_TOOL, tool], 'submit_copyedit', 4);
     if (loopResult.error) return res.status(200).json({ error: 'Claude error: ' + JSON.stringify(loopResult.error) });
 

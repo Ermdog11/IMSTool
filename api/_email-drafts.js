@@ -122,6 +122,74 @@ async function articleFrom(parsed) {
   return { html: textToHtml(parsed.text || ''), from: 'email' };
 }
 
+// Press releases and notes with instructions get written into a story
+// (Jeff, 2026-10-06: he emailed a press release with instructions and got
+// nothing written). Claude decides: the writer's own finished article is
+// kept exactly as sent; source material and/or instructions are written up,
+// grounded like every writing tool (api/_writer.js: our knowledge base,
+// current roster, roster changes, calendar, research). Best-effort: any
+// failure keeps the email as sent.
+var WRITE_TOOL = {
+  name: 'submit_email_article',
+  description: 'Return what to save for this email.',
+  input_schema: {
+    type: 'object',
+    properties: {
+      action: { type: 'string', enum: ['keep', 'write'], description: 'keep = the sender\'s own finished (or nearly finished) article, saved exactly as sent. write = source material and/or instructions, written into an article.' },
+      why: { type: 'string', description: 'One short line: what the email is and, for write, the instructions followed.' },
+      headline: { type: 'string', description: 'For write: the headline. Empty for keep.' },
+      article: { type: 'string', description: 'For write: the full article in Markdown (blank line between paragraphs, ## for subheads, [text](url) links). Empty for keep.' },
+      notes: { type: 'array', items: { type: 'string' }, description: 'For write: short notes for the editor (what came from the release, what was left out and why).' },
+      factsToCheck: { type: 'array', items: { type: 'string' }, description: 'For write: anything to verify before publishing.' }
+    },
+    required: ['action', 'why']
+  }
+};
+
+function htmlText(h) { return String(h || '').replace(/<\/(p|h\d|li|div)>/gi, '\n\n').replace(/<br\s*\/?>/gi, '\n').replace(/<[^>]+>/g, ' ').replace(/&nbsp;/g, ' ').replace(/&amp;/g, '&').replace(/[ \t]+/g, ' ').replace(/\n{3,}/g, '\n\n').trim(); }
+
+function mdToHtml(t) {
+  return String(t || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+    .replace(/\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)/g, '<a href="$2">$1</a>').replace(/\*\*([^*]+)\*\*/g, '<b>$1</b>')
+    .split(/\n\s*\n/).map(function (p) { p = p.trim(); if (!p) return ''; var h = /^##+\s+(.*)$/.exec(p); return h ? '<h2>' + h[1] + '</h2>' : '<p>' + p.replace(/\n/g, '<br>') + '</p>'; }).filter(Boolean).join('\n');
+}
+
+function pdfOf(parsed) {
+  return (parsed.attachments || []).filter(function (a) { return (/\.pdf$/i.test(a.filename || '') || /pdf/.test(a.contentType || '')) && a.content && a.content.length < 8 * 1024 * 1024; })[0] || null;
+}
+
+async function aiPass(parsed, art, fromName, subject) {
+  var key = process.env.ANTHROPIC_API_KEY;
+  if (!key) return null;
+  try {
+    var sb = S.isConfigured() ? S.admin() : null;
+    var beat = await require('./_beat').getBeat(sb);
+    var houseStyle = sb ? await require('./_settings-store').getHouseStyle(sb).catch(function () { return null; }) : null;
+    var bodyText = String(parsed.text || htmlText(parsed.html)).trim().slice(0, 20000);
+    var artText = htmlText(art.html).slice(0, 60000);
+    var pdf = pdfOf(parsed);
+    var sys = 'You work the drafts inbox for ' + beat.outletName + ', which covers ' + beat.coverage + '. ' + fromName + ', a member of the newsroom, emailed something in. Decide what it is.\n' +
+      '- keep: their own finished or nearly finished article, sent to be saved as a draft. Do not rewrite it.\n' +
+      '- write: source material (a press release, statement, notes, a transcript, a PDF, a link) and/or instructions for what to write. Write the article: follow the sender\'s instructions exactly (angle, length, what to lead with, what to leave out). Report it as ' + beat.outletName + '\'s own story with the source attributed ("' + beat.team.short + ' announced Tuesday ..."), not as a reprint of the release. Lead with the news, not the release\'s throat-clearing. Quote the release only word for word, and only its strongest lines. Background on people and the program comes only from the CONTEXT and your research, never from memory.\n' +
+      'If the email says nothing either way, an article-shaped piece written by the sender is keep and a press release or notes is write.\n\n' +
+      '=== HOUSE STYLE GUIDE (write in this voice) ===\n' + (houseStyle || '(none set: AP style, active voice, tight sentences, attribute claims, no cliches)');
+    var blocks = [];
+    if (pdf) blocks.push({ type: 'document', source: { type: 'base64', media_type: 'application/pdf', data: pdf.content.toString('base64') } });
+    var same = art.from === 'email';
+    blocks.push({ type: 'text', text: 'SUBJECT: ' + subject + '\n\nEMAIL BODY' + (same ? '' : ' (may hold instructions)') + ':\n' + (bodyText || '(empty)') +
+      (same ? '' : '\n\nATTACHED ' + art.from + ':\n' + artText) + (pdf ? '\n\n(The attached PDF ' + (pdf.filename || '') + ' is included above.)' : '') });
+    var out = await require('./_writer').writeGrounded({
+      key: key, system: sys, topic: (subject + ' ' + bodyText + ' ' + artText).slice(0, 1500),
+      content: blocks, tool: WRITE_TOOL, web: 2, maxTokens: 6000
+    });
+    if (!out || out.action !== 'write' || !String(out.article || '').trim()) return null;
+    return out;
+  } catch (e) {
+    console.error('email-drafts: writing pass failed (kept as sent):', e.message);
+    return null;
+  }
+}
+
 // One pass over the inbox. Returns { checked, saved: [{id, headline, from}], skipped: [{from, why}] }.
 async function run() {
   var info = inboxInfo();
@@ -145,7 +213,11 @@ async function run() {
     uids = uids.slice(0, MAX_PER_RUN);
     if (!uids.length) return out;
     var senders = await allowedSenders();
+    var started = Date.now();
     for (var i = 0; i < uids.length; i++) {
+      // Writing a story takes up to a minute; leave the rest unread for the
+      // next run (every 5 minutes) rather than run past the time limit.
+      if (Date.now() - started > 100000) { out.deferred = uids.length - i; break; }
       var uid = uids[i];
       out.checked++;
       try {
@@ -166,23 +238,37 @@ async function run() {
         }
         var art = await articleFrom(parsed);
         var plain = art.html.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
-        if (plain.length < 40) { out.skipped.push({ from: fromAddr, why: 'no article text' }); continue; }
+        if (plain.length < 40 && !pdfOf(parsed)) { out.skipped.push({ from: fromAddr, why: 'no article text' }); continue; }
         var headline = cleanSubject(parsed.subject) || plain.slice(0, 90);
         var now = new Date().toISOString();
         var id = Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
         var fromName = senders[fromAddr] || (parsed.from.value[0].name || fromAddr);
+        var ai = await aiPass(parsed, art, fromName, headline);
+        if (ai) {
+          await Drafts.saveDraft({
+            id: id, writerName: 'AI draft (from email) for ' + fromName, tier: 'free',
+            headline: ai.headline || headline, headlines: [{ label: '', text: ai.headline || headline }], html: mdToHtml(ai.article),
+            notes: ['Written from your email: ' + (ai.why || headline)].concat(ai.notes || []), factsToCheck: ai.factsToCheck || [],
+            sourceHtml: art.html, autoGenerated: true,
+            status: 'draft', source: 'email', emailedBy: fromAddr, ownerEmail: fromAddr, emailedFrom: art.from,
+            createdAt: now, updatedAt: now
+          });
+          headline = ai.headline || headline;
+        } else {
         await Drafts.saveDraft({
           id: id, writerName: fromName, tier: 'free', headline: headline, html: art.html,
           status: 'draft', source: 'email', emailedBy: fromAddr, ownerEmail: fromAddr, emailedFrom: art.from,
           createdAt: now, updatedAt: now
         });
+        }
         out.saved.push({ id: id, headline: headline, from: fromAddr });
         try {
           await require('./_mailer').sendMail({
             to: fromAddr,
-            subject: 'Draft saved: ' + headline,
-            html: '<p>Your article <b>' + esc(headline) + '</b> is saved as a draft in the Content Editor' +
-              (art.from !== 'email' ? ' (from ' + esc(art.from) + ')' : '') + '.</p>' +
+            subject: (ai ? 'Story written: ' : 'Draft saved: ') + headline,
+            html: (ai ? '<p>We wrote <b>' + esc(headline) + '</b> from your email (' + esc(ai.why || '') + ') and saved it as a draft in the Content Editor. Check the "Verify before publishing" list before it runs.</p>'
+              : '<p>Your article <b>' + esc(headline) + '</b> is saved as a draft in the Content Editor' +
+              (art.from !== 'email' ? ' (from ' + esc(art.from) + ')' : '') + '.</p>') +
               '<p><a href="https://ims-tool.vercel.app/editor#3/' + id + '">Open the draft &rarr;</a></p>'
           });
         } catch (e) { console.error('email-drafts: confirmation failed:', e.message); }
