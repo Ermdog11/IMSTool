@@ -3143,13 +3143,24 @@ async function loadStrategy(refresh) {
   } catch (e) { box.innerHTML = '<div class="empty" style="padding:14px;">Couldn\'t load the strategy: ' + escapeHtml(e.message) + '</div>'; }
   if (refresh) { btn.disabled = false; btn.textContent = 'Refresh now'; }
 }
+// The overview as short paragraphs (Jeff, 2026-10-06: "paragraphs"). Older
+// reads came as one block, so those are split every two or three sentences.
+function strategyParagraphs(text) {
+  let parts = String(text || '').trim().split(/\n\s*\n/).map(p => p.trim()).filter(Boolean);
+  if (parts.length === 1) {
+    const sents = parts[0].split(/(?<=[.!?])\s+(?=[A-Z(@"\u201c])/);
+    parts = [];
+    for (let i = 0; i < sents.length; i += 2) parts.push(sents.slice(i, i + 2).join(' ').trim());
+  }
+  return parts.map(p => '<p style="margin:0 0 10px;">' + escapeHtml(p) + '</p>').join('');
+}
 function renderStrategy(d) {
   const box = document.getElementById('strategyBox');
   if (!d || !d.ready) { box.innerHTML = '<div class="empty" style="padding:14px;">' + escapeHtml((d && d.note) || 'No strategy read yet. It runs every morning, or press Refresh now.') + '</div>'; return; }
   const chips = arr => (arr || []).map(c => '<span style="font-size:11px;background:var(--bg);border:1px solid var(--border);border-radius:10px;padding:1px 7px;margin-right:4px;">' + escapeHtml(c) + '</span>').join('');
   const sec = t => '<div style="font-size:11px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.06em;margin:14px 0 6px;">' + t + '</div>';
   box.innerHTML =
-    '<div style="font-size:13.5px;line-height:1.55;">' + escapeHtml(d.overview || '') + '</div>' +
+    '<div style="font-size:13.5px;line-height:1.55;">' + strategyParagraphs(d.overview) + '</div>' +
     sec('This week\'s moves') + (d.actions || []).map((a, i) => '<div style="padding:7px 0;border-top:1px solid var(--border);"><b>' + (i + 1) + '. ' + escapeHtml(a.title) + '</b> ' + chips(a.channels) + '<div style="font-size:12.5px;color:var(--text2);">' + escapeHtml(a.why) + '</div></div>').join('') +
     sec('What each channel is for') + '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:8px;">' + (d.channels || []).map(c => '<div style="border:1px solid var(--border);border-radius:8px;padding:9px 11px;background:var(--bg2);"><b>' + escapeHtml(c.channel) + '</b><div style="font-size:12.5px;margin-top:3px;">' + escapeHtml(c.role) + '</div><div style="font-size:12px;color:var(--text2);margin-top:4px;">Wins: ' + escapeHtml(c.wins) + '</div>' + (c.bestTime ? '<div style="font-size:12px;color:var(--text2);margin-top:2px;">Best time: ' + escapeHtml(c.bestTime) + '</div>' : '') + '</div>').join('') + '</div>' +
     sec('Overlap across channels') + ((d.overlap || []).length ? (d.overlap || []).map(o => '<div style="padding:6px 0;border-top:1px solid var(--border);font-size:13px;"><b>' + escapeHtml(o.topic) + '</b> ' + chips(o.channels) + '<div style="font-size:12.5px;color:var(--text2);">' + escapeHtml(o.read) + '</div></div>').join('') : '<div style="font-size:12.5px;color:var(--text3);">Not enough overlapping data yet.</div>') +
