@@ -15,7 +15,7 @@ module.exports = async function handler(req, res) {
   if (!S.isConfigured()) return res.status(200).json({ skipped: 'login not configured, no analytics to read' });
   try {
     var sb = S.admin();
-    var site = await sb.from('sites').select('id').eq('slug', 'insidemdsports').single();
+    var site = await sb.from('sites').select('id').eq('slug', require('./_site').slug()).single();
     if (!site.data) return res.status(200).json({ skipped: 'no site' });
     var out = await Cal.ensureHeatSpots(sb, site.data.id, true);
     var games = [];
@@ -29,3 +29,6 @@ module.exports = async function handler(req, res) {
     return res.status(500).json({ error: e.message });
   }
 };
+
+// Per-newsroom: this request runs as the signed-in person's newsroom (_site.js).
+module.exports = require('./_site').wrap(module.exports);

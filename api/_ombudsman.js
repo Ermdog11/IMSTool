@@ -42,7 +42,7 @@ var TOOL = {
 
 async function readBlob(name, fallback) {
   try {
-    var got = await require('@vercel/blob').get(name, { access: 'private', useCache: false });
+    var got = await require('./_site-blob').get(name, { access: 'private', useCache: false });
     if (got && got.statusCode === 200) return await new Response(got.stream).json();
   } catch (e) { /* fallback */ }
   return fallback;
@@ -85,7 +85,7 @@ async function suggest(alerts, opts) {
   var disliked = [];
   try {
     var fb = await readBlob('story-ideas-feedback.json', {});
-    disliked = (fb.insidemdsports || []).slice(0, 20).map(function (d) { return '- ' + line(d.title, 140); });
+    disliked = (fb[require('./_site').slug()] || []).slice(0, 20).map(function (d) { return '- ' + line(d.title, 140); });
   } catch (e) { /* none */ }
 
   var today = new Date().toLocaleDateString('en-US', { timeZone: 'America/New_York', weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' });
@@ -111,7 +111,7 @@ async function suggest(alerts, opts) {
   }).filter(function (i) { return i.title; });
   if (ideas.length) {
     try {
-      await require('@vercel/blob').put(LATEST, JSON.stringify({ at: new Date().toISOString(), slot: opts.slot || null, ideas: ideas }), { access: 'private', addRandomSuffix: false, allowOverwrite: true, contentType: 'application/json' });
+      await require('./_site-blob').put(LATEST, JSON.stringify({ at: new Date().toISOString(), slot: opts.slot || null, ideas: ideas }), { access: 'private', addRandomSuffix: false, allowOverwrite: true, contentType: 'application/json' });
     } catch (e) { console.error('Ombudsman save failed:', e.message); }
   }
   return ideas;
@@ -246,7 +246,7 @@ async function review(opts) {
   return result;
 }
 async function saveReview(r) {
-  try { await require('@vercel/blob').put(REVIEW, JSON.stringify(r), { access: 'private', addRandomSuffix: false, allowOverwrite: true, contentType: 'application/json' }); }
+  try { await require('./_site-blob').put(REVIEW, JSON.stringify(r), { access: 'private', addRandomSuffix: false, allowOverwrite: true, contentType: 'application/json' }); }
   catch (e) { console.error('Ombudsman review save failed:', e.message); }
 }
 async function latestReview() { return await readBlob(REVIEW, null); }

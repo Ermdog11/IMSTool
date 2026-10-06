@@ -23,7 +23,7 @@ async function siteRef(ctx) {
   if (ctx && ctx.supabase && ctx.site) return { sb: ctx.supabase, id: ctx.site.id };
   if (!S.isConfigured()) return null;
   var sb = S.admin();
-  var site = await sb.from('sites').select('id').eq('slug', 'insidemdsports').single();
+  var site = await sb.from('sites').select('id').eq('slug', require('./_site').slug()).single();
   return site.data ? { sb: sb, id: site.data.id } : null;
 }
 function canManage(ctx) {
@@ -101,3 +101,6 @@ module.exports = async function handler(req, res) {
     return res.status(/not found|Pick|Sign in|Bad date/.test(e.message) ? 400 : 500).json({ error: e.message });
   }
 };
+
+// Per-newsroom: this request runs as the signed-in person's newsroom (_site.js).
+module.exports = require('./_site').wrap(module.exports);

@@ -11,7 +11,6 @@
 
 var S = require('./_supabase');
 var Aff = require('./_affiliate');
-var SITE_SLUG = 'insidemdsports';
 
 function isAdmin(ctx) {
   if (!ctx || ctx.cron || ctx.internal || ctx.open) return !S.isConfigured();
@@ -28,7 +27,7 @@ module.exports = async function handler(req, res) {
   catch (e) { return res.status(e.status || 401).json({ error: e.message || 'Not signed in' }); }
   try {
     var config = await Aff.loadConfig();
-    var site = (ctx && ctx.site && ctx.site.slug) || SITE_SLUG;
+    var site = (ctx && ctx.site && ctx.site.slug) || require('./_site').slug();
     if (req.method === 'GET' && req.query && req.query.for === 'editor') {
       return res.status(200).json({
         site: site,
@@ -77,3 +76,6 @@ module.exports = async function handler(req, res) {
     return res.status(500).json({ error: e.message });
   }
 };
+
+// Per-newsroom: this request runs as the signed-in person's newsroom (_site.js).
+module.exports = require('./_site').wrap(module.exports);

@@ -9,7 +9,7 @@
 // lock anyone out of the tool.
 
 (function () {
-  var STATE = { ready: false, configured: false, user: null, role: null, access: null, byline: null, site: null, client: null, preview: false };
+  var STATE = { ready: false, configured: false, user: null, role: null, access: null, byline: null, site: null, sites: [], client: null, preview: false };
 
   // Sections safe to show a signed-out visitor as a read-mostly demo — no drafts,
   // no team/config controls, nothing that emails the publisher or costs real work
@@ -49,11 +49,57 @@
           var h = init.headers || {};
           if (typeof Headers !== 'undefined' && h instanceof Headers) { if (!h.has('Authorization')) h.set('Authorization', 'Bearer ' + t); }
           else if (!h.Authorization) init.headers = Object.assign({}, h, { Authorization: 'Bearer ' + t });
+          // Which newsroom, for people in more than one (api/_site.js).
+          var cs = chosenSite();
+          if (cs) {
+            var h2 = init.headers || {};
+            if (typeof Headers !== 'undefined' && h2 instanceof Headers) h2.set('X-Site', cs);
+            else init.headers = Object.assign({}, h2, { 'X-Site': cs });
+          }
         }
       }
     } catch (e) { /* never block a request over auth plumbing */ }
     return rawFetch(input, init);
   };
+
+  // The newsroom picked in the switcher (only set for people in several).
+  function chosenSite() { try { return localStorage.getItem('cp-site') || ''; } catch (e) { return ''; } }
+  function chooseSite(slug) {
+    try { if (slug) localStorage.setItem('cp-site', slug); else localStorage.removeItem('cp-site'); } catch (e) {}
+    location.reload();
+  }
+
+  // Signed in, but not part of any newsroom: start one (api/newsroom-create)
+  // and go straight into the setup wizard. Multi-newsroom, 2026-10-06.
+  function showNoNewsroom(me) {
+    function esc(x) { var d = document.createElement('div'); d.textContent = x == null ? '' : String(x); return d.innerHTML; }
+    var wrap = document.createElement('div');
+    wrap.id = 'cp-nonewsroom';
+    wrap.style.cssText = 'position:fixed;inset:0;z-index:9999;background:#f7f6f2;display:flex;align-items:flex-start;justify-content:center;padding:48px 16px;overflow:auto;font:15px/1.5 -apple-system,BlinkMacSystemFont,Segoe UI,sans-serif;color:#1a1a1a';
+    wrap.innerHTML = '<div style="background:#fff;border:1px solid #e5e2da;border-radius:12px;max-width:440px;width:100%;padding:26px 24px">' +
+      '<h1 style="font-size:24px;margin:0 0 8px">Start your newsroom</h1>' +
+      '<p style="color:#555;margin:0 0 18px">You\'re signed in as <b>' + esc(me.user && me.user.email) + '</b> but aren\'t part of a newsroom yet. Name yours and we\'ll walk you through setting up your beat. Joining someone else\'s? Ask its publisher to invite this email, then sign in again.</p>' +
+      '<label for="cp-nn-name" style="display:block;font-weight:600;font-size:17px;margin-bottom:6px">Newsroom name</label>' +
+      '<input id="cp-nn-name" placeholder="e.g. Hokies Insider" maxlength="80" style="width:100%;box-sizing:border-box;font:inherit;font-size:16px;padding:11px;border:1px solid #d6d2c8;border-radius:8px">' +
+      '<button id="cp-nn-go" style="margin-top:14px;width:100%;font:inherit;font-weight:700;background:#c8102e;color:#fff;border:0;border-radius:8px;padding:12px;cursor:pointer">Create my newsroom</button>' +
+      '<div id="cp-nn-msg" style="margin-top:10px;font-size:13.5px;color:#b42318"></div>' +
+      '<button id="cp-nn-out" style="margin-top:16px;background:none;border:0;color:#666;text-decoration:underline;cursor:pointer;font:inherit;font-size:13.5px">Sign out</button></div>';
+    document.body.appendChild(wrap);
+    var go = document.getElementById('cp-nn-go'), msg = document.getElementById('cp-nn-msg');
+    document.getElementById('cp-nn-out').onclick = signOut;
+    go.onclick = async function () {
+      var name = document.getElementById('cp-nn-name').value.trim();
+      if (name.length < 2) { msg.textContent = 'Give your newsroom a name.'; return; }
+      go.disabled = true; go.textContent = 'Creating…'; msg.textContent = '';
+      try {
+        var r = await window.fetch('/api/newsroom-create', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name: name }) });
+        var d = await r.json().catch(function () { return {}; });
+        if (!r.ok || !d.ok) throw new Error(d.error || 'Could not create it');
+        try { localStorage.setItem('cp-site', d.site.slug); } catch (e) {}
+        location.replace(d.next || '/setup');
+      } catch (e) { msg.textContent = e.message; go.disabled = false; go.textContent = 'Create my newsroom'; }
+    };
+  }
 
   // fetch() wrapper that adds the bearer token when we have one.
   async function authFetch(url, opts) {
@@ -62,6 +108,7 @@
     if (t) {
       opts.headers = Object.assign({}, opts.headers, { Authorization: 'Bearer ' + t });
     }
+    if (chosenSite()) opts.headers = Object.assign({}, opts.headers, { 'X-Site': chosenSite() });
     return rawFetch(url, opts);
   }
 
@@ -70,7 +117,9 @@
     opts = opts || {};
     try {
       var t = await token();
-      var r = await fetch('/api/me', { headers: t ? { Authorization: 'Bearer ' + t } : {} });
+      var mh = t ? { Authorization: 'Bearer ' + t } : {};
+      if (chosenSite()) mh['X-Site'] = chosenSite();
+      var r = await fetch('/api/me', { headers: mh });
       var me = await r.json();
 
       STATE.configured = !!me.configured;
@@ -89,6 +138,14 @@
       STATE.access = me.access || null; // what this role may use (api/_access.js)
       STATE.byline = me.byline || null;
       STATE.site = me.site || null;
+      STATE.sites = me.sites || [];
+      STATE.beat = me.beat || null;
+      // A remembered newsroom this person no longer belongs to: forget it.
+      if (chosenSite() && STATE.site && STATE.site.slug !== chosenSite()) { try { localStorage.removeItem('cp-site'); } catch (e) {} }
+      if (me.pending && me.canCreate && !opts.allowPending && !/[?&]preview=1/.test(location.search)) {
+        showNoNewsroom(me);
+        return new Promise(function () {});                            // the page waits behind the newsroom screen
+      }
       STATE.ready = true;
       showHealthBanner();
       return STATE;
@@ -138,6 +195,19 @@
     out.textContent = 'Sign out';
     out.style.cssText = 'background:transparent;border:1px solid rgba(255,255,255,.25);color:rgba(255,255,255,.8);border-radius:20px;padding:3px 10px;font-size:11px;cursor:pointer;';
     out.onclick = signOut;
+    // Newsroom switcher, only for people in more than one newsroom.
+    if (STATE.sites && STATE.sites.length > 1) {
+      var sel = document.createElement('select');
+      sel.title = 'Switch newsroom';
+      sel.style.cssText = 'background:transparent;border:1px solid rgba(255,255,255,.25);color:rgba(255,255,255,.85);border-radius:20px;padding:3px 8px;font-size:11px;max-width:160px;';
+      STATE.sites.forEach(function (x) {
+        var o = document.createElement('option'); o.value = x.slug; o.textContent = x.name; o.style.color = '#000';
+        if (STATE.site && STATE.site.slug === x.slug) o.selected = true;
+        sel.appendChild(o);
+      });
+      sel.onchange = function () { chooseSite(sel.value); };
+      wrap.appendChild(sel);
+    }
     wrap.appendChild(who); wrap.appendChild(out);
     containerEl.appendChild(wrap);
   }
@@ -151,6 +221,7 @@
     signOut: signOut,
     showHealthBanner: showHealthBanner,
     mountMenu: mountMenu,
+    chooseSite: chooseSite,
     isPublisher: function () { return STATE.role === 'publisher'; },
     isEditor: function () { return STATE.role === 'publisher' || STATE.role === 'editor'; }
   };

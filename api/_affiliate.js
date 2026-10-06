@@ -23,7 +23,7 @@
 // so two clicks in the same instant can count as one; the networks' own
 // numbers are what pay out.
 
-var { get, put } = require('@vercel/blob');
+var { get, put } = require('./_site-blob');
 var CONFIG = 'affiliate/config.json';
 
 async function readJson(path, fallback) {

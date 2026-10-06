@@ -16,6 +16,8 @@ var BROWSER_UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (
 // Recent InsideMDSports / 247 Maryland articles, for internal linking. Same scrape the
 // news monitor uses for its own-outlet blocklist — the landing page loads server-side.
 async function relatedArticleIndex() {
+  // Another newsroom: its own site's recent articles (multi-newsroom).
+  if (!require('./_site').isDefault()) return ownSiteArticleIndex();
   var fresh = [];
   try {
     var c = new AbortController();
@@ -42,7 +44,7 @@ async function relatedArticleIndex() {
   // The 247 landing page intermittently 406s bot traffic -> zero links that run.
   // Persist the last good scrape to Blob and fall back to it when a scrape is empty.
   try {
-    var blob = require('@vercel/blob');
+    var blob = require('./_site-blob');
     if (fresh.length >= 5) {
       blob.put('copydesk-related-index.json', JSON.stringify(fresh), {
         access: 'private', addRandomSuffix: false, allowOverwrite: true, contentType: 'application/json'
@@ -56,6 +58,49 @@ async function relatedArticleIndex() {
     }
   } catch (e) { /* no blob — just use whatever we scraped */ }
   return fresh;
+}
+
+// Recent articles from the newsroom's own site (beat ownSite.url), for
+// internal links: article-shaped links on the same site, headline from the
+// link text. Best-effort; [] when the site isn't set or won't load.
+async function ownSiteArticleIndex() {
+  try {
+    var S = require('./_supabase');
+    var b = await require('./_beat').getBeat(S.isConfigured() ? S.admin() : null);
+    var home = String(b.ownSite.url || '').trim();
+    if (!home && S.isConfigured()) {
+      var prof = await require('./_settings-store').getProfile(S.admin()).catch(function () { return null; });
+      home = String((prof && prof.website) || '').trim();             // the wizard's "Your website"
+    }
+    if (!home) return [];
+    if (!/^https?:\/\//i.test(home)) home = 'https://' + home;
+    var host = new URL(home).hostname.replace(/^www\./, '');
+    var c = new AbortController();
+    var t = setTimeout(function () { c.abort(); }, 12000);
+    var html = await fetch(home, { headers: { 'User-Agent': BROWSER_UA }, signal: c.signal })
+      .then(function (r) { return r.text(); }).finally(function () { clearTimeout(t); });
+    var artRe = require('./_beat').ownArticleRegex(b);
+    var out = [], seen = {}, m;
+    var re = /<a\b[^>]*href="([^"#?]+)"[^>]*>([\s\S]*?)<\/a>/gi;
+    while ((m = re.exec(html)) !== null && out.length < 30) {
+      var url;
+      try { url = new URL(m[1], home); } catch (e) { continue; }
+      if (url.hostname.replace(/^www\./, '') !== host) continue;
+      var path = url.pathname;
+      if (artRe) { artRe.lastIndex = 0; if (!artRe.test(path)) continue; }
+      else {
+        var last = path.replace(/\/+$/, '').split('/').pop() || '';
+        if (last.split('-').length < 4) continue;                    // article slugs, not section pages
+      }
+      var headline = m[2].replace(/<[^>]+>/g, ' ').replace(/&amp;/g, '&').replace(/&#39;|&rsquo;/g, "'").replace(/\s+/g, ' ').trim();
+      if (headline.length < 20) headline = (path.replace(/\/+$/, '').split('/').pop() || '').replace(/-\d+$/, '').replace(/-/g, ' ');
+      var key = url.origin + path;
+      if (seen[key]) continue;
+      seen[key] = 1;
+      out.push({ url: key, headline: headline.slice(0, 160) });
+    }
+    return out;
+  } catch (e) { return []; }
 }
 
 // 3 related YouTube videos for a search query. Best-effort — returns [] on any
@@ -493,3 +538,6 @@ module.exports.searchKnowledgeBase = searchKnowledgeBase;
 module.exports.runAgenticLoop = runAgenticLoop;
 module.exports.KB_SEARCH_TOOL = KB_SEARCH_TOOL;
 module.exports.WEB_SEARCH_TOOL = WEB_SEARCH_TOOL;
+
+// Per-newsroom: this request runs as the signed-in person's newsroom (_site.js).
+module.exports = require('./_site').wrap(module.exports);

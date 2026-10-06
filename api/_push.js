@@ -4,7 +4,7 @@
 // detects something worth an immediate desktop alert (breaking news, a
 // roster change) calls sendPush() here.
 var webpush = require('web-push');
-var { get, put } = require('@vercel/blob');
+var { get, put } = require('./_site-blob');
 
 var SUBS_PATH = 'push-subscriptions.json';
 var configured = false;

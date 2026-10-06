@@ -31,3 +31,6 @@ module.exports = async function handler(req, res) {
   await State.setEnabled(ctx.site.slug, !!body.enabled);
   return res.status(200).json({ ok: true, enabled: !!body.enabled });
 };
+
+// Per-newsroom: this request runs as the signed-in person's newsroom (_site.js).
+module.exports = require('./_site').wrap(module.exports);

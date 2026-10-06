@@ -45,13 +45,13 @@ function emailLinks(story) {
 
 async function load() {
   try {
-    var got = await require('@vercel/blob').get(KEY, { access: 'private', useCache: false });
+    var got = await require('./_site-blob').get(KEY, { access: 'private', useCache: false });
     if (got && got.statusCode === 200) return await new Response(got.stream).json();
   } catch (e) {}
   return [];
 }
 async function save(list) {
-  await require('@vercel/blob').put(KEY, JSON.stringify(list.slice(0, KEEP)), { access: 'private', addRandomSuffix: false, allowOverwrite: true, contentType: 'application/json' });
+  await require('./_site-blob').put(KEY, JSON.stringify(list.slice(0, KEEP)), { access: 'private', addRandomSuffix: false, allowOverwrite: true, contentType: 'application/json' });
 }
 
 function keyOf(r) { return (r.url || '').split('?')[0] || String(r.headline || '').toLowerCase(); }

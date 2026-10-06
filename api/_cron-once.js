@@ -12,7 +12,7 @@ var PREFIX = 'cron-once/';
 async function claim(job, period) {
   var path = PREFIX + job + '/' + period + '.json';
   try {
-    var blob = require('@vercel/blob');
+    var blob = require('./_site-blob');
     var existing = await blob.head(path).catch(function() { return null; });
     if (existing) return false;
     // allowOverwrite:false makes the write itself fail if another delivery

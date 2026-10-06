@@ -51,6 +51,23 @@ module.exports = async function handler(req, res) {
     return contextWords.some(function(w) { return t.includes(w); });
   }
 
+  // Another newsroom: the searches come from its beat profile instead
+  // (multi-newsroom, 2026-10-06). InsideMDSports keeps its tuned list above.
+  await require('./_supabase').optionalUser(req);
+  if (!require('./_site').isDefault()) {
+    var S0 = require('./_supabase');
+    var b = await require('./_beat').getBeat(S0.isConfigured() ? S0.admin() : null);
+    var t0 = b.team;
+    queries = [];
+    if (t0.name && t0.name !== 'our team') queries.push('"' + t0.name + '"');
+    b.primarySports.slice(0, 3).forEach(function (sp) { queries.push('"' + t0.short + ' ' + sp + '"'); });
+    b.keyFigures.slice(0, 8).forEach(function (n) { queries.push('"' + String(n).replace(/\s*\(.*?\)\s*/g, '').trim() + '"'); });
+    t0.nicknames.slice(0, 3).forEach(function (n) { queries.push({ q: n, requireContext: true }); });
+    excluded = b.excludeSources.slice();
+    contextWords = b.relevanceWords.concat([String(t0.short || '').toLowerCase(), 'football', 'basketball', 'recruiting', 'commit', 'portal']).filter(Boolean);
+    if (!queries.length) return res.status(200).json({ posts: [], error: 'Set up your beat first (/setup) so we know what to search for.' });
+  }
+
   try {
     var debug = [];
 
@@ -62,7 +79,7 @@ module.exports = async function handler(req, res) {
     try { token = (await Bluesky.createSession()).token; }
     catch (e) { return res.status(200).json({ posts: [], error: e.message }); }
 
-    var allQueries = queries.concat(beatHandles.map(function(h) {
+    var allQueries = queries.concat((require('./_site').isDefault() ? beatHandles : []).map(function(h) {
       return { q: 'from:' + h + ' Maryland OR Terps OR Terrapins', requireContext: false };
     }));
 
@@ -164,3 +181,6 @@ module.exports = async function handler(req, res) {
     return res.status(500).json({ posts: [], error: e.message });
   }
 };
+
+// Per-newsroom: this request runs as the signed-in person's newsroom (_site.js).
+module.exports = require('./_site').wrap(module.exports);

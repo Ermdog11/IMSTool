@@ -32,7 +32,6 @@
 // importance score from the setup wizard; see weightNote().
 
 var SEEDS = { insidemdsports: function () { return require('./_beats/insidemdsports.json'); } };
-var DEFAULT_SLUG = 'insidemdsports';
 
 function list(v) {
   return (Array.isArray(v) ? v : String(v || '').split(/\n|,/)).map(function (x) { return String(x).trim(); }).filter(Boolean);
@@ -127,7 +126,9 @@ function normalize(b) {
 }
 
 async function getBeat(sb, siteSlug) {
-  var slug = siteSlug || DEFAULT_SLUG;
+  // The newsroom this request runs as (_site.js). Only InsideMDSports has a
+  // hand-tuned seed; a new newsroom starts empty until its wizard saves.
+  var slug = siteSlug || require('./_site').slug();
   var saved = null;
   try {
     if (sb) {

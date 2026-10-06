@@ -144,7 +144,7 @@ module.exports = async function handler(req, res) {
     if (S.isConfigured()) {
       try {
         var sb = S.admin();
-        var site = await sb.from('sites').select('id').eq('slug', 'insidemdsports').single();
+        var site = await sb.from('sites').select('id').eq('slug', require('./_site').slug()).single();
         if (site.data) yesterday = await require('./_yesterday-analytics').gatherYesterday(sb, site.data.id);
       } catch (e) { console.error('coverage-desk analytics failed (non-fatal):', e.message); }
     }
@@ -164,7 +164,7 @@ module.exports = async function handler(req, res) {
     if (S.isConfigured()) {
       try {
         var hsb = S.admin();
-        var hsite = await hsb.from('sites').select('id').eq('slug', 'insidemdsports').single();
+        var hsite = await hsb.from('sites').select('id').eq('slug', require('./_site').slug()).single();
         if (hsite.data) {
           var heat = await require('./_calendar').ensureHeatSpots(hsb, hsite.data.id, false);
           var nowMs = Date.now();
@@ -199,7 +199,7 @@ module.exports = async function handler(req, res) {
     try {
       if (S.isConfigured()) {
         var ksb = S.admin();
-        var ksite = await ksb.from('sites').select('id').eq('slug', 'insidemdsports').single();
+        var ksite = await ksb.from('sites').select('id').eq('slug', require('./_site').slug()).single();
         if (ksite.data) {
           var WS = require('./_writer-stats');
           kudosLines = WS.kudos(await WS.get(ksb, ksite.data.id, 7, true));
@@ -270,3 +270,6 @@ module.exports = async function handler(req, res) {
     return res.status(500).json({ error: e.message });
   }
 };
+
+// Per-newsroom: this request runs as the signed-in person's newsroom (_site.js).
+module.exports = require('./_site').wrap(module.exports);

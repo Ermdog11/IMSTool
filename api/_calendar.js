@@ -19,7 +19,7 @@
 //
 // Stored in Vercel Blob (calendar/events.json): small, newsroom-wide.
 
-var { get, put } = require('@vercel/blob');
+var { get, put } = require('./_site-blob');
 var PATH = 'calendar/events.json';
 var TZ = 'America/New_York';
 var STEPS = [30, 60, 90, 120, 150, 180, 210, 240, 270, 300, 330, 360];

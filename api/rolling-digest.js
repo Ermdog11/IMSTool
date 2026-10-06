@@ -260,7 +260,7 @@ module.exports = async function handler(req, res) {
     try { ideas = await require('./_ombudsman.js').suggest(allAlerts, { slot: slot }); } catch (e) { console.error('Ombudsman ideas failed (non-fatal):', e.message); }
 
     var recordsList = [];
-    try { recordsList = await require('./_records.js').pendingForDigest('insidemdsports'); } catch (e) { console.error('Records for digest failed (non-fatal):', e.message); }
+    try { recordsList = await require('./_records.js').pendingForDigest(require('./_site').slug()); } catch (e) { console.error('Records for digest failed (non-fatal):', e.message); }
     var mailResult = await mailer.sendMail({
       alertType: 'digest_rolling',
       subject: alerts.length
@@ -269,7 +269,7 @@ module.exports = async function handler(req, res) {
       html: buildEmailHTML(alerts, date, slot, overflowByTopic, recordsList, ideas, slot === 'evening' ? await earlyHotSpotsHtml() : '')
     });
     if (recordsList.length && mailResult && !mailResult.error) {
-      try { await require('./_records.js').markInDigest('insidemdsports', recordsList.map(function(x) { return x.id; })); } catch (e) { console.error('Records digest mark failed:', e.message); }
+      try { await require('./_records.js').markInDigest(require('./_site').slug(), recordsList.map(function(x) { return x.id; })); } catch (e) { console.error('Records digest mark failed:', e.message); }
     }
 
     // Auto-draft a ready-to-review article for each NEW rating-4+ story (never
@@ -342,7 +342,7 @@ module.exports = async function handler(req, res) {
           await Drafts.saveDraft(doc);
 
           var reviewUrl = 'https://ims-tool.vercel.app/editor#3/' + id;
-          var recipients = await S.recipientsFor('breaking', 'insidemdsports');
+          var recipients = await S.recipientsFor('breaking', require('./_site').slug());
           var mailToBreaking = null;
           if (recipients.length) {
             try {
@@ -404,3 +404,6 @@ module.exports = async function handler(req, res) {
     return res.status(500).json({ success: false, error: error.message });
   }
 };
+
+// Per-newsroom: this request runs as the signed-in person's newsroom (_site.js).
+module.exports = require('./_site').wrap(module.exports);

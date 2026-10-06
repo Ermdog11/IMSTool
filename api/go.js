@@ -32,3 +32,6 @@ module.exports = async function handler(req, res) {
     return res.status(500).send('Something went wrong');
   }
 };
+
+// Per-newsroom: this request runs as the signed-in person's newsroom (_site.js).
+module.exports = require('./_site').wrap(module.exports);

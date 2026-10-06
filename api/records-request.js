@@ -20,7 +20,8 @@ var Beat = require('./_beat.js');
 var Records = require('./_records.js');
 var { sendMail } = require('./_mailer.js');
 
-var SITE = 'insidemdsports';
+// The newsroom this request runs as (_site.js).
+function curSite() { return require('./_site').slug(); }
 var EMAIL_RE = Records.EMAIL_RE;
 
 function clean(a) {
@@ -41,11 +42,11 @@ module.exports = async function handler(req, res) {
   if (req.method === 'GET') {
     // Suggested requests from the records-suggest cron, newest first.
     if (req.query && req.query.suggestions) {
-      var sug = await Records.listSuggestions(SITE);
+      var sug = await Records.listSuggestions(curSite());
       return res.status(200).json({ suggestions: sug.filter(function (x) { return x.status !== 'dismissed'; }).slice(0, 40) });
     }
     var all = await Records.loadState();
-    return res.status(200).json({ requests: all[SITE] || [] });
+    return res.status(200).json({ requests: all[curSite()] || [] });
   }
   if (req.method !== 'POST') return res.status(405).json({ error: 'GET or POST' });
 
@@ -60,7 +61,7 @@ module.exports = async function handler(req, res) {
     // Mark a suggestion handled: 'sent' or 'dismissed' (anyone signed in).
     if (body.action === 'suggestion-status') {
       if (['new', 'sent', 'dismissed'].indexOf(body.status) === -1) return res.status(400).json({ error: 'Unknown status' });
-      var upd = await Records.setSuggestionStatus(SITE, String(body.id || ''), body.status);
+      var upd = await Records.setSuggestionStatus(curSite(), String(body.id || ''), body.status);
       return upd ? res.status(200).json({ ok: true }) : res.status(404).json({ error: 'Not found' });
     }
     if (body.action === 'draft') {
@@ -99,7 +100,7 @@ module.exports = async function handler(req, res) {
         responseNote: String(body.responseNote || '').slice(0, 300),
         story: clean(body.alert), requestedBy: who.email || null, via: sent.via
       };
-      try { await Records.appendLog(SITE, entry); } catch (e) { console.error('records log failed', e.message); }
+      try { await Records.appendLog(curSite(), entry); } catch (e) { console.error('records log failed', e.message); }
       return res.status(200).json({ ok: true, request: entry });
     }
 
@@ -108,3 +109,6 @@ module.exports = async function handler(req, res) {
     return res.status(500).json({ error: e.message });
   }
 };
+
+// Per-newsroom: this request runs as the signed-in person's newsroom (_site.js).
+module.exports = require('./_site').wrap(module.exports);

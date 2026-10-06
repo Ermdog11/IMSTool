@@ -84,7 +84,7 @@ async function findGames(beat) {
 }
 
 async function addGames(sb) {
-  var beat = await require('./_beat').getBeat(sb, 'insidemdsports');
+  var beat = await require('./_beat').getBeat(sb);
   var games = await findGames(beat);
   return await Cal.addAiEvents(games, { summary: 'Upcoming games CoPublisher found on the schedule.' });
 }

@@ -2,7 +2,7 @@
 // small index doc (so listing drafts doesn't depend on Blob's list() API,
 // which showed CDN read-after-write lag in the push-subscription work —
 // see _push.js). Every read uses useCache:false for the same reason.
-var { get, put, del } = require('@vercel/blob');
+var { get, put, del } = require('./_site-blob');
 
 var INDEX_PATH = 'drafts/index.json';
 

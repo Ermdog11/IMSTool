@@ -14,7 +14,7 @@
 // Blob alert-schedules.json: { email: { type: { days:[0-6], from:'HH:MM', to:'HH:MM' } } }
 // (no entry, or every day with no hours, = any time). Best-effort: a failed
 // read sends to everyone, as before.
-var { get, put } = require('@vercel/blob');
+var { get, put } = require('./_site-blob');
 var PATH = 'alert-schedules.json';
 var TZ = 'America/New_York';
 
@@ -83,7 +83,7 @@ async function filter(emails, type, nowMs) {
     var S = require('./_supabase');
     if (S.isConfigured()) {
       var sb = S.admin();
-      var site = await sb.from('sites').select('id').eq('slug', 'insidemdsports').single();
+      var site = await sb.from('sites').select('id').eq('slug', require('./_site').slug()).single();
       if (site.data) {
         var mem = await sb.from('memberships').select('user_id, role, profiles(email)').eq('site_id', site.data.id);
         var prefs = await sb.from('alert_prefs').select('user_id, enabled').eq('site_id', site.data.id).eq('alert_type', type);

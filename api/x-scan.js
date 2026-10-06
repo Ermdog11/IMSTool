@@ -175,7 +175,7 @@ module.exports = async function handler(req, res) {
           await Drafts.saveDraft(doc);
 
           var reviewUrl = 'https://ims-tool.vercel.app/editor#3/' + id;
-          var recipients = await S.recipientsFor('breaking', 'insidemdsports');
+          var recipients = await S.recipientsFor('breaking', require('./_site').slug());
           var mailResult = null;
           if (recipients.length) {
             try {
@@ -231,3 +231,6 @@ module.exports = async function handler(req, res) {
     return res.status(500).json({ success: false, error: error.message });
   }
 };
+
+// Per-newsroom: this request runs as the signed-in person's newsroom (_site.js).
+module.exports = require('./_site').wrap(module.exports);

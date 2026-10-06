@@ -121,3 +121,6 @@ module.exports = async function handler(req, res) {
     changesFound: changedByScope.teams.length + changedByScope.department.length, report: report
   });
 };
+
+// Per-newsroom: this request runs as the signed-in person's newsroom (_site.js).
+module.exports = require('./_site').wrap(module.exports);

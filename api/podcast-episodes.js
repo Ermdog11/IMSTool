@@ -21,6 +21,12 @@ async function fetchText(url) {
 
 module.exports = async function handler(req, res) {
   var feed = (req.query && req.query.url) || process.env.PODCAST_FEED_URL || DEFAULT_FEED;
+  // IMS Radio (the default feed) is InsideMDSports' own show; another
+  // newsroom uses the feed it saved (passed as ?url=) or none.
+  await require('./_supabase').optionalUser(req);
+  if (!require('./_site').isDefault() && !(req.query && req.query.url)) {
+    return res.status(200).json({ episodes: [], error: 'Add your podcast\'s RSS feed in the Content Editor\'s podcast settings.' });
+  }
   try {
     var xml = await fetchText(feed);
     // If we got a landing page, try common feed paths off the same URL.
@@ -69,3 +75,6 @@ module.exports = async function handler(req, res) {
     return res.status(200).json({ episodes: [], error: 'Could not read the podcast feed: ' + e.message });
   }
 };
+
+// Per-newsroom: this request runs as the signed-in person's newsroom (_site.js).
+module.exports = require('./_site').wrap(module.exports);

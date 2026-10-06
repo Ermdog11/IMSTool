@@ -18,7 +18,7 @@
 //   log / suggested state in Blob records-requests.json.
 //
 // Nothing here sends a request: a person always reviews and clicks Send.
-var { get, put } = require('@vercel/blob');
+var { get, put } = require('./_site-blob');
 
 var LOG_PATH = 'records-requests.json';
 var OFFICE_PATH = 'records-offices.json';

@@ -43,3 +43,6 @@ module.exports = async function handler(req, res) {
     return res.status(400).json({ error: e.message });
   }
 };
+
+// Per-newsroom: this request runs as the signed-in person's newsroom (_site.js).
+module.exports = require('./_site').wrap(module.exports);

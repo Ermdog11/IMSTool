@@ -19,6 +19,13 @@ module.exports = async function handler(req, res) {
   ];
 
   var keywords = ['maryland', 'terps', 'terrapins', 'locksley', 'buzz williams', 'oladotun', 'derik queen', 'malik washington'];
+  // Another newsroom: listen for its own team and people (multi-newsroom).
+  if (!require('./_site').isDefault()) {
+    var S0 = require('./_supabase');
+    var b0 = await require('./_beat').getBeat(S0.isConfigured() ? S0.admin() : null);
+    keywords = b0.relevanceWords.slice();
+    if (!keywords.length) return res.status(200).json({ hits: [], error: 'Set up your beat first (/setup).' });
+  }
   var cutoff = Date.now() - 7 * 24 * 60 * 60 * 1000;
   var debug = [];
 
@@ -113,3 +120,6 @@ module.exports = async function handler(req, res) {
     return res.status(500).json({ hits: [], error: e.message });
   }
 };
+
+// Per-newsroom: this request runs as the signed-in person's newsroom (_site.js).
+module.exports = require('./_site').wrap(module.exports);

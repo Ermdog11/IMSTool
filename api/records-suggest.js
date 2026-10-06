@@ -20,7 +20,8 @@ var Latest = require('./_latest-scan.js');
 var Records = require('./_records.js');
 var mailer = require('./_mailer.js');
 
-var SITE = 'insidemdsports';
+// The newsroom this request runs as (_site.js).
+function curSite() { return require('./_site').slug(); }
 var MAX_PER_RUN = 3;
 
 function esc(s) { return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); }
@@ -59,7 +60,7 @@ module.exports = async function handler(req, res) {
 
   try {
     var latest = await Latest.load();
-    var seen = await Records.suggestedKeys(SITE);
+    var seen = await Records.suggestedKeys(curSite());
     var candidates = scanAlerts(latest).filter(function (a) {
       var tier = typeof a.recordsTier === 'number' ? a.recordsTier : Records.classify(a);
       a._tier = tier;
@@ -69,7 +70,7 @@ module.exports = async function handler(req, res) {
 
     var sb = S.isConfigured() ? S.admin() : null;
     var beat = await Beat.getBeat(sb);
-    var recipients = await S.recipientsFor('records', SITE);
+    var recipients = await S.recipientsFor('records', curSite());
     if (!recipients.length && !S.isConfigured()) recipients = mailer.digestList();
 
     var results = [], done = [];
@@ -83,7 +84,7 @@ module.exports = async function handler(req, res) {
         var tierLabel = a._tier === 1 ? 'coaching hire, firing or contract' : 'sponsorship, game or event deal';
         // Kept for the News Monitor and the next update email (Jeff, 2026-10-06).
         try {
-          await Records.addSuggestion(SITE, { headline: story.headline, url: story.url, source: story.source, tier: a._tier, tierLabel: tierLabel,
+          await Records.addSuggestion(curSite(), { headline: story.headline, url: story.url, source: story.source, tier: a._tier, tierLabel: tierLabel,
             draft: { to: d.to || '', toVerified: !!d.toVerified, toUnconfirmed: d.toUnconfirmed || '', toSource: d.toSource || '', portal: d.portal || '', agency: d.agency || '', law: d.law || '', subject: d.subject || '', body: d.body || '', records: d.records || [], reason: d.reason || '', response_note: d.response_note || '' } });
         } catch (e) { console.error('records-suggest save failed', e.message); }
         var mail = null;
@@ -97,9 +98,12 @@ module.exports = async function handler(req, res) {
         results.push({ headline: story.headline, error: e.message });
       }
     }
-    if (done.length) { try { await Records.markSuggested(SITE, done); } catch (e) { console.error('records-suggest mark failed', e.message); } }
+    if (done.length) { try { await Records.markSuggested(curSite(), done); } catch (e) { console.error('records-suggest mark failed', e.message); } }
     return res.status(200).json({ ok: true, suggested: results.filter(function (r) { return r.eligible; }).length, results: results });
   } catch (e) {
     return res.status(500).json({ error: e.message });
   }
 };
+
+// Per-newsroom: this request runs as the signed-in person's newsroom (_site.js).
+module.exports = require('./_site').wrap(module.exports);
