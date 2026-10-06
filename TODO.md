@@ -58,6 +58,8 @@
 
 ## Done
 
+- **2026-10-06 — "💡 Ombudsman: 5 ideas now" button on the Story backlog tab** (Jeff asked where the Ombudsman is: it only ran inside update emails). `POST /api/story-ideas {action:'ombudsman', alerts}` runs it on demand with the page's latest scan, and the five show at the top of the tab. maxDuration is 60.
+
 - **2026-10-06 — Ombudsman: five story ideas in every update email** (Jeff). This is the first cut of the coverage-ideas agent below. `_ombudsman.js` makes one forced-tool Claude call per rolling digest (3 a day). It reads the update's rated news, our recent headlines (no repeats; follow-ups encouraged), Opp Watch gaps from the last 3 days, the next 7 days of calendar, and "Fewer like this" feedback. The mix: at least one gap, one follow-up, and one tied to an upcoming event. The "💡 Five story ideas" box goes at the bottom of the email. The latest five are saved to Blob and shown at the top of the Story backlog tab with Write it.
 - **2026-10-06 — Publisher can mass-delete Team Chat messages** (Jeff). The publisher gets "☑️ Select to delete" on Team Chat, with a checkbox per message (or click the message), Select all, and Delete selected after a confirm. `POST /api/chat {action:'delete', ids}` is publisher-only and deletes only this site's rows (`_chat-store.remove`).
 - **2026-10-06 — No more "Breaking" on previews and speculation** (Jeff, on an opponent site's "Five Things to Know" preview rated 5: "labeling breaking on things that aren't even close ... will be bad for credibility"). The cause: the preview mentioned the coach's job status ("tenure nearing its end") and an injury, and the always-5 rules for coaching changes and major injuries pulled it to 5. Now:

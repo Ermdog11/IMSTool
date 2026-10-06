@@ -361,9 +361,10 @@ body.no-opps .acc-opps,body.no-write .acc-write,body.no-flag .acc-flag,body.no-f
   <div class="scan-bar" style="margin-bottom:14px;">
     <div class="scan-indicator">
       <div class="scan-dot" style="background:#3B6D11;"></div>
-      <div class="scan-text"><strong>Story ideas</strong> — auto-generated from alerts, plus manual adds</div>
+      <div class="scan-text"><strong>Story ideas</strong> — the Ombudsman's five (also in every update email), plus ideas from the latest alerts</div>
     </div>
-    <button class="scan-btn" onclick="generateBacklog()"><i class="ti ti-bulb"></i> Generate ideas</button>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;"><button class="scan-btn" id="ombRunBtn" onclick="runOmbudsman(this)" style="background:#4338ca;">💡 Ombudsman: 5 ideas now</button>
+    <button class="scan-btn" onclick="generateBacklog()"><i class="ti ti-bulb"></i> Generate ideas</button></div>
   </div>
   <div class="notice" style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;">
     <span><i class="ti ti-robot"></i> <strong>Coverage Desk</strong> — an assistant editor's memo (priorities, gaps, follow-ups) emails you every morning at 7&nbsp;AM.</span>
@@ -2459,6 +2460,18 @@ async function loadOmbudsmanIdeas() {
         </div>
       </div>`).join('');
   } catch (e) { el.innerHTML = ''; }
+}
+async function runOmbudsman(btn) {
+  const el = document.getElementById('ombudsmanIdeas');
+  btn.disabled = true; const old = btn.textContent; btn.textContent = 'Thinking… (about 20 seconds)';
+  try {
+    const r = await IMSAuth.authFetch('/api/story-ideas', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'ombudsman', alerts: (allAlerts || []).slice(0, 40).map(a => ({ headline: a.headline, summary: a.summary, rating: a.rating, source: a.source })) }) });
+    const d = await r.json().catch(() => ({}));
+    if (!r.ok || d.error) throw new Error(d.error || ('HTTP ' + r.status));
+    await loadOmbudsmanIdeas();
+  } catch (e) { el.innerHTML = '<div class="empty" style="padding:10px;">Couldn\'t get ideas: ' + escapeHtml(e.message) + '</div>'; }
+  btn.disabled = false; btn.textContent = old;
 }
 function writeOmbIdea(n, btn) {
   const i = ombIdeas[n]; if (!i) return;
