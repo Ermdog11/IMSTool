@@ -60,6 +60,7 @@
 
 ## Done
 
+- **2026-10-06 — A real "Writing a draft" screen** (Jeff: "this screen needs to look better while it writes"). The tab that opens on **Write it** used to show one line of small text. It now shows a centered card with the headline, a progress bar estimated against the usual ~30 seconds (held at 95% until the draft is ready), a timer and the five steps the writer goes through. It works on phones and in dark mode (`draftLoadingHtml` in `public/index.html`).
 - **2026-10-06 — Strategy & overlap overview in paragraphs** (Jeff: "paragraphs"). The prompt asks for 2–4 short paragraphs with one idea each. The tab splits older single-block reads every two sentences (`strategyParagraphs`, safe around decimals like 1.76M).
 - **2026-10-06 — Heat spots fixed: no more spots from one viral post** (Jeff, on "#2: publish by 7 AM ... site readers run 39% below typical; posts get 2133% above the usual engagement": "this makes no sense").
   - **Cause:** social got a third of the score, and a single viral 7 AM post (21x average) outweighed low site readers.
