@@ -68,4 +68,28 @@ function ignoreSportsRegex(profile) {
   return new RegExp('\\b(' + never.map(function (s) { return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'); }).join('|') + ')\\b', 'i');
 }
 
-module.exports = { LEVELS: LEVELS, EVENTS: EVENTS, promptBlock: promptBlock, ignoreSportsRegex: ignoreSportsRegex };
+// Hard cap, applied in code after the rater (Jeff, 2026-10-06, on an opponent
+// site's "Five Things to Know" game preview rated 5 — Breaking: "labeling
+// breaking on things that aren't even close ... will be bad for
+// credibility"). The prompt already says previews, listicles and opinion are
+// never above 3, but a passing mention of a priority topic (an injury, a
+// coach's job status) can still pull the model to 5. These formats can't
+// carry breaking news, so they are capped at 3 whatever the rater said:
+//   - previews, listicles and analysis formats ("Five things to know",
+//     "3 keys to the game", takeaways, predictions, report cards...)
+//   - speculation about a coach's or player's future ("hot seat",
+//     "nearing its end", "should be fired"), which is not a hire or firing
+// Beat-agnostic: no team names. Returns the reason when it capped.
+var NUM = '(?:\\d+|two|three|four|five|six|seven|eight|nine|ten|a few)';
+var LISTICLE = new RegExp('^\\W*' + NUM + '\\s+(?:\\w+\\s+)?(?:things|takeaways|keys|questions|thoughts|observations|storylines|reasons|predictions|stats|numbers|matchups|ways|players to watch|bold)\\b', 'i');
+var FORMAT = /\b(things to know|what to know|takeaways|keys? to (?:the game|victory|winning|beating|a win)|what to watch|game preview|preview|predictions?|staff picks|picks against the spread|by the numbers|storylines|scouting report|film (?:room|study|review)|power rankings?|mailbag|report card|grades|stock (?:up|down)|winners and losers|overreactions|things we learned|what we learned|best bets|opponent q&a|matchup breakdown|breaking down)\b/i;
+var SPECULATION = /\b(hot seat|should be fired|should fire|nearing (?:its|the) end|on thin ice|could be (?:fired|out)|future in doubt|is it time to|time to move on|days are numbered)\b/i;
+function capFormats(item) {
+  if (!item || !(item.rating >= 4)) return null;
+  var h = String(item.headline || '');
+  var why = LISTICLE.test(h) || FORMAT.test(h) ? 'preview' : SPECULATION.test(h + ' ' + String(item.summary || '')) ? 'speculation' : null;
+  if (why) { item.ratedBefore = item.rating; item.rating = 3; item.cappedAs = why; }
+  return why;
+}
+
+module.exports = { LEVELS: LEVELS, EVENTS: EVENTS, promptBlock: promptBlock, ignoreSportsRegex: ignoreSportsRegex, capFormats: capFormats };

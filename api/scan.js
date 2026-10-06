@@ -746,6 +746,13 @@ module.exports = async function handler(req, res) {
       if (LOW_PRIORITY_SPORTS.test(t)) { item.rating = 1; item.lowPriority = true; }
     });
 
+    // Previews, listicles and job-status speculation are never 4-5 (see
+    // _rating-rules.js capFormats), whatever the rater said.
+    parsed.forEach(function(item) {
+      var why = require('./_rating-rules.js').capFormats(item);
+      if (why) console.log('Rating capped (' + why + '): ' + item.ratedBefore + ' -> 3: ' + String(item.headline || '').slice(0, 100));
+    });
+
     // Re-attach URLs (and video metadata) by idx
     var withUrls = parsed.map(function(item) {
       var orig = stories[item.idx - 1];
