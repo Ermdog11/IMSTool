@@ -139,7 +139,7 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; b
 
 /* CHAT */
 .chat-layout { display: flex; flex-direction: column; height: calc(100vh - 200px); min-height: 400px; }
-.chat-messages { flex: 1; overflow-y: auto; background: var(--bg2); border-radius: 10px 10px 0 0; padding: 8px 0; display: flex; flex-direction: column; gap: 0; border: 1px solid var(--border); border-bottom: none; }
+.chat-messages { flex: 1; overflow-y: auto; background: var(--bg2); border-radius: 0 0 10px 10px; padding: 8px 0; display: flex; flex-direction: column; gap: 0; border: 1px solid var(--border); border-top: none; }
 /* Slack-style rows (Jeff, 2026-10-06: "team chat needs to look like a chat/Slack, not a headline list") */
 .chat-row { display: flex; gap: 10px; padding: 4px 16px; align-items: flex-start; }
 .chat-row:hover { background: var(--bg); }
@@ -169,7 +169,7 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; b
 .chat-msg.me { align-self: flex-end; background: var(--red); color: #fff; border-radius: 12px 12px 2px 12px; padding: 8px 12px; font-size: 13px; }
 .chat-msg.other { align-self: flex-start; background: #f0f0f0; border-radius: 12px 12px 12px 2px; padding: 8px 12px; font-size: 13px; }
 .chat-msg .sender { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; margin-bottom: 3px; color: var(--text3); }
-.chat-input-row { display: flex; gap: 8px; background: var(--bg2); border: 1px solid var(--border); border-radius: 0 0 10px 10px; padding: 10px; }
+.chat-input-row { display: flex; gap: 8px; background: var(--bg2); border: 1px solid var(--border); border-radius: 10px 10px 0 0; padding: 10px; }
 .chat-input { flex: 1; border: 1px solid var(--border); border-radius: 8px; padding: 8px 12px; font-size: 13px; background: var(--bg); color: var(--text); outline: none; }
 .chat-input:focus { border-color: var(--red); }
 .chat-send { background: var(--red); color: #fff; border: none; border-radius: 8px; padding: 8px 14px; cursor: pointer; font-size: 13px; font-weight: 600; }
@@ -370,12 +370,12 @@ body.no-opps .acc-opps,body.no-write .acc-write,body.no-flag .acc-flag,body.no-f
     <button class="chip" onclick="chatSelectMode(false)">Done</button>
   </div>
   <div class="chat-layout">
-    <div class="chat-messages" id="chatMessages">
-      <div class="chat-msg system">Loading…</div>
-    </div>
     <div class="chat-input-row">
       <input class="chat-input" id="chatInput" placeholder="Message the team..." onkeydown="if(event.key==='Enter')sendChat()" />
       <button class="chat-send" onclick="sendChat()">Send</button>
+    </div>
+    <div class="chat-messages" id="chatMessages">
+      <div class="chat-msg system">Loading…</div>
     </div>
   </div>
   </div>
@@ -2368,18 +2368,20 @@ function addChatMessage(text, type, sender) {
   const div = document.createElement('div');
   div.className = 'chat-note';
   div.textContent = (sender ? sender + ': ' : '') + text;
-  c.appendChild(div);
-  c.scrollTop = c.scrollHeight;
+  c.insertBefore(div, c.firstChild);
+  c.scrollTop = 0;
 }
 
 let chatPollTimer = null;
 let chatLatestTs = null;
 
-// Slack-style: photo (or initials), name and time, then the message;
-// a run of messages from the same person within 5 minutes shows the photo
-// and name once. Bot posts (alerts, breaking drafts, calendar, kudos) come
+// Slack-style rows: photo (or initials), name and time, then the message.
+// Newest at the top (Jeff, 2026-10-06: "the newest post needs to display at
+// top, not bottom"), under its day's divider, days newest first; the message
+// box sits above the list. Every message shows its own photo and name, since
+// "same person, within 5 minutes" grouping reads backwards upside down. Bot posts (alerts, breaking drafts, calendar, kudos) come
 // from "CoPublisher AI" with a tag.
-let chatAvatars = {}, chatLast = { sender: null, at: 0, day: '' };
+let chatAvatars = {};
 const CHAT_COLORS = ['#2563eb', '#7c3aed', '#db2777', '#ea580c', '#059669', '#0891b2', '#4f46e5', '#b45309'];
 function chatEsc(s) { return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); }
 function chatInitials(n) { const p = String(n || '?').replace(/@.*/, '').split(/[\s._-]+/).filter(Boolean); return ((p[0] || '?')[0] + (p.length > 1 ? p[p.length - 1][0] : '')).toUpperCase(); }
@@ -2399,12 +2401,14 @@ function renderChatMessage(m) {
   const c = document.getElementById('chatMessages');
   const at = new Date(m.created_at), dayKey = at.toDateString();
   const bot = m.kind && m.kind !== 'user';
-  const senderKey = bot ? 'bot' : (m.sender_user_id || m.sender_name || '?');
-  if (dayKey !== chatLast.day) {
-    const dv = document.createElement('div'); dv.className = 'chat-day'; dv.textContent = chatDayLabel(at); c.appendChild(dv);
-    chatLast = { sender: null, at: 0, day: dayKey };
+  // Each day is a block (divider, then that day's messages newest first);
+  // messages arrive oldest first, so a new day's block goes on top.
+  let block = Array.from(c.querySelectorAll('.chat-dayblock')).find(b => b.dataset.day === dayKey);
+  if (!block) {
+    block = document.createElement('div'); block.className = 'chat-dayblock'; block.dataset.day = dayKey;
+    block.innerHTML = '<div class="chat-day">' + chatEsc(chatDayLabel(at)) + '</div>';
+    c.insertBefore(block, c.firstChild);
   }
-  const grouped = !bot && chatLast.sender === senderKey && at - chatLast.at < 5 * 60000;
   const time = at.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
   let body = '';
   if (m.kind === 'breaking' || m.kind === 'alert-drop') {
@@ -2418,11 +2422,8 @@ function renderChatMessage(m) {
     body = chatEsc(m.text).replace(/(https?:\/\/[^\s<]+)/g, '<a href="$1" target="_blank" rel="noopener">$1</a>').replace(/\n/g, '<br>');
   }
   const div = document.createElement('div');
-  div.className = 'chat-row' + (grouped ? '' : ' first');
-  div.innerHTML = grouped
-    ? '<div class="chat-gutter">' + chatEsc(time.replace(/\s?[AP]M$/i, '')) + '</div><div class="chat-body">' + body + '</div>'
-    : chatAvatarHtml(m.sender_user_id, m.sender_name, bot) + '<div class="chat-body"><div><span class="chat-name">' + chatEsc(bot ? 'CoPublisher AI' : (m.sender_name || 'Someone')) + '</span><span class="chat-time">' + chatEsc(time) + '</span></div>' + body + '</div>';
-  chatLast.sender = senderKey; chatLast.at = +at;
+  div.className = 'chat-row first';
+  div.innerHTML = chatAvatarHtml(m.sender_user_id, m.sender_name, bot) + '<div class="chat-body"><div><span class="chat-name">' + chatEsc(bot ? 'CoPublisher AI' : (m.sender_name || 'Someone')) + '</span><span class="chat-time">' + chatEsc(time) + '</span></div>' + body + '</div>';
   // Publisher bulk delete: every saved message carries its id and a checkbox
   // (shown only in select mode); clicking the message toggles it too.
   if (m.id) {
@@ -2436,8 +2437,10 @@ function renderChatMessage(m) {
       cb.checked = !cb.checked; div.classList.toggle('picked', cb.checked); chatSelCount();
     });
   }
-  c.appendChild(div);
-  c.scrollTop = c.scrollHeight;
+  const empty = document.getElementById('chatEmpty');
+  if (empty) empty.remove();
+  block.insertBefore(div, block.children[1] || null);
+  c.scrollTop = 0;
   chatLatestTs = m.created_at;
 }
 
@@ -2488,6 +2491,7 @@ async function chatDeleteSelected(btn) {
     const d = await r.json().catch(() => ({}));
     if (!r.ok || d.error) throw new Error(d.error || ('HTTP ' + r.status));
     ids.forEach(id => { const el = document.querySelector('#chatMessages [data-id="' + CSS.escape(id) + '"]'); if (el) el.remove(); });
+    document.querySelectorAll('#chatMessages .chat-dayblock').forEach(b => { if (!b.querySelector('.chat-row')) b.remove(); });
     document.getElementById('chatSelAll').checked = false;
     chatSelCount();
   } catch (e) { alert('Couldn\'t delete: ' + e.message); }
@@ -2503,10 +2507,10 @@ async function loadChatMessages() {
     const d = await r.json();
     if (d.error) { c.innerHTML = `<div class="chat-msg system">${d.error}</div>`; return; }
     c.innerHTML = '';
-    chatLatestTs = null; chatLast = { sender: null, at: 0, day: '' };
+    chatLatestTs = null;
     chatAvatars = Object.assign({}, chatAvatars, d.avatars || {});
     (d.messages || []).forEach(renderChatMessage);
-    if (!(d.messages || []).length) c.innerHTML = '<div class="chat-note">No messages yet. Say hello, or wait for the next breaking story.</div>';
+    if (!(d.messages || []).length) c.innerHTML = '<div class="chat-note" id="chatEmpty">No messages yet. Say hello, or wait for the next breaking story.</div>';
   } catch (e) {
     c.innerHTML = `<div class="chat-msg system">Couldn't load chat — ${e.message}</div>`;
   }
