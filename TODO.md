@@ -60,6 +60,11 @@
 
 ## Done
 
+- **2026-10-06 — Team Chat looks like Slack, with profile photos** (Jeff: "team chat needs to look like a chat/Slack, not a headline list"; "give users options to upload a photo that will show next to their name in chat").
+  - **Layout:** each message is a row with the photo (or colored initials), bold name and time, then the text. A run of messages from one person within 5 minutes groups under one header (time shows on hover). Day dividers read Today, Yesterday or a date. Links are clickable.
+  - **Bot posts:** alerts, breaking drafts, calendar items and kudos come from "🤖 CoPublisher AI" with a small tag.
+  - **Photos:** "🖼️ Your photo" crops and resizes to a 128px square JPEG in the browser. `POST /api/chat {action:'avatar', image}` stores it in a private Blob map (`chat-avatars.json`, `_chat-store.setAvatar`), and chat GET returns the photos for the people in view. No schema change.
+
 - **2026-10-06 — YouTube connected to Analytics, and a daily cross-channel Strategy & overlap read** (Jeff: "wire YouTube analytics connections; I want all of the analytics studied, compared and analyzed so the app can give holistic data and suggestions for content/social media strategy and overlap").
   - **YouTube:** `_youtube-stats.js` uses the app's YOUTUBE_API_KEY, so it needs only the channel's @handle or link: no sign-in, and about 4 quota units per read. It reads subscribers, plus views, likes and comments for the last 50 uploads, a 30-day summary, Shorts (≤3 min) vs long, and best day and hour. It's a new `youtube` connection, part of `gatherContexts`, so the Overall summary and Ask about your audience use it too. Owner-only stats (watch time, retention, traffic sources) still need the YouTube Analytics OAuth connection (later).
   - **Strategy:** `_analytics-strategy.js` makes one daily Claude call (cron 10:30 UTC `/api/analytics-strategy`, or Refresh now for editors and publishers). It reads every connected source, 30 days of Chartbeat top pages and our headlines, and returns the overview, what each channel is for (role, what wins, best time), overlap across channels, gaps between channels with actions, and this week's moves. It's saved as analytics snapshot source `strategy` and shown at the top of the Analytics tab.

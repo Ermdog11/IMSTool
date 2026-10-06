@@ -59,4 +59,27 @@ async function remove(sb, siteId, ids) {
   return (del.data || []).length;
 }
 
-module.exports = { resolveSiteId: resolveSiteId, recent: recent, post: post, postSystemMessage: postSystemMessage, remove: remove };
+// Chat profile photos (Jeff, 2026-10-06: "give users options to upload a
+// photo that will show next to their name in chat"). Each is a small square
+// JPEG the browser resizes before upload (about 5-15 KB as a data URL),
+// kept in one private Blob map, user id -> data URL. Small enough to send
+// with the chat itself, so no public file hosting is needed.
+var AVATARS = 'chat-avatars.json';
+async function avatars() {
+  try {
+    var got = await require('@vercel/blob').get(AVATARS, { access: 'private', useCache: false });
+    if (got && got.statusCode === 200) return (await new Response(got.stream).json()) || {};
+  } catch (e) { /* none */ }
+  return {};
+}
+async function setAvatar(userId, dataUrl) {
+  if (!userId) throw new Error('Sign in first.');
+  if (dataUrl && !/^data:image\/(jpeg|png|webp);base64,[A-Za-z0-9+/=]+$/.test(dataUrl)) throw new Error('That isn\'t an image.');
+  if (dataUrl && dataUrl.length > 80000) throw new Error('That photo is too big; try a smaller one.');
+  var all = await avatars();
+  if (dataUrl) all[userId] = dataUrl; else delete all[userId];
+  await require('@vercel/blob').put(AVATARS, JSON.stringify(all), { access: 'private', addRandomSuffix: false, allowOverwrite: true, contentType: 'application/json' });
+  return true;
+}
+
+module.exports = { resolveSiteId: resolveSiteId, recent: recent, post: post, postSystemMessage: postSystemMessage, remove: remove, avatars: avatars, setAvatar: setAvatar };
