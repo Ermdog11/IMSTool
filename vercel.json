@@ -132,7 +132,7 @@
       "maxDuration": 60
     },
     "api/story-ideas.js": {
-      "maxDuration": 60
+      "maxDuration": 120
     },
     "api/heat-spots.js": {
       "maxDuration": 120

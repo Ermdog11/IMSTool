@@ -188,6 +188,9 @@ module.exports = async function handler(req, res) {
       }
     } catch (e) { console.error('Coverage Desk: AI calendar failed (non-fatal):', e.message); }
 
+    // Ombudsman: daily quality review of our last 3 days of articles (best-effort).
+    var ombReview = null;
+    try { ombReview = await require('./_ombudsman.js').review({}); } catch (e) { console.error('Coverage Desk: ombudsman review failed (non-fatal):', e.message); }
     // Writer leaderboard kudos (last 7 days): in the memo, and in Team Chat
     // when the publisher has shared the leaderboard with any role.
     var kudosLines = [];
@@ -249,6 +252,7 @@ module.exports = async function handler(req, res) {
       '<div style="background:#0f1b2d;padding:12px 16px;border-radius:8px 8px 0 0"><span style="color:#fff;font-weight:700">Coverage Desk &mdash; ' + today + '</span></div>' +
       '<div style="background:#fff;border:1px solid #e8e6e1;border-top:none;border-radius:0 0 8px 8px;padding:18px;font-size:14px;line-height:1.55">' +
       calendarHtml(todayEvents) +
+      require('./_ombudsman.js').reviewHtml(ombReview) +
       (kudosLines.length ? '<div style="border:1px solid #fde68a;background:#fffbeb;border-radius:8px;padding:10px 14px;margin-bottom:16px"><div style="font-size:12px;font-weight:700;color:#b45309;text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px">🏆 Writer kudos · last 7 days</div>' + kudosLines.map(function (k) { return '<div style="font-size:13px;padding:2px 0">' + esc(k) + '</div>'; }).join('') + '<div style="font-size:11px;margin-top:4px"><a href="https://ims-tool.vercel.app/leaderboard" style="color:#2563eb">Full leaderboard</a></div></div>' : '') +
       glanceHtml(yesterday) +
       memo +
