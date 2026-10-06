@@ -58,6 +58,8 @@
 
 ## Done
 
+- **2026-10-06 — Opp Watch follow box autofills names, sites and X handles** (Jeff: "follow a competition should be a box where twitter names autofill"). Datalists come from the beat outlets and watched X accounts. `opps-spy` POST `lookup` checks the beat first, then makes one web-search call. `follow` takes `x`, saved as `outlet.x` and merged into `x_watch_handles`.
+
 - **2026-10-06 — Bluesky tab removed from the News Monitor header** (Jeff: "it doesn't account for enough traffic"). The page still works at `/bluesky`; the tab highlight now matches by id instead of position, so removing a header button can't shift the others.
 
 - **2026-10-06 — Coverage Desk email includes the day's calendar events.** `_calendar.eventsOn()` (New York date, all-day items included) feeds a "📅 Today on the calendar" box at the top of the memo, and the list goes to the memo prompt so today's priorities account for them. No events = no box.

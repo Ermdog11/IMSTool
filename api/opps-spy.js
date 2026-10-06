@@ -14,6 +14,12 @@
 //                { action:'follow', name, site, alertEmail?, alertText? }  (site: website or RSS URL)
 //                { action:'set', domain, alertEmail?, alertText?, eyes? }  (eyes: 1-5, how closely to watch them)
 //                { action:'unfollow', domain }
+//                { action:'lookup', name }  -> { name, site, x }: fills in a competitor's
+//                website and X handle from the name (Jeff, 2026-10-06: "follow a
+//                competition should be a box where twitter names autofill"). The
+//                beat's own outlets list first; otherwise one web search.
+//                follow also takes x (their X handle): saved on the outlet and
+//                added to the watched X accounts, so their posts are checked too.
 //                Saved into the beat profile's outlets, the same list the wizard edits.
 //
 // Each article is checked against our own recent headlines (the same
@@ -150,7 +156,7 @@ function stats(beat, state) {
     var skip = STOP.concat(words(beat.team.name), words(beat.team.short), beat.team.nicknames.map(function (n) { return n.toLowerCase(); }));
     week.forEach(function (i) { words(i.title).forEach(function (w) { if (skip.indexOf(w) === -1 && !/^\d+$/.test(w)) freq[w] = (freq[w] || 0) + 1; }); });
     return {
-      name: o.name, domain: o.domain || '', key: key(o), eyes: Number(o.eyes) || 3, alertEmail: !!o.alertEmail, alertText: !!o.alertText,
+      name: o.name, domain: o.domain || '', key: key(o), x: o.x || '', eyes: Number(o.eyes) || 3, alertEmail: !!o.alertEmail, alertText: !!o.alertText,
       last24: mine.filter(function (i) { return now - i.at < 86400000; }).length,
       last7: week.length,
       gaps7: week.filter(function (i) { return !i.covered; }).length,
@@ -190,6 +196,52 @@ async function saveOutlets(sb, beat, outlets) {
   await Store.saveProfile(sb, { beat: saved });
 }
 
+function cleanHandle(h) { var m = /^@?([A-Za-z0-9_]{1,15})$/.exec(String(h || '').trim().replace(/^https?:\/\/(www\.)?(x|twitter)\.com\//i, '').replace(/[/?].*$/, '')); return m ? m[1] : ''; }
+
+// A competitor's website and X handle from its name: the beat's outlets
+// first (no cost), then one Claude web search.
+var LOOKUP_TOOL = {
+  name: 'report_outlet',
+  description: 'The outlet found.',
+  input_schema: { type: 'object', properties: {
+    name: { type: 'string', description: 'The outlet\'s proper name' },
+    site: { type: 'string', description: 'The URL of its coverage of this team: the team section of a big site (e.g. on3.com/teams/maryland-terrapins), else its homepage. Empty if not found.' },
+    x_handle: { type: 'string', description: 'Its X/Twitter handle without @, the one that covers this team (a team-specific account over a national one). Empty if not found.' }
+  }, required: ['name', 'site', 'x_handle'] }
+};
+async function lookupOutlet(beat, name) {
+  var n = String(name || '').trim().toLowerCase();
+  if (n.length < 2) return null;
+  var local = beat.outlets.filter(function (o) { return String(o.name || '').toLowerCase() === n; })[0] ||
+    beat.outlets.filter(function (o) { return String(o.name || '').toLowerCase().indexOf(n) === 0; })[0];
+  if (local && local.domain && local.x) return { name: local.name, site: local.section || local.domain, x: local.x, from: 'beat' };
+  var key = process.env.ANTHROPIC_API_KEY;
+  if (!key) return local ? { name: local.name, site: local.section || local.domain, x: local.x || '', from: 'beat' } : null;
+  var team = beat.team.school || beat.team.name;
+  var messages = [{ role: 'user', content: 'A sports newsroom covering ' + team + ' wants to follow a competitor called "' + name + '". Find that outlet\'s coverage of ' + team + ' (its team section or site) and its X/Twitter handle for that coverage. Use the outlet\'s own pages; never guess a handle. Then call report_outlet.' }];
+  var out = null;
+  for (var round = 0; round < 3 && !out; round++) {
+    var r = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'x-api-key': key, 'anthropic-version': '2023-06-01' },
+      body: JSON.stringify({ model: 'claude-sonnet-4-6', max_tokens: 1200, tools: [{ type: 'web_search_20260209', name: 'web_search', max_uses: 3 }, LOOKUP_TOOL], tool_choice: { type: 'auto' }, messages: messages })
+    });
+    var d = await r.json();
+    if (d.error) throw new Error('Lookup: ' + (d.error.message || JSON.stringify(d.error)));
+    var tu = (d.content || []).filter(function (b) { return b.type === 'tool_use' && b.name === LOOKUP_TOOL.name; })[0];
+    if (tu) { out = tu.input || {}; break; }
+    if (d.stop_reason !== 'pause_turn') break;
+    messages.push({ role: 'assistant', content: d.content });
+  }
+  if (!out) return local ? { name: local.name, site: local.section || local.domain, x: local.x || '', from: 'beat' } : null;
+  var site = parseSite(out.site);
+  return {
+    name: (local && local.name) || String(out.name || name).slice(0, 80),
+    site: local ? (local.section || local.domain) : (site ? (site.rss || site.section || site.domain) : ''),
+    x: (local && local.x) || cleanHandle(out.x_handle), from: 'search'
+  };
+}
+
 async function manage(req, res, ctx) {
   if (!(await require('./_access').allowed(ctx, 'act_opps_edit'))) return require('./_access').deny(res);
   if (!S.isConfigured()) return res.status(503).json({ error: 'Sign-in is not set up yet, so changes cannot be saved.' });
@@ -198,6 +250,11 @@ async function manage(req, res, ctx) {
   var beat = await Beat.getBeat(sb);
   var outlets = beat.outlets.map(function (o) { return Object.assign({}, o); });
   var find = function (domain) { domain = String(domain || '').toLowerCase().replace(/^www\./, ''); return outlets.filter(function (o) { return key(o) === domain || String(o.domain || '').toLowerCase() === domain; })[0]; };
+  if (body.action === 'lookup') {
+    var found = await lookupOutlet(beat, body.name);
+    return res.status(200).json(found || { name: String(body.name || ''), site: '', x: '' });
+  }
+  var addHandle = '';
   if (body.action === 'follow') {
     var name = String(body.name || '').trim().slice(0, 80);
     var site = parseSite(body.site || body.domain);
@@ -211,6 +268,8 @@ async function manage(req, res, ctx) {
     if (site.rss) o.rss = site.rss;
     if (site.section) o.section = site.section;
     o.spy = true; o.blocked = false;
+    var hx = cleanHandle(body.x);
+    if (hx) { o.x = hx; addHandle = hx; }
     o.alertEmail = !!body.alertEmail; o.alertText = !!body.alertText;
     if (body.eyes) o.eyes = Math.max(1, Math.min(5, Math.round(+body.eyes) || 3));
   } else if (body.action === 'set') {
@@ -228,6 +287,14 @@ async function manage(req, res, ctx) {
     return res.status(400).json({ error: 'Unknown action' });
   }
   await saveOutlets(sb, beat, outlets);
+  // Their X account joins the watched X accounts, so the scan checks it too.
+  if (addHandle) {
+    try {
+      var Store = require('./_settings-store');
+      var cur = await Store.getXWatchHandles(sb);
+      if (!cur.some(function (h) { return String(h).toLowerCase() === addHandle.toLowerCase(); })) await Store.saveXWatchHandles(sb, cur.concat(addHandle));
+    } catch (e) { console.error('Opp Watch: adding X handle failed:', e.message); }
+  }
   return res.status(200).json({ ok: true });
 }
 
@@ -258,7 +325,10 @@ module.exports = async function handler(req, res) {
       // Beat outlets not followed yet, for one-click follow in the tab.
       available: beat2.outlets.filter(function (o) { return !o.blocked && o.domain && names.indexOf(o.name) === -1; })
         .sort(function (a, b) { return Number(b.rating || 3) - Number(a.rating || 3); })
-        .map(function (o) { return { name: o.name, domain: o.domain }; }).slice(0, 30)
+        .map(function (o) { return { name: o.name, domain: o.domain, x: o.x || '' }; }).slice(0, 30),
+      // For autofill in the Follow box: every beat outlet, and the watched X accounts.
+      known: beat2.outlets.filter(function (o) { return !o.blocked && o.name; }).map(function (o) { return { name: o.name, site: o.section || o.rss || o.domain || '', x: o.x || '' }; }).slice(0, 200),
+      xHandles: await require('./_settings-store').getXWatchHandles(sb).catch(function () { return []; })
     });
   } catch (e) {
     console.error('Opp Watch error:', e.message);
