@@ -53,4 +53,13 @@ async function fillMissingAges(results, maxAgeHours) {
   return results.filter(function(item) { return item.age === null || item.age <= maxAgeHours; });
 }
 
-module.exports = { publishedMs: publishedMs, fromHtml: fromHtml, fillMissingAges: fillMissingAges };
+// A date written into the article's address (/2025/12/18/, -2025-12-18-),
+// which many news sites use. NaN when there isn't one.
+function fromUrl(url) {
+  var m = /[\/_-](20\d\d)[\/_-](0?[1-9]|1[0-2])[\/_-](0?[1-9]|[12]\d|3[01])(?=[\/_.-]|$)/.exec(String(url || ''));
+  if (!m) return NaN;
+  var ms = Date.UTC(+m[1], +m[2] - 1, +m[3], 12);
+  return ms > Date.now() + 86400000 ? NaN : ms;
+}
+
+module.exports = { publishedMs: publishedMs, fromHtml: fromHtml, fromUrl: fromUrl, fillMissingAges: fillMissingAges };
