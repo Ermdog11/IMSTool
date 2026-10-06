@@ -718,38 +718,51 @@ module.exports = async function handler(req, res) {
 
     // FRESHNESS CHECK (every scan, no AI cost). A feed's "8h ago" can be the
     // time Google News re-indexed a months-old article (2026-10-06, Jeff: a
-    // Stefon Diggs story from 2025 was rated 4 and shown under Today). For
-    // every story rated 4-5, read its real publish date: from the address
-    // (/2025/12/18/) when it has one, else from the article page itself. Older
-    // than STALE_DAYS -> republished (shown under ♻️ Republished, never as new
-    // and never pushed as breaking).
+    // Stefon Diggs story from 2025 was rated 4 and shown under Today; "making
+    // sure old content doesn't appear" matters more than the rating, since it
+    // hurts credibility). For every story, whatever its rating, read its real
+    // publish date: from the address (/2025/12/18/) when it has one, else from
+    // the article page itself. Older than STALE_DAYS -> dropped from the scan
+    // entirely. Highest-rated first; pages fetched 10 at a time.
     var STALE_DAYS = 14;
     var staleCut = Date.now() - STALE_DAYS * 86400000;
     var freshCands = parsed.map(function(item) { return { item: item, orig: stories[item.idx - 1] }; })
-      .filter(function(p) { return p.item && !p.item.irrelevant && !p.item.republished && (p.item.rating || 0) >= 4 && p.orig && p.orig.url; })
-      .slice(0, 15);
-    await Promise.allSettled(freshCands.map(async function(p) {
+      .filter(function(p) { return p.item && !p.item.irrelevant && p.orig && p.orig.url; })
+      .sort(function(x, y) { return (y.item.rating || 0) - (x.item.rating || 0); })
+      .slice(0, 60);
+    async function realDate(p) {
       var pub = p.orig.pageDated || ArticleDate.fromUrl(p.orig.url);
-      if (!pub || isNaN(pub)) {
-        var url = p.orig.url;
-        if (/news\.google\.com/i.test(url)) { try { url = (await resolveGoogleNewsUrl(url)) || url; } catch (e) {} }
-        if (/news\.google\.com/i.test(url)) return;
-        pub = ArticleDate.fromUrl(url);
-        if (isNaN(pub)) {
-          try {
-            var r = await fetchWithTimeout(url, { headers: { 'User-Agent': BROWSER_UA } }, 7000);
-            pub = ArticleDate.fromHtml((await r.text()).slice(0, 400000));
-          } catch (e) { return; }
+      if (pub && !isNaN(pub)) return pub;
+      var url = p.orig.url;
+      if (/news\.google\.com/i.test(url)) { try { url = (await resolveGoogleNewsUrl(url)) || url; } catch (e) {} }
+      if (/news\.google\.com/i.test(url)) return NaN;
+      pub = ArticleDate.fromUrl(url);
+      if (!isNaN(pub)) return pub;
+      // Social posts and videos carry their own dates already.
+      if (/(^|\.)(x|twitter|reddit|youtube|bsky|instagram|facebook|tiktok)\.com\//i.test(url) || /youtu\.be\//i.test(url)) return NaN;
+      try {
+        var r = await fetchWithTimeout(url, { headers: { 'User-Agent': BROWSER_UA } }, 7000);
+        return ArticleDate.fromHtml((await r.text()).slice(0, 400000));
+      } catch (e) { return NaN; }
+    }
+    // Ten at a time from a shared queue, and no new page started after 45s, so
+    // a slow batch of sites can't push the scan toward Vercel's time limit.
+    var staleCount = 0, freshNext = 0, freshStop = Date.now() + 45000;
+    async function freshWorker() {
+      while (freshNext < freshCands.length && Date.now() < freshStop) {
+        var p = freshCands[freshNext++];
+        var pub = NaN;
+        try { pub = await realDate(p); } catch (e) {}
+        if (!pub || isNaN(pub)) continue;
+        p.orig.age = Math.max(0, Math.round((Date.now() - pub) / 3600000));
+        if (pub < staleCut) {
+          p.item.irrelevant = true; p.item.stale = true; staleCount++;
+          console.log('Freshness: dropped "' + String(p.item.headline || '').slice(0, 80) + '" (rated ' + p.item.rating + '), published ' + new Date(pub).toISOString().slice(0, 10));
         }
       }
-      if (isNaN(pub)) return;
-      p.orig.age = Math.max(0, Math.round((Date.now() - pub) / 3600000));
-      if (pub < staleCut) {
-        p.item.republished = true;
-        p.item.publishedOn = new Date(pub).toISOString().slice(0, 10);
-        console.log('Freshness: ' + String(p.item.headline || '').slice(0, 80) + ' is from ' + p.item.publishedOn + ', marked republished');
-      }
-    }));
+    }
+    await Promise.all([0, 1, 2, 3, 4, 5, 6, 7, 8, 9].map(freshWorker));
+    if (staleCount) console.log('Freshness: ' + staleCount + ' old stor' + (staleCount === 1 ? 'y' : 'ies') + ' dropped');
 
     // Drop stories Claude marked as having no connection to our beat
     parsed = parsed.filter(function(item) { return !item.irrelevant; });
