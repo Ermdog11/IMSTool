@@ -276,8 +276,8 @@ body.no-factcheck .acc-factcheck,body.no-add #ed-autoadd,body.no-add #pre-tabs-w
       </div>
       <div class="row" style="margin-top:12px;align-items:flex-end">
         <div style="flex:1;min-width:240px">
-          <label>Or paste a direct link to an audio or video file</label>
-          <input id="tr-url" placeholder="https://…/episode.mp3">
+          <label>Or paste a YouTube link, or a direct link to an audio or video file</label>
+          <input id="tr-url" placeholder="https://youtube.com/watch?v=…  or  https://…/episode.mp3" onkeydown="if(event.key==='Enter')transcribeUrl()">
         </div>
         <button class="btn ghost" style="margin-top:0" onclick="transcribeUrl()">Transcribe link</button>
         <button class="btn ghost" style="margin-top:0" onclick="transcribeLatestEpisode(this)">🎙️ Your latest podcast episode</button>
@@ -1962,8 +1962,24 @@ async function transcribeFile(file){
 async function transcribeUrl(){
   var u=document.getElementById('tr-url').value.trim();
   if(!u) return trStatus('Paste a link first.',true);
-  if(/youtube\.com|youtu\.be|twitch\.tv|(^|\/\/)(www\.)?(x|twitter)\.com\//i.test(u)) return trStatus('That\u2019s a video page, not a media file. Open it in another tab, then click <b>Live from a browser tab</b> below, pick that tab, keep <b>Share tab audio</b> on, and press play.',true);
+  if(/youtube\.com|youtu\.be|youtube-nocookie\.com/i.test(u)) return transcribeYouTube(u);
+  if(/twitch\.tv|(^|\/\/)(www\.)?(x|twitter)\.com\//i.test(u)) return trStatus('That\u2019s a video page, not a media file. Open it in another tab, then click <b>Live from a browser tab</b> below, pick that tab, keep <b>Share tab audio</b> on, and press play.',true);
   try{ await trStart({url:u},u.split('/').pop().split('?')[0]||u); }catch(e){ trStatus(esc(e.message),true); }
+}
+// YouTube link -> the video's own captions, right away (Jeff, 2026-10-06).
+async function transcribeYouTube(u){
+  trStatus('<span class="spin" style="border-color:var(--border);border-top-color:var(--muted)"></span> Getting the transcript from YouTube…');
+  try{
+    var r=await trFetch('/api/transcribe',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'youtube',url:u})});
+    var d=await r.json().catch(function(){return {};});
+    if(!r.ok||d.error) throw new Error(d.error||('HTTP '+r.status));
+    var name='▶️ '+(d.title||'YouTube video');
+    trRemember(d.id,name); renderRecentTranscripts();
+    clearTimeout(trState.timer);
+    trState={id:d.id,data:d,names:{},name:name,timer:null,t0:Date.now()};
+    document.getElementById('tr-status').style.display='none';
+    renderTranscript();
+  }catch(e){ trStatus(esc(e.message),true); }
 }
 async function transcribeLatestEpisode(btn){
   btn.disabled=true;
@@ -2022,6 +2038,7 @@ function renderTranscript(){
         '<input value="'+esc(trState.names[sp]||'').replace(/"/g,'&quot;')+'" placeholder="name" style="width:150px;padding:5px 7px" onchange="trState.names[\''+esc(sp)+'\']=this.value.trim();trSaveNames();renderTranscript()"></label>';
     }).join('')+'</div>'+
     (L&&L.recording?'<div style="'+TIP_STYLE+'">'+(speakers.length?'Live speaker labels are a first pass.':'This live transcript has no speaker labels.')+' <button class="btn" style="margin:0 0 0 6px;padding:4px 10px;font-size:12.5px" onclick="labelLiveRecording()">Get the full speaker-labeled version</button> <a style="margin-left:6px;font-size:12.5px" download="'+esc(L.name.replace(/[^A-Za-z0-9]+/g,'-'))+'.'+(/mp4/.test(L.recType)?'m4a':'webm')+'" href="'+URL.createObjectURL(L.recording)+'">Save the recording</a></div>':'')+
+    (trState.data.source==='youtube'?'<div style="'+TIP_STYLE+'">From the video\u2019s '+(trState.data.auto?'<b>auto-generated</b> YouTube captions, so names and numbers are often wrong. Check every quote against the video.':'own captions.')+' No speaker labels: captions don\u2019t have them.'+(trState.data.author?' Channel: '+esc(trState.data.author)+'.':'')+'</div>':'')+
     '<div class="hint" style="margin:0 0 6px">Click <b>Copy</b> to grab a quote, or <b>+ Draft</b> to drop it at the end of your Copydesk draft.</div>'+
     us.map(function(u,i){
       return '<div style="display:flex;gap:10px;padding:8px 0;border-top:1px solid var(--border)">'+
