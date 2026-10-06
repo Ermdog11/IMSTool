@@ -184,6 +184,7 @@ body.no-factcheck .acc-factcheck,body.no-add #ed-autoadd,body.no-add #pre-tabs-w
         <div class="aa-row"><label class="aa-lab"><input type="checkbox" id="aa-related" style="width:auto"> 🔗 Related links box</label>
           <span class="aa-pos">Top <input type="range" id="aa-related-pos" min="1" max="10" step="1" value="10" oninput="this.nextElementSibling.textContent=this.value"> <b>10</b> Bottom</span></div>
         <div class="aa-row"><label class="aa-lab"><input type="checkbox" id="aa-promos" style="width:auto"> 📣 <span id="aa-promos-label">Promos for this tier</span></label></div>
+        <div class="aa-row" id="aa-ads-row" style="display:none"><label class="aa-lab"><input type="checkbox" id="aa-ads" style="width:auto"> 💰 <span id="aa-ads-label">Ad slots</span></label></div>
         <div class="aa-row acc-factcheck"><label class="aa-lab"><input type="checkbox" id="aa-factcheck" style="width:auto"> 🔎 Extra fact-check</label><span class="aa-pos">Checks every name, number and date against live sources. About a minute more.</span></div>
         <div style="font-size:12px;color:var(--muted);margin-top:4px;display:flex;gap:4px 12px;flex-wrap:wrap;align-items:center">
           <span id="aa-default-note">Ticks and spots start from your newsroom’s defaults.</span>
@@ -221,6 +222,12 @@ body.no-factcheck .acc-factcheck,body.no-add #ed-autoadd,body.no-add #pre-tabs-w
       <div class="hint">Reusable blocks &mdash; newsletter sign-up, VIP pitch, related-coverage boxes, ad units. Define each once (raw HTML, paste straight from your CMS) with the tier it applies to and where it lands. On the editing page the writer or editor clicks to drop them into a piece.</div>
       <div id="promo-list"></div>
       <div class="row"><button class="btn ghost" onclick="addPromo()">+ Add insert</button></div>
+    </div>
+    <div class="card" id="ads-card">
+      <h2>💰 Ad slots</h2>
+      <div class="hint">Monetize every article: paste the ad code your network gives you (Google AdSense or Ad Manager, Raptive, Mediavine, any tag) and choose where it goes, e.g. after paragraph 3 and then every 6 paragraphs. With <b>Ad slots</b> ticked under the draft, they're placed in the same pass as the edit. The preview shows a labeled box; <b>Copy HTML</b>, <b>Copy embed code</b> and saved drafts carry the real code. Your CMS has to allow ad code in an article's HTML; if it strips scripts, use its own ad block with <b>Copy embed code</b>. Shared by the whole newsroom; the publisher edits them.</div>
+      <div id="ads-list"></div>
+      <div class="row"><button class="btn ghost ads-edit" onclick="adsAdd()">+ Add ad slot</button><button class="btn ads-edit" onclick="adsSave(this)">Save ad slots</button><span class="savedmsg" id="ads-msg"></span></div>
     </div>
     <div class="card">
       <h2>Podcast</h2>
@@ -352,6 +359,7 @@ body.no-factcheck .acc-factcheck,body.no-add #ed-autoadd,body.no-add #pre-tabs-w
     var sv = document.getElementById('aa-save-default');
     if (sv) sv.style.display = IMSAuth.isPublisher() ? '' : 'none';
     if (typeof applyAccess === 'function') applyAccess();
+    if (typeof renderAds === 'function') renderAds();
     if (s && s.user) {
       var bar = document.querySelector('.topbar');
       if (bar) {
@@ -612,6 +620,7 @@ async function runEdit(){
   // time as edit, no need for multiple processes"): whatever is ticked under
   // the draft is fetched alongside the edit and placed in the finished article.
   var aa=getAutoAdd();
+  window._adsQueued=!!aa.ads;
   window._relPos=null;
   if(aa.related){ window._relQueued=true; window._relPos=aa.relatedPosition; }
   if(aa.promos){
@@ -789,7 +798,8 @@ function renderEdit(d){
   initHotlinkPreviews();
   if(window._queuedEpisode){ embedPodcast(window._queuedEpisode.name, window._queuedEpisode.html, window._podPos); }
   if(window._relQueued){ openRelatedBox(); addRelatedLinks(document.querySelector('#related-box .btn')); }
-  (window._availableInserts||[]).forEach(function(p,i){ if(window._promoQueued[p.name] && !p.podcast && !p.related) toggleInsert(i); });
+  (window._availableInserts||[]).forEach(function(p,i){ if(window._promoQueued[p.name] && !p.podcast && !p.related && !p.ad) toggleInsert(i); });
+  if(window._adsQueued) placeAds();
 }
 
 // Delegated on #ed-result (not the article div itself) so it keeps working
@@ -828,7 +838,7 @@ function toggleInsert(i){
   var at=addedInserts.map(function(x){return x.idx;}).indexOf(i);
   if(at===-1){
     var def=(window._availableInserts[i].placement||'end');
-    if(PLACEMENTS.indexOf(def)===-1 && !/^pos\d{1,2}$/.test(def)) def='end';
+    if(PLACEMENTS.indexOf(def)===-1 && !/^(pos\d{1,2}|after\d{1,3})$/.test(def)) def='end';
     addedInserts.push({idx:i,placement:def});
   } else addedInserts.splice(at,1);
   var on=addedInserts.some(function(x){return x.idx===i;});
@@ -851,7 +861,8 @@ function renderInsertControls(){
       var name=window._availableInserts[e.idx].name||('Insert '+(e.idx+1));
       return '<div style="display:flex;align-items:center;flex-wrap:wrap;gap:6px 8px;padding:4px 0;font-size:13px">'+
         '<span style="flex:1 1 140px">'+esc(name)+'</span>'+
-        (window._availableInserts[e.idx].podcast||window._availableInserts[e.idx].slider
+        (window._availableInserts[e.idx].ad ? '<span style="font-size:12px;color:var(--muted)">after paragraph '+String(e.placement).replace('after','')+'</span>' :
+         window._availableInserts[e.idx].podcast||window._availableInserts[e.idx].slider
           ? '<label style="display:flex;align-items:center;gap:6px;margin:0;font-weight:400;font-size:12px;color:var(--muted)">Top <input type="range" min="1" max="10" step="1" value="'+podPosNum(e.placement)+'" oninput="setInsertPos('+e.idx+',\'pos\'+this.value);this.nextElementSibling.textContent=this.value" style="width:120px;padding:0"> <b style="color:var(--text);min-width:16px">'+podPosNum(e.placement)+'</b> Bottom</label>'
           : '<select onchange="setInsertPos('+e.idx+',this.value)" style="font-size:12px;padding:3px 6px;border:1px solid var(--border);border-radius:5px">'+
               PLACEMENTS.map(function(pl){return '<option value="'+pl+'"'+(pl===e.placement?' selected':'')+'>'+PLACE_LABEL[pl]+'</option>';}).join('')+
@@ -902,7 +913,8 @@ function getPodcastSettings(){
   var f=window.IMSAuth?IMSAuth.authFetch:fetch;
   f('/api/site-profile').then(function(r){return r.json();}).then(function(d){
     if(d&&d.profile&&d.profile.podcast){ window._profilePodcast=d.profile.podcast; if(typeof loadPodcastSettingsForm==='function') loadPodcastSettingsForm(); }
-    if(d&&d.profile){ window._editorDefaults=d.profile.editorDefaults||{}; window._editorAccess=d.profile.editorAccess||{}; applyAccess(); if(!window._aaTouched) loadAutoAdd(); }
+    if(d&&d.profile){ window._adsCfg=d.profile.ads||{units:[]}; renderAds();
+      window._editorDefaults=d.profile.editorDefaults||{}; window._editorAccess=d.profile.editorAccess||{}; applyAccess(); if(!window._aaTouched) loadAutoAdd(); }
   }).catch(function(){});
 })();
 function podPlatformHint(){var el=document.getElementById('pod-platform-hint');if(el)el.textContent=POD_HINTS[document.getElementById('pod-platform').value]||'';}
@@ -1168,13 +1180,16 @@ function renderInsertPreview(){
   art.innerHTML=window._articleBaseHtml||art.innerHTML;
   var blocks=Array.prototype.filter.call(art.children,function(n){return n.id!=='ed-insert-preview';});
   var n=blocks.length;
-  var idxFor=function(pl){ var m=/^pos(\d{1,2})$/.exec(pl||''); if(m) return Math.round((Math.max(1,Math.min(10,+m[1]))-1)/9*n); return pl==='top'?0 : pl==='early'?Math.min(3,n) : pl==='middle'?Math.floor(n/2) : n; };
+  var idxFor=function(pl){ var a=/^after(\d{1,3})$/.exec(pl||''); if(a) return Math.min(+a[1],n); var m=/^pos(\d{1,2})$/.exec(pl||''); if(m) return Math.round((Math.max(1,Math.min(10,+m[1]))-1)/9*n); return pl==='top'?0 : pl==='early'?Math.min(3,n) : pl==='middle'?Math.floor(n/2) : n; };
   // Insert from the end backwards so earlier indices stay valid.
   addedInserts.slice().sort(function(a,b){return idxFor(b.placement)-idxFor(a.placement);}).forEach(function(e){
     var wrap=document.createElement('div');
     wrap.className='ins-prev';
     wrap.style.cssText='border-left:3px solid var(--red);padding-left:10px;margin:14px 0;opacity:.9';
-    wrap.innerHTML=window._availableInserts[e.idx].html;
+    var ins=window._availableInserts[e.idx];
+    // Ad code usually only runs on the live page, so the preview shows a
+    // labeled box; copies and saved drafts get the real code (data-real).
+    if(ins.previewHtml){ wrap.innerHTML=ins.previewHtml; wrap.setAttribute('data-real',e.idx); } else wrap.innerHTML=ins.html;
     var k=idxFor(e.placement);
     if(k>=blocks.length) art.appendChild(wrap); else art.insertBefore(wrap,blocks[k]);
   });
@@ -1295,6 +1310,62 @@ async function submitArticle(btn,action){
 }
 
 var TIER_LABELS={vip:'VIP',free:'Free'};
+
+// ---- Ad slots (Jeff, 2026-10-06: "could we add monetization with embedded ad
+// code, as an option") ---------------------------------------------------------
+// Newsroom-wide units in the site profile (profile.ads.units), edited by the
+// publisher on the Inserts tab: name, code, tier, after paragraph N, then every
+// M paragraphs, at most K per article. Placed as inserts at 'afterN'.
+window._adsCfg=window._adsCfg||{units:[]};
+function adsUnits(){ return (window._adsCfg&&window._adsCfg.units)||[]; }
+function adsForTier(){
+  var t=(document.getElementById('ed-tier')||{}).value||'free';
+  return adsUnits().filter(function(u){ return (u.tier==='both'||u.tier===t) && String(u.code||'').trim(); });
+}
+function adsCanEdit(){ return !window.IMSAuth || !IMSAuth.state || !IMSAuth.state.configured || IMSAuth.isPublisher(); }
+function renderAds(){
+  var c=document.getElementById('ads-list'); if(!c) return;
+  var can=adsCanEdit(), units=adsUnits(), dis=can?'':' disabled';
+  document.querySelectorAll('.ads-edit').forEach(function(b){ b.style.display=can?'':'none'; });
+  c.innerHTML=units.length?units.map(function(u,i){
+    var num=function(k,v,min,max,w){ return '<input type="number" min="'+min+'" max="'+max+'" value="'+v+'"'+dis+' style="width:'+w+'px;display:inline-block;padding:4px 6px" onchange="adsSet('+i+',\''+k+'\',+this.value)">'; };
+    return '<div class="writer-item"><div class="whead"><input value="'+esc(u.name||'')+'" placeholder="Name (e.g. In-article 300x250)"'+dis+' style="flex:1;margin:0" onchange="adsSet('+i+',\'name\',this.value)">'+
+      '<select'+dis+' style="width:auto;margin:0" onchange="adsSet('+i+',\'tier\',this.value)">'+['both','free','vip'].map(function(t){ return '<option value="'+t+'"'+((u.tier||'both')===t?' selected':'')+'>'+({both:'Both tiers',free:'Free only',vip:'VIP only'})[t]+'</option>'; }).join('')+'</select>'+
+      (can?'<button class="btn ghost" style="margin:0" onclick="adsRemove('+i+')">Remove</button>':'')+'</div>'+
+      '<div style="font-size:13px;margin:8px 0;display:flex;gap:6px 14px;flex-wrap:wrap;align-items:center">After paragraph '+num('first',u.first||3,1,40,64)+' then every '+num('every',u.every||0,0,40,64)+' paragraphs (0 = once), at most '+num('max',u.max||3,1,10,56)+' per article</div>'+
+      '<textarea rows="3" placeholder="Paste the ad code"'+dis+' style="font-family:monospace;font-size:12px" onchange="adsSet('+i+',\'code\',this.value)">'+esc(u.code||'')+'</textarea></div>';
+  }).join(''):'<div class="empty">No ad slots yet.'+(can?' Add one to monetize every article.':' The publisher sets these up.')+'</div>';
+  updatePromoCount();
+}
+function adsSet(i,k,v){ var u=adsUnits()[i]; if(u){ u[k]=v; if(k==='tier') updatePromoCount(); } }
+function adsAdd(){ window._adsCfg.units=adsUnits().concat([{id:Date.now().toString(36),name:'',code:'',tier:'both',first:3,every:6,max:3}]); renderAds(); }
+function adsRemove(i){ var u=adsUnits(); u.splice(i,1); renderAds(); }
+async function adsSave(btn){
+  var m=document.getElementById('ads-msg'); btn.disabled=true; m.style.color='var(--muted)'; m.textContent='Saving…';
+  try{
+    var units=adsUnits().filter(function(u){ return String(u.code||'').trim(); }).map(function(u){ return {id:u.id||Date.now().toString(36),name:String(u.name||'Ad').slice(0,80),code:String(u.code).slice(0,20000),tier:u.tier||'both',first:Math.max(1,+u.first||3),every:Math.max(0,+u.every||0),max:Math.max(1,Math.min(10,+u.max||3))}; });
+    var r=await fetch('/api/site-profile',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({profile:{ads:{units:units}}})});
+    var d=await r.json().catch(function(){return {};});
+    if(!r.ok||d.error) throw new Error(d.error||('HTTP '+r.status));
+    window._adsCfg={units:units}; renderAds(); m.style.color='var(--green)'; m.textContent='Saved';
+  }catch(e){ m.style.color='var(--hot)'; m.textContent='Couldn’t save: '+e.message; }
+  btn.disabled=false;
+}
+// Drops this tier's ad units into the finished article.
+function placeAds(){
+  var tmp=document.createElement('div'); tmp.innerHTML=window._articleBaseHtml||'';
+  var n=tmp.children.length; // same blocks renderInsertPreview counts
+  window._availableInserts=window._availableInserts||[];
+  adsForTier().forEach(function(u){
+    var first=Math.max(1,+u.first||3), every=+u.every||0, max=Math.max(1,+u.max||3), count=0;
+    for(var at=first; at<n && count<max; at+=every||Infinity){
+      window._availableInserts.push({name:'💰 '+(u.name||'Ad')+' (after ¶'+at+')',tier:'both',placement:'after'+at,html:u.code,ad:true,
+        previewHtml:'<div style="border:1px dashed #b45309;background:#fffbeb;color:#92400e;font-size:12px;padding:10px;text-align:center">💰 Ad: '+esc(u.name||'ad slot')+'</div>'});
+      toggleInsert(window._availableInserts.length-1); count++;
+      if(!every) break;
+    }
+  });
+}
 
 // ---- Extra fact-check (/api/fact-check) --------------------------------------
 // Opt-in deeper check: every name, number and date in the piece against live
@@ -1617,7 +1688,7 @@ async function copyArticle(btn){
   var src=document.getElementById('ed-article'); if(!src)return;
   // Copy without the editor's red preview frame around inserts and embeds.
   var el=src.cloneNode(true);
-  Array.prototype.forEach.call(el.querySelectorAll('.ins-prev'),function(w){ while(w.firstChild) w.parentNode.insertBefore(w.firstChild,w); w.parentNode.removeChild(w); });
+  Array.prototype.forEach.call(el.querySelectorAll('.ins-prev'),function(w){ if(w.hasAttribute('data-real')) w.innerHTML=((window._availableInserts||[])[+w.getAttribute('data-real')]||{}).html||''; while(w.firstChild) w.parentNode.insertBefore(w.firstChild,w); w.parentNode.removeChild(w); });
   el.style.cssText='position:fixed;left:-9999px;top:0'; document.body.appendChild(el);
   var reset=function(){setTimeout(function(){btn.textContent='Copy article';},1500); if(el.parentNode) el.parentNode.removeChild(el);};
   try{
@@ -1652,7 +1723,7 @@ function copyStr(btn,s){
 function copyArticleHtml(btn){
   var src=document.getElementById('ed-article'); if(!src) return;
   var el=src.cloneNode(true);
-  Array.prototype.forEach.call(el.querySelectorAll('.ins-prev'),function(w){ while(w.firstChild) w.parentNode.insertBefore(w.firstChild,w); w.parentNode.removeChild(w); });
+  Array.prototype.forEach.call(el.querySelectorAll('.ins-prev'),function(w){ if(w.hasAttribute('data-real')) w.innerHTML=((window._availableInserts||[])[+w.getAttribute('data-real')]||{}).html||''; while(w.firstChild) w.parentNode.insertBefore(w.firstChild,w); w.parentNode.removeChild(w); });
   copyStr(btn, el.innerHTML.trim());
 }
 // One insert's code (the podcast player, a promo), for a CMS embed block.
@@ -1695,7 +1766,7 @@ function applyAccess(){
 function editorDefaults(){
   var d=window._editorDefaults||{}, pod=getPodcastSettings();
   return {
-    podcast:d.podcast!==false, related:d.related!==false, promos:!!d.promos, factCheck:!!d.factCheck,
+    podcast:d.podcast!==false, related:d.related!==false, promos:!!d.promos, factCheck:!!d.factCheck, ads:d.ads!==false,
     podcastPosition:+(d.podcastPosition||pod.position||10),
     relatedPosition:+(d.relatedPosition||10),
     relatedCount:+(d.relatedCount||3), relatedScope:d.relatedScope==='web'?'web':'site'
@@ -1706,6 +1777,7 @@ function getAutoAdd(){
   var addOk=canUse('add_with_edit');
   ['podcast','related','promos'].forEach(function(k){ var el=document.getElementById('aa-'+k); c[k]=addOk&&!!(el&&el.checked); });
   var fc=document.getElementById('aa-factcheck'); c.factCheck=canUse('act_fact_check')&&!!(fc&&fc.checked);
+  var ad=document.getElementById('aa-ads'); c.ads=addOk&&adsForTier().length>0&&!!(ad&&ad.checked);
   ['podcast','related'].forEach(function(k){ var el=document.getElementById('aa-'+k+'-pos'); c[k+'Position']=el?+el.value:10; });
   return c;
 }
@@ -1715,7 +1787,7 @@ function setAaPos(k,v){
 }
 function loadAutoAdd(){
   var d=editorDefaults();
-  ['podcast','related','promos','factCheck'].forEach(function(k){ var el=document.getElementById('aa-'+k.toLowerCase()); if(el) el.checked=d[k]; });
+  ['podcast','related','promos','factCheck','ads'].forEach(function(k){ var el=document.getElementById('aa-'+k.toLowerCase()); if(el) el.checked=d[k]; });
   setAaPos('podcast',d.podcastPosition); setAaPos('related',d.relatedPosition);
   var fsf=document.getElementById('fs-factcheck'); if(fsf) fsf.checked=d.factCheck;
   updatePromoCount();
@@ -1723,6 +1795,9 @@ function loadAutoAdd(){
   if(sv) sv.style.display=(window.IMSAuth&&IMSAuth.isPublisher())?'':'none';
 }
 function updatePromoCount(){
+  var n=adsForTier().length, row=document.getElementById('aa-ads-row'), lab=document.getElementById('aa-ads-label');
+  if(row) row.style.display=n?'':'none';
+  if(lab) lab.textContent='Ad slots for this tier ('+n+')';
   var tierEl=document.getElementById('ed-tier'), lab=document.getElementById('aa-promos-label');
   if(tierEl && lab){
     var n=getPromos().filter(function(p){ return (p.tier===tierEl.value||p.tier==='both') && (p.html||'').trim(); }).length;
@@ -1731,7 +1806,7 @@ function updatePromoCount(){
 }
 async function saveAutoAddDefault(link){
   var c=getAutoAdd();
-  var next=Object.assign({}, window._editorDefaults||{}, {podcast:c.podcast, related:c.related, promos:c.promos, factCheck:c.factCheck, podcastPosition:c.podcastPosition, relatedPosition:c.relatedPosition});
+  var next=Object.assign({}, window._editorDefaults||{}, {podcast:c.podcast, related:c.related, promos:c.promos, factCheck:c.factCheck, ads:c.ads, podcastPosition:c.podcastPosition, relatedPosition:c.relatedPosition});
   var note=document.getElementById('aa-default-note');
   try{
     var r=await fetch('/api/site-profile',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({profile:{editorDefaults:next}})});
@@ -2022,6 +2097,7 @@ document.getElementById('sg').value=getGuide();
 loadGuideFromServer();
 renderWriters();
 renderPromos();
+renderAds();
 loadPodcastSettingsForm();
 updateModeHint();
 renderPreTabs();
