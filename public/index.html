@@ -273,7 +273,7 @@ body.no-opps .acc-opps,body.no-write .acc-write,body.no-flag .acc-flag,body.no-f
    - alert cards: big Write it + Story angles, the other 7 actions behind More
    - text boxes at 16px (iPhone zooms the page on smaller ones)
    - no fixed footer bar */
-.mnav, .msheet, .aaction.amore { display: none; }
+.mnav, .mtop, .msheet, .aaction.amore { display: none; }
 @media (max-width:700px) {
   html, body { overflow-x: hidden; }
   body { padding-bottom: calc(64px + env(safe-area-inset-bottom)); }
@@ -288,6 +288,10 @@ body.no-opps .acc-opps,body.no-write .acc-write,body.no-flag .acc-flag,body.no-f
   .mnav button, .mnav a { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; min-height: 58px; background: none; border: 0; color: rgba(255,255,255,.65); font-size: 11px; font-weight: 600; text-decoration: none; cursor: pointer; -webkit-tap-highlight-color: transparent; }
   .mnav .mi { font-size: 21px; line-height: 1; }
   .mnav .on { color: #fff; }
+  .mtop { display: flex; background: var(--dark); border-top: 1px solid rgba(255,255,255,.08); }
+  .mtop button { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; min-height: 52px; background: none; border: 0; color: rgba(255,255,255,.65); font-size: 11px; font-weight: 600; cursor: pointer; -webkit-tap-highlight-color: transparent; }
+  .mtop .mi { font-size: 19px; line-height: 1; }
+  .mtop .on { color: #fff; box-shadow: inset 0 -2px 0 #fff; }
   .mnav .on .mi { transform: scale(1.08); }
   .msheet { position: fixed; inset: 0; z-index: 300; background: rgba(0,0,0,.45); }
   .msheet.open { display: block; }
@@ -303,6 +307,17 @@ body.no-opps .acc-opps,body.no-write .acc-write,body.no-flag .acc-flag,body.no-f
   .chip { min-height: 36px; }
 }
 
+/* Home ask box */
+.home-card.hc-ask { grid-column: 1 / -1; border-color: #c7d2fe; background: #f8f9ff; }
+.home-ask { display: flex; gap: 8px; }
+.home-ask input { flex: 1; min-width: 0; font: inherit; font-size: 15px; border: 1px solid var(--border); border-radius: 10px; padding: 10px 12px; background: #fff; }
+.home-ask button { background: #4338ca; color: #fff; border: 0; border-radius: 10px; padding: 0 18px; font: inherit; font-weight: 700; cursor: pointer; }
+.hc-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+.hc-chips button { font: inherit; font-size: 12.5px; border: 1px solid #c7d2fe; background: #fff; color: #3730a3; border-radius: 16px; padding: 5px 11px; cursor: pointer; }
+#homeAskAnswer { margin-top: 10px; font-size: 14.5px; line-height: 1.55; }
+#homeAskAnswer:empty { display: none; }
+#homeAskAnswer ul { margin: 6px 0 6px 18px; padding: 0; }
+@media (max-width: 700px) { .home-ask input { font-size: 16px; } }
 /* News search */
 .alert-search { display: flex; align-items: center; gap: 8px; background: #fff; border: 1px solid var(--border); border-radius: 10px; padding: 0 12px; margin: 0 0 10px; }
 .alert-search i { color: var(--text3); }
@@ -380,11 +395,20 @@ body.other-newsroom .other-only { display: block !important; }
   <button class="nav-tab" id="tab-btn-8" onclick="switchTab(8)">📺 YouTube</button>
   <button class="nav-tab" id="tab-btn-10" onclick="switchTab(10)">Settings</button>
   <button class="nav-tab" id="tab-btn-11" onclick="switchTab(11)">📈 Analytics</button>
+  <button class="nav-tab" id="tab-btn-17" onclick="switchTab(17)">💰 Advertising</button>
+  <button class="nav-tab" id="tab-btn-18" onclick="switchTab(18)">❌⭕ Xs and Os</button>
   <button class="nav-tab" id="tab-btn-12" onclick="switchTab(12)">🏈 Roster watch</button>
   <button class="nav-tab" id="tab-btn-13" onclick="switchTab(13)">👀 Opp Watch</button>
   <button class="nav-tab" id="tab-btn-14" onclick="switchTab(14)">📅 Calendar</button>
   <button class="nav-tab" id="tab-btn-15" onclick="switchTab(15)" style="display:none">🏆 Leaderboard</button>
 </div>
+<!-- Phone top row (Jeff, 2026-10-06: "another row of tabs like the bottom ones at the top") -->
+<nav class="mtop" id="mtop" aria-label="More sections">
+  <button data-tab="17" onclick="switchTab(17)"><span class="mi">💰</span>Advertising</button>
+  <button data-tab="18" onclick="switchTab(18)"><span class="mi">❌⭕</span>Xs and Os</button>
+  <button data-tab="11" onclick="switchTab(11)"><span class="mi">📈</span>Analytics</button>
+  <button data-tab="14" onclick="switchTab(14)"><span class="mi">📅</span>Calendar</button>
+</nav>
 
 <!-- ALERTS TAB -->
 <div class="page active" id="page-0">
@@ -490,17 +514,7 @@ body.other-newsroom .other-only { display: block !important; }
     <span><i class="ti ti-robot"></i> <strong>Coverage Desk</strong> — an assistant editor's memo (priorities, gaps, follow-ups) emails you every morning at 7&nbsp;AM.</span>
     <button class="chip" onclick="runCoverageDesk(this)">Email me one now</button>
   </div>
-  <div style="border:1px solid #c7d2fe;background:#f5f7ff;border-radius:10px;padding:12px 14px;margin-bottom:14px;">
-    <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;">
-      <div><b style="font-size:1rem;">⚖️ Ombudsman</b><div style="font-size:.8rem;color:var(--text2);max-width:70ch;">Holds our own coverage to account for readers: checks our recent articles for accuracy, honest headlines, sourcing, fairness and balance, and suggests the stories we should do next. Runs every morning (Coverage Desk) and with every update email.</div></div>
-      <div style="display:flex;gap:8px;flex-wrap:wrap;">
-        <button class="scan-btn" style="background:#4338ca;" onclick="runOmbReview(this)">Review our coverage</button>
-        <button class="scan-btn" style="background:#4338ca;" id="ombRunBtn" onclick="runOmbudsman(this)">Story ideas</button>
-      </div>
-    </div>
-    <div id="ombudsmanReview"></div>
-    <div id="ombudsmanIdeas"></div>
-  </div>
+  <div class="notice" style="margin-bottom:14px;">⚖️ The Ombudsman (coverage review and its story ideas) moved to <a href="/xos" onclick="switchTab(18);return false"><b>Xs and Os</b></a>.</div>
   <div id="backlogContainer">
     <div class="empty"><i class="ti ti-notebook"></i>Run a scan first, then generate story ideas from the latest alerts</div>
   </div>
@@ -869,26 +883,7 @@ body.other-newsroom .other-only { display: block !important; }
     <p style="color:var(--muted);font-size:.85rem;margin:4px 0 0;max-width:60ch;">Connect where your traffic and engagement data lives. Once a source is linked, this page shows what's working — best day and time to publish, which topics and headline styles land, per-writer performance — and answers questions like "what's been working best for us this month?"</p>
   </div>
 
-  <div class="settings-card">
-    <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;">
-      <h3 style="margin:0;"><i class="ti ti-compass"></i> Strategy &amp; overlap</h3>
-      <button class="chip" id="stratRefresh" onclick="loadStrategy(true)">Refresh now</button>
-    </div>
-    <div style="font-size:12px;color:var(--text3);margin:4px 0 10px;line-height:1.5;">Every connected source studied together: what each channel is for, which topics win across channels and which only on one, the gaps between them (a top story never posted to social, search demand with no story, a big story with no video), the best time per channel, and this week's moves. Updated every morning.</div>
-    <div id="strategyBox"><div class="empty" style="padding:14px;">Loading…</div></div>
-  </div>
-
-  <div class="settings-card">
-    <h3><i class="ti ti-message-circle-question"></i> Ask about your audience</h3>
-    <div style="font-size:12px;color:var(--text3);margin-bottom:12px;line-height:1.5;">Answered strictly from your connected sources' real numbers — not general knowledge. Try "what's been working best this week?" or "when should I publish?"</div>
-    <div id="analyticsQuestionScope" style="margin-bottom:8px;"></div>
-    <div style="display:flex;gap:6px;margin-bottom:8px;">
-      <input id="analyticsQuestionInput" placeholder="Ask a question about your audience…" style="flex:1;font-size:13px;padding:8px 10px;border:1px solid var(--border);border-radius:6px" onkeydown="if(event.key==='Enter')askAnalyticsQuestion()">
-      <button class="chip" onclick="askAnalyticsQuestion()">Ask</button>
-    </div>
-    <div id="analyticsQuestionSuggestions" style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px;"></div>
-    <div id="analyticsQuestionAnswer"></div>
-  </div>
+  <div class="notice" style="margin-bottom:14px;">❌⭕ Questions about your audience and the cross-channel strategy read moved to <a href="/xos" onclick="switchTab(18);return false"><b>Xs and Os</b></a>.</div>
 
   <div class="settings-card">
     <h3><i class="ti ti-plug"></i> Connections</h3>
@@ -1064,6 +1059,15 @@ body.other-newsroom .other-only { display: block !important; }
     <button type="submit">Search</button>
   </form>
   <div class="home-grid">
+    <section class="home-card hc-ask">
+      <div class="hc-head"><h3>💬 Ask CoPublisher</h3></div>
+      <form class="home-ask" onsubmit="homeAsk(event)">
+        <input id="homeAskInput" type="text" placeholder="Anything on the calendar? How are we doing this week?" autocomplete="off" enterkeyhint="send">
+        <button type="submit">Ask</button>
+      </form>
+      <div class="hc-chips" id="homeAskChips"></div>
+      <div id="homeAskAnswer"></div>
+    </section>
     <section class="home-card hc-news" data-tab="0">
       <div class="hc-head"><h3>📰 Latest news</h3><a href="/alerts" onclick="switchTab(0);return false">All news ›</a></div>
       <div class="hc-stats" id="homeNewsStats">Loading the latest scan…</div>
@@ -1091,9 +1095,9 @@ body.other-newsroom .other-only { display: block !important; }
     <section class="home-card hc-money">
       <div class="hc-head"><h3>💰 Advertising &amp; audience</h3></div>
       <div class="hc-quick">
-        <a href="/editor#2" data-editor="1"><span>💵</span>Ads &amp; promos<em id="homeAdsCount"></em></a>
+        <a href="/advertising" data-tab="17" onclick="switchTab(17);return false"><span>💵</span>Advertising<em id="homeAdsCount"></em></a>
         <a href="/analytics" data-tab="11" onclick="switchTab(11);return false"><span>📈</span>Analytics</a>
-        <a href="/social" data-tab="2" onclick="switchTab(2);return false"><span>📣</span>Hot social</a>
+        <a href="/xos" data-tab="18" onclick="switchTab(18);return false"><span>❌⭕</span>Xs and Os</a>
         <a href="/leaderboard" data-tab="15" onclick="switchTab(15);return false"><span>🏆</span>Leaderboard</a>
       </div>
     </section>
@@ -1110,6 +1114,81 @@ body.other-newsroom .other-only { display: block !important; }
         <a href="/preferences"><span>🔔</span>My alerts</a>
       </div>
     </section>
+  </div>
+</div>
+
+<!-- ADVERTISING (page-17; Jeff, 2026-10-06: a top-row tab for advertising) -->
+<div class="page" id="page-17">
+  <div class="hc-head" style="margin-bottom:10px;"><h2 style="margin:0;font-size:20px;">💰 Advertising</h2></div>
+  <div class="home-grid">
+    <section class="home-card">
+      <div class="hc-head"><h3>Ad slots in every story</h3><a href="/editor#2" class="adv-edit">Manage ›</a></div>
+      <div class="hc-stats">Your ad network's code, placed automatically when an article goes through the Content Editor with <b>Ad slots</b> ticked.</div>
+      <div id="advSlots" class="hc-list"><div class="hc-empty">Loading…</div></div>
+    </section>
+    <section class="home-card">
+      <div class="hc-head"><h3>Affiliate links</h3></div>
+      <div class="hc-stats">Programs that can drop a link box into a story (tick <b>💸 Affiliate links</b> under a draft).</div>
+      <div id="advAff" class="hc-list"><div class="hc-empty">Loading…</div></div>
+    </section>
+    <section class="home-card">
+      <div class="hc-head"><h3>Promos &amp; house ads</h3><a href="/editor#2">Edit ›</a></div>
+      <div class="hc-stats">Newsletter sign-ups, VIP offers and other inserts, added to free or VIP stories by placement.</div>
+    </section>
+    <section class="home-card">
+      <div class="hc-head"><h3>When readers show up</h3><a href="/calendar" onclick="switchTab(14);return false">Calendar ›</a></div>
+      <div class="hc-stats">This week's hot spots: the times your stories draw the most readers, and the best time to run ad-heavy or sponsored pieces.</div>
+      <div id="advHeat" class="hc-list"><div class="hc-empty">Loading…</div></div>
+    </section>
+  </div>
+</div>
+
+<!-- XS AND OS (page-18; Jeff, 2026-10-06: "where the ombudsman and the social
+     media and analytics feedback and questions will live") -->
+<div class="page" id="page-18">
+  <div class="hc-head" style="margin-bottom:10px;"><h2 style="margin:0;font-size:20px;">❌⭕ Xs and Os</h2></div>
+  <div style="font-size:13px;color:var(--text2);margin:-4px 0 14px;max-width:80ch;">The film room: how our coverage, social posts and audience numbers are doing, and what to change.</div>
+  <div class="settings-card">
+    <h3><i class="ti ti-brand-instagram"></i> Social media check</h3>
+    <div style="font-size:12px;color:var(--text3);margin-bottom:10px;line-height:1.5;">Quick reads on your social accounts from their real numbers (Buffer, Facebook/Instagram, X).</div>
+    <div style="display:flex;flex-wrap:wrap;gap:6px;">
+      <button class="chip" onclick="xosAsk('How did our social posts do this week, and which ones worked best?')">How did social do this week?</button>
+      <button class="chip" onclick="xosAsk('Which recent stories are worth re-sharing on social today?')">What should we re-share today?</button>
+      <button class="chip" onclick="xosAsk('Which stories got big traffic but little social promotion?')">Traffic we didn't promote</button>
+      <button class="chip" onclick="xosAsk('What time should we post on X and Facebook?')">Best times to post</button>
+    </div>
+  </div>
+  <div class="settings-card">
+    <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;">
+      <h3 style="margin:0;"><i class="ti ti-compass"></i> Strategy &amp; overlap</h3>
+      <button class="chip" id="stratRefresh" onclick="loadStrategy(true)">Refresh now</button>
+    </div>
+    <div style="font-size:12px;color:var(--text3);margin:4px 0 10px;line-height:1.5;">Every connected source studied together: what each channel is for, which topics win across channels and which only on one, the gaps between them (a top story never posted to social, search demand with no story, a big story with no video), the best time per channel, and this week's moves. Updated every morning.</div>
+    <div id="strategyBox"><div class="empty" style="padding:14px;">Loading…</div></div>
+  </div>
+
+  <div class="settings-card">
+    <h3><i class="ti ti-message-circle-question"></i> Ask about your audience</h3>
+    <div style="font-size:12px;color:var(--text3);margin-bottom:12px;line-height:1.5;">Answered strictly from your connected sources' real numbers — not general knowledge. Try "what's been working best this week?" or "when should I publish?"</div>
+    <div id="analyticsQuestionScope" style="margin-bottom:8px;"></div>
+    <div style="display:flex;gap:6px;margin-bottom:8px;">
+      <input id="analyticsQuestionInput" placeholder="Ask a question about your audience…" style="flex:1;font-size:13px;padding:8px 10px;border:1px solid var(--border);border-radius:6px" onkeydown="if(event.key==='Enter')askAnalyticsQuestion()">
+      <button class="chip" onclick="askAnalyticsQuestion()">Ask</button>
+    </div>
+    <div id="analyticsQuestionSuggestions" style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px;"></div>
+    <div id="analyticsQuestionAnswer"></div>
+  </div>
+
+  <div style="border:1px solid #c7d2fe;background:#f5f7ff;border-radius:10px;padding:12px 14px;margin-bottom:14px;">
+    <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;">
+      <div><b style="font-size:1rem;">⚖️ Ombudsman</b><div style="font-size:.8rem;color:var(--text2);max-width:70ch;">Holds our own coverage to account for readers: checks our recent articles for accuracy, honest headlines, sourcing, fairness and balance, and suggests the stories we should do next. Runs every morning (Coverage Desk) and with every update email.</div></div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;">
+        <button class="scan-btn" style="background:#4338ca;" onclick="runOmbReview(this)">Review our coverage</button>
+        <button class="scan-btn" style="background:#4338ca;" id="ombRunBtn" onclick="runOmbudsman(this)">Story ideas</button>
+      </div>
+    </div>
+    <div id="ombudsmanReview"></div>
+    <div id="ombudsmanIdeas"></div>
   </div>
 </div>
 
@@ -1247,7 +1326,7 @@ function nextScheduledScan() {
 // scan run on /alerts still feeds /digest, /podcasts, etc. without
 // re-fetching. vercel.json rewrites every path below back to this file.
 // ============================================================
-var TAB_PATHS = ['/alerts','/digest','/social','/chat','/backlog','/recruiting','/trending','/podcasts','/youtube','/bluesky','/settings','/analytics','/roster','/opps','/calendar','/leaderboard','/home'];
+var TAB_PATHS = ['/alerts','/digest','/social','/chat','/backlog','/recruiting','/trending','/podcasts','/youtube','/bluesky','/settings','/analytics','/roster','/opps','/calendar','/leaderboard','/home','/advertising','/xos'];
 function pathToTab(p) {
   p = String(p || '/').replace(/\/+$/, '') || '/';
   if (p === '/' || p === '/index.html' || p === '/index') return 16;  // Home
@@ -1259,7 +1338,7 @@ function pathToTab(p) {
 // (site profile editorAccess; api/_access.js also enforces it on the routes
 // that spend credits or show private numbers). Unset = allowed; the publisher
 // and a login-free setup always have everything. Alerts and Settings always show.
-var MON_ACCESS = { 1:'mon_digest', 2:'mon_social', 3:'mon_chat', 4:'mon_backlog', 5:'mon_recruiting', 6:'mon_trending', 7:'mon_podcasts', 8:'mon_youtube', 9:'mon_bluesky', 11:'mon_analytics', 12:'mon_roster', 13:'mon_opps', 14:'mon_calendar' };
+var MON_ACCESS = { 1:'mon_digest', 2:'mon_social', 3:'mon_chat', 4:'mon_backlog', 5:'mon_recruiting', 6:'mon_trending', 7:'mon_podcasts', 8:'mon_youtube', 9:'mon_bluesky', 11:'mon_analytics', 12:'mon_roster', 13:'mon_opps', 14:'mon_calendar', 18:'mon_analytics' };
 var monitorAccess = null;
 function accessAllows(key) {
   var role = window.IMSAuth && IMSAuth.state && IMSAuth.state.role;
@@ -1276,8 +1355,8 @@ function leaderboardAllowed() {
   if (!role || role === 'publisher') return true;
   var acc = IMSAuth.state.access; return !!(acc && acc.mon_leaderboard === true);
 }
-function monitorCanUse(idx) { if (idx === 15) return leaderboardAllowed(); return !MON_ACCESS[idx] || accessAllows(MON_ACCESS[idx]); }
-function applyLeaderboardAccess() { var b = document.getElementById('tab-btn-15'); if (b) b.style.display = leaderboardAllowed() ? '' : 'none'; }
+function monitorCanUse(idx) { if (idx === 15) return leaderboardAllowed(); if (idx === 17) return !(window.IMSAuth && IMSAuth.state && IMSAuth.state.configured && IMSAuth.state.role) || IMSAuth.isEditor(); return !MON_ACCESS[idx] || accessAllows(MON_ACCESS[idx]); }
+function applyLeaderboardAccess() { var b = document.getElementById('tab-btn-15'); if (b) b.style.display = leaderboardAllowed() ? '' : 'none'; var ad = document.getElementById('tab-btn-17'); if (ad) ad.style.display = monitorCanUse(17) ? '' : 'none'; }
 function applyMonitorAccess() {
   applyLeaderboardAccess();
   Object.keys(MON_ACCESS).forEach(function (i) {
@@ -1299,17 +1378,18 @@ function switchTab(idx, fromPop) {
   document.querySelectorAll('.page').forEach((p, i) => p.classList.toggle('active', i === idx));
   document.querySelectorAll('.nav-tab').forEach(t => t.classList.toggle('active', t.id === 'tab-btn-' + idx));
   if (idx === 3) { loadChatMessages(); startChatPolling(); } else { stopChatPolling(); }
-  if (idx === 4) loadOmbudsmanIdeas();
   if (idx === 7) loadPodcasts();
   if (idx === 8) loadYouTube();
   if (idx === 9) loadBluesky();
   if (idx === 10) { loadSourceHealth(); renderBlockedSources(); renderOwnSites(); refreshPushStatus(); loadTeam(); loadScrapeSessionStatus(); loadSocialPromoStatus(); loadSearchSettingsStatus(); loadGoogleSearchSettingsStatus(); loadXSettingsStatus(); loadXWatchHandles(); }
-  if (idx === 11) { renderAnalyticsConnections(); loadAnalyticsSuggestions(); loadStrategy(); }
+  if (idx === 11) { renderAnalyticsConnections(); }
   if (idx === 12) loadRosterWatch();
   if (idx === 13) loadOppsSpy();
   if (idx === 14) loadCalendar();
   if (idx === 15) loadLeaderboard();
   if (idx === 16) loadHome();
+  if (idx === 17) loadAdvertising();
+  if (idx === 18) { loadOmbudsmanIdeas(); renderAnalyticsConnections(); loadAnalyticsSuggestions(); loadStrategy(); }
   syncMobileNav(idx);
   window.scrollTo(0, 0);
   if (!fromPop) {
@@ -1367,6 +1447,7 @@ async function loadHome() {
   document.querySelectorAll('#page-16 [data-tab]').forEach(el => { el.style.display = monitorCanUse(+el.dataset.tab) ? '' : 'none'; });
   document.querySelectorAll('#page-16 [data-editor]').forEach(el => { el.style.display = canEditor ? '' : 'none'; });
   renderHomeNews();
+  loadHomeAskChips();
   const f = window.IMSAuth ? IMSAuth.authFetch : fetch;
   const esc = escapeHtml;
   if (canEditor) {
@@ -1394,6 +1475,69 @@ async function loadHome() {
   }
 }
 
+// Home "Ask CoPublisher" (api/ask.js): calendar, hot spots, the latest scan,
+// drafts, analytics, our coverage and the roster, with archive/web search.
+function askMd(t) {
+  const esc = escapeHtml(t);
+  return esc.split(/\n\s*\n/).map(p => {
+    p = p.replace(/\*\*([^*]+)\*\*/g, '<b>$1</b>');
+    const lines = p.split('\n');
+    if (lines.every(l => /^\s*[-•]\s+/.test(l))) return '<ul>' + lines.map(l => '<li>' + l.replace(/^\s*[-•]\s+/, '') + '</li>').join('') + '</ul>';
+    return '<p style="margin:6px 0">' + lines.join('<br>') + '</p>';
+  }).join('');
+}
+async function homeAsk(e, q) {
+  if (e) e.preventDefault();
+  const inp = document.getElementById('homeAskInput');
+  q = (q || inp.value || '').trim(); if (!q) return;
+  inp.value = q;
+  const out = document.getElementById('homeAskAnswer');
+  out.innerHTML = '<span style="color:var(--text3)"><i class="ti ti-loader spin"></i> Looking through your newsroom…</span>';
+  try {
+    const f = window.IMSAuth ? IMSAuth.authFetch : fetch;
+    const r = await f('/api/ask', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ question: q }) });
+    const d = await r.json();
+    out.innerHTML = d.error ? '<span style="color:#b42318">' + escapeHtml(d.error) + '</span>' : askMd(d.answer || '');
+  } catch (err) { out.innerHTML = '<span style="color:#b42318">Couldn\'t get an answer: ' + escapeHtml(err.message) + '</span>'; }
+}
+let homeAskChipsLoaded = false;
+function loadHomeAskChips() {
+  if (homeAskChipsLoaded) return; homeAskChipsLoaded = true;
+  const f = window.IMSAuth ? IMSAuth.authFetch : fetch;
+  f('/api/ask').then(r => r.json()).then(d => {
+    document.getElementById('homeAskChips').innerHTML = (d.suggestions || []).slice(0, 4).map(q => '<button type="button" onclick="homeAsk(null,this.textContent)">' + escapeHtml(q) + '</button>').join('');
+  }).catch(() => { homeAskChipsLoaded = false; });
+}
+
+// Xs and Os: the social chips ask the audience-question box.
+function xosAsk(q) {
+  const inp = document.getElementById('analyticsQuestionInput'); if (!inp) return;
+  inp.value = q;
+  askAnalyticsQuestion();
+  const ans = document.getElementById('analyticsQuestionAnswer'); if (ans) ans.scrollIntoView({ behavior: 'smooth', block: 'center' });
+}
+
+// Advertising (page-17): ad slots, affiliate programs, this week's hot spots.
+async function loadAdvertising() {
+  const f = window.IMSAuth ? IMSAuth.authFetch : fetch, esc = escapeHtml;
+  document.querySelectorAll('#page-17 .adv-edit').forEach(a => { a.style.display = !(window.IMSAuth && IMSAuth.state.configured) || IMSAuth.isPublisher() ? '' : 'none'; });
+  f('/api/site-profile').then(r => r.json()).then(d => {
+    const units = (d.profile && d.profile.ads && d.profile.ads.units) || [];
+    document.getElementById('advSlots').innerHTML = units.length ? units.map(u => '<div class="hc-item"><b>' + esc(u.name || 'Ad slot') + '</b><small>' +
+      esc((u.tier === 'vip' ? 'VIP stories' : u.tier === 'free' ? 'Free stories' : 'All stories') + ' · after paragraph ' + (u.first || 3) + (u.every ? ', then every ' + u.every : '') + (u.max ? ' · up to ' + u.max : '') + (u.code ? '' : ' · no ad code yet')) + '</small></div>').join('')
+      : '<div class="hc-empty">No ad slots yet. Paste your ad network\'s code in the Content Editor (Inserts › Ad slots) and every story can carry it.</div>';
+  }).catch(() => { document.getElementById('advSlots').innerHTML = '<div class="hc-empty">Couldn\'t load ad slots.</div>'; });
+  f('/api/affiliate?for=editor').then(r => r.json()).then(d => {
+    const ps = d.programs || [];
+    document.getElementById('advAff').innerHTML = ps.length ? ps.map(p => '<div class="hc-item"><b>' + esc(p.name) + '</b><small>' + esc((p.domains || []).join(', ') || p.home || '') + '</small></div>').join('')
+      : '<div class="hc-empty">No affiliate programs switched on yet.</div>';
+  }).catch(() => { document.getElementById('advAff').innerHTML = '<div class="hc-empty">Couldn\'t load affiliate programs.</div>'; });
+  calFetch().then(d => {
+    const hs = (d.events || []).filter(e => e.kind === 'heat' && Date.parse(e.start) > Date.now()).sort((a, b) => a.start.localeCompare(b.start)).slice(0, 4);
+    document.getElementById('advHeat').innerHTML = hs.length ? hs.map(e => '<div class="hc-item">🔥 ' + esc(e.title || 'Hot spot') + '<small>' + new Date(e.start).toLocaleString([], { weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }) + '</small></div>').join('') : '<div class="hc-empty">No hot spots left this week. New ones arrive Monday morning.</div>';
+  }).catch(() => { document.getElementById('advHeat').innerHTML = '<div class="hc-empty">Couldn\'t load hot spots.</div>'; });
+}
+
 // Phone bottom bar and its More sheet: every tab this person can use (the
 // same buttons as the desktop tab row, which hides tabs their role can't see),
 // plus the Content Editor and Preferences.
@@ -1406,7 +1550,12 @@ function syncMobileNav(idx) {
     b.style.display = src && src.style.display === 'none' ? 'none' : '';
   });
   var more = document.getElementById('mnavMore');
-  if (more) more.classList.toggle('on', !main[idx]);
+  if (more) more.classList.toggle('on', !main[idx] && !document.querySelector('#mtop [data-tab="' + idx + '"]'));
+  document.querySelectorAll('#mtop [data-tab]').forEach(function (b) {
+    var t = +b.dataset.tab;
+    b.classList.toggle('on', t === idx);
+    b.style.display = monitorCanUse(t) ? '' : 'none';
+  });
 }
 function openMoreSheet() {
   var cur = (document.querySelector('.nav-tab.active') || {}).id;
