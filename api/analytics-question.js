@@ -16,8 +16,11 @@ var Context = require('./_analytics-context');
 // the site?"). Cached per day in Blob, so it's one small Claude call a day.
 var EVERGREEN = [
   // Questions that ask what the numbers mean or what to do, not what they are:
-  // the Analytics tab already shows the numbers (Jeff, 2026-10-06).
-  'What should we write more of, based on what readers want?',
+  // the Analytics tab already shows the numbers (Jeff, 2026-10-06). A new set
+  // each day (api/_daily-questions.js); the core ones (weight 4) come up most days.
+  { q: 'What should we publish more of, based on what readers want?', weight: 4 },
+  { q: 'What\'s working for us right now, and why?', weight: 4 },
+  { q: 'How did this week go compared with last week?', weight: 4 },
   'What\'s working on social right now, and why?',
   'Which stories got big traffic but little social promotion?',
   'Which recent stories are worth re-sharing on social today?',
@@ -30,7 +33,7 @@ var EVERGREEN = [
   'What did readers care about this week that we under-covered?',
   'What would grow our audience fastest this month?'
 ];
-var SUGGEST_PATH = 'analytics-question-suggestions.json';
+var SUGGEST_PATH = 'analytics-question-suggestions-v2.json'; // v2: weighted daily set (2026-10-06)
 
 async function suggestions(sb) {
   var blob = require('./_site-blob');
@@ -43,9 +46,8 @@ async function suggestions(sb) {
     }
   } catch (e) { /* regenerate */ }
 
-  var n = Math.floor(Date.parse(day) / 86400000);
-  var pick = [EVERGREEN[n % EVERGREEN.length], EVERGREEN[(n * 7 + 3) % EVERGREEN.length]];
-  if (pick[1] === pick[0]) pick[1] = EVERGREEN[(n + 1) % EVERGREEN.length];
+  var daily = require('./_daily-questions').pick(EVERGREEN, 3, 'analytics', day);
+  var pick = daily.slice(0, 2);
   var topical = [];
   try {
     var latest = await require('./_latest-scan').load();
@@ -71,7 +73,7 @@ async function suggestions(sb) {
     }
   } catch (e) { /* evergreen only */ }
   var questions = topical.concat(pick).slice(0, 3);
-  while (questions.length < 3) questions.push(EVERGREEN[(n + questions.length + 5) % EVERGREEN.length]);
+  if (questions.length < 3) questions.push(daily[2]);
   var out = { day: day, questions: questions };
   try { await blob.put(SUGGEST_PATH, JSON.stringify(out), { access: 'private', addRandomSuffix: false, allowOverwrite: true, contentType: 'application/json' }); } catch (e) {}
   return out;
