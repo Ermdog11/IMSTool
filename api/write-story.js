@@ -14,7 +14,9 @@ var Settings = require('./_settings-store.js');
 
 // When Write it drafts started reading the source article, our archive and the
 // roster (api/_breaking-draft.js). Older untouched AI drafts get rewritten.
-var GROUNDED_SINCE = '2026-10-06T13:45:00Z';
+// Moved to 16:02Z when the "your memory is out of date" rules shipped (#85):
+// drafts from the hours between could still name players long gone.
+var GROUNDED_SINCE = '2026-10-06T16:02:00Z';
 
 function mdToHtml(t) {
   var s = String(t || '')
@@ -52,6 +54,9 @@ module.exports = async function handler(req, res) {
       // Anything a person has edited, or a newer AI draft, opens as is.
       var stale = existing && /^AI\b/.test(existing.writerName || '') && existing.updatedAt === existing.createdAt &&
         Date.parse(existing.createdAt || 0) < Date.parse(GROUNDED_SINCE);
+      // "Rewrite with current facts" on an AI draft (Content Editor › Drafts):
+      // the same draft is written again with today's grounding.
+      if (existing && req.body.rewrite && /^AI\b/.test(existing.writerName || '')) stale = true;
       if (existing && !stale) return res.status(200).json({ id: existing.id, existing: true });
       if (stale) reuseId = existing.id;
     }

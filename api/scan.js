@@ -39,15 +39,20 @@ module.exports = async function handler(req, res) {
 
   // If body has messages but no tools, act as a simple Claude proxy (card actions)
   var body = req.body || {};
+  // Grounded like every writing tool (api/_writer.js; Jeff, 2026-10-06: "any
+  // tool that is creating written content" needs the knowledge base): our
+  // coverage, current roster, roster changes and calendar go in front, and it
+  // can search our archive before answering. Same response shape as before.
   if (body.messages && !body.tools) {
     try {
-      var pr = await fetch('https://api.anthropic.com/v1/messages', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'x-api-key': key, 'anthropic-version': '2023-06-01' },
-        body: JSON.stringify(body)
-      });
-      var pd = await pr.json();
-      return res.status(pr.status).json(pd);
+      var W = require('./_writer');
+      var lastMsg = body.messages[body.messages.length - 1] || {};
+      var askText = typeof lastMsg.content === 'string' ? lastMsg.content : (lastMsg.content || []).map(function (b) { return b.text || ''; }).join(' ');
+      var ctx = await W.context(askText.slice(0, 1500));
+      var system = W.rules() + '\n\nCONTEXT (from our knowledge base and records; trust it over your memory):\n' + ctx + (body.system ? '\n\n' + body.system : '');
+      var got = await W.runAgenticLoop(key, system, body.messages.length === 1 ? lastMsg.content : askText, [W.KB_SEARCH_TOOL], null, 3, Math.max(Number(body.max_tokens) || 0, 1500));
+      if (got.error) return res.status(502).json({ error: got.error });
+      return res.status(200).json({ content: (got.content || []).filter(function (b) { return b.type === 'text'; }) });
     } catch(e) {
       return res.status(500).json({ error: e.message });
     }

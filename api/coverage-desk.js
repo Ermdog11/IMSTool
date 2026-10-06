@@ -219,12 +219,15 @@ module.exports = async function handler(req, res) {
     var Cal = require('./_calendar');
     var calList = todayEvents.map(function (e) { return '- ' + Cal.timeOf(e) + ': ' + e.title + (e.location ? ' (' + e.location + ')' : '') + (e.note ? ' — ' + e.note : ''); }).join('\n');
 
+    // Outlet and beat from the beat profile, never hard-coded.
+    var cdBeat = await require('./_beat').getBeat(require('./_supabase').isConfigured() ? require('./_supabase').admin() : null).catch(function () { return null; });
+    var cdOutlet = (cdBeat && cdBeat.outletName) || 'the outlet', cdShort = (cdBeat && cdBeat.team && cdBeat.team.short) || 'the team';
     var prompt =
-      'You are the managing editor of InsideMDSports, a University of Maryland Terrapins beat site. It is the morning of ' + today + '. ' +
+      'You are the managing editor of ' + cdOutlet + ', which covers ' + ((cdBeat && cdBeat.coverage) || 'its beat') + '. It is the morning of ' + today + '. ' +
       'Write a SHORT daily coverage memo to the publisher — the kind an assistant editor leaves on the desk. Plain, direct, skimmable. ' +
       'Use these sections, each 1-4 bullets; skip a section only if there is genuinely nothing real to say.\n\n' +
       "TODAY'S PRIORITIES — the 2-4 stories from the news below worth putting a writer on today, and one clause on why (fresh, major, or ours to own).\n" +
-      'GAPS — anything in the news below that matters to Terps readers that InsideMDSports has NOT already covered (compare against the recently-published list). Name the story and, if the source shows it, who already has it.\n' +
+      'GAPS — anything in the news below that matters to ' + cdShort + ' readers that ' + cdOutlet + ' has NOT already covered (compare against the recently-published list). Name the story and, if the source shows it, who already has it.\n' +
       'FOLLOW UPS — developing threads from roughly the last one to two weeks that deserve a check-in: a recruit deciding soon, an injury with no update, a pending decision, a story that said "more to come."\n' +
       (hasNumbers
         ? "WHAT WORKED YESTERDAY — 3-5 bullets reading YESTERDAY'S NUMBERS below (the publisher also sees the raw figures in a box above your memo, so don't just repeat them): what pulled readers on the site and why it likely did (topic, timing, angle), what did or didn't land on social (Buffer posts and the X account's own tweets), any top site story that got no social push, and how yesterday compared with the prior week, where readers came from (search vs social vs direct, and any shift vs the prior week), and what people searched on Google to find us (Search Console; preliminary numbers). End with 1-2 concrete actions for today drawn from this (e.g. a follow-up on a story that pulled readers, re-push a strong story on social, post at the hour that worked). Use ONLY the numbers given; never invent figures. If a source is missing or thin, say so in a few words rather than guessing.\n"
@@ -235,14 +238,14 @@ module.exports = async function handler(req, res) {
       "TODAY'S RATED NEWS:\n" + (newsList || '(nothing notable in the scan)') + '\n\n' +
       (calList ? "TODAY'S CALENDAR:\n" + calList + '\n\n' : '') +
       (heatList ? "THIS WEEK'S HOT SPOTS (ranked):\n" + heatList + '\n\n' : '') +
-      'RECENTLY PUBLISHED BY INSIDEMDSPORTS:\n' + (ownList || '(unavailable this run)') + '\n\n' +
+      'RECENTLY PUBLISHED BY ' + cdOutlet.toUpperCase() + ':\n' + (ownList || '(unavailable this run)') + '\n\n' +
       (hasNumbers ? "YESTERDAY'S NUMBERS (" + yesterday.day + ', Eastern; site readers are summed from readings every 3 hours, a ranking rather than exact pageviews):\n' + JSON.stringify({ site: yesterday.site, social: yesterday.social, x: yesterday.x, googleSearch: yesterday.search, errors: yesterday.errors }) + '\n\n' : '') +
       'Return ONLY clean HTML: <h3> for each section header, <ul><li> for bullets, <p> for the read. No preamble, no markdown fences.';
 
     var cr = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'x-api-key': key, 'anthropic-version': '2023-06-01' },
-      body: JSON.stringify({ model: 'claude-sonnet-4-6', max_tokens: 2200, messages: [{ role: 'user', content: prompt }] })
+      body: JSON.stringify({ model: 'claude-sonnet-4-6', max_tokens: 2200, system: require('./_writer').rules() + '\n\nCONTEXT (from our knowledge base and records; trust it over your memory):\n' + (await require('./_writer').context('')), messages: [{ role: 'user', content: prompt }] })
     });
     var cd = await cr.json();
     if (cd.error) throw new Error('Claude error: ' + JSON.stringify(cd.error));
