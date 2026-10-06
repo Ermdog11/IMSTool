@@ -803,8 +803,11 @@ body.no-opps .acc-opps,body.no-write .acc-write,body.no-flag .acc-flag,body.no-f
   <div id="oppsManage" class="acc-opps" style="background:var(--bg2);border:1px solid var(--border);border-radius:10px;padding:12px;margin:8px 0 12px;">
     <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
       <b style="font-size:.9rem;">Follow a competitor</b>
-      <input id="oppsAddName" placeholder="Name (e.g. On3 Maryland)" style="flex:1;min-width:150px;font-size:13px;padding:7px 9px;border:1px solid var(--border);border-radius:6px;">
+      <input id="oppsAddName" list="oppsKnownNames" placeholder="Competitor name (fills in the rest)" oninput="oppsNameInput()" onchange="oppsAutofill()" style="flex:1;min-width:170px;font-size:13px;padding:7px 9px;border:1px solid var(--border);border-radius:6px;" autocomplete="off">
+      <datalist id="oppsKnownNames"></datalist>
       <input id="oppsAddSite" placeholder="Website or RSS feed" style="flex:1.4;min-width:180px;font-size:13px;padding:7px 9px;border:1px solid var(--border);border-radius:6px;" onkeydown="if(event.key==='Enter')oppsFollow()">
+      <input id="oppsAddX" list="oppsKnownX" placeholder="@X handle" style="flex:.8;min-width:120px;font-size:13px;padding:7px 9px;border:1px solid var(--border);border-radius:6px;" autocomplete="off" onkeydown="if(event.key==='Enter')oppsFollow()">
+      <datalist id="oppsKnownX"></datalist>
       <label style="font-size:.8rem;display:flex;gap:4px;align-items:center;"><input type="checkbox" id="oppsAddEmail" checked> ✉️ Email me</label>
       <label style="font-size:.8rem;display:flex;gap:4px;align-items:center;" title="Saved now; texts start once texting is connected"><input type="checkbox" id="oppsAddText"> 💬 Text me</label>
       <select id="oppsAddEyes" title="How closely to watch them" style="font-size:.8rem;padding:4px 6px;border:1px solid var(--border);border-radius:6px;"><option value="5">👁 ×5 must-watch</option><option value="4">👁 ×4</option><option value="3" selected>👁 ×3</option><option value="2">👁 ×2</option><option value="1">👁 ×1 glance</option></select>
@@ -3572,7 +3575,7 @@ function renderOpps() {
   }
   cards.innerHTML = comps.map(function (c) {
     return '<div style="background:var(--bg2);border:1px solid var(--border);border-radius:10px;padding:12px;">' +
-      '<div style="display:flex;justify-content:space-between;gap:6px;align-items:flex-start;"><b>' + oppsEsc(c.name) + '</b>' +
+      '<div style="display:flex;justify-content:space-between;gap:6px;align-items:flex-start;"><b>' + oppsEsc(c.name) + (c.x ? ' <a href="https://x.com/' + oppsEsc(c.x) + '" target="_blank" rel="noopener" style="font-weight:400;font-size:.75rem;color:var(--text3);">@' + oppsEsc(c.x) + '</a>' : '') + '</b>' +
         '<button class="acc-opps" title="Unfollow" onclick="oppsAct({action:\'unfollow\',domain:\'' + oppsEsc(c.key || c.domain).replace(/'/g, '') + '\'},\'Unfollowed ' + oppsEsc(c.name).replace(/'/g, '') + '.\')" style="border:0;background:none;color:var(--text3);cursor:pointer;font-size:15px;line-height:1;padding:0 2px;">×</button></div>' +
         oppsEyesHtml(c) +
         '<div style="display:flex;gap:12px;font-size:.75rem;margin-top:4px;color:var(--text2);">' +
@@ -3613,12 +3616,55 @@ function oppsEyesHtml(c) {
   return '<div style="font-size:.9rem;letter-spacing:1px;margin-top:3px;" aria-label="' + n + ' of 5 eyes">' + h + '</div>';
 }
 
+// Follow box autofill (Jeff, 2026-10-06: "follow a competition should be a
+// box where twitter names autofill"): names and handles suggest as you type
+// (the beat's outlets and the watched X accounts); picking or finishing a
+// name fills in its website and X handle, from the beat or one web search.
+function oppsFillLists() {
+  var known = oppsData.known || [], xs = {};
+  document.getElementById('oppsKnownNames').innerHTML = known.map(function (o) { return '<option value="' + oppsEsc(o.name) + '">' + oppsEsc(o.site || '') + '</option>'; }).join('');
+  known.forEach(function (o) { if (o.x) xs[o.x.toLowerCase()] = '@' + o.x + ' (' + o.name + ')'; });
+  (oppsData.xHandles || []).forEach(function (h) { if (!xs[String(h).toLowerCase()]) xs[String(h).toLowerCase()] = '@' + h; });
+  document.getElementById('oppsKnownX').innerHTML = Object.keys(xs).map(function (k) { return '<option value="@' + oppsEsc(xs[k].split(' ')[0].slice(1)) + '">' + oppsEsc(xs[k]) + '</option>'; }).join('');
+}
+var _oppsNameTimer = null, _oppsLookedUp = '';
+function oppsNameInput() {
+  var v = document.getElementById('oppsAddName').value.trim().toLowerCase();
+  var hit = (oppsData.known || []).filter(function (o) { return o.name.toLowerCase() === v; })[0];
+  if (hit) return oppsApplyFound(hit, 'From your beat.');
+}
+function oppsApplyFound(o, note) {
+  var st = document.getElementById('oppsAddSite'), x = document.getElementById('oppsAddX'), m = document.getElementById('oppsMsg');
+  if (o.site && !st.value.trim()) st.value = o.site;
+  if (o.x && !x.value.trim()) x.value = '@' + o.x;
+  if (o.name) document.getElementById('oppsAddName').value = o.name;
+  m.style.color = 'var(--text3)';
+  m.textContent = (o.site || o.x) ? (note || '') + ' Check them, then Follow.' : 'Couldn\'t find their site or X account. Add them by hand.';
+}
+async function oppsAutofill() {
+  var n = document.getElementById('oppsAddName').value.trim(), st = document.getElementById('oppsAddSite'), x = document.getElementById('oppsAddX');
+  if (n.length < 3 || (st.value.trim() && x.value.trim()) || _oppsLookedUp === n.toLowerCase()) return;
+  var hit = (oppsData.known || []).filter(function (o) { return o.name.toLowerCase() === n.toLowerCase(); })[0];
+  if (hit && hit.site && hit.x) return oppsApplyFound(hit, 'From your beat.');
+  _oppsLookedUp = n.toLowerCase();
+  var m = document.getElementById('oppsMsg'); m.style.color = 'var(--text3)'; m.textContent = 'Looking up ' + n + '\'s site and X account…';
+  try {
+    var fetcher = window.IMSAuth ? IMSAuth.authFetch : fetch;
+    var r = await fetcher('/api/opps-spy', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'lookup', name: n }) });
+    var d = await r.json().catch(function () { return {}; });
+    if (!r.ok || d.error) throw new Error(d.error || ('HTTP ' + r.status));
+    if (document.getElementById('oppsAddName').value.trim().toLowerCase() !== n.toLowerCase()) return; // they kept typing
+    oppsApplyFound(d, d.from === 'search' ? 'Found online.' : 'From your beat.');
+  } catch (e) { m.style.color = 'var(--hot)'; m.textContent = 'Lookup failed: ' + e.message + '. Add them by hand.'; }
+}
+
 // Manage who Opp Watch follows without the setup wizard (Jeff, 2026-10-06).
 function renderOppsAvail() {
+  oppsFillLists();
   var el = document.getElementById('oppsAvail'); if (!el) return;
   var av = (oppsData.available || []).slice(0, 12);
   el.innerHTML = av.length ? '<span style="font-size:.78rem;color:var(--text3);">From your beat:</span>' + av.map(function (o) {
-    return '<button class="chip" style="font-size:.75rem;padding:3px 9px;" title="' + oppsEsc(o.domain) + '" onclick="oppsAct({action:\'follow\',name:this.dataset.n,site:this.dataset.d,alertEmail:true},\'Following ' + oppsEsc(o.name).replace(/'/g, '') + '.\')" data-n="' + oppsEsc(o.name) + '" data-d="' + oppsEsc(o.domain) + '">+ ' + oppsEsc(o.name) + '</button>';
+    return '<button class="chip" style="font-size:.75rem;padding:3px 9px;" title="' + oppsEsc(o.domain) + '" onclick="oppsAct({action:\'follow\',name:this.dataset.n,site:this.dataset.d,x:this.dataset.x||\'\',alertEmail:true},\'Following ' + oppsEsc(o.name).replace(/'/g, '') + '.\')" data-n="' + oppsEsc(o.name) + '" data-d="' + oppsEsc(o.domain) + '" data-x="' + oppsEsc(o.x || '') + '">+ ' + oppsEsc(o.name) + '</button>';
   }).join('') : '';
 }
 async function oppsAct(body, okMsg) {
@@ -3642,9 +3688,10 @@ async function oppsAct(body, okMsg) {
 async function oppsFollow() {
   var n = document.getElementById('oppsAddName'), st = document.getElementById('oppsAddSite');
   if (!st.value.trim()) { document.getElementById('oppsMsg').textContent = 'Add their website or RSS feed.'; return; }
-  var ok = await oppsAct({ action: 'follow', name: n.value.trim(), site: st.value.trim(), alertEmail: document.getElementById('oppsAddEmail').checked, alertText: document.getElementById('oppsAddText').checked, eyes: +document.getElementById('oppsAddEyes').value },
-    'Following ' + (n.value.trim() || st.value.trim()) + '.');
-  if (ok) { n.value = ''; st.value = ''; }
+  var xh = document.getElementById('oppsAddX');
+  var ok = await oppsAct({ action: 'follow', name: n.value.trim(), site: st.value.trim(), x: xh.value.trim(), alertEmail: document.getElementById('oppsAddEmail').checked, alertText: document.getElementById('oppsAddText').checked, eyes: +document.getElementById('oppsAddEyes').value },
+    'Following ' + (n.value.trim() || st.value.trim()) + (xh.value.trim() ? ' (and ' + xh.value.trim().replace(/^@?/, '@') + ' on X)' : '') + '.');
+  if (ok) { n.value = ''; st.value = ''; xh.value = ''; _oppsLookedUp = ''; }
 }
 
 
