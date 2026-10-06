@@ -1,4 +1,7 @@
-// Proactive public-records suggestions (cron, every 2 hours). Reads the
+// Proactive public-records suggestions (cron, every 2 hours). Each one is
+// also saved (Records.addSuggestion) for the News Monitor's "new suggested
+// records requests" panel and the next update email (rolling-digest.js).
+// Reads the
 // newsroom's latest shared scan (_latest-scan.js; no new scan is run), picks
 // new stories in records priority tier 1 (coach/AD hires, firings, contracts,
 // buyouts) or tier 2 (sponsorship, apparel, media rights, game and event
@@ -38,7 +41,8 @@ function emailHtml(story, d, tierLabel) {
     '<p style="margin:0 0 10px">' + esc(d.reason) + '</p>' +
     (d.law ? '<p style="margin:0 0 6px"><b>Law:</b> ' + esc(d.law) + (d.agency ? ' · <b>To:</b> ' + esc(d.agency) : '') + '</p>' : '') +
     (d.records.length ? '<p style="margin:8px 0 4px"><b>Asks for:</b></p><ul style="margin:0 0 10px">' + d.records.map(function (r) { return '<li>' + esc(r) + '</li>'; }).join('') + '</ul>' : '') +
-    '<p style="margin:0 0 4px"><b>Send to:</b> ' + (d.to ? esc(d.to) + (/^https?:/.test(d.toSource || '') ? ' <span style="color:#888">(found on <a href="' + esc(d.toSource) + '">' + esc(d.toSource.replace(/^https?:\/\//, '').slice(0, 60)) + '</a>; check it)</span>' : '') : '<i>no published email found</i>') +
+    '<p style="margin:0 0 4px"><b>Send to:</b> ' + (d.to ? esc(d.to) + (/^https?:/.test(d.toSource || '') ? ' <span style="color:#888">(confirmed on <a href="' + esc(d.toSource) + '">' + esc(d.toSource.replace(/^https?:\/\//, '').slice(0, 60)) + '</a>)</span>' : '')
+      : d.toUnconfirmed ? '<i>possibly ' + esc(d.toUnconfirmed) + '</i> <span style="color:#888">(not printed on the agency page' + (/^https?:/.test(d.toSource || '') ? ' <a href="' + esc(d.toSource) + '">' + esc(d.toSource.replace(/^https?:\/\//, '').slice(0, 60)) + '</a>' : '') + '; check it before sending)</span>' : '<i>no published email found</i>') +
     (d.portal ? ' · <a href="' + esc(d.portal) + '">online request portal</a>' : '') + '</p>' +
     (d.response_note ? '<p style="color:#555;margin:0 0 10px">' + esc(d.response_note) + '</p>' : '') +
     '<pre style="white-space:pre-wrap;font-family:Arial,sans-serif;background:#f7f6f3;border-radius:6px;padding:12px;font-size:13px">' + esc(d.body) + '</pre>' +
@@ -77,6 +81,11 @@ module.exports = async function handler(req, res) {
         done.push(Records.storyKey(a));
         if (!d.eligible) { results.push({ headline: story.headline, eligible: false, reason: d.reason }); continue; }
         var tierLabel = a._tier === 1 ? 'coaching hire, firing or contract' : 'sponsorship, game or event deal';
+        // Kept for the News Monitor and the next update email (Jeff, 2026-10-06).
+        try {
+          await Records.addSuggestion(SITE, { headline: story.headline, url: story.url, source: story.source, tier: a._tier, tierLabel: tierLabel,
+            draft: { to: d.to || '', toVerified: !!d.toVerified, toUnconfirmed: d.toUnconfirmed || '', toSource: d.toSource || '', portal: d.portal || '', agency: d.agency || '', law: d.law || '', subject: d.subject || '', body: d.body || '', records: d.records || [], reason: d.reason || '', response_note: d.response_note || '' } });
+        } catch (e) { console.error('records-suggest save failed', e.message); }
         var mail = null;
         if (recipients.length) {
           try {

@@ -39,6 +39,11 @@ module.exports = async function handler(req, res) {
   catch (e) { return res.status(e.status || 401).json({ error: e.message || 'Not signed in' }); }
 
   if (req.method === 'GET') {
+    // Suggested requests from the records-suggest cron, newest first.
+    if (req.query && req.query.suggestions) {
+      var sug = await Records.listSuggestions(SITE);
+      return res.status(200).json({ suggestions: sug.filter(function (x) { return x.status !== 'dismissed'; }).slice(0, 40) });
+    }
     var all = await Records.loadState();
     return res.status(200).json({ requests: all[SITE] || [] });
   }
@@ -52,6 +57,12 @@ module.exports = async function handler(req, res) {
   };
 
   try {
+    // Mark a suggestion handled: 'sent' or 'dismissed' (anyone signed in).
+    if (body.action === 'suggestion-status') {
+      if (['new', 'sent', 'dismissed'].indexOf(body.status) === -1) return res.status(400).json({ error: 'Unknown status' });
+      var upd = await Records.setSuggestionStatus(SITE, String(body.id || ''), body.status);
+      return upd ? res.status(200).json({ ok: true }) : res.status(404).json({ error: 'Not found' });
+    }
     if (body.action === 'draft') {
       var story = clean(body.alert);
       if (!story.headline) return res.status(400).json({ error: 'alert.headline required' });
