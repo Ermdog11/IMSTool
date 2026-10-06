@@ -128,7 +128,7 @@ function recordsHTML(list) {
     }).join('') + '</div>';
 }
 
-function buildEmailHTML(alerts, date, slot, overflowByTopic, recordsList) {
+function buildEmailHTML(alerts, date, slot, overflowByTopic, recordsList, ideas) {
   // Group by calendar day
   var days = {};
   alerts.forEach(function(a) {
@@ -162,7 +162,7 @@ function buildEmailHTML(alerts, date, slot, overflowByTopic, recordsList) {
     body += '</div>';
   });
 
-  body = recordsHTML(recordsList) + body;
+  body = recordsHTML(recordsList) + body + require('./_ombudsman.js').emailHtml(ideas);
   var bodyMsg = alerts.length
     ? '<p style="font-size:13px;color:#555;margin-bottom:20px;">' + alerts.length + ' new ' + (alerts.length === 1 ? 'story' : 'stories') + ' since the last update.</p>' + body
     : '<p style="font-size:13px;color:#555;margin-bottom:20px;">No new Terps stories since the last update.</p>' + body;
@@ -233,13 +233,17 @@ module.exports = async function handler(req, res) {
 
     var date = new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' });
 
+    // Ombudsman: five story ideas at the bottom of every update (best-effort).
+    var ideas = [];
+    try { ideas = await require('./_ombudsman.js').suggest(allAlerts, { slot: slot }); } catch (e) { console.error('Ombudsman ideas failed (non-fatal):', e.message); }
+
     var recordsList = [];
     try { recordsList = await require('./_records.js').pendingForDigest('insidemdsports'); } catch (e) { console.error('Records for digest failed (non-fatal):', e.message); }
     var mailResult = await mailer.sendMail({
       subject: alerts.length
         ? 'InsideMDSports ' + SLOT_LABEL[slot] + ' update — ' + alerts.length + ' new ' + (alerts.length === 1 ? 'story' : 'stories')
         : 'InsideMDSports ' + SLOT_LABEL[slot] + ' update — nothing new',
-      html: buildEmailHTML(alerts, date, slot, overflowByTopic, recordsList)
+      html: buildEmailHTML(alerts, date, slot, overflowByTopic, recordsList, ideas)
     });
     if (recordsList.length && mailResult && !mailResult.error) {
       try { await require('./_records.js').markInDigest('insidemdsports', recordsList.map(function(x) { return x.id; })); } catch (e) { console.error('Records digest mark failed:', e.message); }
