@@ -2,7 +2,15 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<link rel="manifest" href="/manifest.json">
+<meta name="theme-color" content="#0f1b2d">
+<link rel="icon" type="image/png" sizes="32x32" href="/icons/favicon-32.png">
+<link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="CoPublisher">
+<meta name="apple-mobile-web-app-status-bar-style" content="black">
 <title>InsideMDSports — Terps News Monitor</title>
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@2.44.0/tabler-icons.min.css">
 <style>
@@ -254,6 +262,46 @@ body.no-opps .acc-opps,body.no-write .acc-write,body.no-flag .acc-flag,body.no-f
 .cal-rem{display:flex;gap:6px;align-items:center;flex-wrap:wrap;font-size:.78rem;color:var(--text2)}
 .cal-x{border:0;background:none;color:var(--text3);cursor:pointer;font-size:16px;line-height:1;padding:0 2px}
 @media (max-width:600px){.cal-time{width:auto}.cal-rem{width:100%}}
+
+/* ===== PHONES (Android and iPhone; Jeff, 2026-10-06: "take inventory of what
+   needs to be tweaked so that it works well as a mobile app ... it also needs
+   to be Android friendly, but should still display properly on a computer").
+   Everything here is under 700px wide only; the computer layout is untouched.
+   - compact header that fits (it ran ~20px off screen, so pages slid sideways)
+   - the 14 tabs (5 rows) become a bottom bar: Alerts, Chat, Calendar, Write,
+     More (a sheet with every tab you can use)
+   - alert cards: big Write it + Story angles, the other 7 actions behind More
+   - text boxes at 16px (iPhone zooms the page on smaller ones)
+   - no fixed footer bar */
+.mnav, .msheet, .aaction.amore { display: none; }
+@media (max-width:700px) {
+  html, body { overflow-x: hidden; }
+  body { padding-bottom: calc(64px + env(safe-area-inset-bottom)); }
+  .topbar { height: auto; min-height: 52px; padding: 8px 12px; padding-top: calc(8px + env(safe-area-inset-top)); }
+  .site-sub, .pill-email, #backBtn { display: none !important; }
+  .topbar-right { gap: 6px; }
+  .nav { display: none; }
+  .page { padding: 12px 12px 16px; }
+  .bottom-bar { display: none; }
+  input, select, textarea { font-size: 16px !important; }
+  .mnav { display: flex; position: fixed; left: 0; right: 0; bottom: 0; z-index: 200; background: var(--dark); border-top: 1px solid rgba(255,255,255,.08); padding-bottom: env(safe-area-inset-bottom); }
+  .mnav button, .mnav a { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; min-height: 58px; background: none; border: 0; color: rgba(255,255,255,.65); font-size: 11px; font-weight: 600; text-decoration: none; cursor: pointer; -webkit-tap-highlight-color: transparent; }
+  .mnav .mi { font-size: 21px; line-height: 1; }
+  .mnav .on { color: #fff; }
+  .mnav .on .mi { transform: scale(1.08); }
+  .msheet { position: fixed; inset: 0; z-index: 300; background: rgba(0,0,0,.45); }
+  .msheet.open { display: block; }
+  .msheet-box { position: absolute; left: 0; right: 0; bottom: 0; background: var(--bg2, #fff); border-radius: 16px 16px 0 0; padding: 10px 12px calc(16px + env(safe-area-inset-bottom)); max-height: 80vh; overflow-y: auto; }
+  .msheet-grip { width: 40px; height: 4px; border-radius: 2px; background: #cbd5e1; margin: 2px auto 10px; }
+  .msheet-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .msheet-grid button, .msheet-grid a { min-height: 52px; border: 1px solid var(--border); border-radius: 12px; background: var(--bg); color: var(--text); font-size: 15px; font-weight: 600; text-align: left; padding: 10px 12px; text-decoration: none; display: flex; align-items: center; }
+  .msheet-grid .on { border-color: var(--red); color: var(--red); }
+  .acard-actions:not(.all) .aaction:not(.acc-write):not(.amore):not(.acc-angles) { display: none; }
+  .acard-actions .aaction { min-height: 40px; font-size: 14px; padding: 8px 12px; }
+  .aaction.amore { display: inline-flex; align-items: center; }
+  .myrate button, [id^="myrate-"] button { min-width: 38px; min-height: 38px; }
+  .chip { min-height: 36px; }
+}
 </style>
 </head>
 <body>
@@ -263,7 +311,7 @@ body.no-opps .acc-opps,body.no-write .acc-write,body.no-flag .acc-flag,body.no-f
     <div class="ims-logo">IMS</div>
     <div>
       <div class="site-name">InsideMDSports</div>
-      <div class="site-sub">Terps news monitor — powered by Claude · v2.1</div>
+      <div class="site-sub">News monitor — powered by Claude · v2.1</div>
     </div>
   </div>
   <div class="topbar-right">
@@ -546,9 +594,9 @@ body.no-opps .acc-opps,body.no-write .acc-write,body.no-flag .acc-flag,body.no-f
   </div>
 
   <div class="settings-card">
-    <h3><i class="ti ti-bell"></i> Desktop alerts</h3>
-    <div style="font-size:12px;color:var(--text3);margin-bottom:10px;line-height:1.5;">Get a desktop notification for breaking (rating 5) news and roster changes — even if this tab isn't open.</div>
-    <button class="pill" id="pushToggleBtn" onclick="togglePush()">Enable desktop alerts</button>
+    <h3><i class="ti ti-bell"></i> Phone &amp; desktop alerts</h3>
+    <div style="font-size:12px;color:var(--text3);margin-bottom:10px;line-height:1.5;">Get a notification on this phone or computer for breaking (rating 5) news and roster changes, even when CoPublisher isn't open. Tapping it opens the story. Turn it on separately on each device.</div>
+    <button class="pill" id="pushToggleBtn" onclick="togglePush()">Turn on alerts on this device</button>
     <div id="pushStatus" style="font-size:11px;color:var(--text3);margin-top:8px;"></div>
   </div>
 
@@ -954,9 +1002,21 @@ body.no-opps .acc-opps,body.no-write .acc-write,body.no-flag .acc-flag,body.no-f
   <div class="table-scroll" style="overflow-x:auto;"><table id="lbTable" class="lb-table"></table></div>
 </div>
 
+<!-- Phone navigation (under 700px only; see the PHONES CSS block) -->
+<nav class="mnav" id="mnav" aria-label="Sections">
+  <button data-tab="0" onclick="switchTab(0)"><span class="mi">📰</span>Alerts</button>
+  <button data-tab="3" onclick="switchTab(3)"><span class="mi">💬</span>Chat</button>
+  <button data-tab="14" onclick="switchTab(14)"><span class="mi">📅</span>Calendar</button>
+  <a href="/editor"><span class="mi">✍️</span>Write</a>
+  <button id="mnavMore" onclick="openMoreSheet()"><span class="mi">☰</span>More</button>
+</nav>
+<div class="msheet" id="msheet" onclick="if(event.target===this)closeMoreSheet()">
+  <div class="msheet-box"><div class="msheet-grip"></div><div class="msheet-grid" id="msheetGrid"></div></div>
+</div>
+
 <div class="bottom-bar">
   <span class="bb-brand">INSIDEMDSPORTS</span>
-  <span class="bb-tag">TERPS NEWS MONITOR</span>
+  <span class="bb-tag">NEWS MONITOR</span>
 </div>
 
 <script src="/supabase-config.js"></script>
@@ -1097,7 +1157,7 @@ function applyMonitorAccess() {
   if (oppsData && oppsData.competitors) renderOpps();
   var on = document.querySelector('.page.active');
   var cur = on ? +on.id.replace('page-', '') : 0;
-  if (!monitorCanUse(cur)) switchTab(0, true);
+  if (!monitorCanUse(cur)) switchTab(0, true); else syncMobileNav(cur);
 }
 
 function switchTab(idx, fromPop) {
@@ -1115,6 +1175,7 @@ function switchTab(idx, fromPop) {
   if (idx === 13) loadOppsSpy();
   if (idx === 14) loadCalendar();
   if (idx === 15) loadLeaderboard();
+  syncMobileNav(idx);
   window.scrollTo(0, 0);
   if (!fromPop) {
     try { history.pushState({ imsTab: idx }, '', TAB_PATHS[idx]); } catch (e) {}
@@ -1122,6 +1183,31 @@ function switchTab(idx, fromPop) {
     if (b) b.style.display = 'inline-flex';
   }
 }
+
+// Phone bottom bar and its More sheet: every tab this person can use (the
+// same buttons as the desktop tab row, which hides tabs their role can't see),
+// plus the Content Editor and Preferences.
+function syncMobileNav(idx) {
+  var main = { 0: 1, 3: 1, 14: 1 };
+  document.querySelectorAll('#mnav [data-tab]').forEach(function (b) {
+    var t = +b.dataset.tab;
+    b.classList.toggle('on', t === idx);
+    var src = document.getElementById('tab-btn-' + t);
+    b.style.display = src && src.style.display === 'none' ? 'none' : '';
+  });
+  var more = document.getElementById('mnavMore');
+  if (more) more.classList.toggle('on', !main[idx]);
+}
+function openMoreSheet() {
+  var cur = (document.querySelector('.nav-tab.active') || {}).id;
+  var html = Array.from(document.querySelectorAll('.nav .nav-tab')).filter(function (b) { return b.style.display !== 'none'; }).map(function (b) {
+    var n = b.id.replace('tab-btn-', '');
+    return '<button class="' + (b.id === cur ? 'on' : '') + '" onclick="closeMoreSheet();switchTab(' + n + ')">' + b.innerHTML + '</button>';
+  }).join('') + '<a href="/editor">✍️ Content Editor</a><a href="/preferences">⚙️ Preferences</a>';
+  document.getElementById('msheetGrid').innerHTML = html;
+  document.getElementById('msheet').classList.add('open');
+}
+function closeMoreSheet() { document.getElementById('msheet').classList.remove('open'); }
 
 // Browser Back / Forward (and the on-screen Back button) move between sections
 window.addEventListener('popstate', function (e) {
@@ -1266,7 +1352,7 @@ function renderAlerts() {
       <div class="myrate" id="myrate-${idx}">${myRateHtml(a, idx)}</div>
       <div class="acard-actions">
         <button class="aaction acc-write" onclick="writeIt(${idx}, this)" title="Draft an article from this story and open it in the Content Editor" style="font-weight:700;"><i class="ti ti-pencil"></i> Write it</button>
-        <button class="aaction" onclick="getAngles(${idx})"><i class="ti ti-bulb"></i> Story angles</button>
+        <button class="aaction acc-angles" onclick="getAngles(${idx})"><i class="ti ti-bulb"></i> Story angles</button>
         <button class="aaction" onclick="getAutoBrief(${idx})"><i class="ti ti-file-text"></i> Auto-brief</button>
         <button class="aaction" onclick="getSEO(${idx})"><i class="ti ti-search"></i> SEO</button>
         <button class="aaction" onclick="getSocial(${idx})"><i class="ti ti-brand-twitter"></i> Draft social</button>
@@ -1275,6 +1361,7 @@ function renderAlerts() {
         <button class="aaction acc-flag" onclick="flagStory(${idx})" title="Flag as junk — trains the scanner to exclude similar stories" style="color:#c00;"><i class="ti ti-flag"></i> Flag</button>
         <button class="aaction acc-flag" onclick="blockSource(${idx})" title="Block ${(a.source||'').replace(/"/g,'&quot;')} — hide this site from all future results" style="color:#c00;"><i class="ti ti-ban"></i> Block source</button>
         <button class="aaction" onclick="hideItem('${(a.url||'').replace(/'/g,"\\'")}')" title="Hide just this story (keeps the source)" style="color:#c00;"><i class="ti ti-eye-off"></i> Hide story</button>
+        <button class="aaction amore" onclick="var p=this.parentNode;p.classList.toggle('all');this.textContent=p.classList.contains('all')?'Less':'⋯ More'">⋯ More</button>
       </div>
       <div class="aaction-output" id="output-${idx}"></div>
     </div>`;
@@ -1651,6 +1738,14 @@ async function refreshPushStatus() {
   const btn = document.getElementById('pushToggleBtn');
   const status = document.getElementById('pushStatus');
   if (!btn || !status) return;
+  // iPhone/iPad only allow notifications for an app added to the home screen.
+  var ios = /iPhone|iPad|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+  var installed = window.matchMedia('(display-mode: standalone)').matches || navigator.standalone === true;
+  if (ios && !installed) {
+    btn.disabled = true;
+    status.innerHTML = 'On iPhone, first add CoPublisher to your home screen: tap <b>Share</b> (the square with the arrow), then <b>Add to Home Screen</b>. Open it from the home screen and turn alerts on here.';
+    return;
+  }
   if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
     btn.disabled = true;
     status.textContent = 'Not supported in this browser.';
@@ -1663,7 +1758,7 @@ async function refreshPushStatus() {
   }
   const sub = await getPushSubscription();
   btn.disabled = false;
-  btn.textContent = sub ? 'Disable desktop alerts' : 'Enable desktop alerts';
+  btn.textContent = sub ? 'Turn off alerts on this device' : 'Turn on alerts on this device';
   status.textContent = sub ? 'Enabled on this device.' : '';
 }
 

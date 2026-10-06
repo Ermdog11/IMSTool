@@ -154,3 +154,11 @@
     isEditor: function () { return STATE.role === 'publisher' || STATE.role === 'editor'; }
   };
 })();
+
+// Phone app (PWA): register the service worker on every page so Android and
+// iPhone can install CoPublisher to the home screen (public/manifest.json,
+// public/sw.js). Best-effort; does nothing in browsers without support.
+(function () {
+  if (!('serviceWorker' in navigator) || location.protocol === 'file:') return;
+  window.addEventListener('load', function () { navigator.serviceWorker.register('/sw.js').catch(function () {}); });
+})();
