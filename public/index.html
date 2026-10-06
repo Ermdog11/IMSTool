@@ -3962,7 +3962,7 @@ function renderCalendar() {
     var time = e.allDay ? 'All day' : d.toLocaleTimeString('en-US', { timeZone: tz, hour: 'numeric', minute: '2-digit' });
     html += '<div class="cal-ev' + (e.kind === 'heat' ? ' heat' : '') + '" style="' + (past ? 'opacity:.55;' : '') + '">' +
       '<div class="cal-time">' + calEsc(time) + '</div>' +
-      '<div class="cal-main"><b>' + calEsc(e.title) + '</b><span class="cal-kind ' + calEsc(e.kind) + '">' + calEsc(e.kind || 'event') + '</span>' +
+      '<div class="cal-main"><b>' + calEsc(e.title) + '</b><span class="cal-kind ' + calEsc(e.kind) + '">' + calEsc(e.kind === 'heat' ? 'best time to publish' : (e.kind || 'event')) + '</span>' +
         (e.location ? '<div style="font-size:.8rem;color:var(--text2);">📍 ' + calEsc(e.location) + '</div>' : '') +
         (e.note ? '<div style="font-size:.8rem;color:var(--text2);margin-top:2px;">' + calEsc(e.note) + '</div>' : '') +
         (e.sourceSubject ? '<div style="font-size:.72rem;color:var(--text3);margin-top:3px;" title="' + calEsc(e.groupSummary || '') + '">From: ' + calEsc(e.sourceSubject) + '</div>' : '') +

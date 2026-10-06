@@ -60,6 +60,12 @@
 
 ## Done
 
+- **2026-10-06 — Heat spots fixed: no more spots from one viral post** (Jeff, on "#2: publish by 7 AM ... site readers run 39% below typical; posts get 2133% above the usual engagement": "this makes no sense").
+  - **Cause:** social got a third of the score, and a single viral 7 AM post (21x average) outweighed low site readers.
+  - **Fix:** when Chartbeat is connected, site readers decide. Social only nudges a slot by about ±15%, each post is capped at 3x average, and an hour with below-typical site readers is never picked. A day/hour with few readings leans on the general curve (n/(n+3)).
+  - **Wording:** big ratios read as "2.7x typical", and social is only mentioned when it supports the pick. The calendar tag reads "best time to publish".
+  - **This week's spots:** they recompute after deploy (`HEAT_V` bump in `_calendar.js`).
+
 - **2026-10-06 — YouTube connected to Analytics, and a daily cross-channel Strategy & overlap read** (Jeff: "wire YouTube analytics connections; I want all of the analytics studied, compared and analyzed so the app can give holistic data and suggestions for content/social media strategy and overlap").
   - **YouTube:** `_youtube-stats.js` uses the app's YOUTUBE_API_KEY, so it needs only the channel's @handle or link: no sign-in, and about 4 quota units per read. It reads subscribers, plus views, likes and comments for the last 50 uploads, a 30-day summary, Shorts (≤3 min) vs long, and best day and hour. It's a new `youtube` connection, part of `gatherContexts`, so the Overall summary and Ask about your audience use it too. Owner-only stats (watch time, retention, traffic sources) still need the YouTube Analytics OAuth connection (later).
   - **Strategy:** `_analytics-strategy.js` makes one daily Claude call (cron 10:30 UTC `/api/analytics-strategy`, or Refresh now for editors and publishers). It reads every connected source, 30 days of Chartbeat top pages and our headlines, and returns the overview, what each channel is for (role, what wins, best time), overlap across channels, gaps between channels with actions, and this week's moves. It's saved as analytics snapshot source `strategy` and shown at the top of the Analytics tab.

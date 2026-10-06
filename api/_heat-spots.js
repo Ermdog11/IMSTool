@@ -11,8 +11,10 @@
 //     hour-of-day curve so one odd night doesn't decide it.
 //   - social: interactions on posts sent through Buffer and on the X
 //     account's own tweets, by day and hour, relative to the average post.
-// Site readers count for about two thirds, social for one third; whichever
-// one is connected is used alone if the other isn't.
+// Site readers decide when they're connected; social engagement only nudges
+// a slot (about +/-15%), each post capped at 3x average so one viral post
+// can't make an hour, and an hour with below-typical site readers is never
+// picked. With only social connected, social decides.
 //
 // The five come from the rest of this week (now through Sunday), 6 AM to
 // 11 PM, at most two a day and at least three hours apart, ranked #1-#5.
@@ -70,7 +72,9 @@ function model(samples, minCell) {
   return function (dow, hour) {
     var general = (curve[hour] / overall) * dayAvg[dow];
     var c = cell[dow + '|' + hour];
-    if (c && c.length >= (minCell || 2)) return 0.5 * general + 0.5 * (mean(c) / overall);
+    // A day/hour with few readings leans on the general curve: its own
+    // average counts in proportion to how many readings it has (n / (n + 3)).
+    if (c && c.length >= (minCell || 2)) { var w = c.length / (c.length + 3); return (1 - w) * general + w * (mean(c) / overall); }
     return general;
   };
 }
@@ -116,11 +120,16 @@ function relative(list) {
   list = list.filter(function (p) { return p.at && typeof p.v === 'number'; });
   var avg = mean(list.map(function (p) { return p.v; }));
   if (!avg) return [];
-  return list.map(function (p) { var q = parts(p.at); return { dow: q.dow, hour: q.hour, v: p.v / avg }; });
+  // Capped at 3x the average: one viral post shouldn't make its hour a
+  // "heat spot" (Jeff, 2026-10-06, on a 7 AM spot from a single +2133% post).
+  return list.map(function (p) { var q = parts(p.at); return { dow: q.dow, hour: q.hour, v: Math.min(p.v / avg, 3) }; });
 }
 
 function hourLabel(h) { return (h % 12 || 12) + (h < 12 ? ' AM' : ' PM'); }
-function pct(x) { var p = Math.round((x - 1) * 100); return (p >= 0 ? p + '% above' : -p + '% below') + ' typical'; }
+function pct(x) {
+  if (x >= 2) return (Math.round(x * 10) / 10) + 'x typical';
+  var p = Math.round((x - 1) * 100); return p === 0 ? 'about typical' : (p > 0 ? p + '% above' : -p + '% below') + ' typical';
+}
 
 // The week's slots still ahead: [{ ms, ymd, dow, hour }] from the next whole
 // hour through Sunday 11 PM.
@@ -143,14 +152,16 @@ async function compute(sb, siteId, nowMs) {
   var site = await siteSamples(sb, siteId), social = await socialSamples(sb, siteId);
   var siteM = model(site, 2), socM = model(social, 2);
   if (!siteM && !socM) return { spots: [], basis: null, note: 'Not enough history yet: heat spots need about two days of Chartbeat readings or a few weeks of Buffer/X posts.' };
-  var wSite = siteM ? (socM ? 0.65 : 1) : 0, wSoc = socM ? (siteM ? 0.35 : 1) : 0;
   var scored = slotsAhead(nowMs).map(function (s) {
     var a = siteM ? siteM(s.dow, s.hour) : null, b = socM ? socM(s.dow, s.hour) : null;
-    return Object.assign({}, s, { site: a, social: b, score: (a || 0) * wSite + (b || 0) * wSoc });
+    // With site readers known, they decide; social nudges by at most about
+    // +/-15% (and never rescues an hour when site readers are below typical).
+    var score = a != null ? a * (b != null ? Math.pow(Math.max(0.7, Math.min(1.5, b)), 0.35) : 1) : (b || 0);
+    return Object.assign({}, s, { site: a, social: b, score: score, ok: a != null ? a >= 1 : (b || 0) >= 1 });
   }).sort(function (x, y) { return y.score - x.score; });
   var picked = [];
   scored.forEach(function (s) {
-    if (picked.length >= 5) return;
+    if (picked.length >= 5 || !s.ok) return;
     var sameDay = picked.filter(function (p) { return p.ymd === s.ymd; });
     if (sameDay.length >= 2 || sameDay.some(function (p) { return Math.abs(p.hour - s.hour) < 3; })) return;
     picked.push(s);
@@ -158,7 +169,7 @@ async function compute(sb, siteId, nowMs) {
   var spots = picked.map(function (s, i) {
     var why = [];
     if (s.site != null) why.push('site readers at ' + hourLabel(s.hour) + ' on ' + DAYS[s.dow] + 's run ' + pct(s.site));
-    if (s.social != null) why.push('posts sent then get ' + pct(s.social).replace('typical', 'the usual engagement'));
+    if (s.social != null && (s.site == null || s.social >= 1.1) && Math.abs(s.social - 1) >= 0.1) why.push('posts sent then get ' + pct(s.social).replace(' typical', ' the usual engagement').replace('x the usual', 'x the usual'));
     return {
       rank: i + 1, date: s.ymd, time: (s.hour < 10 ? '0' : '') + s.hour + ':00', day: DAYS[s.dow], label: DAYS[s.dow] + ' ' + hourLabel(s.hour),
       score: Math.round(s.score * 100) / 100,
