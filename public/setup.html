@@ -162,7 +162,7 @@ input:focus,select:focus,textarea:focus,button:focus-visible{outline:2px solid v
         <div class="ac" style="margin-top:8px"><input id="b-term-add" placeholder="Add a name or term, e.g. a player, coach or venue" autocomplete="off"><div class="ac-list" id="term-ac"></div></div></div>
       <div class="rlegend"><b style="color:var(--red)">Outlined</b> = key figure (head coach, AD or GM, a top star). <span style="background:#f6f5f1;padding:0 4px;border-radius:3px">Gray</span> = historical.</div>
       <label>Sources that cover your beat</label>
-      <div class="rlegend">Rate each one: <b>5</b> must-watch · <b>4</b> high · <b>3</b> normal · <b>2</b> low · <b>1</b> don't watch its feed. <b>Block all results</b> hides that source's stories everywhere, even when they show up through Google News. Check <b>Email me</b> or <b>Text me</b> on your closest competitors to follow them in <a href="/opps" target="_blank">Opp Watch</a>.</div>
+      <div class="rlegend">Rate each one: <b>5</b> must-watch · <b>4</b> high · <b>3</b> normal · <b>2</b> low · <b>1</b> don't watch its feed. <b>Block all results</b> hides that source's stories everywhere, even when they show up through Google News. Check <b>Follow in Opp Watch</b> (and <b>Email me</b> or <b>Text me</b> if you want alerts) on your closest competitors, or manage them right in <a href="/opps" target="_blank">Opp Watch</a>.</div>
       <div class="box" id="beat-outlets"></div>
       <div style="display:flex;gap:8px;margin-top:8px;flex-wrap:wrap"><input id="b-add-name" placeholder="Outlet name" style="flex:1;min-width:140px"><input id="b-add-domain" placeholder="Website, e.g. baltimoresun.com" style="flex:1;min-width:160px"><button type="button" class="btn ghost small" onclick="addOutlet()">Add</button></div>
       <div>
@@ -556,8 +556,9 @@ function renderOutlets(){
       (o.checked==='feed'?'<span class="tag ok">feed ✓</span>':'')+
       '<div class="sub">'+esc(o.domain||'')+(o.why?' — '+esc(o.why):'')+'</div>'+
       '<div class="spy">'+
-        '<label title="Email you each time they publish a story on your beat"><input type="checkbox" '+(o.alertEmail?'checked':'')+' onchange="beat.outlets['+i+'].alertEmail=this.checked"> ✉️ Email me when they publish</label>'+
-        '<label title="Text you each time they publish. Texts start once a texting service is connected; until then you get the email."><input type="checkbox" '+(o.alertText?'checked':'')+' onchange="beat.outlets['+i+'].alertText=this.checked"> 💬 Text me</label>'+
+        '<label title="Show their stories on the Opp Watch tab"><input type="checkbox" '+(o.spy||o.alertEmail||o.alertText?'checked':'')+' onchange="beat.outlets['+i+'].spy=this.checked;if(!this.checked){beat.outlets['+i+'].alertEmail=false;beat.outlets['+i+'].alertText=false;}renderOutlets()"> 👀 Follow in Opp Watch</label>'+
+        '<label title="Email you each time they publish a story on your beat"><input type="checkbox" '+(o.alertEmail?'checked':'')+' onchange="beat.outlets['+i+'].alertEmail=this.checked;if(this.checked)beat.outlets['+i+'].spy=true;renderOutlets()"> ✉️ Email me when they publish</label>'+
+        '<label title="Text you each time they publish. Texts start once a texting service is connected; until then you get the email."><input type="checkbox" '+(o.alertText?'checked':'')+' onchange="beat.outlets['+i+'].alertText=this.checked;if(this.checked)beat.outlets['+i+'].spy=true;renderOutlets()"> 💬 Text me</label>'+
       '</div></div>'+rateHtml('outlets.'+i,o.rating)+
       '<label class="blk" title="Never show any story from this source, wherever it turns up"><input type="checkbox" '+(o.blocked?'checked':'')+' onchange="beat.outlets['+i+'].blocked=this.checked;renderOutlets()"> Block all results</label>'+
       '<button type="button" class="x" title="Remove" onclick="beat.outlets.splice('+i+',1);renderOutlets()">×</button></div>';

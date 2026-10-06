@@ -40,7 +40,8 @@ var FEATURES = [
   // News Monitor actions
   { key: 'act_write_story',label: 'Write it: draft an article from an alert or story idea' },
   { key: 'act_flag_block', label: 'Flag junk and block sources for the whole newsroom' },
-  { key: 'act_x_follow',   label: 'Change which X accounts are followed' }
+  { key: 'act_x_follow',   label: 'Change which X accounts are followed' },
+  { key: 'act_opps_edit',  label: 'Change who Opp Watch follows and its alerts' }
 ];
 
 function can(profile, role, key) {
