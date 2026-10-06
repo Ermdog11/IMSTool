@@ -2021,7 +2021,7 @@ async function sendRecordsRequest(idx, btn) {
 // the automatic rating-4/5 breaking drafts), saves it to Editorial Desk drafts
 // and opens the Content Editor on it. A story that already has a draft just
 // opens that one. The tab is opened up front, synchronously, so popup blockers
-// don't eat it once the ~20-40s draft call returns.
+// don't eat it once the ~30-90s draft call returns.
 async function writeIt(idx, btn) {
   const a = allAlerts[idx];
   return writeDraft({ headline: a.headline, summary: a.summary, source: a.source, time: a.time, category: a.category, url: a.url },
@@ -2030,11 +2030,11 @@ async function writeIt(idx, btn) {
 
 // The page the new tab shows while the draft is written (Jeff, 2026-10-06:
 // "this screen needs to look better while it writes"): the headline, an
-// estimated progress bar against the usual ~30s (held at 95% until the draft
+// estimated progress bar against the usual ~45s (held at 95% until the draft
 // is ready) and the step it's probably on. Phone-first, follows dark mode.
 function draftLoadingHtml(headline) {
   const h = String(headline || 'this story').replace(/&/g,'&amp;').replace(/</g,'&lt;');
-  const steps = ['Reading the story', 'Finding our related articles to link', 'Writing in house style', 'Writing the headline and fact-check notes', 'Saving to your drafts'];
+  const steps = ['Reading the story', 'Checking our archive, roster and calendar', 'Looking up current facts', 'Writing in house style', 'Adding the headline and fact-check notes'];
   return '<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">' +
     '<title>Writing draft…</title><style>' +
     ':root{--bg:#f5f7fb;--card:#fff;--ink:#111827;--muted:#6b7280;--line:#e5e7eb;--accent:#2563eb;--track:#eaf1ff}' +
@@ -2048,11 +2048,11 @@ function draftLoadingHtml(headline) {
     '.dot{width:18px;height:18px;border-radius:50%;border:2px solid var(--line);flex:none;display:flex;align-items:center;justify-content:center;font-size:11px}' +
     'li.on{color:var(--ink);font-weight:600}li.on .dot{border-color:var(--accent);border-top-color:transparent;animation:spin .8s linear infinite}li.done .dot{background:var(--accent);border-color:var(--accent);color:#fff}' +
     '@keyframes spin{to{transform:rotate(360deg)}}.foot{font-size:12px;color:var(--muted);margin-top:18px;text-align:center}' +
-    '</style></head><body><div class="card"><div class="top"><div class="pen">✍️</div><div><div class="lbl">Writing a draft</div><div class="sub">Usually about 30 seconds</div></div></div>' +
+    '</style></head><body><div class="card"><div class="top"><div class="pen">✍️</div><div><div class="lbl">Writing a draft</div><div class="sub">Usually under a minute</div></div></div>' +
     '<h1>' + h + '</h1><div class="bar"><div class="fill" id="f"></div></div><div class="meta"><span id="p">0%</span><span id="t">0s</span></div>' +
     '<ul>' + steps.map(function (x) { return '<li><span class="dot"></span>' + x + '</li>'; }).join('') + '</ul>' +
     '<div class="foot">The Content Editor opens here when it’s ready.</div></div>' +
-    '<script>var s=Date.now(),li=document.querySelectorAll("li");function tick(){var e=(Date.now()-s)/1000,p=Math.min(95,Math.round(100*(1-Math.exp(-e/14))));' +
+    '<script>var s=Date.now(),li=document.querySelectorAll("li");function tick(){var e=(Date.now()-s)/1000,p=Math.min(95,Math.round(100*(1-Math.exp(-e/22))));' +
     'document.getElementById("f").style.width=p+"%";document.getElementById("p").textContent=p+"%";document.getElementById("t").textContent=Math.round(e)+"s";' +
     'var k=Math.min(li.length-1,Math.floor(p/20));for(var i=0;i<li.length;i++){li[i].className=i<k?"done":i===k?"on":"";li[i].firstChild.textContent=i<k?"✓":"";}}tick();setInterval(tick,500);<\/script></body></html>';
 }
