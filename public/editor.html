@@ -181,12 +181,13 @@ body.no-factcheck .acc-factcheck,body.no-add #ed-autoadd,body.no-add #pre-tabs-w
       <div id="ed-autoadd" style="font-size:13px;margin-top:10px;border:1px solid var(--border);border-radius:8px;padding:8px 10px">
         <div style="font-weight:600;margin-bottom:4px">Add with this edit:</div>
         <div class="aa-row"><label class="aa-lab"><input type="checkbox" id="aa-podcast" style="width:auto"> 🎙️ Your latest podcast episode</label>
-          <span class="aa-pos">Top <input type="range" id="aa-podcast-pos" min="1" max="10" step="1" value="10" oninput="this.nextElementSibling.textContent=this.value"> <b>10</b> Bottom</span></div>
+          <span class="aa-pos" title="How far down the article it goes: 0% is above the first paragraph, 100% after the last. In a 10-paragraph story, 40% goes after paragraph 4.">Top <input type="range" id="aa-podcast-pos" min="0" max="100" step="20" value="100" oninput="this.nextElementSibling.textContent=this.value+'%'"> <b>100%</b> Bottom</span></div>
         <div class="aa-row"><label class="aa-lab"><input type="checkbox" id="aa-related" style="width:auto"> 🔗 Related links box</label>
-          <span class="aa-pos">Top <input type="range" id="aa-related-pos" min="1" max="10" step="1" value="10" oninput="this.nextElementSibling.textContent=this.value"> <b>10</b> Bottom</span></div>
+          <span class="aa-pos" title="How far down the article it goes: 0% is above the first paragraph, 100% after the last. In a 10-paragraph story, 40% goes after paragraph 4.">Top <input type="range" id="aa-related-pos" min="0" max="100" step="20" value="100" oninput="this.nextElementSibling.textContent=this.value+'%'"> <b>100%</b> Bottom</span></div>
         <div class="aa-row"><label class="aa-lab"><input type="checkbox" id="aa-promos" style="width:auto"> 📣 <span id="aa-promos-label">Promos for this tier</span></label></div>
         <div class="aa-row" id="aa-ads-row" style="display:none"><label class="aa-lab"><input type="checkbox" id="aa-ads" style="width:auto"> 💰 <span id="aa-ads-label">Ad slots</span></label></div>
         <div class="aa-row" id="aa-aff-row" style="display:none"><label class="aa-lab"><input type="checkbox" id="aa-affiliate" style="width:auto"> 💸 Affiliate links</label><span class="aa-pos" id="aa-aff-note"></span></div>
+        <div class="aa-pos" style="margin:0 0 4px 22px">The % is how far down the article it goes, counted in paragraphs: 0% is above the first paragraph, 50% the middle, 100% after the last. (In a 10-paragraph story, 40% goes after paragraph 4.)</div>
         <div class="aa-row acc-factcheck"><label class="aa-lab"><input type="checkbox" id="aa-factcheck" style="width:auto"> 🔎 Extra fact-check</label><span class="aa-pos">Checks every name, number and date against live sources. About a minute more.</span></div>
         <div style="font-size:12px;color:var(--muted);margin-top:4px;display:flex;gap:4px 12px;flex-wrap:wrap;align-items:center">
           <span id="aa-default-note">Ticks and spots start from your newsroom’s defaults.</span>
@@ -244,7 +245,7 @@ body.no-factcheck .acc-factcheck,body.no-add #ed-autoadd,body.no-add #pre-tabs-w
       <textarea id="pod-sample" rows="4" placeholder="Paste the embed code for any one episode, e.g. &lt;iframe src=&quot;…&quot;&gt;&lt;/iframe&gt;"></textarea>
       <div class="hint" id="pod-platform-hint" style="margin-top:4px"></div>
       <label for="pod-pos">Default spot in the article</label>
-      <div style="display:flex;align-items:center;gap:8px;font-size:12.5px;color:var(--muted)">Top <input id="pod-pos" type="range" min="1" max="10" step="1" value="10" oninput="document.getElementById('pod-pos-val').textContent=this.value" style="width:200px;padding:0"> Bottom <b id="pod-pos-val" style="color:var(--text)">10</b></div>
+      <div style="display:flex;align-items:center;gap:8px;font-size:12.5px;color:var(--muted)">Top <input id="pod-pos" type="range" min="0" max="100" step="20" value="100" oninput="document.getElementById('pod-pos-val').textContent=this.value+'%'" style="width:200px;padding:0"> Bottom <b id="pod-pos-val" style="color:var(--text)">100%</b></div>
       <div class="hint" style="margin-top:4px">1 puts the episode at the very top, 10 at the very end. Writers can still move it for any one article.</div>
       <div class="row"><button class="btn" onclick="savePodcastSettings()">Save podcast settings</button><button class="btn ghost" onclick="testPodcastEmbed(this)">Preview latest episode</button><span class="savedmsg" id="pod-saved" style="display:none">Saved</span></div>
       <div id="pod-test" style="margin-top:10px"></div>
@@ -855,7 +856,17 @@ function toggleInsert(i){
   renderInsertControls();
   renderInsertPreview();
 }
-function podPosNum(pl){ var m=/^pos(\d{1,2})$/.exec(pl||''); return m?+m[1]:10; }
+// Placement sliders are percentages in 20% steps (Jeff, 2026-10-06: "define
+// what the placement sliders mean and make them percentages instead, in
+// increments of 20%"): how far down the article, counted in paragraphs.
+// 0% = above the first paragraph, 100% = after the last. Saved placements
+// are 'pct0'..'pct100'; older 'pos1'..'pos10' (the 1-10 scale) and saved 1-10
+// positions are converted to the nearest 20%.
+function pick(){ for(var i=0;i<arguments.length;i++){ var v=arguments[i]; if(v!==undefined&&v!==null&&v!==''&&!(typeof v==='number'&&isNaN(v))) return v; } return null; }
+function pct(v){ v=+pick(v,100); if(isNaN(v)) v=100; if(v>=1&&v<=10) v=(v-1)/9*100; return Math.max(0,Math.min(100,Math.round(v/20)*20)); }
+function pctOfPlacement(pl){ var m=/^pct(\d{1,3})$/.exec(pl||''); if(m) return pct(+m[1]); var p=/^pos(\d{1,2})$/.exec(pl||''); if(p) return pct(+p[1]); return null; }
+function podPosNum(pl){ return pick(pctOfPlacement(pl),100); }
+function pctSliderHtml(val,oninput,width,onchange){ return 'Top <input type="range" min="0" max="100" step="20" value="'+val+'"'+(onchange?' onchange="'+onchange+'"':'')+' oninput="'+oninput+';this.nextElementSibling.textContent=this.value+\'%\'" style="width:'+(width||140)+'px;padding:0" title="0% = above the first paragraph, 100% = after the last"> <b style="color:var(--text);min-width:34px">'+val+'%</b> Bottom'; }
 function setInsertPos(i,val){
   var e=addedInserts.filter(function(x){return x.idx===i;})[0];
   if(e){ e.placement=val; renderInsertPreview(); }
@@ -871,7 +882,7 @@ function renderInsertControls(){
         '<span style="flex:1 1 140px">'+esc(name)+'</span>'+
         (window._availableInserts[e.idx].ad ? '<span style="font-size:12px;color:var(--muted)">after paragraph '+String(e.placement).replace('after','')+'</span>' :
          window._availableInserts[e.idx].podcast||window._availableInserts[e.idx].slider
-          ? '<label style="display:flex;align-items:center;gap:6px;margin:0;font-weight:400;font-size:12px;color:var(--muted)">Top <input type="range" min="1" max="10" step="1" value="'+podPosNum(e.placement)+'" oninput="setInsertPos('+e.idx+',\'pos\'+this.value);this.nextElementSibling.textContent=this.value" style="width:120px;padding:0"> <b style="color:var(--text);min-width:16px">'+podPosNum(e.placement)+'</b> Bottom</label>'
+          ? '<label style="display:flex;align-items:center;gap:6px;margin:0;font-weight:400;font-size:12px;color:var(--muted)">'+pctSliderHtml(podPosNum(e.placement),'setInsertPos('+e.idx+',\'pct\'+this.value)',120)+'</label>'
           : '<select onchange="setInsertPos('+e.idx+',this.value)" style="font-size:12px;padding:3px 6px;border:1px solid var(--border);border-radius:5px">'+
               PLACEMENTS.map(function(pl){return '<option value="'+pl+'"'+(pl===e.placement?' selected':'')+'>'+PLACE_LABEL[pl]+'</option>';}).join('')+
             '</select>')+
@@ -932,11 +943,11 @@ function loadPodcastSettingsForm(){
   pl.value=c.platform||'amperwave';
   document.getElementById('pod-feed').value=c.feedUrl||'';
   document.getElementById('pod-sample').value=c.sampleEmbed||'';
-  document.getElementById('pod-pos').value=c.position||10; document.getElementById('pod-pos-val').textContent=c.position||10;
+  var pp=pct(c.position); document.getElementById('pod-pos').value=pp; document.getElementById('pod-pos-val').textContent=pp+'%';
   podPlatformHint();
 }
 function savePodcastSettings(){
-  var c={platform:document.getElementById('pod-platform').value,feedUrl:document.getElementById('pod-feed').value.trim(),sampleEmbed:document.getElementById('pod-sample').value.trim(),position:+document.getElementById('pod-pos').value||10};
+  var c={platform:document.getElementById('pod-platform').value,feedUrl:document.getElementById('pod-feed').value.trim(),sampleEmbed:document.getElementById('pod-sample').value.trim(),position:pct(document.getElementById('pod-pos').value)};
   try{localStorage.setItem(LS_PODCAST,JSON.stringify(c));}catch(e){}
   window._podEpisodes=null;
   var m=document.getElementById('pod-saved'); if(m){m.style.display='inline';setTimeout(function(){m.style.display='none';},1500);}
@@ -1028,10 +1039,10 @@ function podcastPanel(){
       '<button class="btn" style="margin:0" onclick="queueLatestEpisode(this)">Add latest episode</button>'+
       '<div style="'+TIP_STYLE+'"><b>Tip:</b> the simplest way is the <b>Your latest podcast episode</b> box under the draft: it’s added in the same pass as the edit, at the spot set on the slider next to it, and you can still slide it in the Inserts card afterwards.</div>';
   }
-  var pos=window._podPos||getPodcastSettings().position||10;
+  var pos=pct(pick(window._podPos,getPodcastSettings().position));
   return '<div style="font-size:12.5px;margin-bottom:6px">Added the embed code for <b>'+esc(q.title)+'</b> to your draft. It stays exactly as is when you edit, and it’s included when you copy, save or send the article.</div>'+
-    '<div style="'+TIP_STYLE+'"><b>Tip:</b> the 1–10 position is counted on the finished article, so it’s easiest to add the podcast <b>after the edit is complete</b>. You can slide it again in the Inserts card once the edit is done.</div>'+
-    '<label style="display:flex;align-items:center;gap:8px;margin:0 0 8px;font-weight:400;font-size:12.5px;color:var(--text)">Where in the article: Top <input type="range" min="1" max="10" step="1" value="'+pos+'" oninput="window._podPos=+this.value;this.nextElementSibling.textContent=this.value" style="width:160px;padding:0"> <b>'+pos+'</b> Bottom</label>'+
+    '<div style="'+TIP_STYLE+'"><b>Tip:</b> the % position is counted on the finished article’s paragraphs, so it’s easiest to add the podcast <b>after the edit is complete</b>. You can slide it again in the Inserts card once the edit is done.</div>'+
+    '<label style="display:flex;align-items:center;gap:8px;margin:0 0 8px;font-weight:400;font-size:12.5px;color:var(--text)">Where in the article: '+pctSliderHtml(pos,'window._podPos=+this.value',160)+'</label>'+
     '<div style="font-size:12px;color:var(--muted);margin-bottom:6px">Preview:</div><div style="background:#fff;border:1px solid var(--border);border-radius:6px;padding:8px">'+q.html+'</div>'+
     '<button class="btn ghost" style="margin:8px 0 0" onclick="removeQueuedEpisode()">Remove podcast</button>';
 }
@@ -1113,7 +1124,7 @@ async function testPodcastEmbed(btn){
 }
 function embedPodcast(name,html,pos){
   window._availableInserts=window._availableInserts||[];
-  window._availableInserts.push({name:name,tier:'both',placement:'pos'+(pos||window._podPos||getPodcastSettings().position||10),html:html,podcast:true});
+  window._availableInserts.push({name:name,tier:'both',placement:'pct'+pct(pick(pos,window._podPos,getPodcastSettings().position)),html:html,podcast:true});
   var idx=window._availableInserts.length-1;
   toggleInsert(idx);
   var wrap=document.getElementById('insert-btns');
@@ -1128,7 +1139,7 @@ var LS_RELATED='ims_editor_related';
 function getRelCfg(){
   var c={}; try{c=JSON.parse(localStorage.getItem(LS_RELATED)||'{}')||{};}catch(e){}
   var nd=editorDefaults();
-  return {count:c.count||nd.relatedCount, scope:(c.scope||nd.relatedScope)==='web'?'web':'site', position:c.position||nd.relatedPosition};
+  return {count:c.count||nd.relatedCount, scope:(c.scope||nd.relatedScope)==='web'?'web':'site', position:pct(pick(c.position,nd.relatedPosition))};
 }
 function setRelCfg(k,v){
   var c=getRelCfg(); c[k]=v;
@@ -1141,7 +1152,7 @@ function relControls(){
   return '<div class="rel-ctl" style="display:flex;flex-direction:column;gap:8px;font-size:12.5px">'+
     '<div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap"><span style="width:110px">How many links:</span>'+[1,2,3,4].map(function(n){return seg('count',n,String(n));}).join('')+'</div>'+
     '<div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap"><span style="width:110px">Link to:</span>'+seg('scope','site','Our site only')+seg('scope','web','Anywhere on the web')+'</div>'+
-    '<label style="display:flex;align-items:center;gap:8px;margin:0;font-weight:400;font-size:12.5px;color:var(--text)"><span style="width:110px">Where:</span>Top <input type="range" min="1" max="10" step="1" value="'+c.position+'" onchange="setRelCfg(\'position\',+this.value)" oninput="this.nextElementSibling.textContent=this.value" style="width:160px;padding:0"> <b>'+c.position+'</b> Bottom</label>'+
+    '<label style="display:flex;align-items:center;gap:8px;margin:0;font-weight:400;font-size:12.5px;color:var(--text)"><span style="width:110px">Where:</span>'+pctSliderHtml(c.position,'void 0',160,'setRelCfg(\'position\',+this.value)')+'</label>'+
     '</div>';
 }
 function openRelatedBox(){
@@ -1172,7 +1183,7 @@ async function addRelatedLinks(btn){
     if(!d.links||!d.links.length) throw new Error(d.note||'No related links found.');
     // Replace an earlier Related block rather than stacking a second one.
     addedInserts.filter(function(e){return window._availableInserts[e.idx].related;}).forEach(function(e){ toggleInsert(e.idx); });
-    window._availableInserts.push({name:'🔗 Related links ('+d.links.length+')',tier:'both',placement:'pos'+(window._relPos||cfg.position),html:relatedBlockHtml(d.links),slider:true,related:true});
+    window._availableInserts.push({name:'🔗 Related links ('+d.links.length+')',tier:'both',placement:'pct'+pct(pick(window._relPos,cfg.position)),html:relatedBlockHtml(d.links),slider:true,related:true});
     var idx=window._availableInserts.length-1;
     toggleInsert(idx);
     var wrap=document.getElementById('insert-btns');
@@ -1188,7 +1199,7 @@ function renderInsertPreview(){
   art.innerHTML=window._articleBaseHtml||art.innerHTML;
   var blocks=Array.prototype.filter.call(art.children,function(n){return n.id!=='ed-insert-preview';});
   var n=blocks.length;
-  var idxFor=function(pl){ var a=/^after(\d{1,3})$/.exec(pl||''); if(a) return Math.min(+a[1],n); var m=/^pos(\d{1,2})$/.exec(pl||''); if(m) return Math.round((Math.max(1,Math.min(10,+m[1]))-1)/9*n); return pl==='top'?0 : pl==='early'?Math.min(3,n) : pl==='middle'?Math.floor(n/2) : n; };
+  var idxFor=function(pl){ var a=/^after(\d{1,3})$/.exec(pl||''); if(a) return Math.min(+a[1],n); var q=pctOfPlacement(pl); if(q!==null) return Math.round(q/100*n); return pl==='top'?0 : pl==='early'?Math.min(3,n) : pl==='middle'?Math.floor(n/2) : n; };
   // Insert from the end backwards so earlier indices stay valid.
   addedInserts.slice().sort(function(a,b){return idxFor(b.placement)-idxFor(a.placement);}).forEach(function(e){
     var wrap=document.createElement('div');
@@ -1831,8 +1842,8 @@ function editorDefaults(){
   var d=window._editorDefaults||{}, pod=getPodcastSettings();
   return {
     podcast:d.podcast!==false, related:d.related!==false, promos:!!d.promos, factCheck:!!d.factCheck, ads:d.ads!==false, affiliate:d.affiliate!==false,
-    podcastPosition:+(d.podcastPosition||pod.position||10),
-    relatedPosition:+(d.relatedPosition||10),
+    podcastPosition:pct(pick(d.podcastPosition,pod.position)),
+    relatedPosition:pct(d.relatedPosition),
     relatedCount:+(d.relatedCount||3), relatedScope:d.relatedScope==='web'?'web':'site'
   };
 }
@@ -1843,12 +1854,12 @@ function getAutoAdd(){
   var fc=document.getElementById('aa-factcheck'); c.factCheck=canUse('act_fact_check')&&!!(fc&&fc.checked);
   var ad=document.getElementById('aa-ads'); c.ads=addOk&&adsForTier().length>0&&!!(ad&&ad.checked);
   var af=document.getElementById('aa-affiliate'); c.affiliate=addOk&&affPrograms().length>0&&!!(af&&af.checked);
-  ['podcast','related'].forEach(function(k){ var el=document.getElementById('aa-'+k+'-pos'); c[k+'Position']=el?+el.value:10; });
+  ['podcast','related'].forEach(function(k){ var el=document.getElementById('aa-'+k+'-pos'); c[k+'Position']=el?pct(el.value):100; });
   return c;
 }
 function setAaPos(k,v){
   var el=document.getElementById('aa-'+k+'-pos'); if(!el) return;
-  el.value=v; el.nextElementSibling.textContent=v;
+  v=pct(v); el.value=v; el.nextElementSibling.textContent=v+'%';
 }
 function loadAutoAdd(){
   var d=editorDefaults();

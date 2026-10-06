@@ -39,7 +39,11 @@ function placementIndex(placement, count) {
   // 'after3': right after paragraph 3 (ad slots); past the end goes last.
   var a = /^after(\d{1,3})$/.exec(placement);
   if (a) return Math.min(+a[1], count);
-  // 'pos1'..'pos10': the podcast slider — 1 is the top, 10 the bottom.
+  // 'pct0'..'pct100': the placement sliders (podcast, related links), how far
+  // down the article in paragraphs — 0 above the first, 100 after the last.
+  var q = /^pct(\d{1,3})$/.exec(placement);
+  if (q) return Math.round(Math.max(0, Math.min(100, +q[1])) / 100 * count);
+  // 'pos1'..'pos10': the older 1-10 slider (drafts saved before the change).
   var m = /^pos(\d{1,2})$/.exec(placement);
   if (m) { var k = Math.max(1, Math.min(10, +m[1])); return Math.round((k - 1) / 9 * count); }
   return count; // 'end' (or anything unrecognized)
