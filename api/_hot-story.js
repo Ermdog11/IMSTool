@@ -1,7 +1,7 @@
 // Small per-site "which stories have we already alerted on, and when" state
 // for api/hot-story-check.js. Same Vercel Blob pattern as _push.js /
 // _roster.js — a handful of entries, not worth a database table.
-var { get, put } = require('@vercel/blob');
+var { get, put } = require('./_site-blob');
 
 var STATE_PATH = 'hot-story-state.json';
 

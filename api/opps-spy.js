@@ -76,14 +76,14 @@ async function fetchItems(beat, o) {
 
 async function loadJson(name, fallback) {
   try {
-    var blob = require('@vercel/blob');
+    var blob = require('./_site-blob');
     var got = await blob.get(name, { access: 'private', useCache: false });
     if (got && got.statusCode === 200) return await new Response(got.stream).json();
   } catch (e) {}
   return fallback;
 }
 async function saveJson(name, data) {
-  var blob = require('@vercel/blob');
+  var blob = require('./_site-blob');
   await blob.put(name, JSON.stringify(data), { access: 'private', addRandomSuffix: false, allowOverwrite: true, contentType: 'application/json' });
 }
 
@@ -335,3 +335,6 @@ module.exports = async function handler(req, res) {
     return res.status(500).json({ error: e.message });
   }
 };
+
+// Per-newsroom: this request runs as the signed-in person's newsroom (_site.js).
+module.exports = require('./_site').wrap(module.exports);

@@ -161,7 +161,7 @@ async function compute(sb, siteId, days) {
 async function get(sb, siteId, days, refresh) {
   days = Math.max(1, Math.min(365, +days || 30));
   var path = 'writer-stats/' + days + '.json';
-  var blob = require('@vercel/blob');
+  var blob = require('./_site-blob');
   if (!refresh) {
     try {
       var got = await blob.get(path, { access: 'private', useCache: false });

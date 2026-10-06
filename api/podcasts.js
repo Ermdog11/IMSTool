@@ -69,6 +69,25 @@ module.exports = async function handler(req, res) {
   var keywords = ['terps', 'terrapins', 'maryland football', 'maryland basketball', 'maryland lacrosse', 'maryland recruiting', 'mike locksley', 'buzz williams', 'kevin willard', 'brenda frese', 'university of maryland', 'malik washington', 'zahir mathis', 'pharrel payne', 'baba oladotun', 'kaden house', 'dj wagner', 'andre mills', 'juan dixon', 'big ten basketball', 'derik queen'];
   var cutoff = Date.now() - 21 * 24 * 60 * 60 * 1000; // 21 days (podcasts age slower than news)
 
+  // Another newsroom: shows, keywords and discovery searches come from its
+  // beat profile (multi-newsroom, 2026-10-06). InsideMDSports keeps the tuned
+  // lists above.
+  var beatDiscovery = null;
+  await require('./_supabase').optionalUser(req);
+  if (!require('./_site').isDefault()) {
+    var S0 = require('./_supabase');
+    var b = await require('./_beat').getBeat(S0.isConfigured() ? S0.admin() : null);
+    var t0 = b.team;
+    terpsShows = b.podcasts.filter(function (p) { return (p.rating || 3) > 1; }).map(function (p) { return p.name; });
+    regionalShows = [];
+    blockedPodcasts = blockedPodcasts.filter(function (x) { return !/maryland/.test(x); })
+      .concat(b.podcasts.filter(function (p) { return (p.rating || 3) <= 1; }).map(function (p) { return p.name.toLowerCase(); }));
+    keywords = b.relevanceWords.slice();
+    beatDiscovery = [t0.name].concat(b.primarySports.slice(0, 3).map(function (sp) { return t0.short + ' ' + sp; }), b.keyFigures.slice(0, 8))
+      .map(function (x) { return String(x).replace(/\s*\(.*?\)\s*/g, '').trim(); }).filter(function (x) { return x && x !== 'our team'; });
+    if (!terpsShows.length && !beatDiscovery.length) return res.status(200).json({ episodes: [], error: 'Set up your beat first (/setup) so we know which shows to follow.' });
+  }
+
   function matchesKeywords(text) {
     var t = (text || '').toLowerCase();
     return keywords.some(function(k) { return t.includes(k); });
@@ -147,11 +166,12 @@ module.exports = async function handler(req, res) {
 
     // Rotate through discovery terms 4 at a time to stay under iTunes rate limits
     var allDiscoveryTerms = ['Maryland Terrapins', 'Terps basketball', 'Terps football', 'Maryland Terrapins recruiting', 'Buzz Williams Maryland', 'Mike Locksley', 'Malik Washington Maryland', 'Zahir Mathis', 'Pharrel Payne', 'Baba Oladotun', 'Kaden House', 'DJ Wagner Maryland', 'Andre Mills', 'Juan Dixon', 'Big Ten basketball', 'Derik Queen', 'Maryland football portal', 'Maryland basketball recruiting', 'Kevin Willard Maryland', 'Brenda Frese', 'Maryland Terrapins lacrosse', 'Terps commit', 'Xfinity Center', 'SECU Stadium', 'Zion Elee', 'Maryland Big Ten football'];
+    if (beatDiscovery) allDiscoveryTerms = beatDiscovery.length ? beatDiscovery : allDiscoveryTerms.slice(0, 0);
     var batchSize = 6;
-    var startIdx = (discoveryRotation * batchSize) % allDiscoveryTerms.length;
+    var startIdx = allDiscoveryTerms.length ? (discoveryRotation * batchSize) % allDiscoveryTerms.length : 0;
     discoveryRotation++;
     var discoveryTerms = [];
-    for (var di = 0; di < batchSize; di++) {
+    for (var di = 0; di < Math.min(batchSize, allDiscoveryTerms.length); di++) {
       discoveryTerms.push(allDiscoveryTerms[(startIdx + di) % allDiscoveryTerms.length]);
     }
     debug.discoveryCalls = discoveryTerms.length;
@@ -197,3 +217,6 @@ module.exports = async function handler(req, res) {
     return res.status(500).json({ episodes: [], error: e.message });
   }
 };
+
+// Per-newsroom: this request runs as the signed-in person's newsroom (_site.js).
+module.exports = require('./_site').wrap(module.exports);

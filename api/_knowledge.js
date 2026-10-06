@@ -8,15 +8,9 @@
 // move on; the draft itself (Blob storage) is unaffected either way.
 
 var S = require('./_supabase');
-var SITE_SLUG = 'insidemdsports';
-var siteIdCache = null;
-
-async function resolveSiteId(sb) {
-  if (siteIdCache) return siteIdCache;
-  var r = await sb.from('sites').select('id').eq('slug', SITE_SLUG).single();
-  if (r.error || !r.data) throw new Error('Knowledge base: site row missing (run db/schema.sql)');
-  siteIdCache = r.data.id;
-  return siteIdCache;
+// The signed-in person's newsroom (_site.js), InsideMDSports for crons.
+function resolveSiteId(sb) {
+  return require('./_site').siteId(sb);
 }
 
 // Strip HTML down to plain-ish text for storage/search. The draft's .html

@@ -10,12 +10,13 @@
 //
 // Small Vercel Blob list per site (story-ideas-feedback.json), newest first,
 // capped at 60. Best-effort like the other Blob state.
-var { get, put } = require('@vercel/blob');
+var { get, put } = require('./_site-blob');
 var S = require('./_supabase.js');
 var Beat = require('./_beat.js');
 
 var PATH = 'story-ideas-feedback.json';
-var SITE = 'insidemdsports';
+// The newsroom this request runs as (_site.js).
+function curSite() { return require('./_site').slug(); }
 
 async function loadAll() {
   try {
@@ -36,7 +37,7 @@ module.exports = async function handler(req, res) {
       var all = await loadAll();
       var b = await Beat.getBeat(S.isConfigured() ? S.admin() : null);
       return res.status(200).json({
-        disliked: (all[SITE] || []).slice(0, 40),
+        disliked: (all[curSite()] || []).slice(0, 40),
         beat: { outletName: b.outletName, coverage: b.coverage, short: b.team.short },
         // The Ombudsman's latest five (from the last update email), for the Story backlog tab.
         ombudsman: await require('./_ombudsman.js').latest().catch(function () { return null; }),
@@ -60,12 +61,15 @@ module.exports = async function handler(req, res) {
     var title = String(d.title || '').trim().slice(0, 300);
     if (!title) return res.status(400).json({ error: 'dislike.title required' });
     var all2 = await loadAll();
-    var list = Array.isArray(all2[SITE]) ? all2[SITE] : [];
+    var list = Array.isArray(all2[curSite()]) ? all2[curSite()] : [];
     list.unshift({ title: title, angle: String(d.angle || '').trim().slice(0, 500), at: new Date().toISOString() });
-    all2[SITE] = list.slice(0, 60);
+    all2[curSite()] = list.slice(0, 60);
     await put(PATH, JSON.stringify(all2), { access: 'private', addRandomSuffix: false, allowOverwrite: true, contentType: 'application/json' });
     return res.status(200).json({ ok: true });
   } catch (e) {
     return res.status(500).json({ error: e.message });
   }
 };
+
+// Per-newsroom: this request runs as the signed-in person's newsroom (_site.js).
+module.exports = require('./_site').wrap(module.exports);

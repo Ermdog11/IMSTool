@@ -30,7 +30,7 @@
 //     an AI call, so the cost is only paid when something on the page moved.
 
 var crypto = require('crypto');
-var { get, put } = require('@vercel/blob');
+var { get, put } = require('./_site-blob');
 
 var MODEL = 'claude-sonnet-4-6';
 var UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0 Safari/537.36';

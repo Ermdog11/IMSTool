@@ -35,7 +35,7 @@ var EVERGREEN = [
 var SUGGEST_PATH = 'analytics-question-suggestions.json';
 
 async function suggestions(sb) {
-  var blob = require('@vercel/blob');
+  var blob = require('./_site-blob');
   var day = new Date().toLocaleDateString('en-CA', { timeZone: 'America/New_York' });
   try {
     var got = await blob.get(SUGGEST_PATH, { access: 'private', useCache: false });
@@ -136,3 +136,6 @@ module.exports = async function handler(req, res) {
     return res.status(500).json({ error: e.message });
   }
 };
+
+// Per-newsroom: this request runs as the signed-in person's newsroom (_site.js).
+module.exports = require('./_site').wrap(module.exports);

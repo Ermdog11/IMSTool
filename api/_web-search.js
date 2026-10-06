@@ -85,7 +85,7 @@ var SEEN_TTL_MS = 4 * 24 * 60 * 60 * 1000; // 4 days — long enough to span a s
 // this run rather than failing the search.
 async function loadSeen() {
   try {
-    var blob = require('@vercel/blob');
+    var blob = require('./_site-blob');
     var got = await blob.get(SEEN_BLOB_KEY, { access: 'private', useCache: false }).catch(function() { return null; });
     if (!got || got.statusCode !== 200) return {};
     var map = await new Response(got.stream).json();
@@ -94,7 +94,7 @@ async function loadSeen() {
 }
 async function saveSeen(map) {
   try {
-    var blob = require('@vercel/blob');
+    var blob = require('./_site-blob');
     await blob.put(SEEN_BLOB_KEY, JSON.stringify(map), {
       access: 'private', addRandomSuffix: false, allowOverwrite: true, contentType: 'application/json'
     });

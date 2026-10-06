@@ -20,3 +20,6 @@ module.exports = async function handler(req, res) {
   var state = Meta.signState({ siteId: ctx.site.id, userId: ctx.user.id, ts: Date.now() });
   res.redirect(302, Meta.authUrl(state));
 };
+
+// Per-newsroom: this request runs as the signed-in person's newsroom (_site.js).
+module.exports = require('./_site').wrap(module.exports);

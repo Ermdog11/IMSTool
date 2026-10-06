@@ -378,10 +378,32 @@ body.no-factcheck .acc-factcheck,body.no-add #ed-autoadd,body.no-add #pre-tabs-w
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="/_auth.js"></script>
 <script>
+// Another newsroom than InsideMDSports (multi-newsroom, 2026-10-06): its own
+// name, no InsideMDSports house style or promo blocks as defaults, and this
+// browser's cached guide/writers/promos kept separate per newsroom.
+function applyNewsroomEditor(s) {
+  var name = s.site.name || 'Your newsroom', slug = s.site.slug;
+  document.title = name + ' — Content Editor';
+  document.querySelectorAll('.site-sub').forEach(function (el) { el.textContent = name + ' — writing & production tools'; });
+  try {
+    LS_GUIDE = 'ims_editor_styleguide:' + slug; LS_WRITERS = 'ims_editor_writers:' + slug; LS_PROMOS = 'ims_editor_promos:' + slug;
+    DEFAULT_GUIDE = '';
+    DEFAULT_PROMOS.length = 0;
+    var sg = document.getElementById('sg'); if (sg) sg.value = getGuide();
+    if (typeof loadGuideFromServer === 'function') loadGuideFromServer();
+    if (typeof renderPromos === 'function') renderPromos();
+    if (typeof renderWriters === 'function') renderWriters();
+  } catch (e) { console.warn('newsroom editor setup', e && e.message); }
+  document.body.innerHTML.indexOf('InsideMDSports') !== -1 && document.querySelectorAll('.hint, .note, p, div').forEach(function (el) {
+    if (el.children.length === 0 && /InsideMDSports/.test(el.textContent)) el.textContent = el.textContent.replace(/InsideMDSports/g, name);
+  });
+}
+
 // Sign-in gate — inert until the backend is configured, fails open on error.
 (function () {
   if (!window.IMSAuth) return;
   IMSAuth.guard().then(function (s) {
+    if (s && s.site && s.site.slug !== 'insidemdsports') applyNewsroomEditor(s);
     var sv = document.getElementById('aa-save-default');
     if (sv) sv.style.display = IMSAuth.isPublisher() ? '' : 'none';
     // Viewers don't use the Content Editor (Permissions & preferences).
@@ -626,7 +648,7 @@ function updateModeHint(){
     el.innerHTML='The writer’s words are returned <b>unchanged</b> (only obvious typos fixed). You still get headline options, questions to resolve, suggested context, and related links to add — as suggestions, nothing is inserted.';
     if(btn) btn.textContent='Review draft';
   } else if(m==='links'){
-    el.innerHTML='The writer’s words are returned <b>unchanged</b> — no rewriting, no added context. The only change made is inserting hotlinks to related InsideMDSports coverage directly into the text.';
+    el.innerHTML='The writer’s words are returned <b>unchanged</b> — no rewriting, no added context. The only change made is inserting hotlinks to related '+((window.IMSAuth&&IMSAuth.state&&IMSAuth.state.site&&IMSAuth.state.site.name)||'InsideMDSports').replace(/[<>&"]/g,'')+' coverage directly into the text.';
     if(btn) btn.textContent='Add hotlinks';
   } else {
     el.innerHTML='The draft comes back rewritten in house style and the selected writer’s voice, with context added ([VERIFY]-flagged) and related links inserted.';

@@ -8,15 +8,9 @@
 // anything here throws, we log and move on.
 
 var S = require('./_supabase');
-var SITE_SLUG = 'insidemdsports';
-var siteIdCache = null;
-
-async function resolveSiteId(sb) {
-  if (siteIdCache) return siteIdCache;
-  var r = await sb.from('sites').select('id').eq('slug', SITE_SLUG).single();
-  if (r.error || !r.data) throw new Error('Roster store: site row missing (run db/schema.sql)');
-  siteIdCache = r.data.id;
-  return siteIdCache;
+// The signed-in person's newsroom (_site.js), InsideMDSports for crons.
+function resolveSiteId(sb) {
+  return require('./_site').siteId(sb);
 }
 
 // events: [{ name, type: 'added'|'removed'|'title_changed', detail }]

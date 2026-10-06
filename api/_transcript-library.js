@@ -9,7 +9,7 @@
 // Vercel Blob, same pattern as _drafts.js: one JSON doc per transcript plus a
 // small index (reads use useCache:false). Best-effort: a failed title falls
 // back to the source's own name.
-var { get, put, del } = require('@vercel/blob');
+var { get, put, del } = require('./_site-blob');
 
 var INDEX_PATH = 'transcripts/index.json';
 var MAX = 2000;

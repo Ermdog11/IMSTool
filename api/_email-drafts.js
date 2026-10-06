@@ -23,7 +23,6 @@
 var S = require('./_supabase');
 var Drafts = require('./_drafts');
 
-var SITE_SLUG = 'insidemdsports';
 var TAG = 'drafts';
 var MAX_PER_RUN = 10;
 
@@ -96,7 +95,7 @@ async function allowedSenders() {
   if (!S.isConfigured()) return map;
   try {
     var sb = S.admin();
-    var site = await sb.from('sites').select('id').eq('slug', SITE_SLUG).single();
+    var site = await sb.from('sites').select('id').eq('slug', require('./_site').slug()).single();
     if (!site.data) return map;
     var mem = await sb.from('memberships').select('byline, profiles(email, full_name)').eq('site_id', site.data.id);
     (mem.data || []).forEach(function (m) {

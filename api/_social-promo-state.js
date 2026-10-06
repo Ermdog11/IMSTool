@@ -3,7 +3,7 @@
 // own posts have already gotten a promo reply, so a still-hot post doesn't
 // get replied to twice. Same Vercel Blob pattern as _hot-story.js/_push.js —
 // small enough not to need a database table.
-var { get, put } = require('@vercel/blob');
+var { get, put } = require('./_site-blob');
 
 var PATH = 'social-promo-state.json';
 

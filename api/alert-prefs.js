@@ -107,3 +107,6 @@ module.exports = async function handler(req, res) {
 
 module.exports.ALERT_TYPES = ALERT_TYPES;
 module.exports.defaultFor = defaultFor;
+
+// Per-newsroom: this request runs as the signed-in person's newsroom (_site.js).
+module.exports = require('./_site').wrap(module.exports);

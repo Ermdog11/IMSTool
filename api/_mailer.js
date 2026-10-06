@@ -29,6 +29,13 @@ async function sendMail(opts) {
     ? (Array.isArray(opts.to) ? opts.to : String(opts.to).split(','))
       .map(function(e) { return e.trim().replace(/[<>]/g, ''); }).filter(Boolean)
     : digestList();
+  // The digest list (ALERT_EMAIL) belongs to InsideMDSports. For any other
+  // newsroom, mail with no "to" goes to that newsroom's own team, by alert
+  // type (_site.js; multi-newsroom 2026-10-06).
+  if (!opts.to && !require('./_site').isDefault()) {
+    recipients = await require('./_supabase').teamRecipientsFor(opts.alertType || 'digest_rolling', require('./_site').slug());
+    if (!recipients.length) return { skipped: 'no one in this newsroom gets this email' };
+  }
   if (!recipients.length) throw new Error(opts.to ? 'No valid recipients in opts.to' : 'ALERT_EMAIL not set');
   // An alert email (opts.alertType) goes only to people who have that alert
   // on and whose days/hours for it include now (_alert-schedule.js).

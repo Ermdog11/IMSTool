@@ -302,6 +302,9 @@ body.no-opps .acc-opps,body.no-write .acc-write,body.no-flag .acc-flag,body.no-f
   .myrate button, [id^="myrate-"] button { min-width: 38px; min-height: 38px; }
   .chip { min-height: 36px; }
 }
+/* Another newsroom (multi-newsroom): hide InsideMDSports' own static panels. */
+body.other-newsroom .ims-only { display: none !important; }
+body.other-newsroom .other-only { display: block !important; }
 </style>
 </head>
 <body>
@@ -460,6 +463,7 @@ body.no-opps .acc-opps,body.no-write .acc-write,body.no-flag .acc-flag,body.no-f
 
 <!-- RECRUITING TRACKER TAB -->
 <div class="page" id="page-5">
+  <div class="ims-only">
   <div class="section-label">Football — 2027 class</div>
   <div class="alerts" style="margin-bottom:16px;">
     <div class="acard r5">
@@ -509,6 +513,8 @@ body.no-opps .acc-opps,body.no-write .acc-write,body.no-flag .acc-flag,body.no-f
       <div class="asum">6-7, 230 lbs. Former Paul VI (VA) standout. Maryland, VT, UNLV, WVU, Ohio State, Auburn, Northwestern pursuing. "Coach Buzz and them have a great coaching staff."</div>
     </div>
   </div>
+  </div>
+  <div class="other-only empty" style="display:none"><i class="ti ti-users"></i>Recruits you follow show up in Alerts. Add the names you track in Setup › People to watch.</div>
 </div>
 
 <!-- TRENDING OVERFLOW TAB -->
@@ -577,7 +583,7 @@ body.no-opps .acc-opps,body.no-write .acc-write,body.no-flag .acc-flag,body.no-f
     <div id="sourceHealth"><div style="font-size:12px;color:var(--text3);">Loading…</div></div>
   </div>
 
-  <div class="notice"><i class="ti ti-user-check"></i> You are Jeff Ermann, publisher of InsideMDSports. Your content and IMS Radio are excluded from all alerts.</div>
+  <div class="ims-only notice"><i class="ti ti-user-check"></i> You are Jeff Ermann, publisher of InsideMDSports. Your content and IMS Radio are excluded from all alerts.</div>
 
   <div class="settings-card">
     <h3><i class="ti ti-clock"></i> Scan parameters</h3>
@@ -689,13 +695,13 @@ body.no-opps .acc-opps,body.no-write .acc-write,body.no-flag .acc-flag,body.no-f
     </div>
 
     <div class="sdiv-label" style="margin-top:16px;">Always excluded</div>
-    <div class="src-row ex"><i class="ti ti-x"></i> Jeff Ermann — any story authored by or attributed to you</div>
-    <div class="src-row ex"><i class="ti ti-x"></i> IMS Radio podcast — your own show</div>
+    <div class="ims-only src-row ex"><i class="ti ti-x"></i> Jeff Ermann — any story authored by or attributed to you</div>
+    <div class="ims-only src-row ex"><i class="ti ti-x"></i> IMS Radio podcast — your own show</div>
     <div class="src-row ex"><i class="ti ti-x"></i> Minor sports (tennis, track, golf, wrestling, field hockey, softball, baseball, lacrosse, soccer, gymnastics, swimming) unless major news</div>
     <div style="font-size:11px;color:var(--text3);margin-top:8px;line-height:1.5;">Note: if another outlet cites or reacts to your reporting, that reaction IS included.</div>
   </div>
 
-  <div class="settings-card">
+  <div class="ims-only settings-card">
     <h3><i class="ti ti-radar"></i> Direct-fetch URLs</h3>
     <div class="src-row"><i class="ti ti-check" style="color:var(--green);"></i> testudotimes.com</div>
     <div class="src-row"><i class="ti ti-check" style="color:var(--green);"></i> The Athletic — Maryland football &amp; basketball</div>
@@ -726,17 +732,17 @@ body.no-opps .acc-opps,body.no-write .acc-write,body.no-flag .acc-flag,body.no-f
     <div class="pri-row"><span>Game results &amp; team news</span><span>Normal — Rate 3</span></div>
     <div class="pri-row"><span>Alumni news (named individuals)</span><span>Normal — Rate 3</span></div>
     <div class="pri-row"><span>Social &amp; podcasts</span><span>Normal — Rate 2-3</span></div>
-    <div class="pri-row"><span>InsideMDSports / Jeff Ermann</span><span class="stag excluded">Excluded</span></div>
+    <div class="ims-only pri-row"><span>InsideMDSports / Jeff Ermann</span><span class="stag excluded">Excluded</span></div>
   </div>
 
-  <div class="settings-card">
+  <div class="ims-only settings-card">
     <h3><i class="ti ti-user-star"></i> Coaches &amp; staff watch list</h3>
     <div class="tag-cloud">
       <span class="stag red">Mike Locksley</span><span class="stag red">Buzz Williams</span><span class="stag red">Brenda Frese</span><span class="stag red">Ted Monachino</span><span class="stag red">Clint Trickett</span><span class="stag red">Aazaar Abdul-Rahim</span><span class="stag red">Jeremy Shapiro</span><span class="stag">Jim Smith (AD)</span><span class="stag">Darryll Pines</span><span class="stag">Johnny Holliday</span>
     </div>
   </div>
 
-  <div class="settings-card">
+  <div class="ims-only settings-card">
     <h3><i class="ti ti-trophy"></i> Football watch list — 2026 commits</h3>
     <div class="tag-cloud">
       <span class="stag red">Zion Elee</span><span class="stag red">Darrell Carey</span><span class="stag red">Jamarcus Whyce</span><span class="stag red">Javonte Williams</span><span class="stag red">Jesse Moody</span><span class="stag red">Ontario Washington Jr.</span><span class="stag red">Chuck Roberts</span>
@@ -755,7 +761,7 @@ body.no-opps .acc-opps,body.no-write .acc-write,body.no-flag .acc-flag,body.no-f
     </div>
   </div>
 
-  <div class="settings-card">
+  <div class="ims-only settings-card">
     <h3><i class="ti ti-ball-basketball"></i> Basketball watch list</h3>
     <div class="sdiv-label">2026-27 roster</div>
     <div class="tag-cloud">
@@ -767,7 +773,7 @@ body.no-opps .acc-opps,body.no-write .acc-write,body.no-flag .acc-flag,body.no-f
     </div>
   </div>
 
-  <div class="settings-card">
+  <div class="ims-only settings-card">
     <h3><i class="ti ti-award"></i> Alumni watch list</h3>
     <div class="sdiv-label">Active NFL Terps</div>
     <div class="tag-cloud">
@@ -787,7 +793,7 @@ body.no-opps .acc-opps,body.no-write .acc-write,body.no-flag .acc-flag,body.no-f
     </div>
   </div>
 
-  <div class="settings-card">
+  <div class="ims-only settings-card">
     <h3><i class="ti ti-microphone"></i> Channels monitored</h3>
     <div class="sdiv-label">Beat reporters</div>
     <div class="tag-cloud">
@@ -1023,11 +1029,34 @@ body.no-opps .acc-opps,body.no-write .acc-write,body.no-flag .acc-flag,body.no-f
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="/_auth.js"></script>
 <script>
+// Another newsroom than InsideMDSports (multi-newsroom, 2026-10-06): its own
+// name in the header, its own team in the fixed wording, its own outlet
+// excluded from results, and InsideMDSports' static panels hidden.
+function applyNewsroom(s) {
+  var b = s.beat || {}, name = (s.site && s.site.name) || b.outletName || 'Your newsroom';
+  var team = b.teamName && b.teamName !== 'our team' ? b.teamName : 'your team';
+  var short = b.short && b.short !== 'our' ? b.short : team;
+  document.body.classList.add('other-newsroom');
+  document.title = name + ' — News Monitor';
+  document.querySelectorAll('.site-name').forEach(function (el) { el.textContent = name; });
+  document.querySelectorAll('.bb-brand').forEach(function (el) { el.textContent = name.toUpperCase(); });
+  document.querySelectorAll('.ims-logo').forEach(function (el) { el.textContent = name.replace(/[^A-Za-z0-9]/g, '').slice(0, 3).toUpperCase() || 'CP'; });
+  var walk = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT, null);
+  var n, hits = [];
+  while ((n = walk.nextNode())) { if (/Maryland|Terps|Terrapins/.test(n.nodeValue) && !(n.parentNode && n.parentNode.closest && n.parentNode.closest('script,style,.ims-only'))) hits.push(n); }
+  hits.forEach(function (t) { t.nodeValue = t.nodeValue.replace(/Maryland Terrapins/g, team).replace(/\b(Maryland|Terps|Terrapins)\b/g, short); });
+  document.querySelectorAll('input[placeholder*="insidemdsports"]').forEach(function (el) { el.placeholder = 'you@yoursite.com'; });
+  try {
+    if (typeof EXCLUDED !== 'undefined') { EXCLUDED.length = 0; [name].concat(b.excludeSources || []).forEach(function (x) { if (x) EXCLUDED.push(x); }); }
+  } catch (e) {}
+}
+
 // Sign-in gate. Inert until the backend is configured; fails open on any error
 // so a problem here can never lock anyone out of the tool.
 (function () {
   if (!window.IMSAuth) return;
   IMSAuth.guard().then(function (s) {
+    if (s && s.site && s.site.slug !== 'insidemdsports') applyNewsroom(s);
     if (s && s.user) {
       var slot = document.querySelector('.topbar-right');
       if (slot) IMSAuth.mountMenu(slot);

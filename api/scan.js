@@ -243,7 +243,7 @@ module.exports = async function handler(req, res) {
           var freshCount = Object.keys(freshSlugWords).length;
           var scrapeOk = results[gi].value.status === 200 && freshCount >= 10;
           try {
-            var blobMod = require('@vercel/blob');
+            var blobMod = require('./_site-blob');
             if (scrapeOk) {
               Object.keys(freshSlugWords).forEach(function(k) { ownTitleWordSets.push(new Set(freshSlugWords[k])); });
               ownHeadlines = ownSlugTexts.slice(0, 40);
@@ -932,3 +932,6 @@ module.exports = async function handler(req, res) {
     return res.status(500).json({ error: e.message });
   }
 };
+
+// Per-newsroom: this request runs as the signed-in person's newsroom (_site.js).
+module.exports = require('./_site').wrap(module.exports);
