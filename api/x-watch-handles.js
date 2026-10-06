@@ -22,6 +22,7 @@ module.exports = async function handler(req, res) {
   }
 
   if (req.method !== 'POST') return res.status(405).json({ error: 'GET or POST' });
+  if (!(await require('./_access').allowed(ctx, 'act_x_follow'))) return require('./_access').deny(res);
 
   try {
     var saved = await Store.saveXWatchHandles(ctx.supabase, (req.body || {}).handles);

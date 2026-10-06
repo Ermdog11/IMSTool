@@ -25,6 +25,7 @@ module.exports = async function handler(req, res) {
   try { auth = await S.requireUserOrCron(req, res); }
   catch (authErr) { return res.status(authErr.status || 401).json({ error: authErr.message || 'Not signed in' }); }
   if (req.method !== 'POST') return res.status(405).json({ error: 'POST only' });
+  if (!(await require('./_access').allowed(auth, 'act_write_story'))) return require('./_access').deny(res);
 
   var a = (req.body && req.body.alert) || {};
   if (!a.headline) return res.status(400).json({ error: 'alert.headline required' });

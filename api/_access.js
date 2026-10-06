@@ -1,4 +1,5 @@
-// What writers and editors can see and use in the Content Editor, chosen by
+// What writers and editors can see and use in the Content Editor and the
+// News Monitor, chosen by
 // the publisher on /preferences (Jeff, 2026-10-05: "the publisher should
 // always have the checkbox to edit an article into site style, but he should
 // choose on preferences whether the writer sees it on his Content Editor
@@ -21,7 +22,24 @@ var FEATURES = [
   { key: 'tab_house_style',label: 'House style' },
   { key: 'tab_writers',    label: 'Writers' },
   { key: 'tab_inserts',    label: 'Inserts' },
-  { key: 'tab_drafts',     label: 'Drafts' }
+  { key: 'tab_drafts',     label: 'Drafts' },
+  // News Monitor sections (Alerts and Settings are always shown)
+  { key: 'mon_digest',     label: 'Nightly digest' },
+  { key: 'mon_social',     label: 'Hot social' },
+  { key: 'mon_chat',       label: 'Team chat' },
+  { key: 'mon_backlog',    label: 'Story backlog' },
+  { key: 'mon_recruiting', label: 'Recruiting tracker' },
+  { key: 'mon_trending',   label: 'Trending' },
+  { key: 'mon_podcasts',   label: 'Podcasts' },
+  { key: 'mon_youtube',    label: 'YouTube' },
+  { key: 'mon_bluesky',    label: 'Bluesky' },
+  { key: 'mon_analytics',  label: 'Analytics (traffic and audience numbers)' },
+  { key: 'mon_roster',     label: 'Roster watch' },
+  { key: 'mon_opps',       label: 'Opp Watch' },
+  // News Monitor actions
+  { key: 'act_write_story',label: 'Write it: draft an article from an alert or story idea' },
+  { key: 'act_flag_block', label: 'Flag junk and block sources for the whole newsroom' },
+  { key: 'act_x_follow',   label: 'Change which X accounts are followed' }
 ];
 
 function can(profile, role, key) {

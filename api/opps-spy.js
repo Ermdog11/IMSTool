@@ -164,7 +164,8 @@ module.exports = async function handler(req, res) {
       return res.status(200).json(await run(beat));
     }
     if (S.isConfigured()) {
-      try { await S.requireUser(req); } catch (e) { return res.status(e.status || 401).json({ error: e.message }); }
+      try { var oppCtx = await S.requireUser(req); } catch (e) { return res.status(e.status || 401).json({ error: e.message }); }
+      if (!(await require('./_access').allowed(oppCtx, 'mon_opps'))) return require('./_access').deny(res);
     }
     var beat2 = await Beat.getBeat(sb);
     var state = await loadJson(STATE_KEY, { outlets: {}, items: [] });
