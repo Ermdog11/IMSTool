@@ -14,7 +14,8 @@
 //   lowPrioritySports[], keyFigures[], nameCollisions, proLeaguesText,
 //   ownSite:{url, articlePath, domains[]}, excludeSources[], relevanceWords[],
 //   topicStopwords[], outlets:[{name, domain, rss?, rating?}], subreddits[],
-//   feeds:[{url,name,src?,requireBeat?,isAtom?}]  (explicit list; generated when absent),
+//   feeds:[{url,name,src?,requireBeat?,isAtom?,site?}]  (explicit list; generated when absent;
+//     site:true = url is the outlet's home page, read directly by _site-feed.js),
 //   reddit:[{url,name}], watch:[{label, names[], alumni?}],
 //   keyTerms:[{term, kind:'person'|'place'|'term', era:'current'|'historic', figure?}]
 //     (the wizard's ranked "key names and terms", up to 100),
@@ -205,6 +206,7 @@ function generateFeeds(b) {
 function outletFeed(b, o) {
   var names = [b.team.name].concat(b.team.nicknames);
   if (o.rss) return { url: o.rss, name: o.name, src: o.name, requireBeat: true };
+  if (o.site) return { url: o.site, name: o.name, src: o.name, site: true, requireBeat: true };
   if (o.domain) return { url: gnews(names.slice(0, 2).map(function (n) { return 'site:' + o.domain + ' ' + quoted(n); }).join(' OR ')), name: o.name, src: o.name };
   return null;
 }
