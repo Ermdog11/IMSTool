@@ -16,7 +16,8 @@ var ALERT_TYPES = [
   { key: 'digest_rolling',  label: 'Rolling updates (3×/day)',       defaultOn: 'all' },
   { key: 'roster_change',   label: 'Roster changes',                 defaultOn: 'all' },
   { key: 'hot_story',       label: 'A story goes hot (real-time spike)', defaultOn: 'all' },
-  { key: 'records',         label: 'Public-records request suggestions', defaultOn: 'editors' }
+  { key: 'records',         label: 'Public-records request suggestions', defaultOn: 'editors' },
+  { key: 'calendar',        label: 'New calendar items',               defaultOn: 'editors' }
 ];
 var VALID = ALERT_TYPES.map(function (t) { return t.key; });
 
