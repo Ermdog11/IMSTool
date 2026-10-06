@@ -5,6 +5,7 @@
 //
 //   GET                         -> { disliked:[{title, angle, at}], beat:{outletName, coverage, short} }
 //   POST {dislike:{title,angle}} -> { ok:true }
+//   POST {action:'ombudsman', alerts} -> { ideas } (the Ombudsman's five, on demand)
 //
 // Small Vercel Blob list per site (story-ideas-feedback.json), newest first,
 // capped at 60. Best-effort like the other Blob state.
@@ -41,6 +42,15 @@ module.exports = async function handler(req, res) {
       });
     }
     if (req.method !== 'POST') return res.status(405).json({ error: 'GET or POST' });
+    // "💡 Get 5 ideas now" on the Story backlog tab: run the Ombudsman on
+    // demand (one Claude call) from the latest scan the page has.
+    if (req.body && req.body.action === 'ombudsman') {
+      var alerts = Array.isArray(req.body.alerts) ? req.body.alerts.slice(0, 40).map(function (a) {
+        return { headline: String(a.headline || '').slice(0, 300), summary: String(a.summary || '').slice(0, 400), rating: +a.rating || 0, source: String(a.source || '').slice(0, 60) };
+      }) : [];
+      var ideas = await require('./_ombudsman.js').suggest(alerts, { slot: 'on demand' });
+      return res.status(200).json({ ideas: ideas });
+    }
     var d = (req.body && req.body.dislike) || {};
     var title = String(d.title || '').trim().slice(0, 300);
     if (!title) return res.status(400).json({ error: 'dislike.title required' });
