@@ -12,6 +12,10 @@ var Drafts = require('./_drafts.js');
 var BreakingDraft = require('./_breaking-draft.js');
 var Settings = require('./_settings-store.js');
 
+// When Write it drafts started reading the source article, our archive and the
+// roster (api/_breaking-draft.js). Older untouched AI drafts get rewritten.
+var GROUNDED_SINCE = '2026-10-06T13:45:00Z';
+
 function mdToHtml(t) {
   var s = String(t || '')
     .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
@@ -38,15 +42,23 @@ module.exports = async function handler(req, res) {
     url: a.url ? String(a.url).slice(0, 2000) : ''
   };
 
+  var reuseId = null;
   try {
     if (story.url) {
       var existing = await Drafts.findBySourceUrl(story.url);
-      if (existing) return res.status(200).json({ id: existing.id, existing: true });
+      // An untouched AI draft from before the writer could see the article,
+      // archive and roster (GROUNDED_SINCE) is rewritten, not reused (Jeff,
+      // 2026-10-06: the Media Day draft still had players gone for a year).
+      // Anything a person has edited, or a newer AI draft, opens as is.
+      var stale = existing && /^AI\b/.test(existing.writerName || '') && existing.updatedAt === existing.createdAt &&
+        Date.parse(existing.createdAt || 0) < Date.parse(GROUNDED_SINCE);
+      if (existing && !stale) return res.status(200).json({ id: existing.id, existing: true });
+      if (stale) reuseId = existing.id;
     }
 
     var houseStyle = S.isConfigured() ? await Settings.getHouseStyle(S.admin()) : null;
     var draft = await BreakingDraft.generateBreakingDraft(story, houseStyle);
-    var id = Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
+    var id = reuseId || Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
     var now = new Date().toISOString();
     var requester = auth && auth.user && auth.user.email;
     await Drafts.saveDraft({
@@ -58,6 +70,7 @@ module.exports = async function handler(req, res) {
     });
     return res.status(200).json({ id: id, headline: draft.headline });
   } catch (e) {
+    if (e.stale) return res.status(200).json({ error: e.message, stale: true });
     return res.status(500).json({ error: e.message });
   }
 };

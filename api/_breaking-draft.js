@@ -143,6 +143,13 @@ async function generateBreakingDraft(alert, styleGuide) {
     rosterChanges()
   ]);
   var related = got[0] || [], article = got[1], coverageNotes = got[2], roster = got[3], calendar = got[4], changes = got[5];
+  // Old news is never drafted as new (the same 14-day rule as the scan's
+  // freshness check): a re-indexed article's page date gives it away.
+  if (article && article.publishedMs && Date.now() - article.publishedMs > 14 * 86400000) {
+    var old = new Error('This story was published ' + new Date(article.publishedMs).toLocaleDateString('en-US', { timeZone: 'America/New_York', month: 'long', day: 'numeric', year: 'numeric' }) + ', so it is old news. No draft was written.');
+    old.stale = true;
+    throw old;
+  }
   var people = beat ? beatPeople(beat) : '';
   var relatedList = related.map(function(r, i) { return (i + 1) + '. ' + r.headline + '  ->  ' + r.url; }).join('\n');
 
@@ -171,7 +178,8 @@ async function generateBreakingDraft(alert, styleGuide) {
     '- Research tools, use them before writing when they would help: search_knowledge_base searches ALL of our own past coverage (any date), for background and consistency with what we have reported. web_search checks the open web for current facts (this season\'s stats, injuries, schedule, who is on the team now); prefer official athletics sites and established outlets, and only trust results from this season. Then call submit_breaking_draft.\n' +
     '- Where the source is thin (e.g. just a headline and a source name), keep the piece short rather than padding it with background.\n' +
     '- Lightly, where it costs nothing: make the first two sentences answer who/what/when on their own, and name people and teams in full on first mention. This helps AI search tools cite the story; never let it override the house voice.\n' +
-    '- Insert Markdown links to our related coverage from the list below where a phrase genuinely connects — do not force it, and never invent a URL not in the list.\n' +
+    '- Insert Markdown links to our related coverage from the list below only where the linked article\'s headline is about exactly what the linked phrase says; never link a claim to an article that doesn\'t report it, never force a link, and never invent a URL not in the list.\n' +
+    '- Write like a sharp beat writer, not a press release or a preview show (Jeff, 2026-10-06: "the writing isn\'t good"): concrete facts, short declarative sentences, no filler ("legitimate weapons", "heading into the season", "remains to be seen", "all eyes on"), no guessing at what a locker room, coach or fan base thinks, no predictions, no rhetorical questions. If the source is thin, write a short, tight piece: three short paragraphs of real facts beat six of padding.\n' +
     '- factsToCheck should flag anything a human needs to verify or add before this goes out (this is a fast draft off a single source, so lean toward flagging, not toward confidence).\n';
 
   var user = facts + '\n\nRELATED ARTICLES (for internal links):\n' + (relatedList || '(none available this run)');
