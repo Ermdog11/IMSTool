@@ -27,7 +27,7 @@ var ROLE_WORDS = {
   publisher: 'run the newsroom (everything)',
   editor: 'edit the team\'s drafts and run the desk',
   writer: 'write and edit your own drafts',
-  contributor: 'use the Content Editor for your own drafts',
+  contributor: 'access the Content Editor for your own drafts',
   viewer: 'follow the news, alerts and calendar (read-only)'
 };
 function escHtml(x) { return String(x == null ? '' : x).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); }

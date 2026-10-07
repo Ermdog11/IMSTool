@@ -161,7 +161,7 @@ tr.you td{background:var(--red-light)}
     <h2>Who can do what</h2>
     <div class="sub">What each role can do today. The publisher sets each person's role in <a href="/settings">Settings › Team &amp; alerts</a>.</div>
     <div class="table-scroll"><table id="perm-table"></table></div>
-    <div class="sub" style="margin-top:10px">Two more roles: <b>Contributor</b> (freelancers and stringers) uses the Content Editor only, sees only their own drafts and gets no alerts by default. <b>Viewer</b> can read the News Monitor but can't change anything or use the Content Editor. Fine-tune any role with the switches above.</div>
+    <div class="sub" style="margin-top:10px">Two more roles: <b>Contributor</b> (freelancers and stringers) can access the Content Editor only, sees only their own drafts and gets no alerts by default. <b>Viewer</b> can read the News Monitor but can't change anything or access the Content Editor. Fine-tune any role with the switches above.</div>
   </section>
 
   <section class="card dir" id="everything">
@@ -192,7 +192,7 @@ var ROLE='publisher', CONFIGURED=false, profile={};
 // ---- What writers and editors see (site profile editorAccess) ---------------
 // Keep in sync with FEATURES in api/_access.js.
 var ACCESS_FEATURES=[
-  ['Apps and drafts',[['use_monitor','Use the News Monitor'],['use_editor','Use the Content Editor'],['drafts_all','See and edit everyone\u2019s drafts (off: only their own)']]],
+  ['Apps and drafts',[['use_monitor','Access the News Monitor'],['use_editor','Access the Content Editor'],['drafts_all','See and edit everyone\u2019s drafts (off: only their own)']]],
   ['Copydesk modes',[['mode_edit','Full edit: rewrite in house style'],['mode_keep','Keep my words: review only'],['mode_links','Hotlinks only']]],
   ['Copydesk tools',[['add_with_edit','Add podcast, related links and promos'],['ask_editor','Ask the editor (chat)'],['act_fact_check','Extra fact-check (uses more AI credits)']]],
   ['Content Editor tabs',[['tab_transcribe','Transcribe'],['tab_social','From social'],['tab_house_style','House style'],['tab_writers','Writers'],['tab_inserts','Inserts'],['tab_drafts','Drafts']]],
@@ -246,7 +246,7 @@ async function saveAccess(){
 // Mirrors the role checks in api/ (requireRole / membership.role). Keep in
 // sync when a route's check changes.
 var PERMS=[
-  ['Use the News Monitor and Content Editor (scans, digests, alerts, editing, writing)','all'],
+  ['Access the News Monitor and Content Editor (scans, digests, alerts, editing, writing)','all'],
   ['Choose your own alerts','all'],
   ['Open and edit everyone\u2019s drafts (writers: only their own, unless you switch it on above)','editor'],
   ['Hide junk sources and exclude sites from the feed (unless you switch it off below)','all'],
