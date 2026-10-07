@@ -181,7 +181,7 @@ async function setReminder(id, email, minutes, channel) {
   var ev = data.events.filter(function (e) { return e.id === id; })[0];
   if (!ev) throw new Error('Event not found');
   ev.reminders = (ev.reminders || []).filter(function (r) { return r.email !== email; });
-  if (minutes) ev.reminders.push({ email: email, minutes: minutes, channel: channel === 'text' ? 'text' : 'email', sentAt: null });
+  if (minutes) ev.reminders.push({ email: email, minutes: minutes, channel: (channel === 'text' || channel === 'both' ? channel : 'email'), sentAt: null });
   await save(data);
   return ev;
 }
@@ -194,7 +194,7 @@ async function setDefault(email, minutes, channel) {
   var data = await load();
   // Merge: the same entry also holds the hot-spot reminder.
   var p = data.prefs[email] || {};
-  if (minutes) { p.minutes = minutes; p.channel = channel === 'text' ? 'text' : 'email'; } else { delete p.minutes; delete p.channel; }
+  if (minutes) { p.minutes = minutes; p.channel = (channel === 'text' || channel === 'both' ? channel : 'email'); } else { delete p.minutes; delete p.channel; }
   if (Object.keys(p).length) data.prefs[email] = p; else delete data.prefs[email];
   await save(data);
 }
@@ -354,7 +354,7 @@ async function setHeatReminder(email, minutes, channel) {
   if (!email) throw new Error('Sign in to set reminders.');
   minutes = Number(minutes) || 0;
   if (minutes && STEPS.indexOf(minutes) === -1) throw new Error('Pick 30 minutes to 6 hours, in 30-minute steps.');
-  channel = channel === 'text' ? 'text' : 'email';
+  channel = (channel === 'text' || channel === 'both' ? channel : 'email');
   var data = await load();
   var p = data.prefs[email] || {};
   if (minutes) p.heat = { minutes: minutes, channel: channel }; else delete p.heat;
@@ -396,7 +396,7 @@ async function setHot12(email, on, channel) {
   if (!email) throw new Error('Sign in to set alerts.');
   var data = await load();
   var p = data.prefs[email] || {};
-  if (on) p.hot12 = { channel: channel === 'text' ? 'text' : 'email' }; else delete p.hot12;
+  if (on) p.hot12 = { channel: (channel === 'text' || channel === 'both' ? channel : 'email') }; else delete p.hot12;
   if (Object.keys(p).length) data.prefs[email] = p; else delete data.prefs[email];
   await save(data);
 }
@@ -436,14 +436,14 @@ async function sendDueReminders() {
       var nightBefore = e.kind === 'heat' && nyDay(now) !== nyDay(s);
       try {
         await Mailer.sendMail({
-          to: r.email,
+          to: r.email, channel: r.channel || 'email',
           subject: nightBefore ? 'Hot spot tomorrow at ' + new Date(s).toLocaleTimeString('en-US', { timeZone: TZ, hour: 'numeric', minute: '2-digit' }) + ': have a story ready tonight'
             : 'Reminder: ' + e.title + ' (' + fmtWhen(e) + ')',
           html: '<div style="font-family:-apple-system,Segoe UI,sans-serif;font-size:15px">' +
             '<p><b>' + esc(e.title) + '</b><br>' + esc(fmtWhen(e)) + (e.location ? ' · ' + esc(e.location) : '') + '</p>' +
             (nightBefore ? '<p>This hot spot is early, so this heads-up comes the evening before: line up the story tonight and schedule it for then.</p>' : '') +
             (e.note ? '<p>' + esc(e.note) + '</p>' : '') +
-            (r.channel === 'text' ? '<p style="color:#888;font-size:12px">You asked for a text; texting isn\'t connected yet, so this came by email.</p>' : '') +
+            ((r.channel === 'text' || r.channel === 'both') && !require('./_sms').isConfigured() ? '<p style="color:#888;font-size:12px">You asked for a text; texting isn\'t connected yet, so this came by email.</p>' : '') +
             '<p style="font-size:13px"><a href="https://ims-tool.vercel.app/calendar">Open the calendar</a></p></div>'
         });
         r.sentAt = new Date().toISOString(); sent++; changed = true;
@@ -467,13 +467,13 @@ async function sendDueReminders() {
         var hs = startMs(he), when = new Date(hs).toLocaleString('en-US', { timeZone: TZ, weekday: 'long', hour: 'numeric', minute: '2-digit' });
         try {
           await Mailer.sendMail({
-            to: em,
+            to: em, channel: data.prefs[em].hot12.channel || 'email',
             subject: '🔥 Hot spot ' + (nyDay(hs) === nyDay(now) ? 'today' : 'tomorrow') + ' at ' + new Date(hs).toLocaleTimeString('en-US', { timeZone: TZ, hour: 'numeric', minute: '2-digit' }) + ': have a story ready',
             html: '<div style="font-family:-apple-system,Segoe UI,sans-serif;font-size:15px">' +
               '<p><b>' + esc(he.title) + '</b><br>' + esc(when) + '</p>' +
               (he.note ? '<p>' + esc(he.note) + '</p>' : '') +
               '<p>Have your best story ready to publish then.</p>' +
-              (data.prefs[em].hot12.channel === 'text' ? '<p style="color:#888;font-size:12px">You asked for a text; texting isn\'t connected yet, so this came by email.</p>' : '') +
+              ((data.prefs[em].hot12.channel === 'text' || data.prefs[em].hot12.channel === 'both') && !require('./_sms').isConfigured() ? '<p style="color:#888;font-size:12px">You asked for a text; texting isn\'t connected yet, so this came by email.</p>' : '') +
               '<p style="font-size:13px"><a href="https://ims-tool.vercel.app/calendar">Open the calendar</a> · <a href="https://ims-tool.vercel.app/preferences">Change this alert</a></p></div>'
           });
           he.hot12Sent.push(em); sent++; changed = true;

@@ -4,6 +4,8 @@
 //   POST { userId?, type, enabled }      -> set one pref. Omit userId for yourself.
 //   POST { type, schedule }              -> your own days/hours for that alert (_alert-schedule.js)
 //   POST { timeZone }                    -> your own time zone for those days/hours
+//   POST { channelFor, channel }         -> email, text or both for one alert
+//   POST { phone }                       -> your mobile number for text alerts
 //                                          Setting someone else's requires publisher.
 //
 // Default when a row is absent: enabled (opt-out model), EXCEPT 'article_started'
@@ -67,7 +69,10 @@ module.exports = async function handler(req, res) {
 
     var schedAll = await require('./_alert-schedule').load();
     var mySched = schedAll[String(ctx.user.email || '').toLowerCase()] || {};
-    var out = { types: ALERT_TYPES, me: mine, schedules: mySched, timeZone: require('./_alert-schedule').tzOf(mySched) };
+    var Sched0 = require('./_alert-schedule');
+    var channels = {}; ALERT_TYPES.forEach(function (t) { channels[t.key] = Sched0.channelOf(mySched, t.key); });
+    var out = { types: ALERT_TYPES, me: mine, schedules: mySched, timeZone: Sched0.tzOf(mySched),
+      channels: channels, phone: Sched0.phoneOf(mySched), textingOn: require('./_sms').isConfigured() };
 
     if (ctx.membership.role === 'publisher') {
       var mem = await sb.from('memberships')
@@ -97,6 +102,17 @@ module.exports = async function handler(req, res) {
 
   var body = req.body || {};
   var type = body.type;
+  // How you get one alert: { channelFor: type, channel: 'email'|'text'|'both' }.
+  if (body.channelFor !== undefined) {
+    if (VALID.indexOf(body.channelFor) === -1) return res.status(400).json({ error: 'Unknown alert type.' });
+    try { return res.status(200).json({ ok: true, channel: await require('./_alert-schedule').setChannel(ctx.user.email, body.channelFor, String(body.channel || '')) }); }
+    catch (e) { return res.status(400).json({ error: e.message }); }
+  }
+  // Your mobile number for text alerts: { phone } ('' removes it).
+  if (body.phone !== undefined) {
+    try { return res.status(200).json({ ok: true, phone: await require('./_alert-schedule').setPhone(ctx.user.email, String(body.phone || '')) }); }
+    catch (e) { return res.status(400).json({ error: e.message }); }
+  }
   // Your own time zone: { timeZone: 'America/Chicago' } (your days and hours use it).
   if (body.timeZone !== undefined) {
     try { var tzSaved = await require('./_alert-schedule').setTz(ctx.user.email, String(body.timeZone || '')); return res.status(200).json({ ok: true, timeZone: tzSaved }); }

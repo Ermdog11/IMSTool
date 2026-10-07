@@ -12,6 +12,8 @@
 // Coverage Desk memo), which used to ignore personal switches.
 //
 // Blob alert-schedules.json: { email: { _tz: 'America/Chicago', type: { days:[0-6], from:'HH:MM', to:'HH:MM' } } }
+// _ch: { type: 'email'|'text'|'both' } and _phone: '+15551234567' are how they
+// want each alert delivered (Jeff, 2026-10-07: email, text or both; _sms.js).
 // _tz is the person's own time zone (Jeff, 2026-10-07: "add choice of time
 // zone to preferences"); their days and hours are read in it. No _tz = Eastern.
 // (no entry, or every day with no hours, = any time). Best-effort: a failed
@@ -58,6 +60,35 @@ function validTz(tz) {
 
 // One person's time zone ('America/New_York' unless they chose another).
 function tzOf(mine) { return mine && validTz(mine._tz) ? mine._tz : TZ; }
+
+var CHANNELS = ['email', 'text', 'both'];
+function channelOf(mine, type) { var c = mine && mine._ch && mine._ch[type]; return CHANNELS.indexOf(c) !== -1 ? c : 'email'; }
+function phoneOf(mine) { return (mine && mine._phone) || ''; }
+
+async function saveMine(email, fn) {
+  email = String(email || '').toLowerCase();
+  if (!email) throw new Error('email required');
+  var all = await load();
+  var mine = all[email] || {};
+  var out = fn(mine);
+  if (Object.keys(mine).length) all[email] = mine; else delete all[email];
+  await put(PATH, JSON.stringify(all), { access: 'private', addRandomSuffix: false, allowOverwrite: true, contentType: 'application/json' });
+  return out;
+}
+function setChannel(email, type, ch) {
+  if (CHANNELS.indexOf(ch) === -1) throw new Error('Choose email, text or both.');
+  return saveMine(email, function (mine) {
+    mine._ch = mine._ch || {};
+    if (ch === 'email') delete mine._ch[type]; else mine._ch[type] = ch;
+    if (!Object.keys(mine._ch).length) delete mine._ch;
+    return ch;
+  });
+}
+function setPhone(email, phone) {
+  var p = phone ? require('./_sms').normalizePhone(phone) : '';
+  if (phone && !p) throw new Error('That doesn\'t look like a mobile number. Use 10 digits, or + and the country code.');
+  return saveMine(email, function (mine) { if (p) mine._phone = p; else delete mine._phone; return p; });
+}
 
 async function setTz(email, tz) {
   email = String(email || '').toLowerCase();
@@ -133,4 +164,4 @@ async function clearAll(email) {
   await put(PATH, JSON.stringify(all), { access: 'private', addRandomSuffix: false, allowOverwrite: true, contentType: 'application/json' });
 }
 
-module.exports = { clearAll: clearAll, load: load, set: set, setTz: setTz, tzOf: tzOf, DEFAULT_TZ: TZ, allows: allows, filter: filter, openAt: openAt, clean: clean };
+module.exports = { clearAll: clearAll, load: load, set: set, setTz: setTz, setChannel: setChannel, setPhone: setPhone, channelOf: channelOf, phoneOf: phoneOf, CHANNELS: CHANNELS, tzOf: tzOf, DEFAULT_TZ: TZ, allows: allows, filter: filter, openAt: openAt, clean: clean };

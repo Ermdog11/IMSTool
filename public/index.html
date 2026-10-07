@@ -1030,7 +1030,7 @@ body.other-newsroom .other-only { display: block !important; }
   <div class="cal-box" style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;font-size:.85rem;">
     <b>My default reminder</b><span style="color:var(--text3);font-size:.78rem;">for events I add</span>
     <select id="calDefMin" onchange="calSaveDefault()" class="cal-sel"></select>
-    <select id="calDefCh" onchange="calSaveDefault()" class="cal-sel"><option value="email">by email</option><option value="text">by text</option></select>
+    <select id="calDefCh" onchange="calSaveDefault()" class="cal-sel"><option value="email">by email</option><option value="text">by text</option><option value="both">by email and text</option></select>
     <span id="calDefMsg" style="font-size:.78rem;color:var(--text3);"></span>
   </div>
   <div class="cal-box" id="calHeatBox" style="font-size:.85rem;">
@@ -1043,7 +1043,7 @@ body.other-newsroom .other-only { display: block !important; }
       <span style="color:var(--text3);">·</span>
       <span>Remind me before each</span>
       <select id="calHeatMin" onchange="calHeatRemind()" class="cal-sel"></select>
-      <select id="calHeatCh" onchange="calHeatRemind()" class="cal-sel"><option value="email">by email</option><option value="text">by text</option></select>
+      <select id="calHeatCh" onchange="calHeatRemind()" class="cal-sel"><option value="email">by email</option><option value="text">by text</option><option value="both">by email and text</option></select>
     </div>
     <div id="calHeatMsg" style="font-size:.78rem;color:var(--text3);margin-top:4px;"></div>
   </div>
@@ -4692,7 +4692,7 @@ function renderCalendar() {
         (e.source === 'ai' ? '<div style="font-size:.72rem;color:var(--text3);margin-top:3px;">🤖 Added by CoPublisher' + (e.sourceUrl ? ' · <a href="' + calEsc(e.sourceUrl) + '" target="_blank" rel="noopener">source</a>' : '') + '</div>' : '') +
       '</div>' +
       (past ? '' : '<div class="cal-rem">🔔 <select class="cal-sel" onchange="calRemind(\'' + e.id + '\',this.value,this.nextElementSibling.value)">' + calOpts(mine ? mine.minutes : 0, 'No reminder') + '</select>' +
-        '<select class="cal-sel" onchange="calRemind(\'' + e.id + '\',this.previousElementSibling.value,this.value)"><option value="email"' + (mine && mine.channel === 'text' ? '' : ' selected') + '>Email</option><option value="text"' + (mine && mine.channel === 'text' ? ' selected' : '') + '>Text</option></select>' +
+        '<select class="cal-sel" onchange="calRemind(\'' + e.id + '\',this.previousElementSibling.value,this.value)"><option value="email"' + (mine && (mine.channel === 'text' || mine.channel === 'both') ? '' : ' selected') + '>Email</option><option value="text"' + (mine && mine.channel === 'text' ? ' selected' : '') + '>Text</option><option value="both"' + (mine && mine.channel === 'both' ? ' selected' : '') + '>Both</option></select>' +
         (mine && mine.sentAt ? '<span style="color:var(--green);">sent</span>' : '') + '</div>') +
       '<button class="cal-x" title="Delete" onclick="calDelete(\'' + e.id + '\')">×</button>' +
     '</div>';

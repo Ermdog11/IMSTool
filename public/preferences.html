@@ -30,6 +30,10 @@ h1{font-size:22px;margin-bottom:4px}
 .lead.how ol{margin:0;padding-left:20px}
 .lead.how li{margin:5px 0}
 .tz-row{margin:0 0 12px;padding:10px 12px;border:1px solid var(--border);border-radius:10px;background:var(--bg,#f7f6f2)}
+.chan{display:inline-flex;margin-top:6px;border:1px solid var(--border);border-radius:8px;overflow:hidden}
+.chan button{font:inherit;font-size:12.5px;font-weight:600;border:0;border-left:1px solid var(--border);background:#fff;color:var(--text2);padding:6px 12px;cursor:pointer;min-height:32px}
+.chan button:first-child{border-left:0}
+.chan button.on{background:#2563eb;color:#fff}
 .tz-row select{width:auto;display:inline-block;margin-left:6px}
 .tz-row .msg{display:block;margin:4px 0 0}
 .row .name .about{display:block;font-size:13px;color:var(--text2);line-height:1.45;margin:2px 0 4px;font-weight:400}
@@ -304,9 +308,9 @@ async function loadAlerts(){
   try{
     var r=await fetch('/api/alert-prefs'); var d=await r.json();
     if(!r.ok) throw new Error(d.error||('HTTP '+r.status));
-    SCHED=d.schedules||{}; MYTZ=d.timeZone||'America/New_York';
-    $('alert-list').innerHTML=tzPicker()+'<div class="sub" style="margin:0 0 6px">Tap <b>⏰</b> under any alert to pick the days and hours you want it (in your time zone above), for example weekdays 8am to 10pm. Outside them it\u2019s skipped for you, not saved for later.</div>'+(d.types||[]).map(function(t){
-      return '<div class="row"><div class="name"><b>'+esc(t.label)+'</b>'+(t.about?'<span class="about">'+esc(t.about)+'</span>':'<br>')+schedLink(t.key)+'</div><label class="switch"><input type="checkbox" data-t="'+esc(t.key)+'" '+(d.me[t.key]?'checked':'')+' onchange="setAlert(this)"><i></i></label>'+schedEditor(t.key)+'</div>';
+    SCHED=d.schedules||{}; MYTZ=d.timeZone||'America/New_York'; CHAN=d.channels||{}; MYPHONE=d.phone||''; TEXTING=!!d.textingOn;
+    $('alert-list').innerHTML=tzPicker()+phoneBox()+'<div class="sub" style="margin:0 0 6px">Tap <b>⏰</b> under any alert to pick the days and hours you want it (in your time zone above), for example weekdays 8am to 10pm. Outside them it\u2019s skipped for you, not saved for later.</div>'+(d.types||[]).map(function(t){
+      return '<div class="row"><div class="name"><b>'+esc(t.label)+'</b>'+(t.about?'<span class="about">'+esc(t.about)+'</span>':'<br>')+schedLink(t.key)+chanPicker(t.key)+'</div><label class="switch"><input type="checkbox" data-t="'+esc(t.key)+'" '+(d.me[t.key]?'checked':'')+' onchange="setAlert(this)"><i></i></label>'+schedEditor(t.key)+'</div>';
     }).join('')+'<div id="hot12-row"></div><div class="sub" id="alert-msg" style="margin:6px 0 0"></div>';
     loadHot12();
   }catch(e){ $('alert-list').innerHTML='<div class="msg err" style="margin:0">Couldn’t load your alerts: '+esc(e.message)+'</div>'; }
@@ -329,6 +333,40 @@ function tzPicker(){
   return '<div class="tz-row"><label for="my-tz"><b>Your time zone</b></label> <select id="my-tz" onchange="saveTz(this)">'+
     list.map(function(x){ return '<option value="'+esc(x[0])+'"'+(x[0]===MYTZ?' selected':'')+'>'+esc(x[1])+' \u00b7 '+esc(tzNow(x[0]))+'</option>'; }).join('')+
     '</select><span class="msg" id="tz-msg"></span>'+(here && here!==MYTZ?'<div class="sub" style="margin:4px 0 0">This device is set to '+esc(here.replace(/_/g,' '))+'.</div>':'')+'</div>';
+}
+// Email, text or both, per alert (Jeff, 2026-10-07: "add option for email,
+// text or both under each alert category"). Texts go to the mobile number
+// below once texting is connected (api/_sms.js); until then it's email.
+var CHAN={}, MYPHONE='', TEXTING=false;
+function phoneBox(){
+  return '<div class="tz-row"><label for="my-phone"><b>Mobile number for text alerts</b></label> '+
+    '<input id="my-phone" type="tel" inputmode="tel" autocomplete="tel" placeholder="(301) 555-0123" value="'+esc(MYPHONE)+'" style="width:auto;display:inline-block;margin-left:6px;max-width:200px" onchange="savePhone(this)">'+
+    '<span class="msg" id="phone-msg"></span>'+
+    '<div class="sub" style="margin:4px 0 0">'+(TEXTING?'Choose <b>Text</b> or <b>Both</b> under any alert to get it by text.':'Texting isn\u2019t switched on for the newsroom yet. Choose <b>Text</b> or <b>Both</b> now and you\u2019ll get email until it is.')+'</div></div>';
+}
+function chanPicker(type){
+  var c=CHAN[type]||'email';
+  return '<div class="chan" role="radiogroup" aria-label="How you get this alert">'+[['email','Email'],['text','Text'],['both','Both']].map(function(o){
+    return '<button type="button" class="'+(c===o[0]?'on':'')+'" onclick="saveChan(\''+type+'\',\''+o[0]+'\',this)">'+o[1]+'</button>';
+  }).join('')+'</div>';
+}
+async function saveChan(type,ch,btn){
+  var box=btn.parentNode, prev=CHAN[type]||'email';
+  box.querySelectorAll('button').forEach(function(b){ b.classList.toggle('on',b===btn); });
+  try{
+    var r=await fetch('/api/alert-prefs',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({channelFor:type,channel:ch})});
+    var d=await r.json(); if(!r.ok||d.error) throw new Error(d.error||('HTTP '+r.status));
+    CHAN[type]=ch;
+    if(ch!=='email'&&!MYPHONE){ $('phone-msg').textContent='Add your mobile number so texts can reach you.'; $('my-phone').focus(); }
+  }catch(e){ box.querySelectorAll('button').forEach(function(b){ b.classList.toggle('on',b.textContent.toLowerCase()===prev); }); alert('Couldn\u2019t save: '+e.message); }
+}
+async function savePhone(inp){
+  var m=$('phone-msg'); m.textContent='Saving…';
+  try{
+    var r=await fetch('/api/alert-prefs',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({phone:inp.value})});
+    var d=await r.json(); if(!r.ok||d.error) throw new Error(d.error||('HTTP '+r.status));
+    MYPHONE=d.phone||''; inp.value=MYPHONE; m.textContent=MYPHONE?'Saved.':'Removed.';
+  }catch(e){ m.textContent=e.message; }
 }
 async function saveTz(sel){
   var m=$('tz-msg'); m.textContent='Saving…';
@@ -382,7 +420,7 @@ async function loadHot12(){
     var mine=d.heat&&d.heat.hot12, off=d.heat&&!d.heat.on;
     box.innerHTML='<div class="row"><div class="name"><b>🔥 A hot spot is within 12 hours</b>'+
       '<div class="sub" style="margin:2px 0 0">One heads-up per hot spot (the best times to publish), so a story is ready. Never between 10 PM and 7 AM; early-morning ones come the evening before.'+(off?' Hot spots are switched off for the newsroom right now.':'')+'</div>'+schedLink('hot_spot')+'</div>'+
-      '<select id="hot12-ch" onchange="setHot12()" style="width:auto;margin:0 10px 0 0"><option value="email">Email</option><option value="text">Text</option></select>'+
+      '<select id="hot12-ch" onchange="setHot12()" style="width:auto;margin:0 10px 0 0"><option value="email">Email</option><option value="text">Text</option><option value="both">Both</option></select>'+
       '<label class="switch"><input type="checkbox" id="hot12-on" '+(mine?'checked':'')+' onchange="setHot12()"><i></i></label>'+schedEditor('hot_spot')+'</div>';
     $('hot12-ch').value=(mine&&mine.channel)||'email';
   }catch(e){}
