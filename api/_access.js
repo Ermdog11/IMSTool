@@ -43,6 +43,7 @@ var FEATURES = [
   { key: 'mon_youtube',    label: 'YouTube' },
   { key: 'mon_bluesky',    label: 'Bluesky' },
   { key: 'mon_analytics',  label: 'Analytics (traffic and audience numbers)' },
+  { key: 'mon_source_health', label: 'Source health (which news sources are working)' },
   { key: 'mon_roster',     label: 'Roster watch' },
   { key: 'mon_opps',       label: 'Opp Watch' },
   { key: 'mon_calendar',   label: 'Calendar' },
