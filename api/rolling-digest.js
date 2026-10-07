@@ -124,7 +124,7 @@ function recordsHTML(list) {
   if (!list || !list.length) return '';
   var e = function (x) { return String(x == null ? '' : x).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); };
   return '<div style="margin-bottom:22px;border:1px solid #f0d78a;background:#fffbeb;border-radius:8px;padding:12px 14px;">' +
-    '<div style="font-size:12px;font-weight:700;color:#b45309;text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px;">📄 Suggested records requests (' + list.length + ')</div>' +
+    '<div style="font-size:12px;font-weight:700;color:#b45309;text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px;">📄 Public records requests to review (' + list.length + ')</div>' +
     list.map(function (s) {
       var d = s.draft || {};
       var mailto = d.to ? 'mailto:' + encodeURIComponent(d.to) + '?subject=' + encodeURIComponent(d.subject || '') + '&body=' + encodeURIComponent(d.body || '') : '';
@@ -132,7 +132,7 @@ function recordsHTML(list) {
         '<div style="font-size:14px;font-weight:600;">' + (s.url ? '<a href="' + e(s.url) + '" style="color:#1a1a1a;text-decoration:none;">' + e(s.headline) + '</a>' : e(s.headline)) + '</div>' +
         '<div style="font-size:12px;color:#555;line-height:1.5;margin-top:2px;">' + e(d.reason) + '</div>' +
         '<div style="font-size:12px;color:#555;margin-top:3px;"><b>To:</b> ' + (d.agency ? e(d.agency) + ' · ' : '') + (d.to ? e(d.to) : d.toUnconfirmed ? e(d.toUnconfirmed) + ' (check it)' : 'no published email') + '</div>' +
-        '<div style="font-size:12px;margin-top:5px;">' + (mailto ? '<a href="' + mailto + '" style="color:#2563eb;margin-right:12px;">Send it from my email</a>' : '') + '<a href="https://ims-tool.vercel.app/alerts#records" style="color:#2563eb;">Review in CoPublisher</a></div>' +
+        '<div style="font-size:12px;margin-top:5px;">' + (mailto ? '<a href="' + mailto + '" style="color:#2563eb;margin-right:12px;">Send it from my email</a>' : '') + '<a href="https://ims-tool.vercel.app/alerts#records" style="color:#2563eb;">Have CoPublisher send it for me</a></div>' +
       '</div>';
     }).join('') + '</div>';
 }

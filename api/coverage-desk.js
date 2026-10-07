@@ -218,6 +218,15 @@ module.exports = async function handler(req, res) {
     try { todayEvents = await require('./_calendar').eventsOn(); } catch (e) { console.error('Coverage Desk: calendar failed (non-fatal):', e.message); }
     var Cal = require('./_calendar');
     var calList = todayEvents.map(function (e) { return '- ' + Cal.timeOf(e) + ': ' + e.title + (e.location ? ' (' + e.location + ')' : '') + (e.note ? ' — ' + e.note : ''); }).join('\n');
+    // The next 7 days on the calendar, for story ideas ahead of them (Jeff,
+    // 2026-10-07: use the calendar to suggest stories, automatically).
+    var aheadList = '';
+    try {
+      var calData = await Cal.load(), tomorrowMs = Date.now() + 12 * 3600000;
+      aheadList = (calData.events || []).filter(function (e) { var s = Date.parse(e.start); return e.kind !== 'heat' && s > tomorrowMs && s < Date.now() + 7 * 86400000; })
+        .sort(function (a, b) { return a.start.localeCompare(b.start); }).slice(0, 15)
+        .map(function (e) { return '- ' + new Date(e.start).toLocaleDateString('en-US', { timeZone: Cal.TZ, weekday: 'short', month: 'short', day: 'numeric' }) + ' ' + Cal.timeOf(e) + ': ' + e.title + (e.location ? ' (' + e.location + ')' : '') + (e.note ? ' — ' + e.note : ''); }).join('\n');
+    } catch (e) { console.error('Coverage Desk: calendar ahead failed (non-fatal):', e.message); }
 
     // Outlet and beat from the beat profile, never hard-coded.
     var cdBeat = await require('./_beat').getBeat(require('./_supabase').isConfigured() ? require('./_supabase').admin() : null).catch(function () { return null; });
@@ -234,9 +243,11 @@ module.exports = async function handler(req, res) {
         : 'WHAT WORKED — write exactly one line: "No analytics from yesterday yet (connect Chartbeat and Buffer under Analytics)." Do not invent numbers or name a top story.\n') +
       (calList ? "TODAY'S CALENDAR is shown to the publisher in its own box above your memo; don't list it again, but factor it into TODAY'S PRIORITIES (who covers a game, presser or deadline today).\n" : '') +
       (heatList ? "WHEN TO PUBLISH — two or three sentences on this week's hot spots (the best times to publish, ranked from our own last 4 weeks of site readers and social engagement, listed below): name today's if any and what story from TODAY'S PRIORITIES to hold for it, then the best ones still ahead this week in order. If tomorrow has one before 10 AM, say to have a story written and scheduled before the end of today, since there won't be time in the morning. Use only the reasons given; don't invent numbers. If the list says there isn't enough history yet, say that in one line.\n" : '') +
+      (aheadList ? "FROM THE CALENDAR — 1-3 story ideas for the dates coming up this week (listed below): what to write ahead of each (a preview, what to watch for, a deadline that needs a story or a credential request) and the day to publish it. Only for dates worth a story; skip routine ones.\n" : '') +
       "EDITOR'S READ — one or two sentences: an honest take on where the beat is right now and the single thing you would focus on today.\n\n" +
       "TODAY'S RATED NEWS:\n" + (newsList || '(nothing notable in the scan)') + '\n\n' +
       (calList ? "TODAY'S CALENDAR:\n" + calList + '\n\n' : '') +
+      (aheadList ? 'COMING UP ON THE CALENDAR (next 7 days):\n' + aheadList + '\n\n' : '') +
       (heatList ? "THIS WEEK'S HOT SPOTS (ranked):\n" + heatList + '\n\n' : '') +
       'RECENTLY PUBLISHED BY ' + cdOutlet.toUpperCase() + ':\n' + (ownList || '(unavailable this run)') + '\n\n' +
       (hasNumbers ? "YESTERDAY'S NUMBERS (" + yesterday.day + ', Eastern; site readers are summed from readings every 3 hours, a ranking rather than exact pageviews):\n' + JSON.stringify({ site: yesterday.site, social: yesterday.social, x: yesterday.x, googleSearch: yesterday.search, errors: yesterday.errors }) + '\n\n' : '') +

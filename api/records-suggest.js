@@ -37,7 +37,7 @@ function scanAlerts(latest) {
 function emailHtml(story, d, tierLabel) {
   var mailto = 'mailto:' + encodeURIComponent(d.to || '') + '?subject=' + encodeURIComponent(d.subject || '') + '&body=' + encodeURIComponent(d.body || '');
   return '<div style="font-family:Arial,sans-serif;max-width:640px;font-size:14px;line-height:1.5">' +
-    '<p style="color:#b45309;font-weight:700;margin:0 0 6px">📄 Records request suggested · ' + esc(tierLabel) + '</p>' +
+    '<p style="color:#b45309;font-weight:700;margin:0 0 6px">📄 Public records request ready · ' + esc(tierLabel) + '</p>' +
     '<h2 style="margin:4px 0 8px;font-size:18px">' + (story.url ? '<a href="' + esc(story.url) + '">' + esc(story.headline) + '</a>' : esc(story.headline)) + '</h2>' +
     '<p style="margin:0 0 10px">' + esc(d.reason) + '</p>' +
     (d.law ? '<p style="margin:0 0 6px"><b>Law:</b> ' + esc(d.law) + (d.agency ? ' · <b>To:</b> ' + esc(d.agency) : '') + '</p>' : '') +
@@ -47,10 +47,11 @@ function emailHtml(story, d, tierLabel) {
     (d.portal ? ' · <a href="' + esc(d.portal) + '">online request portal</a>' : '') + '</p>' +
     (d.response_note ? '<p style="color:#555;margin:0 0 10px">' + esc(d.response_note) + '</p>' : '') +
     '<pre style="white-space:pre-wrap;font-family:Arial,sans-serif;background:#f7f6f3;border-radius:6px;padding:12px;font-size:13px">' + esc(d.body) + '</pre>' +
-    '<p style="margin:14px 0">' +
-    (d.to ? '<a href="' + mailto + '" style="background:#2563eb;color:#fff;padding:8px 16px;border-radius:6px;text-decoration:none;margin-right:8px">Send it from my email</a>' : '') +
-    '<a href="https://ims-tool.vercel.app/alerts" style="color:#2563eb">Review &amp; send in CoPublisher</a></p>' +
-    '<p style="color:#888;font-size:11px">Fill in any [bracketed] placeholders before sending. Nothing has been sent to the records office; CoPublisher only drafted it. Turn these suggestions off under Settings → My alerts.</p>' +
+    '<p style="margin:14px 0 6px"><b>Want CoPublisher to send it for you?</b> Open it in CoPublisher, check the letter and tap <b>Send request</b>. It goes out under your name, you\'re copied, and the records office replies straight to you.</p>' +
+    '<p style="margin:0 0 14px">' +
+    '<a href="https://ims-tool.vercel.app/alerts#records" style="background:#2563eb;color:#fff;padding:8px 16px;border-radius:6px;text-decoration:none;margin-right:8px">Yes, review &amp; send it for me</a>' +
+    (d.to ? '<a href="' + mailto + '" style="color:#2563eb">No, I\'ll send it from my email</a>' : '') + '</p>' +
+    '<p style="color:#888;font-size:11px">Fill in any [bracketed] placeholders before sending. Nothing has been sent to the records office yet; CoPublisher only wrote it. Turn these off under Permissions &amp; preferences › Your alerts.</p>' +
     '</div>';
 }
 

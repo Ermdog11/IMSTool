@@ -1028,7 +1028,7 @@ body.other-newsroom .other-only { display: block !important; }
     <div id="calMsg" style="font-size:12.5px;margin-top:6px;color:var(--text3);"></div>
   </div>
   <div class="cal-box" style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;font-size:.85rem;">
-    <b>My default reminder</b><span style="color:var(--text3);font-size:.78rem;">for events I add</span>
+    <b>Remind me before every event</b><span style="color:var(--text3);font-size:.78rem;">automatically, for everything on the calendar (change or turn it off for one event below)</span>
     <select id="calDefMin" onchange="calSaveDefault()" class="cal-sel"></select>
     <select id="calDefCh" onchange="calSaveDefault()" class="cal-sel"><option value="email">by email</option><option value="text">by text</option><option value="both">by email and text</option></select>
     <span id="calDefMsg" style="font-size:.78rem;color:var(--text3);"></span>
@@ -2508,6 +2508,7 @@ function renderRecordsDraft(idx) {
   const canSend = !IMSAuth.state.configured || IMSAuth.isEditor();
   const fld = 'width:100%;box-sizing:border-box;font:inherit;font-size:12px;padding:6px 8px;border:1px solid var(--border);border-radius:6px;background:#fff;color:var(--text);margin:2px 0 8px;';
   out.innerHTML = `<h4>Public records request</h4>
+    <div style="margin-bottom:6px;color:var(--text3);">CoPublisher wrote this request letter for you. Nothing has been sent yet.</div>
     <div style="margin-bottom:6px;">${escapeHtml(d.reason || '')}</div>
     ${d.law ? `<div style="margin-bottom:6px;"><b>Law:</b> ${escapeHtml(d.law)}${d.agency ? ' · <b>To:</b> ' + escapeHtml(d.agency) : ''}</div>` : ''}
     ${d.records.length ? `<div style="margin-bottom:8px;"><b>Asks for:</b><ul style="margin:4px 0 0 18px;padding:0;">${d.records.map(r => '<li>' + escapeHtml(r) + '</li>').join('')}</ul></div>` : ''}
@@ -2523,6 +2524,7 @@ function renderRecordsDraft(idx) {
     <label style="font-size:11px;font-weight:700;">Letter — review and edit before sending</label>
     <textarea id="rr-body-${idx}" rows="16" style="${fld}resize:vertical;line-height:1.5;">${escapeHtml(d.body || '')}</textarea>
     ${d.response_note ? `<div style="margin-bottom:8px;color:var(--text3);">${escapeHtml(d.response_note)}</div>` : ''}
+    <div style="margin:4px 0 8px;padding:8px 10px;background:#eff6ff;border-radius:6px;"><b>Want CoPublisher to send it for you?</b> ${canSend ? 'Check the letter above, then tap <b>Send request</b>. It goes out under your name, you\'re copied, and the records office replies straight to you. Or tap <b>Open in my email</b> to send it yourself.' : 'An editor or the publisher can send it for you from here. Or tap <b>Open in my email</b> to send it yourself.'}</div>
     <div style="display:flex;gap:6px;flex-wrap:wrap;">
       ${canSend ? `<button class="aaction" style="font-weight:700;" onclick="sendRecordsRequest('${idx}', this)"><i class="ti ti-send"></i> Send request</button>` : ''}
       <button class="aaction" onclick="mailtoRecordsRequest('${idx}')"><i class="ti ti-mail"></i> Open in my email</button>
@@ -2552,8 +2554,8 @@ function renderRecordSuggestions(open) {
   box.style.display = '';
   box.innerHTML = `<div style="background:#fffbeb;border:1px solid #f0d78a;border-radius:10px;padding:10px 14px;">
     <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;cursor:pointer;" onclick="document.getElementById('recSugList').style.display=document.getElementById('recSugList').style.display==='none'?'':'none'">
-      <b style="color:#92400e;">📄 ${n} new suggested records request${n === 1 ? '' : 's'}</b>
-      <span style="font-size:12px;color:var(--text3);">From the news: coaching contracts, buyouts, sponsorship and game deals. Click to review.</span></div>
+      <b style="color:#92400e;">📄 ${n} public records request${n === 1 ? '' : 's'} ready to review</b>
+      <span style="font-size:12px;color:var(--text3);">CoPublisher found ${n === 1 ? 'a story' : 'stories'} worth a records request (contracts, buyouts, hires and deals) and wrote the letter. Tap to review it, then have CoPublisher send it for you or send it yourself.</span></div>
     <div id="recSugList" style="${open || location.hash === '#records' ? '' : 'display:none;'}margin-top:8px;">
       ${recSuggestions.map((s, i) => `<div style="border-top:1px solid #f3e6bd;padding:8px 0;">
         <div style="font-weight:600;">${s.url ? `<a href="${escapeHtml(s.url)}" target="_blank" rel="noopener" style="color:var(--text);">${escapeHtml(s.headline)}</a>` : escapeHtml(s.headline)}
@@ -4682,6 +4684,9 @@ function renderCalendar() {
     if (day !== lastDay) { html += '<div class="cal-day">' + calEsc(day) + '</div>'; lastDay = day; }
     var past = Date.parse(e.start) < now;
     var mine = (e.reminders || []).filter(function (r) { return r.email === me; })[0];
+    // Your automatic reminder (Remind me before every event) unless you changed it here.
+    var myDef = calData.myDefault || {};
+    if (!mine && e.kind !== 'heat' && myDef.minutes && (e.noRemind || []).indexOf(me) === -1) mine = { minutes: myDef.minutes, channel: myDef.channel || 'email' };
     var time = e.allDay ? 'All day' : d.toLocaleTimeString('en-US', { timeZone: tz, hour: 'numeric', minute: '2-digit' });
     html += '<div class="cal-ev' + (e.kind === 'heat' ? ' heat' : '') + '" style="' + (past ? 'opacity:.55;' : '') + '">' +
       '<div class="cal-time">' + calEsc(time) + '</div>' +
@@ -4775,7 +4780,7 @@ async function calRemind(id, minutes, channel) {
 }
 async function calSaveDefault() {
   var m = +document.getElementById('calDefMin').value, ch = document.getElementById('calDefCh').value, s = document.getElementById('calDefMsg');
-  try { await calFetch({ action: 'default', minutes: m, channel: ch }); s.style.color = 'var(--green)'; s.textContent = m ? 'Saved: new events you add get a ' + calMinLabel(m) + ' reminder.' : 'Saved: no default reminder.'; }
+  try { await calFetch({ action: 'default', minutes: m, channel: ch }); s.style.color = 'var(--green)'; s.textContent = m ? 'Saved: you\'ll get a reminder ' + calMinLabel(m) + ' before every event.' : 'Saved: no automatic reminders.'; loadCalendar(); }
   catch (e) { s.style.color = 'var(--hot)'; s.textContent = e.message; }
 }
 async function calDelete(id) {
