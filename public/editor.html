@@ -2054,7 +2054,7 @@ async function openLibraryTranscript(id){
   try{
     var r=await trFetch('/api/transcript-library?id='+encodeURIComponent(id)); var d=await r.json();
     if(!r.ok) throw new Error(d.error||('HTTP '+r.status));
-    trState={id:null,libId:d.id,data:{utterances:d.utterances||[],text:d.text||'',duration:d.duration,source:d.source==='youtube'?'youtube':d.source,auto:d.auto},names:d.names||{},name:d.title,timer:null,saved:true,breaks:d.breaks||null};
+    trState={id:null,libId:d.id,data:{utterances:d.utterances||[],text:d.text||'',duration:d.duration,source:d.source==='youtube'?'youtube':d.source,auto:d.auto,unsure:d.unsure||[]},names:d.names||{},name:d.title,timer:null,saved:true,breaks:d.breaks||null};
     document.getElementById('tr-status').style.display='none';
     renderTranscript();
     if(!d.breaks) trTidy();
@@ -2077,7 +2077,7 @@ async function trAutoSave(libId,source,sourceUrl){
   await trTidy();
   try{
     var r=await trFetch('/api/transcript-library',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'save',id:libId,source:source,sourceName:trState.name,sourceUrl:sourceUrl||'',
-      data:{utterances:mine.data.utterances||[],text:mine.data.text||'',duration:mine.data.duration||null,auto:mine.data.auto},names:mine.names,breaks:mine.breaks||undefined})});
+      data:{utterances:mine.data.utterances||[],text:mine.data.text||'',duration:mine.data.duration||null,auto:mine.data.auto,unsure:mine.data.unsure||[]},names:mine.names,breaks:mine.breaks||undefined})});
     var d=await r.json();
     if(!r.ok) throw new Error(d.error||('HTTP '+r.status));
     mine.libId=d.id; mine.name=d.title;
@@ -2243,6 +2243,43 @@ function trParagraphs(turns){
   for(var i=out.length-1;i>0;i--){ if(out[i].n===1&&out[i-1].speaker===out[i].speaker&&out[i-1].n<=4){ out[i-1].text+=' '+out[i].text; out[i-1].n++; out.splice(i,1); } }
   return out.map(function(p){ return {speaker:p.speaker,start:p.start,text:p.text}; });
 }
+// Spots the transcriber wasn't sure it heard right (api/transcribe.js; Jeff,
+// 2026-10-07: "a tool that tells you if there's a portion it's not sure is
+// accurate"): a list at the top, each with its time and context, and the same
+// words highlighted in the transcript. Tap one to jump to it.
+function trUnsure(){ return (trState.data&&trState.data.unsure)||[]; }
+function trUnsurePanel(){
+  var list=trUnsure();
+  if(trState.data&&trState.data.source==='youtube') return '';
+  if(!list.length) return (trState.data&&trState.data.utterances&&trState.data.utterances.length&&!trState.live)?'<div class="hint" style="margin:0 0 8px;color:var(--green,#16a34a)">✓ No spots the transcriber was unsure of.</div>':'';
+  return '<div style="border:1px solid #f5c27a;background:#fff8ec;border-radius:10px;padding:10px 12px;margin:0 0 10px">'+
+    '<div style="font-weight:700;font-size:14px">⚠️ '+list.length+' spot'+(list.length===1?'':'s')+' the transcriber wasn\u2019t sure of</div>'+
+    '<div class="hint" style="margin:2px 0 6px">Highlighted in the transcript. Replay these before you quote them: names and numbers are the usual misses.</div>'+
+    list.slice(0,25).map(function(x,k){
+      return '<a href="#" onclick="trJumpUnsure('+k+');return false" style="display:block;text-decoration:none;color:inherit;padding:5px 0;border-top:1px solid #f3e2c4;font-size:13.5px">'+
+        '<span style="color:var(--muted);font-size:12px;margin-right:6px">'+trTime(x.start)+'</span>'+
+        '<span style="color:var(--muted)">\u2026'+esc(x.before)+' </span><mark style="background:#fde68a;padding:0 2px;border-radius:3px">'+esc(x.text)+'</mark><span style="color:var(--muted)"> '+esc(x.after)+'\u2026</span></a>';
+    }).join('')+(list.length>25?'<div class="hint" style="margin:4px 0 0">+ '+(list.length-25)+' more, highlighted below.</div>':'')+'</div>';
+}
+function trMarkUnsure(u,next){
+  var html=esc(u.text), list=trUnsure(); if(!list.length) return html;
+  var from=u.start||0, to=next?next.start:Infinity;
+  list.forEach(function(x){
+    if(x.start<from-1500||x.start>=to) return;
+    var needle=esc(x.text); if(!needle) return;
+    var at=html.indexOf(needle); if(at<0) return;
+    html=html.slice(0,at)+'<mark title="The transcriber wasn\u2019t sure of this" style="background:#fde68a;padding:0 2px;border-radius:3px">'+needle+'</mark>'+html.slice(at+needle.length);
+  });
+  return html;
+}
+function trJumpUnsure(k){
+  var x=trUnsure()[k]; if(!x) return;
+  var us=trUtterances(), idx=0;
+  us.forEach(function(u,i){ if((u.start||0)<=x.start) idx=i; });
+  var el=document.getElementById('trp-'+idx); if(!el) return;
+  el.scrollIntoView({behavior:'smooth',block:'center'});
+  el.style.transition='background .3s'; el.style.background='#fff3c4'; setTimeout(function(){ el.style.background=''; },1600);
+}
 function renderTranscript(){
   var us=trUtterances(), speakers=[];
   us.forEach(function(u){ if(u.speaker!=null && speakers.indexOf(u.speaker)<0) speakers.push(u.speaker); });
@@ -2261,13 +2298,14 @@ function renderTranscript(){
     (L&&L.recording?'<div style="'+TIP_STYLE+'">'+(speakers.length?'Live speaker labels are a first pass.':'This live transcript has no speaker labels.')+' <button class="btn" style="margin:0 0 0 6px;padding:4px 10px;font-size:12.5px" onclick="labelLiveRecording()">Get the full speaker-labeled version</button> <a style="margin-left:6px;font-size:12.5px" download="'+esc(L.name.replace(/[^A-Za-z0-9]+/g,'-'))+'.'+(/mp4/.test(L.recType)?'m4a':'webm')+'" href="'+URL.createObjectURL(L.recording)+'">Save the recording</a></div>':'')+
     (trState.data.source==='youtube'?'<div style="'+TIP_STYLE+'">From the video\u2019s '+(trState.data.auto?'<b>auto-generated</b> YouTube captions, so names and numbers are often wrong. Check every quote against the video.':'own captions.')+' No speaker labels: captions don\u2019t have them.'+(trState.data.author?' Channel: '+esc(trState.data.author)+'.':'')+'</div>':'')+
     (trState.tidying?'<div class="hint" style="margin:0 0 6px"><span class="spin" style="border-color:var(--border);border-top-color:var(--muted)"></span> Organizing the paragraphs…</div>':'')+
+    trUnsurePanel()+
     '<div class="hint" style="margin:0 0 6px">Click <b>Copy</b> to grab a quote, or <b>+ Draft</b> to drop it at the end of your Copydesk draft.</div>'+
     us.map(function(u,i){
       var newSpeaker=i===0||us[i-1].speaker!==u.speaker;
       return (newSpeaker&&u.speaker!=null?'<div style="font-weight:700;font-size:13px;margin:14px 0 2px">'+esc(trName(u.speaker))+'</div>':'')+
         '<div style="display:flex;gap:10px;padding:4px 0 10px;align-items:flex-start">'+
         '<div style="width:44px;flex-shrink:0;font-size:11.5px;color:var(--muted);padding-top:3px">'+trTime(u.start)+'</div>'+
-        '<div style="flex:1;font-size:15px;line-height:1.6">'+esc(u.text)+'</div>'+
+        '<div style="flex:1;font-size:15px;line-height:1.6" id="trp-'+i+'">'+trMarkUnsure(u,us[i+1])+'</div>'+
         '<div style="flex-shrink:0;display:flex;flex-direction:column;gap:4px">'+
           '<button class="btn ghost" style="margin:0;padding:3px 9px;font-size:11.5px" onclick="trCopyOne('+i+',this)">Copy</button>'+
           '<button class="btn ghost" style="margin:0;padding:3px 9px;font-size:11.5px" onclick="trToDraft('+i+',this)">+ Draft</button></div></div>';

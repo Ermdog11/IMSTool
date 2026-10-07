@@ -77,6 +77,10 @@ async function save(input, by) {
     doc.text = doc.utterances.length ? '' : String(input.data.text || '');
     doc.duration = input.data.duration || doc.duration || null;
     if (input.data.auto != null) doc.auto = !!input.data.auto;
+    // Spots the transcriber wasn't sure of (api/transcribe.js unsureSpans).
+    if (Array.isArray(input.data.unsure)) doc.unsure = input.data.unsure.slice(0, 60).map(function (x) {
+      return { start: x.start || 0, end: x.end || null, text: String(x.text || '').slice(0, 200), before: String(x.before || '').slice(0, 200), after: String(x.after || '').slice(0, 200), confidence: Number(x.confidence) || null };
+    });
   }
   if (input.names) doc.names = input.names;
   if (Array.isArray(input.breaks)) doc.breaks = input.breaks.filter(Number.isInteger).slice(0, 5000);
