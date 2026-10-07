@@ -101,6 +101,13 @@ tr.you td{background:var(--red-light)}
 .tag.all{background:var(--green-bg);color:var(--green)}
 .tag.local{background:var(--amber-bg);color:var(--amber)}
 .table-scroll{overflow-x:auto}
+/* Role permissions: each section repeats the role names, and the feature
+   column stays put while you scroll the switches sideways (Jeff, 2026-10-07:
+   "so as you scroll down you don't get lost, and as you scroll left to right
+   you can still see them"). */
+#access-table td:first-child,#access-table th:first-child{position:sticky;left:0;z-index:1;background:var(--bg2);min-width:150px;box-shadow:1px 0 0 var(--border)}
+#access-table tr.sec th{padding-top:16px;border-top:1px solid var(--border);color:var(--text2);white-space:nowrap}
+#access-table tr.sec th:first-child{font-size:12px;text-transform:none;letter-spacing:0;color:var(--text);white-space:normal}
 @media (max-width:600px){.topbar{height:auto;padding:10px 16px;flex-wrap:wrap}.card{padding:16px}.pos input{width:110px}td.c,th.c{width:64px}}
 
 /* Phones: 16px text boxes so iPhone doesn't zoom in on tap (2026-10-06). */
@@ -208,11 +215,12 @@ var accessDefaults={};
 function accOn(r,k){ var a=access[r]||{}; if(a[k]===false) return false; if(a[k]===true) return true; return (accessDefaults[r]||{})[k]!==false; }
 function renderAccess(){
   var can=ROLE==='publisher', dis=can?'':' disabled';
-  var h='<tr><th>Tool</th><th class="c">Publisher</th><th class="c">Editor</th><th class="c">Writer</th><th class="c">Contributor</th><th class="c">Viewer</th></tr>';
+  var roles='<th class="c">Publisher</th><th class="c">Editor</th><th class="c">Writer</th><th class="c">Contributor</th><th class="c">Viewer</th>';
+  var h='';
   // The writer leaderboard is listed only for the publisher: staff don't see it exists unless it's turned on for them.
   var groups=ACCESS_FEATURES.concat(can?[['Publisher only unless you share it',[['mon_leaderboard','🏆 Writer leaderboard (off for everyone until you turn it on; while off, staff don\u2019t see it exists)']]]]:[]);
   groups.forEach(function(g){
-    h+='<tr><td colspan="6" style="font-weight:700;font-size:12px;color:var(--text2);padding-top:12px">'+esc(g[0])+'</td></tr>';
+    h+='<tr class="sec"><th>'+esc(g[0])+'</th>'+roles+'</tr>';
     g[1].forEach(function(f){
       h+='<tr><td>'+esc(f[1])+'</td><td class="c"><span class="yes">✓</span></td>'+ACC_ROLES.map(function(r){
         var on=accOn(r,f[0]);
