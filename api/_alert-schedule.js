@@ -37,11 +37,8 @@ function clean(s) {
   var hm = function (x) { return /^([01]?\d|2[0-3]):[0-5]\d$/.test(String(x || '')) ? String(x).padStart(5, '0') : null; };
   var from = hm(s.from), to = hm(s.to);
   if (!from || !to || from === to) { from = null; to = null; }
-  var tz = s.tz && validTz(s.tz) ? String(s.tz) : null;
-  if (days.length === 7 && !from && !tz) return null; // any day, any time, own zone
-  var out = { days: days, from: from, to: to };
-  if (tz) out.tz = tz;
-  return out;
+  if (days.length === 7 && !from) return null; // any day, any time
+  return { days: days, from: from, to: to };
 }
 
 async function set(email, type, schedule) {
@@ -105,9 +102,11 @@ async function setTz(email, tz) {
   return mine._tz || TZ;
 }
 
-// The zone one alert's days and hours (and send times) are read in: the one
-// picked on its ⏰ (Jeff, 2026-10-07: "a zone choice on each"), else the person's.
-function tzFor(mine, type) { var s = mine && mine[type]; return s && s.tz && validTz(s.tz) ? s.tz : tzOf(mine); }
+// The zone one alert's days and hours (and send times) are read in: the
+// person's one time zone (Jeff, 2026-10-07: "just have the time zone option
+// one time at the top instead of under each category"). A zone saved on one
+// alert's ⏰ before that is ignored and dropped the next time it's saved.
+function tzFor(mine, type) { return tzOf(mine); }
 
 // Send times for the digests (Jeff, 2026-10-07: "let them set time"; the
 // updates: "three different time slots ... or only receive 1 or 2 daily").
