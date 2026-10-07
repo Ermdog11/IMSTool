@@ -33,6 +33,8 @@ var ALERT_TYPES = [
     about: 'When a story is worth a public records request (coach hires and firings first), CoPublisher writes the request letter for you and asks if you want it to send it. Check the letter, tap Send, and it goes out under your name with replies coming to you. Or send it yourself. You can also ask for one on any alert with Request records.' },
   { key: 'calendar',        label: 'New calendar items',               defaultOn: 'editors',
     about: 'When a new date lands on the newsroom calendar, from an email forwarded to the calendar address or added in the app.' },
+  { key: 'calendar_ideas',  label: 'Story ideas from the calendar',  defaultOn: 'editors',
+    about: 'Each morning, when something worth a story is coming up on the calendar this week: what to write ahead of it and the day to publish it.' },
   { key: 'coverage_desk',   label: 'Coverage Desk memo (7 AM)',        defaultOn: 'all',
     about: 'A short morning memo: today\'s priorities, stories we haven\'t covered yet, follow-ups and what worked yesterday.' }
 ];
