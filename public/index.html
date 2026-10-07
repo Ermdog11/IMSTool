@@ -902,15 +902,9 @@ body.other-newsroom .other-only { display: block !important; }
   <div class="notice" style="margin-bottom:14px;">❌⭕ Questions about your audience and the cross-channel strategy read moved to <a href="/xos" onclick="switchTab(18);return false"><b>Xs and Os</b></a>.</div>
 
   <div class="settings-card">
-    <h3><i class="ti ti-plug"></i> Connections</h3>
-    <div style="font-size:12px;color:var(--text3);margin-bottom:12px;line-height:1.5;">Chartbeat, X, Search Console, Buffer, Facebook/Instagram and YouTube can be connected now; the rest are coming. Only the publisher can connect or disconnect a source.</div>
-    <div id="analyticsConnections"></div>
-  </div>
-
-  <div class="settings-card">
     <h3><i class="ti ti-chart-line"></i> Insights</h3>
     <div id="analyticsInsights">
-      <div class="empty" style="padding:20px;">Connect at least one source above to see insights here.</div>
+      <div class="empty" style="padding:20px;">Connect at least one source under Connections at the bottom of this page to see insights here.</div>
     </div>
     <div style="font-size:11px;color:var(--text3);margin-top:8px;line-height:1.6;">
       Real-time "story going hot" alerts are on — manage who gets them in Settings → Team &amp; alerts. Planned: per-writer views &amp; engaged time by story type · proactive nudges.
@@ -942,6 +936,13 @@ body.other-newsroom .other-only { display: block !important; }
     <div style="font-size:12px;color:var(--text3);margin-bottom:12px;line-height:1.5;">Patterns from a running history of snapshots, captured every few hours — takes a day or two to build up enough data per source. Parse.ly/GA4 feed the same view once connected.</div>
     <div id="analyticsOverallSummary"></div>
     <div id="analyticsTrends"></div>
+  </div>
+
+  <!-- Connections last: what you see first is the numbers (Jeff, 2026-10-07: "the first thing they see should be the output; input can be below"). -->
+  <div class="settings-card">
+    <h3><i class="ti ti-plug"></i> Connections</h3>
+    <div style="font-size:12px;color:var(--text3);margin-bottom:12px;line-height:1.5;">Chartbeat, X, Search Console, Buffer, Facebook/Instagram and YouTube can be connected now; the rest are coming. Only the publisher can connect or disconnect a source.</div>
+    <div id="analyticsConnections"></div>
   </div>
 
 </div>
@@ -3939,7 +3940,7 @@ function loadAnalyticsInsights() {
     c.innerHTML = '<div class="empty" style="padding:14px;"><i class="ti ti-loader spin"></i>Loading Chartbeat…</div>';
     refreshChartbeatInsights();
   } else {
-    c.innerHTML = '<div class="empty" style="padding:20px;">Connect at least one source above to see insights here.</div>';
+    c.innerHTML = '<div class="empty" style="padding:20px;">Connect at least one source under Connections at the bottom of this page to see insights here.</div>';
   }
 
   const fb = document.getElementById('facebookInsightsCard');
@@ -4282,7 +4283,7 @@ async function loadAnalyticsTrends() {
     const d = await r.json();
     if (d.error) { c.innerHTML = `<div class="empty" style="padding:14px;">Trends — ${d.error}</div>`; return; }
     if (!d.bySource || !d.bySource.length) {
-      c.innerHTML = '<div class="empty" style="padding:14px;">Connect a source above to see trends here.</div>';
+      c.innerHTML = '<div class="empty" style="padding:14px;">Connect a source under Connections at the bottom of this page to see trends here.</div>';
       return;
     }
     c.innerHTML = d.bySource.map(renderTrendSection).join('');
@@ -4325,7 +4326,7 @@ function loadQuestionBox() {
   if (!sel) return;
   const connectedKeys = Object.keys(analyticsConnected).filter(k => SOURCE_LABELS[k]);
   if (!connectedKeys.length) {
-    sel.innerHTML = '<div style="font-size:12px;color:var(--text3);">Connect a source above first.</div>';
+    sel.innerHTML = '<div style="font-size:12px;color:var(--text3);">Connect a source on the Analytics tab (Connections) first.</div>';
     document.getElementById('analyticsQuestionInput').disabled = true;
     return;
   }
