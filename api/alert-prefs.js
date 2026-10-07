@@ -3,6 +3,7 @@
 //   GET                                 -> { types, me:{type:bool}, team:[{userId,name,email,role,prefs}] }  (team only for publisher)
 //   POST { userId?, type, enabled }      -> set one pref. Omit userId for yourself.
 //   POST { type, schedule }              -> your own days/hours for that alert (_alert-schedule.js)
+//   POST { timeZone }                    -> your own time zone for those days/hours
 //                                          Setting someone else's requires publisher.
 //
 // Default when a row is absent: enabled (opt-out model), EXCEPT 'article_started'
@@ -65,7 +66,8 @@ module.exports = async function handler(req, res) {
     (mineRes.data || []).forEach(function (r) { mine[r.alert_type] = r.enabled; });
 
     var schedAll = await require('./_alert-schedule').load();
-    var out = { types: ALERT_TYPES, me: mine, schedules: schedAll[String(ctx.user.email || '').toLowerCase()] || {} };
+    var mySched = schedAll[String(ctx.user.email || '').toLowerCase()] || {};
+    var out = { types: ALERT_TYPES, me: mine, schedules: mySched, timeZone: require('./_alert-schedule').tzOf(mySched) };
 
     if (ctx.membership.role === 'publisher') {
       var mem = await sb.from('memberships')
@@ -95,6 +97,11 @@ module.exports = async function handler(req, res) {
 
   var body = req.body || {};
   var type = body.type;
+  // Your own time zone: { timeZone: 'America/Chicago' } (your days and hours use it).
+  if (body.timeZone !== undefined) {
+    try { var tzSaved = await require('./_alert-schedule').setTz(ctx.user.email, String(body.timeZone || '')); return res.status(200).json({ ok: true, timeZone: tzSaved }); }
+    catch (e) { return res.status(400).json({ error: e.message }); }
+  }
   // Your own days/hours for one alert: { type, schedule:{ days:[0-6], from:'HH:MM', to:'HH:MM' } | null }
   if (body.schedule !== undefined) {
     if (SCHEDULABLE.indexOf(type) === -1) return res.status(400).json({ error: 'Unknown alert type.' });
