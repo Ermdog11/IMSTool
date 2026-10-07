@@ -105,7 +105,7 @@ module.exports = async function handler(req, res) {
   try {
     var contexts = await Context.gatherContexts(ctx.supabase, ctx.site.id, scope);
     if (!contexts.length) {
-      return res.status(200).json({ answer: 'Nothing\'s connected yet for ' + (scope === 'all' ? 'any source' : scope) + ' — connect it above first.' });
+      return res.status(200).json({ answer: 'Nothing\'s connected yet for ' + (scope === 'all' ? 'any source' : scope) + ' — connect it on the Analytics tab (Connections, at the bottom) first.' });
     }
 
     var beat = await require('./_beat').getBeat(ctx.supabase);
