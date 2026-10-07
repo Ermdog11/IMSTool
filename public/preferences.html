@@ -185,6 +185,11 @@ tr.you td{background:var(--red-light)}
     <div class="row"><div class="name"><b>Delete my account</b><span>Removes your sign-in, profile, alert settings and chat photo. Work you saved to the newsroom (drafts, articles, transcripts, chat messages) stays with the newsroom. This can't be undone.</span></div>
       <button class="btn" style="background:#b91c1c" onclick="deleteMyAccount(this)">Delete my account</button></div>
     <div class="sub" id="acct-msg" style="margin:6px 0 0"></div>
+    <div id="remove-people" style="display:none;margin-top:14px">
+      <div class="row"><div class="name"><b>Remove someone from your newsroom</b><span>For when someone leaves or you let them go. They can't sign in to your newsroom anymore, starting right away, and any invite still waiting for them is cancelled. Their drafts, articles and chat messages stay with the newsroom.</span></div></div>
+      <div id="remove-list"><div class="sub">Loading…</div></div>
+      <div class="sub" id="remove-msg" style="margin:6px 0 0"></div>
+    </div>
   </section>
 </div>
 
@@ -528,6 +533,32 @@ async function setHot12(){
   }catch(e){ on.checked=!on.checked; m.className='sub msg err'; m.textContent='Couldn\u2019t save: '+e.message; }
   on.disabled=false;
 }
+// Publisher only: take someone off the newsroom (api/team.js action 'remove').
+async function loadRemovePeople(){
+  var box=$('remove-people'); if(!box||!CONFIGURED||ROLE!=='publisher') return;
+  box.style.display='';
+  try{
+    var r=await fetch('/api/team'); var d=await r.json(); if(!r.ok) throw new Error(d.error||('HTTP '+r.status));
+    var people=(d.members||[]).filter(function(m){ return !m.isSelf; });
+    $('remove-list').innerHTML=people.length?people.map(function(m){
+      var who=m.name||m.email||'Someone';
+      return '<div class="row"><div class="name"><b>'+esc(who)+'</b><span>'+esc((m.name&&m.email?m.email+' \u00b7 ':'')+m.role.charAt(0).toUpperCase()+m.role.slice(1))+'</span></div>'+
+        '<button class="btn" style="background:#b91c1c;padding:6px 12px;font-size:13px" data-id="'+esc(m.userId)+'" data-who="'+esc(who)+'" onclick="removePerson(this)">Remove</button></div>';
+    }).join(''):'<div class="sub">No one else is in your newsroom yet.</div>';
+  }catch(e){ $('remove-list').innerHTML='<div class="msg err" style="margin:0">Couldn\u2019t load your team: '+esc(e.message)+'</div>'; }
+}
+async function removePerson(btn){
+  var who=btn.dataset.who, m=$('remove-msg');
+  if(!confirm('Remove '+who+' from your newsroom?\n\nThey lose access right away. Their drafts, articles and chat messages stay.')) return;
+  btn.disabled=true;
+  try{
+    var r=await fetch('/api/team',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'remove',userId:btn.dataset.id})});
+    var d=await r.json().catch(function(){return {};});
+    if(!r.ok||d.error) throw new Error(d.error||('HTTP '+r.status));
+    m.className='sub msg ok'; m.textContent=who+' was removed and no longer has access.';
+    loadRemovePeople();
+  }catch(e){ m.className='sub msg err'; m.textContent='Couldn\u2019t remove '+who+': '+e.message; btn.disabled=false; }
+}
 async function deleteMyAccount(btn){
   var m=$('acct-msg');
   var typed=prompt('This permanently deletes your CoPublisher account. Type DELETE to confirm.');
@@ -624,7 +655,7 @@ async function saveEditorDefaults(){
   try{ var r=await fetch('/api/site-profile'); var d=await r.json(); profile=(d&&d.profile)||{}; accessDefaults=(d&&d.accessDefaults)||{}; }catch(e){ profile={}; }
   loadEditorDefaults();
   access=JSON.parse(JSON.stringify(profile.editorAccess||{})); renderAccess(); renderPerms();
-  loadAlerts();
+  loadAlerts(); loadRemovePeople();
   if(location.hash){ var t=document.querySelector(location.hash); if(t) t.scrollIntoView(); }
 })();
 </script>
