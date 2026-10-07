@@ -188,13 +188,21 @@ async function allows(email, type, nowMs, all) {
 // Recipients for an alert email right now: drops anyone whose schedule for
 // this type is closed, and team members who switched the type off.
 async function filter(emails, type, nowMs) {
-  if (!type || !emails || !emails.length) return emails || [];
+  return (await split(emails, type, nowMs)).open;
+}
+// { open: who gets it now, closed: who has it on but is outside their
+// days/hours for it (_held-alerts.js saves it for their next update) }.
+async function split(emails, type, nowMs) {
+  if (!type || !emails || !emails.length) return { open: emails || [], closed: [] };
   var all = await load();
   var off = await switchedOff(type);
-  return emails.filter(function (e) {
+  var out = { open: [], closed: [] };
+  emails.forEach(function (e) {
     var k = String(e).toLowerCase();
-    return !off[k] && openAt(all[k] && all[k][type], nowMs || Date.now(), tzFor(all[k], type));
+    if (off[k]) return;
+    (openAt(all[k] && all[k][type], nowMs || Date.now(), tzFor(all[k], type)) ? out.open : out.closed).push(e);
   });
+  return out;
 }
 
 // { email: true } for team members who switched `type` off (or have it off
@@ -230,4 +238,4 @@ async function clearAll(email) {
   await put(PATH, JSON.stringify(all), { access: 'private', addRandomSuffix: false, allowOverwrite: true, contentType: 'application/json' });
 }
 
-module.exports = { switchedOff: switchedOff, tzFor: tzFor, TIME_DEFAULTS: TIME_DEFAULTS, TIME_MAX: TIME_MAX, timesOf: timesOf, setTimes: setTimes, dueNow: dueNow, hoursSinceLast: hoursSinceLast, clearAll: clearAll, load: load, set: set, setTz: setTz, setChannel: setChannel, setPhone: setPhone, channelOf: channelOf, phoneOf: phoneOf, CHANNELS: CHANNELS, tzOf: tzOf, DEFAULT_TZ: TZ, allows: allows, filter: filter, openAt: openAt, clean: clean };
+module.exports = { split: split, switchedOff: switchedOff, tzFor: tzFor, TIME_DEFAULTS: TIME_DEFAULTS, TIME_MAX: TIME_MAX, timesOf: timesOf, setTimes: setTimes, dueNow: dueNow, hoursSinceLast: hoursSinceLast, clearAll: clearAll, load: load, set: set, setTz: setTz, setChannel: setChannel, setPhone: setPhone, channelOf: channelOf, phoneOf: phoneOf, CHANNELS: CHANNELS, tzOf: tzOf, DEFAULT_TZ: TZ, allows: allows, filter: filter, openAt: openAt, clean: clean };
