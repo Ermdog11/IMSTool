@@ -540,7 +540,7 @@ function esc(s){var d=document.createElement('div');d.textContent=(s==null?'':St
 function md(t){
   t = esc(t);
   t = t.replace(/^\s*#{1,3}\s*(.+)$/gm,'<h2>$1</h2>');
-  t = t.replace(/\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)/g,'<a href="$2" target="_blank" rel="noopener" style="text-decoration:underline;text-underline-offset:2px">$1</a>');
+  t = t.replace(/\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)/g,'<a href="$2" target="_blank" rel="noopener" style="'+linkStyle()+'">$1</a>');
   t = t.replace(/\*\*([^*]+)\*\*/g,'<b>$1</b>');
   return t.split(/\n\s*\n/).map(function(p){return /^<h2>/.test(p) ? p : '<p>'+p.replace(/\n/g,'<br>')+'</p>';}).join('');
 }
@@ -1031,7 +1031,7 @@ function buildPodcastEmbed(ep,episodes){
   if(built) return {html:built, matched:true, method:'template'};
   // 3. Plain audio player with a listen link.
   var listen=ep.page||ep.audioUrl;
-  return {matched:false, method:'fallback', html:'<p><strong>🎙️ Listen: '+esc(ep.title)+'</strong></p>\n<p><audio controls preload="none" src="'+esc(ep.audioUrl)+'" style="width:100%"></audio></p>\n<p><a href="'+esc(listen)+'" target="_blank" style="text-decoration:underline;text-underline-offset:2px">Listen to the full episode</a></p>'};
+  return {matched:false, method:'fallback', html:'<p><strong>🎙️ Listen: '+esc(ep.title)+'</strong></p>\n<p><audio controls preload="none" src="'+esc(ep.audioUrl)+'" style="width:100%"></audio></p>\n<p><a href="'+esc(listen)+'" target="_blank" style="'+linkStyle()+'">Listen to the full episode</a></p>'};
 }
 async function embedLatestEpisode(btn){
   var old=btn.textContent; btn.disabled=true; btn.textContent='Loading…';
@@ -1211,14 +1211,29 @@ function openRelatedBox(){
   box.style.display=box.style.display==='block'?'none':'block';
   box.innerHTML=relControls()+'<div style="margin-top:8px"><button class="btn" style="margin:0" onclick="addRelatedLinks(this)">Find related links</button> <span id="related-status" style="font-size:12px;color:var(--muted);margin-left:6px"></span></div>';
 }
-// Links we put in an article carry their own underline (Jeff, 2026-10-07:
-// "the embedded hotlinks don't look like hotlinks on the front end. They
-// look like static text"): some sites' styles (247Sports' Related lists, dark
-// mode) show a link exactly like body text, so the link marks itself.
-var LINK_STYLE='text-decoration:underline;text-underline-offset:2px';
+// Links we put in an article style themselves (Jeff, 2026-10-07: "the
+// embedded hotlinks don't look like hotlinks on the front end. They look like
+// static text" ... "afraid people won't click"): some sites' styles (247Sports'
+// Related lists, dark mode) show a link exactly like body text. Bold,
+// underlined and in the newsroom's link color (editorDefaults.linkColor, set
+// on Permissions & preferences; 'site' = underline only, the site's color).
+var LINK_DEFAULT_COLOR='#3b82f6';
+function linkStyle(){
+  var c=(window._editorDefaults||{}).linkColor;
+  if(c==='site') return 'text-decoration:underline;text-underline-offset:2px;font-weight:600';
+  if(!/^#[0-9a-f]{6}$/i.test(c||'')) c=LINK_DEFAULT_COLOR;
+  return 'color:'+c+';text-decoration:underline;text-underline-offset:2px;font-weight:600';
+}
+// Styles every link in saved HTML that has no style of its own (older and
+// emailed drafts), and upgrades the underline-only style links had before.
+function restyleLinks(html){
+  var st=linkStyle();
+  return String(html||'').replace(/style="text-decoration:underline;text-underline-offset:2px"/g,'style="'+st+'"')
+    .replace(/<a (?![^>]*\bstyle=)/g,'<a style="'+st+'" ');
+}
 function relatedBlockHtml(links){
   return '<div class="related-links"><p><strong>RELATED</strong></p><ul>'+links.map(function(l){
-    return '<li><a href="'+esc(l.url).replace(/"/g,'&quot;')+'"'+(l.external?' target="_blank" rel="noopener"':'')+' style="'+LINK_STYLE+'">'+esc(l.headline)+'</a></li>';
+    return '<li><a href="'+esc(l.url).replace(/"/g,'&quot;')+'"'+(l.external?' target="_blank" rel="noopener"':'')+' style="'+linkStyle()+'">'+esc(l.headline)+'</a></li>';
   }).join('')+'</ul></div>';
 }
 async function addRelatedLinks(btn){
@@ -1807,14 +1822,14 @@ async function openDraft(id){
       '<div class="hint">'+esc(d.writerName||'')+' &middot; '+esc(TIER_LABELS[d.tier]||d.tier)+' &middot; last updated '+new Date(d.updatedAt).toLocaleString()+'</div>'+
       draftRewriteHtml(d)+
       '<label>Article</label>'+
-      '<div id="draft-preview" style="border:1px solid var(--border);border-radius:8px;padding:12px 14px;background:#fff;font-size:15px;line-height:1.6;max-height:520px;overflow:auto">'+(safeHtml(d.html)||'<i>(empty)</i>')+'</div>'+
+      '<div id="draft-preview" style="border:1px solid var(--border);border-radius:8px;padding:12px 14px;background:#fff;font-size:15px;line-height:1.6;max-height:520px;overflow:auto">'+(safeHtml(restyleLinks(d.html))||'<i>(empty)</i>')+'</div>'+
       ((d.factsToCheck||[]).length?'<label>Verify before publishing</label><ul style="margin:4px 0 0 18px;padding:0;font-size:13.5px">'+d.factsToCheck.map(function(f){return '<li>'+esc(f)+'</li>';}).join('')+'</ul>':'')+
       '<div id="fc-draft" class="acc-factcheck" style="margin-top:12px">'+(d.factCheck?fcHtml(d.factCheck):fcButton('runFactCheck({draftId:\''+d.id+'\'},document.getElementById(\'fc-draft\'),this)'))+'</div>'+
       ((d.notes||[]).length?'<label>Notes</label><ul style="margin:4px 0 0 18px;padding:0;font-size:13.5px;color:var(--muted)">'+d.notes.map(function(n){return '<li>'+esc(n)+'</li>';}).join('')+'</ul>':'')+
       '<label>Status</label>'+
       '<select id="draft-status">'+['draft','submitted','in review','ready to publish','published'].map(function(s){return '<option value="'+s+'"'+(d.status===s?' selected':'')+'>'+s+'</option>';}).join('')+'</select>'+
       '<label>Article HTML (edit freely, then Save or Send)</label>'+
-      '<textarea id="draft-html" rows="18" oninput="var p=document.getElementById(\'draft-preview\');if(p)p.innerHTML=safeHtml(this.value)">'+esc(d.html||'')+'</textarea>'+
+      '<textarea id="draft-html" rows="18" oninput="var p=document.getElementById(\'draft-preview\');if(p)p.innerHTML=safeHtml(this.value)">'+esc(restyleLinks(d.html||''))+'</textarea>'+
       '<div class="row">'+
         '<button class="btn ghost" onclick="saveDraftEdit(\''+d.id+'\',false)">Save changes</button>'+
         '<button class="btn" onclick="saveDraftEdit(\''+d.id+'\',true)">Send to publisher</button>'+
