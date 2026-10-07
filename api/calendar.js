@@ -6,9 +6,10 @@
 //   POST { action:'update', id, title?, date?, time?, location?, note? }
 //   POST { action:'delete', id }
 //   POST { action:'remind', id, minutes, channel }   (minutes 0 = no reminder)
-//   POST { action:'default', minutes, channel }      (your default for events you add)
+//   POST { action:'default', minutes, channel }      (your automatic reminder before every event)
 //   POST { action:'heat-remind', minutes, channel }  (your reminder before every hot spot)
 //   POST { action:'hot12', on, channel }             (alert me when a hot spot is within 12 hours)
+//   POST { action:'quiet', from, to, off? }          (your quiet hours for hot-spot alerts, your time zone)
 //   POST { action:'heat-on', on }                    (hot spots on/off for the newsroom; editors+)
 //   POST { action:'heat-refresh' }                   (recompute this week's hot spots; editors+)
 //   POST { action:'mode', mode:'ai'|'manual' }       (who runs the calendar; editors+. 'ai' adds the games now)
@@ -52,7 +53,7 @@ module.exports = async function handler(req, res) {
         events: data.events.filter(function (e) { return Date.parse(e.start) >= since; }),
         address: info.calendarAddress, me: me, myDefault: data.prefs[me] || null, steps: Cal.STEPS, tz: Cal.TZ,
         mode: Cal.mode(data),
-        heat: { on: Cal.heatOn(data), canManage: canManage(ctx), mine: (data.prefs[me] && data.prefs[me].heat) || null, hot12: (data.prefs[me] && data.prefs[me].hot12) || null, week: data.heat ? data.heat.week : null, basis: data.heat ? data.heat.basis : null, note: data.heat ? data.heat.note : null }
+        heat: { on: Cal.heatOn(data), canManage: canManage(ctx), mine: (data.prefs[me] && data.prefs[me].heat) || null, hot12: (data.prefs[me] && data.prefs[me].hot12) || null, quiet: Cal.quietOf(data, me), week: data.heat ? data.heat.week : null, basis: data.heat ? data.heat.basis : null, note: data.heat ? data.heat.note : null }
       });
     }
     if (req.method !== 'POST') return res.status(405).json({ error: 'GET or POST' });
@@ -74,6 +75,10 @@ module.exports = async function handler(req, res) {
     if (b.action === 'delete') { await Cal.deleteEvent(b.id); return res.status(200).json({ ok: true }); }
     if (b.action === 'remind') return res.status(200).json({ event: await Cal.setReminder(b.id, me, b.minutes, b.channel) });
     if (b.action === 'hot12') { await Cal.setHot12(me, !!b.on, b.channel); return res.status(200).json({ ok: true }); }
+    if (b.action === 'quiet') {
+      try { return res.status(200).json({ ok: true, quiet: await Cal.setQuiet(me, b.from, b.to, !!b.off) }); }
+      catch (e) { return res.status(400).json({ error: e.message }); }
+    }
     if (b.action === 'heat-remind') { await Cal.setHeatReminder(me, b.minutes, b.channel); return res.status(200).json({ ok: true }); }
     if (b.action === 'heat-on' || b.action === 'heat-refresh') {
       if (!canManage(ctx)) return res.status(403).json({ error: 'Editors and publishers can change hot spots.' });

@@ -107,6 +107,50 @@ function calendarHtml(list) {
     '<div style="font-size:11px;margin-top:6px"><a href="https://ims-tool.vercel.app/calendar" style="color:#2563eb">Open the calendar</a></div></div>';
 }
 
+// Story ideas for the coming week's calendar dates: one forced-tool call.
+var CAL_IDEAS_TOOL = {
+  name: 'submit_calendar_ideas',
+  description: 'Story ideas for the upcoming calendar dates.',
+  input_schema: {
+    type: 'object',
+    properties: {
+      summary: { type: 'string', description: 'Two sentences at most for the morning memo: the one or two dates this week most worth a story and what to do about them. Empty if nothing is worth a story.' },
+      ideas: { type: 'array', maxItems: 4, items: { type: 'object', properties: {
+        date: { type: 'string', description: 'The calendar date and event, e.g. "Thu, Oct 9: Media day".' },
+        idea: { type: 'string', description: 'The story to write, one sentence.' },
+        publish: { type: 'string', description: 'When to publish it, e.g. "Wednesday evening".' }
+      }, required: ['date', 'idea', 'publish'] } }
+    },
+    required: ['summary', 'ideas']
+  }
+};
+async function calendarIdeas(key, aheadList, outlet, beat, today) {
+  var r = await fetch('https://api.anthropic.com/v1/messages', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'x-api-key': key, 'anthropic-version': '2023-06-01' },
+    body: JSON.stringify({ model: 'claude-sonnet-4-6', max_tokens: 900, system: require('./_writer').rules(),
+      tools: [CAL_IDEAS_TOOL], tool_choice: { type: 'tool', name: CAL_IDEAS_TOOL.name },
+      messages: [{ role: 'user', content: 'You are the managing editor of ' + outlet + ', which covers ' + ((beat && beat.coverage) || 'its beat') + '. It is ' + today + '. ' +
+        'From the dates coming up on our calendar this week, suggest up to 4 stories to write ahead of them (a preview, what to watch for, a deadline that needs a story or a credential request) and when to publish each. Only dates genuinely worth a story; skip routine ones. Use only what the calendar says.\n\nCOMING UP (next 7 days):\n' + aheadList }] })
+  });
+  var d = await r.json();
+  if (d.error) throw new Error(d.error.message || JSON.stringify(d.error));
+  var tu = (d.content || []).filter(function (b) { return b.type === 'tool_use'; })[0];
+  var out = tu && tu.input || {};
+  return { summary: String(out.summary || '').trim(), ideas: (out.ideas || []).filter(function (i) { return i && i.idea; }).slice(0, 4) };
+}
+function calIdeasMemoHtml(c) {
+  if (!c || !c.summary) return '';
+  return '<div style="border:1px solid #cfe0f5;background:#f8fbff;border-radius:8px;padding:10px 14px;margin-bottom:16px;font-size:13px">' +
+    '<div style="font-size:12px;font-weight:700;color:#1d4ed8;text-transform:uppercase;letter-spacing:.06em;margin-bottom:4px">📅 Coming up on the calendar</div>' + esc(c.summary) + '</div>';
+}
+function calIdeasEmailHtml(c) {
+  return '<div style="font-family:-apple-system,Segoe UI,Arial,sans-serif;max-width:620px;font-size:14px;line-height:1.5">' +
+    (c.summary ? '<p>' + esc(c.summary) + '</p>' : '') +
+    c.ideas.map(function (i) { return '<div style="padding:8px 0;border-top:1px solid #eee"><b>' + esc(i.date) + '</b><br>' + esc(i.idea) + '<br><span style="color:#666">Publish: ' + esc(i.publish) + '</span></div>'; }).join('') +
+    '<p style="font-size:12px;color:#888;margin-top:12px"><a href="https://ims-tool.vercel.app/calendar">Open the calendar</a> · Turn these off under <a href="https://ims-tool.vercel.app/preferences#alerts">Permissions &amp; preferences</a>.</p></div>';
+}
+
 module.exports = async function handler(req, res) {
   var who;
   try { who = await require('./_supabase').requireUserOrCron(req, res); }
@@ -218,6 +262,15 @@ module.exports = async function handler(req, res) {
     try { todayEvents = await require('./_calendar').eventsOn(); } catch (e) { console.error('Coverage Desk: calendar failed (non-fatal):', e.message); }
     var Cal = require('./_calendar');
     var calList = todayEvents.map(function (e) { return '- ' + Cal.timeOf(e) + ': ' + e.title + (e.location ? ' (' + e.location + ')' : '') + (e.note ? ' — ' + e.note : ''); }).join('\n');
+    // The next 7 days on the calendar, for story ideas ahead of them (Jeff,
+    // 2026-10-07: use the calendar to suggest stories, automatically).
+    var aheadList = '';
+    try {
+      var calData = await Cal.load(), tomorrowMs = Date.now() + 12 * 3600000;
+      aheadList = (calData.events || []).filter(function (e) { var s = Date.parse(e.start); return e.kind !== 'heat' && s > tomorrowMs && s < Date.now() + 7 * 86400000; })
+        .sort(function (a, b) { return a.start.localeCompare(b.start); }).slice(0, 15)
+        .map(function (e) { return '- ' + new Date(e.start).toLocaleDateString('en-US', { timeZone: Cal.TZ, weekday: 'short', month: 'short', day: 'numeric' }) + ' ' + Cal.timeOf(e) + ': ' + e.title + (e.location ? ' (' + e.location + ')' : '') + (e.note ? ' — ' + e.note : ''); }).join('\n');
+    } catch (e) { console.error('Coverage Desk: calendar ahead failed (non-fatal):', e.message); }
 
     // Outlet and beat from the beat profile, never hard-coded.
     var cdBeat = await require('./_beat').getBeat(require('./_supabase').isConfigured() ? require('./_supabase').admin() : null).catch(function () { return null; });
@@ -242,6 +295,16 @@ module.exports = async function handler(req, res) {
       (hasNumbers ? "YESTERDAY'S NUMBERS (" + yesterday.day + ', Eastern; site readers are summed from readings every 3 hours, a ranking rather than exact pageviews):\n' + JSON.stringify({ site: yesterday.site, social: yesterday.social, x: yesterday.x, googleSearch: yesterday.search, errors: yesterday.errors }) + '\n\n' : '') +
       'Return ONLY clean HTML: <h3> for each section header, <ul><li> for bullets, <p> for the read. No preamble, no markdown fences.';
 
+    // Story ideas from the calendar (Jeff, 2026-10-07: "it should be a
+    // preference but also a couple sentences in the coverage desk email"):
+    // a short summary in the memo, the full list to everyone with the
+    // "Story ideas from the calendar" alert on. Best-effort.
+    var calIdeas = null;
+    if (aheadList) {
+      try { calIdeas = await calendarIdeas(key, aheadList, cdOutlet, cdBeat, today); }
+      catch (e) { console.error('Coverage Desk: calendar ideas failed (non-fatal):', e.message); }
+    }
+
     var cr = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'x-api-key': key, 'anthropic-version': '2023-06-01' },
@@ -257,6 +320,7 @@ module.exports = async function handler(req, res) {
       '<div style="background:#0f1b2d;padding:12px 16px;border-radius:8px 8px 0 0"><span style="color:#fff;font-weight:700">Coverage Desk &mdash; ' + today + '</span></div>' +
       '<div style="background:#fff;border:1px solid #e8e6e1;border-top:none;border-radius:0 0 8px 8px;padding:18px;font-size:14px;line-height:1.55">' +
       calendarHtml(todayEvents) +
+      calIdeasMemoHtml(calIdeas) +
       require('./_ombudsman.js').reviewHtml(ombReview) +
       (kudosLines.length ? '<div style="border:1px solid #fde68a;background:#fffbeb;border-radius:8px;padding:10px 14px;margin-bottom:16px"><div style="font-size:12px;font-weight:700;color:#b45309;text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px">🏆 Writer kudos · last 7 days</div>' + kudosLines.map(function (k) { return '<div style="font-size:13px;padding:2px 0">' + esc(k) + '</div>'; }).join('') + '<div style="font-size:11px;margin-top:4px"><a href="https://ims-tool.vercel.app/leaderboard" style="color:#2563eb">Full leaderboard</a></div></div>' : '') +
       glanceHtml(yesterday) +
@@ -265,6 +329,10 @@ module.exports = async function handler(req, res) {
       '</div></div>';
 
     var mailResult = await mailer.sendMail({ alertType: 'coverage_desk', subject: 'Coverage Desk — ' + today, html: html });
+    if (calIdeas && calIdeas.ideas.length) {
+      try { await mailer.sendMail({ alertType: 'calendar_ideas', subject: '📅 Story ideas from the calendar: ' + calIdeas.ideas.length + ' this week', html: calIdeasEmailHtml(calIdeas) }); }
+      catch (e) { console.error('Coverage Desk: calendar ideas email failed (non-fatal):', e.message); }
+    }
 
     console.log('Coverage Desk sent | alerts:', alerts.length, '| own index:', ownIndex.length, '| analytics:', hasNumbers, '| calendar:', todayEvents.length, '| heat:', heatList ? heatList.split('\n').length : 0, '| mail:', JSON.stringify(mailResult));
     return res.status(200).json({ ok: true, alerts: alerts.length, ownIndex: ownIndex.length, analytics: hasNumbers ? { site: !!(yesterday.site && yesterday.site.readings), social: !!yesterday.social, x: !!(yesterday.x && yesterday.x.totals), errors: yesterday.errors } : null, mail: mailResult });

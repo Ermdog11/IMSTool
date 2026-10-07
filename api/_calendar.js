@@ -181,6 +181,10 @@ async function setReminder(id, email, minutes, channel) {
   var ev = data.events.filter(function (e) { return e.id === id; })[0];
   if (!ev) throw new Error('Event not found');
   ev.reminders = (ev.reminders || []).filter(function (r) { return r.email !== email; });
+  // "No reminder" on one event also turns your automatic one off for it.
+  ev.noRemind = (ev.noRemind || []).filter(function (x) { return x !== email; });
+  if (!minutes) ev.noRemind.push(email);
+  if (!ev.noRemind.length) delete ev.noRemind;
   if (minutes) ev.reminders.push({ email: email, minutes: minutes, channel: (channel === 'text' || channel === 'both' ? channel : 'email'), sentAt: null });
   await save(data);
   return ev;
@@ -374,15 +378,36 @@ async function setHeatReminder(email, minutes, channel) {
 // 2026-10-06: "a fix for when the hot spot is early and the email goes out
 // too late to use it").
 function etHour(ms) { return Number(new Intl.DateTimeFormat('en-US', { timeZone: TZ, hour: '2-digit', hourCycle: 'h23' }).format(new Date(ms))) % 24; }
-function reminderDueMs(e, r) {
+// Hot-spot reminders and alerts never land in a person's quiet hours (Jeff,
+// 2026-10-07: "they should be able to set their own hours"; default 10 PM to
+// 7 AM in their own time zone). One that would comes two hours before their
+// quiet hours start instead, the evening before.
+var QUIET_DEFAULT = { from: '22:00', to: '07:00' };
+function hmMin(hm) { return +String(hm).slice(0, 2) * 60 + +String(hm).slice(3, 5); }
+function quietOf(data, email) {
+  var p = data && data.prefs && data.prefs[String(email || '').toLowerCase()];
+  var q = p && p.quiet;
+  if (q && q.off) return null;
+  return q && /^\d\d:\d\d$/.test(q.from) && /^\d\d:\d\d$/.test(q.to) && q.from !== q.to ? q : QUIET_DEFAULT;
+}
+function localMin(ms, tz) {
+  var p = new Intl.DateTimeFormat('en-US', { timeZone: tz || TZ, hour: '2-digit', minute: '2-digit', hourCycle: 'h23' })
+    .formatToParts(new Date(ms)).reduce(function (o, x) { o[x.type] = x.value; return o; }, {});
+  return (+p.hour % 24) * 60 + +p.minute;
+}
+// Minutes since quiet hours began at ms, or -1 when ms isn't in them.
+function intoQuiet(ms, q, tz) {
+  if (!q) return -1;
+  var m = localMin(ms, tz), f = hmMin(q.from), t = hmMin(q.to);
+  var inside = f < t ? (m >= f && m < t) : (m >= f || m < t);
+  return inside ? (m - f + 1440) % 1440 : -1;
+}
+function reminderDueMs(e, r, q, tz) {
   var due = startMs(e) - r.minutes * 60000;
   if (e.kind !== 'heat') return due;
-  var h = etHour(due);
-  if (h >= 22 || h < 7) {
-    var evening = Date.parse(zonedIso(nyDay(h < 7 ? due - 12 * 3600000 : due), '20:00'));
-    return Math.min(due, evening);
-  }
-  return due;
+  if (q === undefined) q = QUIET_DEFAULT;
+  var into = intoQuiet(due, q, tz);
+  return into === -1 ? due : due - (into + 120) * 60000;
 }
 
 // "A hot spot is within 12 hours" alert (Jeff, 2026-10-06: "a checkbox on
@@ -400,12 +425,32 @@ async function setHot12(email, on, channel) {
   if (Object.keys(p).length) data.prefs[email] = p; else delete data.prefs[email];
   await save(data);
 }
-function hot12Due(e, now) {
-  var s = startMs(e), h = etHour(now);
-  if (s <= now || h >= 22 || h < 7) return false;
+// Due when the spot is within 12 hours and it isn't the person's quiet hours.
+// In the two hours before their quiet hours start, a spot up to five hours
+// after they end counts too (with the 10 PM-7 AM default: from 8 PM, anything
+// before noon tomorrow), so an early spot is flagged the evening before.
+function hot12Due(e, now, q, tz) {
+  if (q === undefined) q = QUIET_DEFAULT;
+  var s = startMs(e);
+  if (s <= now || intoQuiet(now, q, tz) !== -1) return false;
   if (s - now <= 12 * 3600000) return true;
-  var tomorrow = nyDay(now + 86400000);
-  return h >= 20 && nyDay(s) === tomorrow && etHour(s) < 12;
+  if (!q) return false;
+  var m = localMin(now, tz), toStart = (hmMin(q.from) - m + 1440) % 1440, toEnd = (hmMin(q.to) - m + 1440) % 1440;
+  return toStart <= 120 && s - now <= (toEnd + 300) * 60000;
+}
+async function setQuiet(email, from, to, off) {
+  email = String(email || '').toLowerCase();
+  if (!email) throw new Error('Sign in to set quiet hours.');
+  var ok = function (x) { return /^([01]\d|2[0-3]):00$/.test(String(x || '')); };
+  if (!off && (!ok(from) || !ok(to) || from === to)) throw new Error('Pick a start and an end hour.');
+  var data = await load();
+  var p = data.prefs[email] || {};
+  if (off) p.quiet = { off: true };
+  else if (from === QUIET_DEFAULT.from && to === QUIET_DEFAULT.to) delete p.quiet;
+  else p.quiet = { from: from, to: to };
+  if (Object.keys(p).length) data.prefs[email] = p; else delete data.prefs[email];
+  await save(data);
+  return quietOf(data, email);
 }
 
 // Account deletion: drop one person's calendar preferences and pending reminders.
@@ -426,13 +471,35 @@ async function sendDueReminders() {
   var data = await load();
   var now = Date.now(), sent = 0, changed = false;
   var Mailer = require('./_mailer');
+  var Sched = require('./_alert-schedule');
+  var schedAll = await Sched.load();
+  var tzOf = function (em) { return Sched.tzOf(schedAll[String(em || '').toLowerCase()]); };
+  // Automatic reminders (Jeff, 2026-10-07: send calendar reminders on their
+  // own): everyone with a default reminder gets it for every event, not just
+  // the ones they added, unless they picked something else for that event.
+  // Only within half an hour of when it's due, so a new default never
+  // floods anyone with reminders for events already close.
+  var autoPeople = Object.keys(data.prefs || {}).filter(function (em) { return data.prefs[em] && data.prefs[em].minutes; });
+  for (var ai = 0; ai < data.events.length; ai++) {
+    var ae = data.events[ai];
+    if (ae.kind === 'heat' || startMs(ae) <= now) continue;
+    for (var ap = 0; ap < autoPeople.length; ap++) {
+      var em0 = autoPeople[ap], pr = data.prefs[em0];
+      if ((ae.reminders || []).some(function (r) { return r.email === em0; }) || (ae.noRemind || []).indexOf(em0) !== -1) continue;
+      var due0 = startMs(ae) - pr.minutes * 60000;
+      if (now < due0 || now - due0 > 30 * 60000) continue;
+      ae.reminders = ae.reminders || [];
+      ae.reminders.push({ email: em0, minutes: pr.minutes, channel: pr.channel || 'email', sentAt: null, auto: true });
+      changed = true;
+    }
+  }
   for (var i = 0; i < data.events.length; i++) {
     var e = data.events[i];
     var s = startMs(e);
     if (s < now - 15 * 60000) continue; // already happened
     for (var j = 0; j < (e.reminders || []).length; j++) {
       var r = e.reminders[j];
-      if (r.sentAt || now < reminderDueMs(e, r)) continue;
+      if (r.sentAt || now < reminderDueMs(e, r, quietOf(data, r.email), tzOf(r.email))) continue;
       var nightBefore = e.kind === 'heat' && nyDay(now) !== nyDay(s);
       try {
         await Mailer.sendMail({
@@ -444,41 +511,47 @@ async function sendDueReminders() {
             (nightBefore ? '<p>This hot spot is early, so this heads-up comes the evening before: line up the story tonight and schedule it for then.</p>' : '') +
             (e.note ? '<p>' + esc(e.note) + '</p>' : '') +
             ((r.channel === 'text' || r.channel === 'both') && !require('./_sms').isConfigured() ? '<p style="color:#888;font-size:12px">You asked for a text; texting isn\'t connected yet, so this came by email.</p>' : '') +
-            '<p style="font-size:13px"><a href="https://ims-tool.vercel.app/calendar">Open the calendar</a></p></div>'
+            '<p style="font-size:13px"><a href="https://ims-tool.vercel.app/calendar">Open the calendar</a>' + (r.auto ? ' · This is your automatic reminder; change it on the calendar.' : '') + '</p></div>'
         });
         r.sentAt = new Date().toISOString(); sent++; changed = true;
       } catch (err) { console.error('Calendar reminder failed:', err.message); }
     }
   }
-  // Hot spot within 12 hours, for everyone who opted in.
+  // Hot spot within 12 hours, for everyone who opted in: outside their own
+  // quiet hours, in their own time zone, and every spot that's due in one
+  // message (Jeff, 2026-10-07: "group multiple spots into one message").
   var hotPeople = Object.keys(data.prefs || {}).filter(function (em) { return data.prefs[em] && data.prefs[em].hot12; });
-  var schedAll = hotPeople.length ? await require('./_alert-schedule').load() : null;
   if (hotPeople.length && heatOn(data)) {
-    for (var k = 0; k < data.events.length; k++) {
-      var he = data.events[k];
-      if (he.kind !== 'heat' || !hot12Due(he, now)) continue;
-      he.hot12Sent = he.hot12Sent || [];
-      for (var q = 0; q < hotPeople.length; q++) {
-        var em = hotPeople[q];
-        if (he.hot12Sent.indexOf(em) !== -1) continue;
-        // Outside this person's days/hours for hot-spot alerts: wait (the
-        // cron tries again every 5 minutes while the spot is still ahead).
-        if (!(await require('./_alert-schedule').allows(em, 'hot_spot', now, schedAll))) continue;
-        var hs = startMs(he), when = new Date(hs).toLocaleString('en-US', { timeZone: TZ, weekday: 'long', hour: 'numeric', minute: '2-digit' });
-        try {
-          await Mailer.sendMail({
-            to: em, channel: data.prefs[em].hot12.channel || 'email',
-            subject: '🔥 Hot spot ' + (nyDay(hs) === nyDay(now) ? 'today' : 'tomorrow') + ' at ' + new Date(hs).toLocaleTimeString('en-US', { timeZone: TZ, hour: 'numeric', minute: '2-digit' }) + ': have a story ready',
-            html: '<div style="font-family:-apple-system,Segoe UI,sans-serif;font-size:15px">' +
-              '<p><b>' + esc(he.title) + '</b><br>' + esc(when) + '</p>' +
-              (he.note ? '<p>' + esc(he.note) + '</p>' : '') +
-              '<p>Have your best story ready to publish then.</p>' +
-              ((data.prefs[em].hot12.channel === 'text' || data.prefs[em].hot12.channel === 'both') && !require('./_sms').isConfigured() ? '<p style="color:#888;font-size:12px">You asked for a text; texting isn\'t connected yet, so this came by email.</p>' : '') +
-              '<p style="font-size:13px"><a href="https://ims-tool.vercel.app/calendar">Open the calendar</a> · <a href="https://ims-tool.vercel.app/preferences">Change this alert</a></p></div>'
-          });
-          he.hot12Sent.push(em); sent++; changed = true;
-        } catch (err) { console.error('Hot spot alert failed:', err.message); }
-      }
+    for (var q = 0; q < hotPeople.length; q++) {
+      var em = hotPeople[q], tz = tzOf(em), quiet = quietOf(data, em);
+      // Outside this person's days/hours for hot-spot alerts: wait (the
+      // cron tries again every 5 minutes while the spots are still ahead).
+      if (!(await Sched.allows(em, 'hot_spot', now, schedAll))) continue;
+      var due = data.events.filter(function (he) {
+        return he.kind === 'heat' && (he.hot12Sent || []).indexOf(em) === -1 && hot12Due(he, now, quiet, tz);
+      }).sort(function (a, b) { return startMs(a) - startMs(b); });
+      if (!due.length) continue;
+      var dayWord = function (ms) { return new Date(ms).toLocaleDateString('en-CA', { timeZone: tz }) === new Date(now).toLocaleDateString('en-CA', { timeZone: tz }) ? 'today' : 'tomorrow'; };
+      var at = function (ms) { return new Date(ms).toLocaleTimeString('en-US', { timeZone: tz, hour: 'numeric', minute: '2-digit' }); };
+      var ch = data.prefs[em].hot12.channel || 'email';
+      try {
+        await Mailer.sendMail({
+          to: em, channel: ch,
+          subject: due.length === 1
+            ? '🔥 Hot spot ' + dayWord(startMs(due[0])) + ' at ' + at(startMs(due[0])) + ': have a story ready'
+            : '🔥 ' + due.length + ' hot spots coming: ' + due.map(function (he) { return dayWord(startMs(he)) + ' ' + at(startMs(he)); }).join(', '),
+          html: '<div style="font-family:-apple-system,Segoe UI,sans-serif;font-size:15px">' +
+            due.map(function (he) {
+              return '<p><b>' + esc(he.title) + '</b><br>' + esc(new Date(startMs(he)).toLocaleString('en-US', { timeZone: tz, weekday: 'long', hour: 'numeric', minute: '2-digit' })) + '</p>' +
+                (he.note ? '<p>' + esc(he.note) + '</p>' : '');
+            }).join('') +
+            '<p>Have your best ' + (due.length === 1 ? 'story' : 'stories') + ' ready to publish then.</p>' +
+            ((ch === 'text' || ch === 'both') && !require('./_sms').isConfigured() ? '<p style="color:#888;font-size:12px">You asked for a text; texting isn\'t connected yet, so this came by email.</p>' : '') +
+            '<p style="font-size:13px"><a href="https://ims-tool.vercel.app/calendar">Open the calendar</a> · <a href="https://ims-tool.vercel.app/preferences#alerts">Change this alert or your quiet hours</a></p></div>'
+        });
+        due.forEach(function (he) { (he.hot12Sent = he.hot12Sent || []).push(em); });
+        sent++; changed = true;
+      } catch (err) { console.error('Hot spot alert failed:', err.message); }
     }
   }
   if (changed) await save(data);
@@ -503,4 +576,4 @@ async function fromEmail(text, meta) {
   return { summary: got.summary, events: saved };
 }
 
-module.exports = { HEAT_V: HEAT_V, mode: mode, setMode: setMode, addAiEvents: addAiEvents, sameItem: sameItem, ensureHeatSpots: ensureHeatSpots, setHeatOn: setHeatOn, setHeatReminder: setHeatReminder, heatOn: heatOn, weekKey: weekKey, eventsOn: eventsOn, timeOf: timeOf, load: load, extract: extract, addEvents: addEvents, setReminder: setReminder, setDefault: setDefault, updateEvent: updateEvent, deleteEvent: deleteEvent, sendDueReminders: sendDueReminders, reminderDueMs: reminderDueMs, setHot12: setHot12, hot12Due: hot12Due, forgetPerson: forgetPerson, fromEmail: fromEmail, zonedIso: zonedIso, STEPS: STEPS, TZ: TZ };
+module.exports = { HEAT_V: HEAT_V, mode: mode, setMode: setMode, addAiEvents: addAiEvents, sameItem: sameItem, ensureHeatSpots: ensureHeatSpots, setHeatOn: setHeatOn, setHeatReminder: setHeatReminder, heatOn: heatOn, weekKey: weekKey, eventsOn: eventsOn, timeOf: timeOf, load: load, extract: extract, addEvents: addEvents, setReminder: setReminder, setDefault: setDefault, updateEvent: updateEvent, deleteEvent: deleteEvent, sendDueReminders: sendDueReminders, reminderDueMs: reminderDueMs, setHot12: setHot12, hot12Due: hot12Due, setQuiet: setQuiet, quietOf: quietOf, QUIET_DEFAULT: QUIET_DEFAULT, forgetPerson: forgetPerson, fromEmail: fromEmail, zonedIso: zonedIso, STEPS: STEPS, TZ: TZ };
