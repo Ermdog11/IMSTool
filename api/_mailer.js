@@ -44,6 +44,33 @@ async function sendMail(opts) {
     if (!recipients.length) return { skipped: 'nobody has this alert on right now', alertType: opts.alertType };
   }
 
+  // Email, text or both, per person and alert (_alert-schedule.js, _sms.js).
+  // With texting connected: anyone who chose text or both (and saved a mobile
+  // number) gets a text; text-only people come off the email. Without it,
+  // everyone keeps getting email.
+  var texted = 0;
+  try {
+    var Sms = require('./_sms');
+    if (Sms.isConfigured() && (opts.alertType || opts.channel)) {
+      var Sched = require('./_alert-schedule');
+      var schedAll = await Sched.load();
+      var smsTo = [];
+      recipients = recipients.filter(function (e) {
+        var mine = schedAll[String(e).toLowerCase()] || {};
+        var ch = opts.channel || Sched.channelOf(mine, opts.alertType);
+        var ph = Sched.phoneOf(mine);
+        if (!ph || ch === 'email') return true;
+        smsTo.push(ph);
+        return ch === 'both';
+      });
+      var body = Sms.fromEmail(opts);
+      for (var si = 0; si < smsTo.length; si++) {
+        try { await Sms.send(smsTo[si], body); texted++; } catch (e) { console.error('mailer: text failed:', e.message); }
+      }
+      if (!recipients.length) return { via: 'sms', texted: texted };
+    }
+  } catch (e) { console.error('mailer: text routing failed (email only):', e.message); }
+
   if (GMAIL_USER && GMAIL_APP_PASSWORD) {
     var transporter = nodemailer.createTransport({
       service: 'gmail',
@@ -71,4 +98,12 @@ async function sendMail(opts) {
   return { via: 'sendgrid', to: recipients, status: result[0] && result[0].statusCode };
 }
 
-module.exports = { sendMail: sendMail, digestList: digestList };
+// Everyone a newsroom email with no "to" would go to, before switches and
+// schedules: the digest list for InsideMDSports, the team for any other
+// newsroom. The digests use it to send each person theirs at their own times.
+async function baseRecipients(alertType) {
+  if (require('./_site').isDefault()) return digestList();
+  return require('./_supabase').teamRecipientsFor(alertType || 'digest_rolling', require('./_site').slug());
+}
+
+module.exports = { sendMail: sendMail, digestList: digestList, baseRecipients: baseRecipients };

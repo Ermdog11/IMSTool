@@ -475,7 +475,7 @@ body.other-newsroom .other-only { display: block !important; }
   <div class="digest-wrap" id="digestContent">
     <div class="empty" style="padding:2rem 0;"><i class="ti ti-file-description"></i>Run a scan first, then generate tonight's digest here.</div>
   </div>
-  <button class="gen-btn" onclick="generateDigest()"><i class="ti ti-send"></i> Generate 8 PM digest</button>
+  <button class="gen-btn" onclick="generateDigest()"><i class="ti ti-send"></i> Generate digest now</button>
 </div>
 
 <!-- HOT SOCIAL TAB -->
@@ -883,7 +883,7 @@ body.other-newsroom .other-only { display: block !important; }
 
   <div class="settings-card">
     <h3><i class="ti ti-mail"></i> Email &amp; alerts</h3>
-    <p style="font-size:12px;color:var(--text2);line-height:1.5;margin-bottom:8px;">Rating 5 = immediate email, any time, 24/7. Ratings 1-4 = 2-hour digest bundle. Full digest at 8 PM, morning brief at 8 AM. Requires SendGrid/Mailgun at deployment.</p>
+    <p style="font-size:12px;color:var(--text2);line-height:1.5;margin-bottom:8px;">Rating 5 = immediate email, any time, 24/7. Ratings 1-4 = the rolling updates. The nightly digest and the updates come at the times each person picks on <a href="/preferences#alerts">Permissions &amp; preferences</a>.</p>
     <div class="email-row">
       <input class="email-input" id="emailInput" type="email" placeholder="you@insidemdsports.com">
       <button class="email-save" onclick="saveEmail()">Save</button>
@@ -1030,7 +1030,7 @@ body.other-newsroom .other-only { display: block !important; }
   <div class="cal-box" style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;font-size:.85rem;">
     <b>My default reminder</b><span style="color:var(--text3);font-size:.78rem;">for events I add</span>
     <select id="calDefMin" onchange="calSaveDefault()" class="cal-sel"></select>
-    <select id="calDefCh" onchange="calSaveDefault()" class="cal-sel"><option value="email">by email</option><option value="text">by text</option></select>
+    <select id="calDefCh" onchange="calSaveDefault()" class="cal-sel"><option value="email">by email</option><option value="text">by text</option><option value="both">by email and text</option></select>
     <span id="calDefMsg" style="font-size:.78rem;color:var(--text3);"></span>
   </div>
   <div class="cal-box" id="calHeatBox" style="font-size:.85rem;">
@@ -1043,7 +1043,7 @@ body.other-newsroom .other-only { display: block !important; }
       <span style="color:var(--text3);">·</span>
       <span>Remind me before each</span>
       <select id="calHeatMin" onchange="calHeatRemind()" class="cal-sel"></select>
-      <select id="calHeatCh" onchange="calHeatRemind()" class="cal-sel"><option value="email">by email</option><option value="text">by text</option></select>
+      <select id="calHeatCh" onchange="calHeatRemind()" class="cal-sel"><option value="email">by email</option><option value="text">by text</option><option value="both">by email and text</option></select>
     </div>
     <div id="calHeatMsg" style="font-size:.78rem;color:var(--text3);margin-top:4px;"></div>
   </div>
@@ -3294,7 +3294,7 @@ async function generateBacklog() {
 function saveEmail() {
   savedEmail = document.getElementById('emailInput').value.trim();
   const st = document.getElementById('emailStatus');
-  if (savedEmail.includes('@')) { st.textContent = '✓ Saved — rating 5 alerts and 8 PM digest will send to ' + savedEmail; st.style.color = 'var(--green)'; }
+  if (savedEmail.includes('@')) { st.textContent = '✓ Saved — rating 5 alerts and the nightly digest will send to ' + savedEmail; st.style.color = 'var(--green)'; }
   else { st.textContent = 'Enter a valid email.'; st.style.color = 'var(--hot)'; }
 }
 
@@ -4692,7 +4692,7 @@ function renderCalendar() {
         (e.source === 'ai' ? '<div style="font-size:.72rem;color:var(--text3);margin-top:3px;">🤖 Added by CoPublisher' + (e.sourceUrl ? ' · <a href="' + calEsc(e.sourceUrl) + '" target="_blank" rel="noopener">source</a>' : '') + '</div>' : '') +
       '</div>' +
       (past ? '' : '<div class="cal-rem">🔔 <select class="cal-sel" onchange="calRemind(\'' + e.id + '\',this.value,this.nextElementSibling.value)">' + calOpts(mine ? mine.minutes : 0, 'No reminder') + '</select>' +
-        '<select class="cal-sel" onchange="calRemind(\'' + e.id + '\',this.previousElementSibling.value,this.value)"><option value="email"' + (mine && mine.channel === 'text' ? '' : ' selected') + '>Email</option><option value="text"' + (mine && mine.channel === 'text' ? ' selected' : '') + '>Text</option></select>' +
+        '<select class="cal-sel" onchange="calRemind(\'' + e.id + '\',this.previousElementSibling.value,this.value)"><option value="email"' + (mine && (mine.channel === 'text' || mine.channel === 'both') ? '' : ' selected') + '>Email</option><option value="text"' + (mine && mine.channel === 'text' ? ' selected' : '') + '>Text</option><option value="both"' + (mine && mine.channel === 'both' ? ' selected' : '') + '>Both</option></select>' +
         (mine && mine.sentAt ? '<span style="color:var(--green);">sent</span>' : '') + '</div>') +
       '<button class="cal-x" title="Delete" onclick="calDelete(\'' + e.id + '\')">×</button>' +
     '</div>';

@@ -1,17 +1,9 @@
 var mailer = require('./_mailer.js');
 
-const buildDigestPrompt = () => `You are a news monitor for InsideMDSports, covering University of Maryland Terrapins athletics. Search for ALL Maryland Terrapins news from the past 24 hours across all sources.
-
-EXCLUDE — never include any story from these, no matter how relevant: InsideMDSports, 247Sports (the whole 247sports.com domain, including the Maryland team site), Jeff Ermann, IMS Radio.
-
-Gather news across: football, basketball (men's and women's), recruiting, transfer portal, alumni (NFL, NBA, WNBA), social media buzz, podcasts.
-
-Return ONLY a valid JSON array. Each item:
-{headline, summary, category("recruiting"|"football"|"basketball"|"other-sport"|"alumni"|"social"|"podcast"), sport, source, time, rating(1-5)}
-
-Return up to 20 items sorted by rating descending.`;
-
-const buildDigestEmailHTML = (alerts, date) => {
+const buildDigestEmailHTML = (alerts, date, beat) => {
+  beat = beat || {};
+  var esc = function (x) { return String(x == null ? '' : x).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); };
+  var team = (beat.team && ((beat.team.nicknames || [])[0] || beat.team.short || beat.team.name)) || '';
   const groups = {
     'Recruiting': alerts.filter(a => a.category === 'recruiting'),
     'Football': alerts.filter(a => a.sport === 'football' && a.category !== 'recruiting'),
@@ -41,25 +33,44 @@ const buildDigestEmailHTML = (alerts, date) => {
   return '<!DOCTYPE html><html><head></head><body style="font-family:-apple-system,sans-serif;background:#f7f6f3;margin:0;padding:20px;">' +
     '<div style="max-width:600px;margin:0 auto;background:white;border-radius:10px;overflow:hidden;">' +
     '<div style="background:#0f1b2d;padding:16px 20px;">' +
-    '<div style="color:white;font-size:16px;font-weight:700;">InsideMDSports</div>' +
+    '<div style="color:white;font-size:16px;font-weight:700;">' + esc(beat.outletName || 'CoPublisher') + '</div>' +
     '<div style="color:rgba(255,255,255,0.8);font-size:12px;">Nightly digest &mdash; ' + date + '</div>' +
     '</div>' +
     '<div style="padding:20px 24px;">' +
-    '<p style="font-size:13px;color:#555;margin-bottom:20px;">Here\'s everything that happened in Terps athletics today. ' + alerts.length + ' stories across all sources.</p>' +
+    '<p style="font-size:13px;color:#555;margin-bottom:20px;">' + (alerts.length ? 'Here\'s everything that happened on the ' + esc(team ? team + ' ' : '') + 'beat today: ' + alerts.length + ' stor' + (alerts.length === 1 ? 'y' : 'ies') + ' across all sources.' : 'Nothing new on the ' + esc(team ? team + ' ' : '') + 'beat today.') + '</p>' +
     sectionsHTML +
     '</div>' +
     '<div style="background:#1a1a1a;padding:12px 20px;text-align:center;">' +
-    '<a href="https://247sports.com/college/maryland/" style="color:#ffd520;font-size:12px;font-weight:600;text-decoration:none;">Open InsideMDSports &rarr;</a>' +
+    '<a href="https://ims-tool.vercel.app/alerts" style="color:#ffd520;font-size:12px;font-weight:600;text-decoration:none;">Open CoPublisher &rarr;</a>' +
     '</div></div></body></html>';
 };
 
+// The nightly digest comes at each person's own time (Jeff, 2026-10-07: "get
+// rid of 8 PM, let them set time"; _alert-schedule.js timesOf, default 8 PM
+// in their zone). The cron runs hourly and emails whoever's time it is; with
+// nobody due it stops before the scan. A signed-in "send now" goes to everyone.
 module.exports = async function handler(req, res) {
-  try { await require('./_supabase').requireUserOrCron(req, res); }
+  var who;
+  try { who = await require('./_supabase').requireUserOrCron(req, res); }
   catch (authErr) { return res.status(authErr.status || 401).json({ error: authErr.message || 'Not signed in' }); }
   var ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY;
 
   if (!ANTHROPIC_API_KEY) {
     return res.status(500).json({ error: 'Missing ANTHROPIC_API_KEY.' });
+  }
+
+  var to;
+  if (who && (who.cron || who.internal)) {
+    var Sched = require('./_alert-schedule');
+    var all = await Sched.load(), nowMs = Date.now();
+    to = (await mailer.baseRecipients('digest_nightly')).filter(function (e) {
+      return Sched.dueNow(all[String(e).toLowerCase()] || {}, 'digest_nightly', nowMs);
+    });
+    if (!to.length) return res.status(200).json({ skipped: 'no one\'s nightly digest is due this hour' });
+    var Once = require('./_cron-once');
+    if (who.cron && !(await Once.claim('digest-h' + new Date(nowMs).toISOString().slice(11, 13), Once.today()))) {
+      return res.status(200).json({ skipped: 'duplicate cron delivery' });
+    }
   }
 
   try {
@@ -78,16 +89,20 @@ module.exports = async function handler(req, res) {
     var match = text.match(/\[[\s\S]*\]/);
     if (!match) throw new Error('No JSON from scan');
 
-    var alerts = JSON.parse(match[0]).filter(function(a) { return !a.republished; });
-    var date = new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' });
+    // The day's stories: the last 24 hours.
+    var alerts = JSON.parse(match[0]).filter(function(a) { return !a.republished && !(a.ageHours != null && a.ageHours > 24); });
+    var date = new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', timeZone: 'America/New_York' });
+    var S = require('./_supabase');
+    var beat = await require('./_beat').getBeat(S.isConfigured() ? S.admin() : null).catch(function () { return {}; });
 
-    await mailer.sendMail({
+    var mail = await mailer.sendMail({
+      to: to,
       alertType: 'digest_nightly',
-      subject: 'InsideMDSports nightly digest — ' + date,
-      html: buildDigestEmailHTML(alerts, date)
+      subject: (beat.outletName || 'CoPublisher') + ' nightly digest — ' + date,
+      html: buildDigestEmailHTML(alerts, date, beat)
     });
 
-    return res.status(200).json({ success: true, count: alerts.length, date: date });
+    return res.status(200).json({ success: true, count: alerts.length, date: date, mail: mail });
   } catch (error) {
     console.error('Digest error:', error);
     return res.status(500).json({ success: false, error: error.message });
