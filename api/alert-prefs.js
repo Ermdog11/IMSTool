@@ -6,6 +6,7 @@
 //   POST { timeZone }                    -> your own time zone for those days/hours
 //   POST { channelFor, channel }         -> email, text or both for one alert
 //   POST { phone }                       -> your mobile number for text alerts
+//   POST { timesFor, times:['08:00'] }   -> when your digest / updates come (whole hours, your zone)
 //                                          Setting someone else's requires publisher.
 //
 // Default when a row is absent: enabled (opt-out model), EXCEPT 'article_started'
@@ -20,14 +21,14 @@ var ALERT_TYPES = [
     about: 'The moment the scanner finds a story rated 5 out of 5, any time of day. The biggest news on your beat only.' },
   { key: 'article_started', label: 'A writer starts an article',     defaultOn: 'publisher',
     about: 'When someone on the team starts a new draft in the Content Editor, so you know who is writing what.' },
-  { key: 'digest_nightly',  label: 'Nightly digest (8 PM)',          defaultOn: 'all',
-    about: 'One email each evening with the day\'s stories on your beat, most important first.' },
-  { key: 'digest_rolling',  label: 'Rolling updates (3×/day)',       defaultOn: 'all',
-    about: 'Around 8 AM, noon and 5 PM: everything new since the last update that wasn\'t big enough for a breaking alert.' },
+  { key: 'digest_nightly',  label: 'Nightly digest',                 defaultOn: 'all', times: 1,
+    about: 'One email each evening with the day\'s stories on your beat, most important first. Pick the time below.' },
+  { key: 'digest_rolling',  label: 'Rolling updates',                defaultOn: 'all', times: 3,
+    about: 'Everything new since the last email you got that wasn\'t big enough for a breaking alert. Pick up to 3 times a day below; the first one covers the night.' },
   { key: 'roster_change',   label: 'Roster changes',                 defaultOn: 'all',
     about: 'When a player, coach or staff member is added to or removed from the official roster pages you watch.' },
-  { key: 'hot_story',       label: 'A story goes hot (real-time spike)', defaultOn: 'all',
-    about: 'When one of your stories suddenly has a lot of people reading it at once, so you can push it on social while it\'s hot.' },
+  { key: 'hot_story',       label: 'A story goes hot',               defaultOn: 'all',
+    about: 'One of our stories suddenly has lots of readers. Push it on social now.' },
   { key: 'records',         label: 'Public-records request suggestions', defaultOn: 'editors',
     about: 'When a story is worth a public-records request (coach hires and firings first), with the request drafted for you.' },
   { key: 'calendar',        label: 'New calendar items',               defaultOn: 'editors',
@@ -72,7 +73,8 @@ module.exports = async function handler(req, res) {
     var Sched0 = require('./_alert-schedule');
     var channels = {}; ALERT_TYPES.forEach(function (t) { channels[t.key] = Sched0.channelOf(mySched, t.key); });
     var out = { types: ALERT_TYPES, me: mine, schedules: mySched, timeZone: Sched0.tzOf(mySched),
-      channels: channels, phone: Sched0.phoneOf(mySched), textingOn: require('./_sms').isConfigured() };
+      channels: channels, phone: Sched0.phoneOf(mySched), textingOn: require('./_sms').isConfigured(),
+      times: { digest_rolling: Sched0.timesOf(mySched, 'digest_rolling'), digest_nightly: Sched0.timesOf(mySched, 'digest_nightly') } };
 
     if (ctx.membership.role === 'publisher') {
       var mem = await sb.from('memberships')
@@ -106,6 +108,11 @@ module.exports = async function handler(req, res) {
   if (body.channelFor !== undefined) {
     if (VALID.indexOf(body.channelFor) === -1) return res.status(400).json({ error: 'Unknown alert type.' });
     try { return res.status(200).json({ ok: true, channel: await require('./_alert-schedule').setChannel(ctx.user.email, body.channelFor, String(body.channel || '')) }); }
+    catch (e) { return res.status(400).json({ error: e.message }); }
+  }
+  // When your digest / updates come: { timesFor, times: ['08:00', ...] }.
+  if (body.timesFor !== undefined) {
+    try { return res.status(200).json({ ok: true, times: await require('./_alert-schedule').setTimes(ctx.user.email, String(body.timesFor), body.times) }); }
     catch (e) { return res.status(400).json({ error: e.message }); }
   }
   // Your mobile number for text alerts: { phone } ('' removes it).

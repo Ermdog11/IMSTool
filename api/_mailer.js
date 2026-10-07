@@ -98,4 +98,12 @@ async function sendMail(opts) {
   return { via: 'sendgrid', to: recipients, status: result[0] && result[0].statusCode };
 }
 
-module.exports = { sendMail: sendMail, digestList: digestList };
+// Everyone a newsroom email with no "to" would go to, before switches and
+// schedules: the digest list for InsideMDSports, the team for any other
+// newsroom. The digests use it to send each person theirs at their own times.
+async function baseRecipients(alertType) {
+  if (require('./_site').isDefault()) return digestList();
+  return require('./_supabase').teamRecipientsFor(alertType || 'digest_rolling', require('./_site').slug());
+}
+
+module.exports = { sendMail: sendMail, digestList: digestList, baseRecipients: baseRecipients };

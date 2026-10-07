@@ -475,7 +475,7 @@ body.other-newsroom .other-only { display: block !important; }
   <div class="digest-wrap" id="digestContent">
     <div class="empty" style="padding:2rem 0;"><i class="ti ti-file-description"></i>Run a scan first, then generate tonight's digest here.</div>
   </div>
-  <button class="gen-btn" onclick="generateDigest()"><i class="ti ti-send"></i> Generate 8 PM digest</button>
+  <button class="gen-btn" onclick="generateDigest()"><i class="ti ti-send"></i> Generate digest now</button>
 </div>
 
 <!-- HOT SOCIAL TAB -->
@@ -883,7 +883,7 @@ body.other-newsroom .other-only { display: block !important; }
 
   <div class="settings-card">
     <h3><i class="ti ti-mail"></i> Email &amp; alerts</h3>
-    <p style="font-size:12px;color:var(--text2);line-height:1.5;margin-bottom:8px;">Rating 5 = immediate email, any time, 24/7. Ratings 1-4 = 2-hour digest bundle. Full digest at 8 PM, morning brief at 8 AM. Requires SendGrid/Mailgun at deployment.</p>
+    <p style="font-size:12px;color:var(--text2);line-height:1.5;margin-bottom:8px;">Rating 5 = immediate email, any time, 24/7. Ratings 1-4 = the rolling updates. The nightly digest and the updates come at the times each person picks on <a href="/preferences#alerts">Permissions &amp; preferences</a>.</p>
     <div class="email-row">
       <input class="email-input" id="emailInput" type="email" placeholder="you@insidemdsports.com">
       <button class="email-save" onclick="saveEmail()">Save</button>
@@ -3294,7 +3294,7 @@ async function generateBacklog() {
 function saveEmail() {
   savedEmail = document.getElementById('emailInput').value.trim();
   const st = document.getElementById('emailStatus');
-  if (savedEmail.includes('@')) { st.textContent = '✓ Saved — rating 5 alerts and 8 PM digest will send to ' + savedEmail; st.style.color = 'var(--green)'; }
+  if (savedEmail.includes('@')) { st.textContent = '✓ Saved — rating 5 alerts and the nightly digest will send to ' + savedEmail; st.style.color = 'var(--green)'; }
   else { st.textContent = 'Enter a valid email.'; st.style.color = 'var(--hot)'; }
 }
 
