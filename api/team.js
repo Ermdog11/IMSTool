@@ -169,8 +169,19 @@ module.exports = async function handler(req, res) {
       if (targetRole.data && targetRole.data.role === 'publisher' && (await publisherCount()) <= 1) {
         return res.status(400).json({ error: "Can't remove the only publisher." });
       }
+      if (body.userId === ctx.user.id) return res.status(400).json({ error: 'You can\'t remove yourself here. Use Delete my account instead.' });
+      // Removing someone ends their access to this newsroom right away (Jeff,
+      // 2026-10-07: "if I fire a writer, I need to be able to delete their
+      // account so they do not have access anymore"). Their work stays.
+      var prof = await sb.from('profiles').select('email').eq('id', body.userId).maybeSingle();
+      var gone = prof && prof.data && prof.data.email;
       await sb.from('memberships').delete().eq('user_id', body.userId).eq('site_id', siteId);
       await sb.from('alert_prefs').delete().eq('user_id', body.userId).eq('site_id', siteId);
+      if (gone) {
+        // An unused invite would let them back in by signing in again.
+        await sb.from('invites').delete().eq('site_id', siteId).ilike('email', gone).is('accepted_at', null);
+        try { await require('./_alert-schedule').clearAll(gone); } catch (e) { /* best-effort */ }
+      }
       return res.status(200).json({ ok: true });
     }
     return res.status(400).json({ error: 'Need userId or inviteId.' });

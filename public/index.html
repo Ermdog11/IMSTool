@@ -3658,7 +3658,7 @@ function renderTeam(team, prefs) {
           <div style="font-size:11px;color:var(--text3);">${m.email || ''}${m.byline ? ' · byline: ' + m.byline : ''}</div></div>
         <div style="display:flex;gap:6px;align-items:center;">
           ${roleSel(m.role, `onchange="teamAction('setRole',{userId:'${m.userId}',role:this.value})"`)}
-          ${m.isSelf ? '' : `<button onclick="teamAction('remove',{userId:'${m.userId}'})" style="font-size:11px;border:1px solid var(--border);background:none;border-radius:5px;padding:3px 8px;cursor:pointer;color:var(--red);">Remove</button>`}
+          ${m.isSelf ? '' : `<button onclick="if(confirm('Remove ' + this.dataset.who + ' from your newsroom? They lose access right away. Their drafts and articles stay.'))teamAction('remove',{userId:'${m.userId}'})" data-who="${escapeHtml(m.name || m.email || 'this person')}" style="font-size:11px;border:1px solid var(--border);background:none;border-radius:5px;padding:3px 8px;cursor:pointer;color:var(--red);">Remove</button>`}
         </div>
       </div>
       <div style="margin-top:8px;display:flex;flex-wrap:wrap;gap:10px;">
