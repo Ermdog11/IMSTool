@@ -21,7 +21,7 @@ var GROUNDED_SINCE = '2026-10-06T16:02:00Z';
 function mdToHtml(t) {
   var s = String(t || '')
     .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
-    .replace(/\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)/g, '<a href="$2">$1</a>')
+    .replace(/\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)/g, '<a href="$2" style="text-decoration:underline;text-underline-offset:2px">$1</a>')
     .replace(/\*\*([^*]+)\*\*/g, '<b>$1</b>');
   return s.split(/\n\s*\n/).map(function(p) { return '<p>' + p.replace(/\n/g, '<br>') + '</p>'; }).filter(Boolean).join('\n');
 }
