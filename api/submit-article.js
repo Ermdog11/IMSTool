@@ -106,7 +106,12 @@ module.exports = async function handler(req, res) {
     return res.status(500).json({ error: 'Failed to save draft: ' + e.message });
   }
 
-  if (action === 'save') return res.status(200).json({ ok: true, id: id, html: finalHtml, status: 'draft' });
+  if (action === 'save') {
+    // First save of a new article: tell whoever has "A writer starts an
+    // article" on (later saves go through drafts.js and don't alert).
+    await require('./_article-started').notify(doc, who, 'copydesk');
+    return res.status(200).json({ ok: true, id: id, html: finalHtml, status: 'draft' });
+  }
 
   try {
     await notifyPublisherOfSubmission(doc);
