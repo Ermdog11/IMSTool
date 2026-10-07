@@ -13,7 +13,7 @@
 //                                          AssemblyAI real-time streaming, so the browser can
 //                                          stream mic or shared-tab audio without seeing our key
 //   GET  ?id=<transcript id>            -> { status, text, utterances:[{speaker,start,end,text}],
-//                                            duration, error }
+//                                            duration, error, unsure:[{start,end,text,before,after,confidence}] }
 //   POST { action:'youtube', url }      -> a YouTube video's own captions as a transcript, right
 //                                          away (no AssemblyAI, no cost; _youtube-transcript.js)
 //                                          -> { id:'yt-<video id>', status:'completed', title, text,
@@ -33,6 +33,34 @@ function aaiKey() {
   var k = process.env.ASSEMBLYAI_API_KEY;
   if (!k) { var e = new Error('Transcription isn\'t set up yet: add an ASSEMBLYAI_API_KEY in Vercel.'); e.status = 503; throw e; }
   return k;
+}
+
+// Stretches the transcriber wasn't sure it heard right (Jeff, 2026-10-07:
+// "a tool that tells you if there's a portion it's not sure is accurate").
+// AssemblyAI scores every word 0-1; a run of words with any word under LOW
+// (neighbours under NEAR join it) becomes one spot to check, with a few words
+// of context and its time, so the writer can replay it before quoting.
+var LOW = 0.5, NEAR = 0.7;
+function unsureSpans(words) {
+  words = Array.isArray(words) ? words : [];
+  var out = [], i = 0;
+  while (i < words.length && out.length < 60) {
+    if ((words[i].confidence || 1) >= LOW) { i++; continue; }
+    var a = i, b = i;
+    while (a > 0 && (words[a - 1].confidence || 1) < NEAR) a--;
+    while (b + 1 < words.length && ((words[b + 1].confidence || 1) < NEAR ||
+      (b + 2 < words.length && (words[b + 2].confidence || 1) < LOW))) b++;
+    var span = words.slice(a, b + 1), min = Math.min.apply(null, span.map(function (w) { return w.confidence || 1; }));
+    out.push({
+      start: words[a].start, end: words[b].end, speaker: words[a].speaker || null,
+      text: span.map(function (w) { return w.text; }).join(' '),
+      before: words.slice(Math.max(0, a - 6), a).map(function (w) { return w.text; }).join(' '),
+      after: words.slice(b + 1, b + 7).map(function (w) { return w.text; }).join(' '),
+      confidence: Math.round(min * 100) / 100
+    });
+    i = b + 1;
+  }
+  return out;
 }
 
 async function auth(req) {
@@ -125,7 +153,8 @@ module.exports = async function handler(req, res) {
         id: t.id, status: t.status, error: t.error || null,
         duration: t.audio_duration || null,
         text: t.status === 'completed' ? (t.text || '') : '',
-        utterances: t.status === 'completed' ? utterances : []
+        utterances: t.status === 'completed' ? utterances : [],
+        unsure: t.status === 'completed' ? unsureSpans(t.words) : []
       });
     }
 
