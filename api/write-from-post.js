@@ -51,7 +51,7 @@ var TOOL = {
 function mdToHtml(t) {
   var s = String(t || '')
     .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
-    .replace(/\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)/g, '<a href="$2">$1</a>')
+    .replace(/\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)/g, '<a href="$2" style="text-decoration:underline;text-underline-offset:2px">$1</a>')
     .replace(/\*\*([^*]+)\*\*/g, '<b>$1</b>');
   return s.split(/\n\s*\n/).map(function (p) { return '<p>' + p.replace(/\n/g, '<br>') + '</p>'; }).filter(Boolean).join('\n');
 }
@@ -61,6 +61,7 @@ module.exports = async function handler(req, res) {
   try { auth = await S.requireUserOrCron(req, res); }
   catch (e) { return res.status(e.status || 401).json({ error: e.message || 'Not signed in' }); }
   if (req.method !== 'POST') return res.status(405).json({ error: 'POST only' });
+  if (!(await require('./_access').allowed(auth, 'tab_social'))) return require('./_access').deny(res);
 
   var body = req.body || {};
   var text = String(body.text || '').trim().slice(0, 8000);
@@ -93,7 +94,7 @@ module.exports = async function handler(req, res) {
 
     var sys = 'You are a writer and editor for ' + beat.outletName + ', covering ' + beat.coverage + '. Today is ' + today + '. ' +
       'An editor has pasted a social media post. Your job: find the story in it for ' + Sh + ' readers and draft it.\n\n' +
-      '1. Read everything in the post (image text included). List every person, team or school in it that has a real connection to ' + Sh + ': current or former players, coaches and staff, recruits and commits, the program itself. Check names against the PEOPLE TO WATCH lists below first, then your own knowledge. Beware of shared names (a different person with the same name is not a tie). Never invent a tie.\n' +
+      '1. Read everything in the post (image text included). List every person, team or school in it that has a real connection to ' + Sh + ': current or former players, coaches and staff, recruits and commits, the program itself. Check names against the PEOPLE TO WATCH lists below and the CONTEXT (current roster, roster changes, our coverage) first, then search_knowledge_base; use your own knowledge only as a last resort. Beware of shared names (a different person with the same name is not a tie). Never invent a tie.\n' +
       '2. If there is a genuine ' + Sh + ' angle, write the article around it: lead with what it means for ' + Sh + ' (e.g. "Two former ' + Sh + ' players landed on a list of the best players in their home county\'s history"), attribute the post (who posted it and where) as the source, give each ' + Sh + '-connected person a line or two on their ' + Sh + ' ties, and mention the rest of the post only as context. Use only facts in the post, the editor\'s note and the lists below; anything you add from your own knowledge (years, positions, stats, honors) goes into factsToCheck. No invented quotes or numbers.\n' +
       '3. If there is no genuine ' + Sh + ' connection, set relevant:false, explain in angle, and leave headline and article empty.\n' +
       '- Insert Markdown links to related ' + beat.outletName + ' coverage from the list below where a phrase genuinely connects; never invent a URL.\n' +
@@ -112,19 +113,13 @@ module.exports = async function handler(req, res) {
     if (img) content.push({ type: 'image', source: { type: 'base64', media_type: mediaType, data: String(img.data).replace(/^data:[^,]+,/, '') } });
     content.push({ type: 'text', text: userText });
 
-    var r = await fetch('https://api.anthropic.com/v1/messages', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'x-api-key': key, 'anthropic-version': '2023-06-01' },
-      body: JSON.stringify({
-        model: 'claude-sonnet-4-6', max_tokens: 3000, system: sys,
-        tools: [TOOL], tool_choice: { type: 'tool', name: TOOL.name },
-        messages: [{ role: 'user', content: content }]
-      })
+    // Grounded like every writing tool (api/_writer.js): our knowledge base,
+    // current roster, roster changes, calendar, plus knowledge-base and web
+    // research before it writes.
+    var out = await require('./_writer').writeGrounded({
+      key: key, system: sys, topic: [poster, text, link && link.text, note].filter(Boolean).join(' ').slice(0, 1200),
+      content: content, tool: TOOL, web: 2, maxTokens: 4000
     });
-    var d = await r.json();
-    if (d.error) throw new Error('Claude error: ' + (d.error.message || JSON.stringify(d.error)));
-    var tu = (d.content || []).filter(function (b) { return b.type === 'tool_use' && b.name === TOOL.name; })[0];
-    var out = tu && tu.input;
     if (!out || typeof out.relevant !== 'boolean') throw new Error('No usable result returned');
     var result = { relevant: out.relevant, angle: out.angle || '', people: out.people || [], headline: out.headline || '' };
     if (!out.relevant || !out.article) return res.status(200).json(result);
@@ -138,7 +133,7 @@ module.exports = async function handler(req, res) {
       id: id, writerName: 'AI draft (From social)' + (requester ? ' for ' + requester : ''), tier: 'free',
       headline: out.headline, headlines: [{ label: '', text: out.headline }],
       html: mdToHtml(out.article), notes: notes, factsToCheck: out.factsToCheck || [],
-      sourceUrl: url || null, autoGenerated: true,
+      sourceUrl: url || null, autoGenerated: true, ownerId: (auth && auth.user && auth.user.id) || null, ownerEmail: requester || null,
       status: 'draft', createdAt: now, updatedAt: now
     });
     result.id = id;
@@ -147,3 +142,6 @@ module.exports = async function handler(req, res) {
     return res.status(500).json({ error: e.message });
   }
 };
+
+// Per-newsroom: this request runs as the signed-in person's newsroom (_site.js).
+module.exports = require('./_site').wrap(module.exports);

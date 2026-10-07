@@ -2,7 +2,15 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<link rel="manifest" href="/manifest.json">
+<meta name="theme-color" content="#0f1b2d">
+<link rel="icon" type="image/png" sizes="32x32" href="/icons/favicon-32.png">
+<link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="CoPublisher">
+<meta name="apple-mobile-web-app-status-bar-style" content="black">
 <title>InsideMDSports — Terps News Monitor</title>
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@2.44.0/tabler-icons.min.css">
 <style>
@@ -142,8 +150,29 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; b
 
 /* CHAT */
 .chat-layout { display: flex; flex-direction: column; height: calc(100vh - 200px); min-height: 400px; }
-.chat-messages { flex: 1; overflow-y: auto; background: var(--bg2); border-radius: 10px 10px 0 0; padding: 14px; display: flex; flex-direction: column; gap: 10px; border: 1px solid var(--border); border-bottom: none; }
+.chat-messages { flex: 1; overflow-y: auto; background: var(--bg2); border-radius: 0 0 10px 10px; padding: 8px 0; display: flex; flex-direction: column; gap: 0; border: 1px solid var(--border); border-top: none; }
+/* Slack-style rows (Jeff, 2026-10-06: "team chat needs to look like a chat/Slack, not a headline list") */
+.chat-row { display: flex; gap: 10px; padding: 4px 16px; align-items: flex-start; }
+.chat-row:hover { background: var(--bg); }
+.chat-row.first { padding-top: 10px; }
+.chat-av { width: 36px; height: 36px; border-radius: 6px; flex-shrink: 0; object-fit: cover; display: flex; align-items: center; justify-content: center; font-size: 14px; font-weight: 700; color: #fff; }
+.chat-gutter { width: 36px; flex-shrink: 0; font-size: 10px; color: transparent; text-align: right; padding-top: 3px; }
+.chat-row:hover .chat-gutter { color: var(--text3); }
+.chat-body { flex: 1; min-width: 0; font-size: 14px; line-height: 1.45; color: var(--text); word-wrap: break-word; }
+.chat-name { font-weight: 700; font-size: 14px; margin-right: 6px; }
+.chat-time { font-size: 11px; color: var(--text3); }
+.chat-pill { font-size: 10px; font-weight: 700; padding: 1px 7px; border-radius: 4px; margin-right: 6px; vertical-align: 1px; color: #fff; }
+.chat-day { display: flex; align-items: center; gap: 10px; margin: 10px 16px 2px; font-size: 11px; font-weight: 700; color: var(--text3); }
+.chat-day::before, .chat-day::after { content: ''; flex: 1; border-top: 1px solid var(--border); }
+.chat-note { text-align: center; font-size: 12px; color: var(--text3); padding: 14px; }
 .chat-msg { max-width: 85%; }
+.chat-sel { display: none; margin: 0 8px 0 0; vertical-align: -2px; width: auto; cursor: pointer; }
+.chat-selecting .chat-sel { display: inline-block; }
+.chat-selecting .chat-msg[data-id] { cursor: pointer; }
+.chat-selecting .chat-msg.picked, .chat-selecting .chat-row.picked { outline: 2px solid var(--red); outline-offset: -2px; background: var(--hot-light); }
+.chat-selecting .chat-row[data-id] { cursor: pointer; }
+.chat-bulk { display: none; align-items: center; gap: 8px; flex-wrap: wrap; font-size: 12.5px; padding: 8px 10px; background: var(--bg2); border: 1px solid var(--border); border-radius: 8px; margin-bottom: 8px; }
+.chat-selecting .chat-bulk { display: flex; }
 .chat-msg.system { align-self: center; background: var(--bg); border-radius: 20px; padding: 5px 14px; font-size: 11px; color: var(--text3); }
 .chat-msg.alert-drop { align-self: stretch; background: var(--hot-light); border: 1px solid #f7c1c1; border-radius: 8px; padding: 10px 12px; }
 .chat-msg.alert-drop .alert-headline { font-size: 12px; font-weight: 600; color: var(--hot-dark); margin-bottom: 3px; }
@@ -151,7 +180,7 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; b
 .chat-msg.me { align-self: flex-end; background: var(--red); color: #fff; border-radius: 12px 12px 2px 12px; padding: 8px 12px; font-size: 13px; }
 .chat-msg.other { align-self: flex-start; background: #f0f0f0; border-radius: 12px 12px 12px 2px; padding: 8px 12px; font-size: 13px; }
 .chat-msg .sender { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; margin-bottom: 3px; color: var(--text3); }
-.chat-input-row { display: flex; gap: 8px; background: var(--bg2); border: 1px solid var(--border); border-radius: 0 0 10px 10px; padding: 10px; }
+.chat-input-row { display: flex; gap: 8px; background: var(--bg2); border: 1px solid var(--border); border-radius: 10px 10px 0 0; padding: 10px; }
 .chat-input { flex: 1; border: 1px solid var(--border); border-radius: 8px; padding: 8px 12px; font-size: 13px; background: var(--bg); color: var(--text); outline: none; }
 .chat-input:focus { border-color: var(--red); }
 .chat-send { background: var(--red); color: #fff; border: none; border-radius: 8px; padding: 8px 14px; cursor: pointer; font-size: 13px; font-weight: 600; }
@@ -209,6 +238,150 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; b
 .bb-brand { font-size: 13px; font-weight: 700; color: #fff; letter-spacing: 0.5px; }
 .bb-tag { font-size: 11px; font-weight: 600; color: var(--nav-on); }
 body { padding-bottom: 40px; }
+body.no-opps .acc-opps,body.no-write .acc-write,body.no-flag .acc-flag,body.no-flag #excludeCard{display:none!important}
+.cal-box{background:var(--bg2);border:1px solid var(--border);border-radius:10px;padding:12px;margin:8px 0 12px}
+.cal-sel{font-size:12.5px;padding:4px 6px;border:1px solid var(--border);border-radius:6px;background:var(--bg2);color:var(--text)}
+.cal-day{font-size:.78rem;font-weight:700;text-transform:uppercase;letter-spacing:.03em;color:var(--text2);margin:14px 0 6px}
+.cal-ev{display:flex;gap:12px;align-items:flex-start;flex-wrap:wrap;padding:10px 12px;background:var(--bg2);border:1px solid var(--border);border-radius:8px;margin-bottom:6px}
+.cal-time{width:70px;flex-shrink:0;font-weight:700;font-size:.85rem}
+.cal-main{flex:1;min-width:180px}
+.cal-kind{font-size:.68rem;font-weight:700;border-radius:4px;padding:1px 6px;margin-left:6px;vertical-align:1px;background:var(--bg);border:1px solid var(--border);color:var(--text2)}
+.cal-kind.deadline{background:#fef2f2;border-color:#fecaca;color:#b91c1c}
+.cal-kind.game{background:#eff6ff;border-color:#bfdbfe;color:#1d4ed8}
+.cal-kind.media{background:#f5f3ff;border-color:#ddd6fe;color:#6d28d9}
+.cal-kind.heat{background:#fff7ed;border-color:#fed7aa;color:#c2410c}
+.cal-ev.heat{border-left:3px solid #f97316}
+.lb-table{width:100%;border-collapse:collapse;font-size:13px;background:var(--bg2);border:1px solid var(--border);border-radius:8px}
+.lb-table th{font-size:11px;text-transform:uppercase;letter-spacing:.04em;color:var(--text3);text-align:right;padding:8px 10px;border-bottom:1px solid var(--border);cursor:pointer;white-space:nowrap;user-select:none}
+.lb-table th:first-child,.lb-table td:first-child{text-align:left}
+.lb-table th.on{color:var(--text)}
+.lb-table td{padding:8px 10px;border-bottom:1px solid var(--border);text-align:right;white-space:nowrap;vertical-align:top}
+.lb-table tr.lb-w{cursor:pointer}
+.lb-table tr.lb-w:hover td{background:var(--bg)}
+.lb-up{color:var(--green);font-size:11px}.lb-down{color:var(--hot);font-size:11px}.lb-flat{color:var(--text3);font-size:11px}
+.cal-mode-btn{flex:1;min-width:240px;text-align:left;border:1px solid var(--border);background:var(--surface,#fff);border-radius:8px;padding:10px 12px;cursor:pointer;font:inherit;color:var(--text)}
+.cal-mode-btn:hover{border-color:#60a5fa}
+.cal-mode-btn span{display:block;font-size:.8rem;color:var(--text2);margin-top:3px;line-height:1.4}
+.cal-rem{display:flex;gap:6px;align-items:center;flex-wrap:wrap;font-size:.78rem;color:var(--text2)}
+.cal-x{border:0;background:none;color:var(--text3);cursor:pointer;font-size:16px;line-height:1;padding:0 2px}
+@media (max-width:600px){.cal-time{width:auto}.cal-rem{width:100%}}
+
+/* ===== PHONES (Android and iPhone; Jeff, 2026-10-06: "take inventory of what
+   needs to be tweaked so that it works well as a mobile app ... it also needs
+   to be Android friendly, but should still display properly on a computer").
+   Everything here is under 700px wide only; the computer layout is untouched.
+   - compact header that fits (it ran ~20px off screen, so pages slid sideways)
+   - the 14 tabs (5 rows) become a bottom bar: Alerts, Chat, Calendar, Write,
+     More (a sheet with every tab you can use)
+   - alert cards: big Write it + Story angles, the other 7 actions behind More
+   - text boxes at 16px (iPhone zooms the page on smaller ones)
+   - no fixed footer bar */
+.mnav, .mtop, .msheet, .aaction.amore { display: none; }
+@media (max-width:700px) {
+  html, body { overflow-x: hidden; }
+  body { padding-bottom: calc(64px + env(safe-area-inset-bottom)); }
+  .topbar { height: auto; min-height: 52px; padding: 8px 12px; padding-top: calc(8px + env(safe-area-inset-top)); }
+  .site-sub, .pill-email, #backBtn { display: none !important; }
+  .topbar-right { gap: 6px; }
+  .nav { display: none; }
+  .page { padding: 12px 12px 16px; }
+  .bottom-bar { display: none; }
+  input, select, textarea { font-size: 16px !important; }
+  .mnav { display: flex; position: fixed; left: 0; right: 0; bottom: 0; z-index: 200; background: var(--dark); border-top: 1px solid rgba(255,255,255,.08); padding-bottom: env(safe-area-inset-bottom); }
+  .mnav button, .mnav a { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; min-height: 58px; background: none; border: 0; color: rgba(255,255,255,.65); font-size: 11px; font-weight: 600; text-decoration: none; cursor: pointer; -webkit-tap-highlight-color: transparent; }
+  .mnav .mi { font-size: 21px; line-height: 1; }
+  .mnav .on { color: #fff; }
+  .mtop { display: flex; background: var(--dark); border-top: 1px solid rgba(255,255,255,.08); }
+  .mtop button { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; min-height: 52px; background: none; border: 0; color: rgba(255,255,255,.65); font-size: 11px; font-weight: 600; cursor: pointer; -webkit-tap-highlight-color: transparent; }
+  .mtop .mi { font-size: 19px; line-height: 1; }
+  .mtop .on { color: #fff; box-shadow: inset 0 -2px 0 #fff; }
+  .mnav .on .mi { transform: scale(1.08); }
+  .msheet { position: fixed; inset: 0; z-index: 300; background: rgba(0,0,0,.45); }
+  .msheet.open { display: block; }
+  .msheet-box { position: absolute; left: 0; right: 0; bottom: 0; background: var(--bg2, #fff); border-radius: 16px 16px 0 0; padding: 10px 12px calc(16px + env(safe-area-inset-bottom)); max-height: 80vh; overflow-y: auto; }
+  .msheet-grip { width: 40px; height: 4px; border-radius: 2px; background: #cbd5e1; margin: 2px auto 10px; }
+  .msheet-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .msheet-grid button, .msheet-grid a { min-height: 52px; border: 1px solid var(--border); border-radius: 12px; background: var(--bg); color: var(--text); font-size: 15px; font-weight: 600; text-align: left; padding: 10px 12px; text-decoration: none; display: flex; align-items: center; }
+  .msheet-grid .on { border-color: var(--red); color: var(--red); }
+  .acard-actions:not(.all) .aaction:not(.acc-write):not(.amore):not(.acc-angles) { display: none; }
+  .acard-actions .aaction { min-height: 40px; font-size: 14px; padding: 8px 12px; }
+  .aaction.amore { display: inline-flex; align-items: center; }
+  .myrate button, [id^="myrate-"] button { min-width: 38px; min-height: 38px; }
+  .chip { min-height: 36px; }
+}
+
+/* Customizable card layouts (Home, Xs and Os) */
+.home-hello { display: flex; justify-content: space-between; align-items: flex-start; gap: 10px; }
+.lay-btn { font: inherit; font-size: 13px; font-weight: 600; border: 1px solid var(--border); background: #fff; color: var(--fg); border-radius: 16px; padding: 6px 12px; cursor: pointer; white-space: nowrap; }
+.lay-btn.on { background: #4338ca; color: #fff; border-color: #4338ca; }
+.lay-cards > .lay-hidden { display: none !important; }
+.lay-cards.lay-editing > .lay-hidden { display: block !important; opacity: .45; }
+.lay-cards > .role-hidden, .lay-cards.lay-editing > .role-hidden { display: none !important; }
+.lay-ctl { display: none; }
+.lay-editing > [data-card] { outline: 2px dashed #c7d2fe; outline-offset: 2px; }
+.lay-editing .lay-ctl { display: flex; gap: 6px; align-items: center; justify-content: flex-end; margin: 0 0 10px; }
+.lay-ctl span { margin-right: auto; font-size: 12px; font-weight: 700; color: #4338ca; text-transform: uppercase; letter-spacing: .04em; }
+.lay-ctl button { font: inherit; font-size: 13px; font-weight: 700; min-width: 40px; min-height: 36px; border: 1px solid #c7d2fe; background: #fff; color: #3730a3; border-radius: 8px; cursor: pointer; padding: 0 10px; }
+.lay-ctl button:disabled { opacity: .35; cursor: default; }
+.lay-bar { display: none; gap: 8px; align-items: center; flex-wrap: wrap; margin: 0 0 12px; padding: 10px 12px; border-radius: 10px; background: #f5f7ff; border: 1px solid #c7d2fe; font-size: 13px; color: #3730a3; }
+.lay-bar.on { display: flex; }
+.lay-bar button { font: inherit; font-size: 13px; font-weight: 600; border: 1px solid #c7d2fe; background: #fff; border-radius: 16px; padding: 5px 12px; cursor: pointer; }
+/* Home ask box */
+.home-card.hc-ask { grid-column: 1 / -1; border-color: #c7d2fe; background: #f8f9ff; }
+.home-ask { display: flex; gap: 8px; }
+.home-ask input { flex: 1; min-width: 0; font: inherit; font-size: 15px; border: 1px solid var(--border); border-radius: 10px; padding: 10px 12px; background: #fff; }
+.home-ask button { background: #4338ca; color: #fff; border: 0; border-radius: 10px; padding: 0 18px; font: inherit; font-weight: 700; cursor: pointer; }
+.hc-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+.hc-chips button { font: inherit; font-size: 12.5px; border: 1px solid #c7d2fe; background: #fff; color: #3730a3; border-radius: 16px; padding: 5px 11px; cursor: pointer; }
+#homeAskAnswer { margin-top: 10px; font-size: 14.5px; line-height: 1.55; }
+#homeAskAnswer:empty { display: none; }
+#homeAskAnswer ul { margin: 6px 0 6px 18px; padding: 0; }
+@media (max-width: 700px) { .home-ask input { font-size: 16px; } }
+/* News search */
+.alert-search { display: flex; align-items: center; gap: 8px; background: #fff; border: 1px solid var(--border); border-radius: 10px; padding: 0 12px; margin: 0 0 10px; }
+.alert-search i { color: var(--text3); }
+.alert-search input { flex: 1; border: 0; outline: 0; font: inherit; font-size: 14px; padding: 9px 0; background: transparent; min-width: 0; }
+/* HOME (page-16) */
+.home-hello h2 { font-size: 22px; margin: 2px 0 0; }
+.home-date { color: var(--text2); font-size: 13px; margin-top: 2px; }
+.home-search { display: flex; align-items: center; gap: 8px; background: #fff; border: 1px solid var(--border); border-radius: 12px; padding: 6px 6px 6px 14px; margin: 14px 0 16px; }
+.home-search i { color: var(--text3); font-size: 18px; }
+.home-search input { flex: 1; border: 0; outline: 0; font: inherit; font-size: 15px; background: transparent; min-width: 0; padding: 8px 0; }
+.home-search button { background: var(--red); color: #fff; border: 0; border-radius: 8px; padding: 9px 16px; font: inherit; font-weight: 600; cursor: pointer; }
+.home-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 14px; }
+.home-card { background: #fff; border: 1px solid var(--border); border-radius: 12px; padding: 14px 16px; min-width: 0; }
+.home-card.hc-news { grid-column: 1 / -1; }
+.hc-head { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; margin-bottom: 8px; }
+.hc-head h3 { font-size: 16px; margin: 0; }
+.hc-head a { font-size: 13px; font-weight: 600; color: var(--red); text-decoration: none; white-space: nowrap; }
+.hc-stats { font-size: 13px; color: var(--text2); margin-bottom: 8px; }
+.hc-stats b { color: var(--fg); }
+.hc-story { display: flex; gap: 10px; align-items: flex-start; padding: 9px 0; border-top: 1px solid var(--border); text-decoration: none; color: inherit; }
+.hc-story:first-child { border-top: 0; }
+.hc-story .hc-r { flex: 0 0 auto; font-size: 11px; font-weight: 800; border-radius: 5px; padding: 2px 6px; background: #f1f0ec; color: var(--text2); }
+.hc-story .hc-r.r5 { background: var(--red); color: #fff; }
+.hc-story .hc-r.r4 { background: #e8b923; color: #1a1a1a; }
+.hc-story b { display: block; font-size: 14px; line-height: 1.35; }
+.hc-story small { color: var(--text3); font-size: 12px; }
+.hc-actions { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 10px; }
+.hc-actions button { font: inherit; font-size: 13px; font-weight: 600; border: 1px solid var(--border); background: #fff; border-radius: 20px; padding: 7px 14px; cursor: pointer; }
+.hc-quick { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
+.hc-quick a { display: flex; flex-direction: column; align-items: center; gap: 4px; text-align: center; font-size: 12px; font-weight: 600; color: var(--fg); text-decoration: none; background: var(--bg2, #f7f6f2); border-radius: 10px; padding: 10px 4px; min-height: 64px; justify-content: center; }
+.hc-quick a span { font-size: 22px; line-height: 1; }
+.hc-quick a em { font-style: normal; font-weight: 500; color: var(--text3); font-size: 11px; }
+.hc-list { margin-top: 10px; }
+.hc-item { display: block; padding: 8px 0; border-top: 1px solid var(--border); font-size: 13.5px; color: inherit; text-decoration: none; }
+.hc-item:first-child { border-top: 0; }
+.hc-item small { display: block; color: var(--text3); font-size: 12px; }
+.hc-empty { color: var(--text3); font-size: 13px; padding: 4px 0; }
+@media (max-width: 700px) {
+  .home-grid { grid-template-columns: 1fr; gap: 12px; }
+  .home-search input { font-size: 16px; }
+  .hc-quick { grid-template-columns: repeat(4, 1fr); }
+}
+/* Another newsroom (multi-newsroom): hide InsideMDSports' own static panels. */
+body.other-newsroom .ims-only { display: none !important; }
+body.other-newsroom .other-only { display: block !important; }
 </style>
 </head>
 <body>
@@ -218,7 +391,7 @@ body { padding-bottom: 40px; }
     <div class="ims-logo">IMS</div>
     <div>
       <div class="site-name">InsideMDSports</div>
-      <div class="site-sub">Terps news monitor — powered by Claude · v2.1</div>
+      <div class="site-sub">News monitor — powered by Claude · v2.1</div>
     </div>
   </div>
   <div class="topbar-right">
@@ -230,30 +403,41 @@ body { padding-bottom: 40px; }
 </div>
 
 <div class="nav">
+  <button class="nav-tab" id="tab-btn-16" onclick="switchTab(16)">🏠 Home</button>
   <button class="nav-tab active" id="tab-btn-0" onclick="switchTab(0)">Alerts</button>
   <button class="nav-tab" id="tab-btn-1" onclick="switchTab(1)">Nightly digest</button>
   <button class="nav-tab" id="tab-btn-2" onclick="switchTab(2)">Hot social</button>
   <button class="nav-tab" id="tab-btn-3" onclick="switchTab(3)">Team chat</button>
   <button class="nav-tab" id="tab-btn-4" onclick="switchTab(4)">Story backlog</button>
-  <button class="nav-tab" id="tab-btn-5" onclick="switchTab(5)">Recruiting tracker</button>
   <button class="nav-tab" id="tab-btn-6" onclick="switchTab(6)">🔥 Trending</button>
   <button class="nav-tab" id="tab-btn-7" onclick="switchTab(7)">🎙️ Podcasts</button>
   <button class="nav-tab" id="tab-btn-8" onclick="switchTab(8)">📺 YouTube</button>
-  <button class="nav-tab" id="tab-btn-9" onclick="switchTab(9)">🦋 Bluesky</button>
   <button class="nav-tab" id="tab-btn-10" onclick="switchTab(10)">Settings</button>
   <button class="nav-tab" id="tab-btn-11" onclick="switchTab(11)">📈 Analytics</button>
+  <button class="nav-tab" id="tab-btn-17" onclick="switchTab(17)">💰 Advertising</button>
+  <button class="nav-tab" id="tab-btn-18" onclick="switchTab(18)">❌⭕ Xs and Os</button>
   <button class="nav-tab" id="tab-btn-12" onclick="switchTab(12)">🏈 Roster watch</button>
   <button class="nav-tab" id="tab-btn-13" onclick="switchTab(13)">👀 Opp Watch</button>
+  <button class="nav-tab" id="tab-btn-14" onclick="switchTab(14)">📅 Calendar</button>
+  <button class="nav-tab" id="tab-btn-15" onclick="switchTab(15)" style="display:none">🏆 Leaderboard</button>
 </div>
+<!-- Phone top row (Jeff, 2026-10-06: "another row of tabs like the bottom ones at the top") -->
+<nav class="mtop" id="mtop" aria-label="More sections">
+  <button data-tab="17" onclick="switchTab(17)"><span class="mi">💰</span>Advertising</button>
+  <button data-tab="18" onclick="switchTab(18)"><span class="mi">❌⭕</span>Xs and Os</button>
+  <button data-tab="11" onclick="switchTab(11)"><span class="mi">📈</span>Analytics</button>
+  <button data-tab="14" onclick="switchTab(14)"><span class="mi">📅</span>Calendar</button>
+</nav>
 
 <!-- ALERTS TAB -->
 <div class="page active" id="page-0">
+  <div id="recordsSuggest" style="display:none;margin-bottom:12px;"></div>
   <div class="metrics">
     <div class="metric metric-link" role="button" tabindex="0" title="Show these stories" onclick="metricFilter('all')" onkeydown="if(event.key==='Enter')metricFilter('all')"><div class="metric-label">Total alerts</div><div class="metric-value" id="m-total">—</div><div class="metric-sub">this scan</div></div>
     <div class="metric metric-link" role="button" tabindex="0" title="Show these stories" onclick="metricFilter('5')" onkeydown="if(event.key==='Enter')metricFilter('5')"><div class="metric-label">Breaking (5)</div><div class="metric-value" id="m-r5">—</div><div class="metric-sub">immediate email</div></div>
     <div class="metric metric-link" role="button" tabindex="0" title="Show these stories" onclick="metricFilter('4')" onkeydown="if(event.key==='Enter')metricFilter('4')"><div class="metric-label">High (4)</div><div class="metric-value" id="m-r4">—</div><div class="metric-sub">2-hr digest</div></div>
     <div class="metric metric-link" role="button" tabindex="0" title="Show these stories" onclick="metricFilter('recruiting')" onkeydown="if(event.key==='Enter')metricFilter('recruiting')"><div class="metric-label">Recruiting</div><div class="metric-value" id="m-rec">—</div><div class="metric-sub">FB &amp; BK priority</div></div>
-    <div class="metric"><div class="metric-label">Last scan</div><div class="metric-value" id="m-last" style="font-size:14px;padding-top:3px;">—</div><div class="metric-sub">next in <span id="m-next">—</span></div></div>
+    <div class="metric"><div class="metric-label">Last scan</div><div class="metric-value" id="m-last" style="font-size:14px;padding-top:3px;">—</div><div class="metric-sub">next scheduled <span id="m-next">—</span></div></div>
   </div>
   <div class="scan-bar">
     <div class="scan-indicator" style="flex-direction:column;align-items:stretch;gap:4px;">
@@ -267,9 +451,10 @@ body { padding-bottom: 40px; }
     </div>
     <div style="display:flex;gap:8px;flex-wrap:wrap;">
       <button class="scan-btn" style="background:#fff;color:var(--fg);border:1px solid var(--border);" onclick="openExcludeSettings()"><i class="ti ti-ban"></i> Exclude sources</button>
-      <button class="scan-btn" id="scanBtn" onclick="runScan(true)" title="Refresh the newsroom's shared scan (if it's more than 5 minutes old)"><i class="ti ti-refresh"></i> Scan now</button>
+      <button class="scan-btn" id="scanBtn" onclick="runScan(true)" title="Run a fresh scan now (about 2 minutes; skipped if the last one is under 5 minutes old). Opening the page just shows the latest saved scan."><i class="ti ti-refresh"></i> Scan now</button>
     </div>
   </div>
+  <div class="alert-search" id="alertSearchWrap"><i class="ti ti-search"></i><input id="alertSearchInput" type="search" placeholder="Search these stories…" oninput="setAlertQuery(this.value)" autocomplete="off"></div>
   <div class="filters">
     <button class="chip active" onclick="setFilter('all',this)">All</button>
     <button class="chip" onclick="setFilter('5',this)">Breaking (5)</button>
@@ -283,7 +468,6 @@ body { padding-bottom: 40px; }
     <button class="chip" onclick="switchTab(6)" style="border-color:#e8b923;">🔥 Trending</button>
     <button class="chip" onclick="switchTab(7)" style="border-color:#e8b923;">🎙️ Podcasts</button>
     <button class="chip" onclick="switchTab(8)" style="border-color:#e8b923;">📺 YouTube</button>
-    <button class="chip" onclick="switchTab(9)" style="border-color:#e8b923;">🦋 Bluesky</button>
   </div>
   <div class="alerts" id="alertsContainer">
     <div class="empty"><i class="ti ti-radar"></i>Hit "Scan now" to pull the latest Terps news from all external sources</div>
@@ -295,7 +479,7 @@ body { padding-bottom: 40px; }
   <div class="digest-wrap" id="digestContent">
     <div class="empty" style="padding:2rem 0;"><i class="ti ti-file-description"></i>Run a scan first, then generate tonight's digest here.</div>
   </div>
-  <button class="gen-btn" onclick="generateDigest()"><i class="ti ti-send"></i> Generate 8 PM digest</button>
+  <button class="gen-btn" onclick="generateDigest()"><i class="ti ti-send"></i> Generate digest now</button>
 </div>
 
 <!-- HOT SOCIAL TAB -->
@@ -315,15 +499,25 @@ body { padding-bottom: 40px; }
 
 <!-- TEAM CHAT TAB -->
 <div class="page" id="page-3">
-  <div class="notice"><i class="ti ti-users"></i> General channel — alerts rated 4+ auto-drop here, and breaking-news auto-drafts land here tagged. Shared with the whole team.</div>
+  <div class="notice" style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;"><span><i class="ti ti-users"></i> General channel — alerts rated 4+ auto-drop here, and breaking-news auto-drafts land here tagged. Shared with the whole team.</span>
+    <span style="display:flex;gap:6px;align-items:center;"><button class="chip" onclick="document.getElementById('chatPhotoFile').click()" id="chatPhotoBtn">🖼️ Your photo</button><input type="file" id="chatPhotoFile" accept="image/*" style="display:none" onchange="if(this.files[0])chatSetPhoto(this.files[0]);this.value=''">
+    <button class="chip" id="chatSelectBtn" style="display:none;" onclick="chatSelectMode(true)">☑️ Select to delete</button></span></div>
+  <div class="chat-wrap" id="chatWrap">
+  <div class="chat-bulk">
+    <label style="display:flex;gap:5px;align-items:center;cursor:pointer;"><input type="checkbox" id="chatSelAll" onchange="chatSelectAll(this.checked)" style="width:auto"> Select all</label>
+    <span id="chatSelCount" style="color:var(--text3);">0 selected</span>
+    <button class="chip" style="color:#c00;border-color:#f7c1c1;" onclick="chatDeleteSelected(this)">🗑 Delete selected</button>
+    <button class="chip" onclick="chatSelectMode(false)">Done</button>
+  </div>
   <div class="chat-layout">
-    <div class="chat-messages" id="chatMessages">
-      <div class="chat-msg system">Loading…</div>
-    </div>
     <div class="chat-input-row">
       <input class="chat-input" id="chatInput" placeholder="Message the team..." onkeydown="if(event.key==='Enter')sendChat()" />
       <button class="chat-send" onclick="sendChat()">Send</button>
     </div>
+    <div class="chat-messages" id="chatMessages">
+      <div class="chat-msg system">Loading…</div>
+    </div>
+  </div>
   </div>
 </div>
 
@@ -332,7 +526,7 @@ body { padding-bottom: 40px; }
   <div class="scan-bar" style="margin-bottom:14px;">
     <div class="scan-indicator">
       <div class="scan-dot" style="background:#3B6D11;"></div>
-      <div class="scan-text"><strong>Story ideas</strong> — auto-generated from alerts, plus manual adds</div>
+      <div class="scan-text"><strong>Story ideas</strong> — quick ideas from the latest alerts (the Ombudsman's are below)</div>
     </div>
     <button class="scan-btn" onclick="generateBacklog()"><i class="ti ti-bulb"></i> Generate ideas</button>
   </div>
@@ -340,6 +534,7 @@ body { padding-bottom: 40px; }
     <span><i class="ti ti-robot"></i> <strong>Coverage Desk</strong> — an assistant editor's memo (priorities, gaps, follow-ups) emails you every morning at 7&nbsp;AM.</span>
     <button class="chip" onclick="runCoverageDesk(this)">Email me one now</button>
   </div>
+  <div class="notice" style="margin-bottom:14px;">⚖️ The Ombudsman (coverage review and its story ideas) moved to <a href="/xos" onclick="switchTab(18);return false"><b>Xs and Os</b></a>.</div>
   <div id="backlogContainer">
     <div class="empty"><i class="ti ti-notebook"></i>Run a scan first, then generate story ideas from the latest alerts</div>
   </div>
@@ -347,6 +542,7 @@ body { padding-bottom: 40px; }
 
 <!-- RECRUITING TRACKER TAB -->
 <div class="page" id="page-5">
+  <div class="ims-only">
   <div class="section-label">Football — 2027 class</div>
   <div class="alerts" style="margin-bottom:16px;">
     <div class="acard r5">
@@ -396,6 +592,8 @@ body { padding-bottom: 40px; }
       <div class="asum">6-7, 230 lbs. Former Paul VI (VA) standout. Maryland, VT, UNLV, WVU, Ohio State, Auburn, Northwestern pursuing. "Coach Buzz and them have a great coaching staff."</div>
     </div>
   </div>
+  </div>
+  <div class="other-only empty" style="display:none"><i class="ti ti-users"></i>Recruits you follow show up in Alerts. Add the names you track in Setup › People to watch.</div>
 </div>
 
 <!-- TRENDING OVERFLOW TAB -->
@@ -453,12 +651,12 @@ body { padding-bottom: 40px; }
   </div>
 
   <div class="settings-card">
-    <h3><i class="ti ti-heart-rate-monitor"></i> Source health</h3>
-    <div style="font-size:12px;color:var(--text3);margin-bottom:10px;line-height:1.5;">Every scan checks every source. A source that stops working for a day is fixed automatically when it can be (by searching its site through Google News instead) or skipped when it can't, and you get one email about it. A source that goes quiet for two weeks is flagged too.</div>
-    <div id="sourceHealth"><div style="font-size:12px;color:var(--text3);">Loading…</div></div>
+    <h3><i class="ti ti-adjustments-horizontal"></i> Permissions &amp; preferences</h3>
+    <div style="font-size:12px;color:var(--text3);margin-bottom:10px;line-height:1.5;">Your own alerts, the Content Editor's defaults (podcast, related links, promos), who on the team can do what, and where every other setting lives.</div>
+    <a class="pill" href="/preferences" style="text-decoration:none;">Open permissions &amp; preferences</a>
   </div>
 
-  <div class="notice"><i class="ti ti-user-check"></i> You are Jeff Ermann, publisher of InsideMDSports. Your content and IMS Radio are excluded from all alerts.</div>
+  <div class="ims-only notice"><i class="ti ti-user-check"></i> You are Jeff Ermann, publisher of InsideMDSports. Your content and IMS Radio are excluded from all alerts.</div>
 
   <div class="settings-card">
     <h3><i class="ti ti-clock"></i> Scan parameters</h3>
@@ -475,9 +673,9 @@ body { padding-bottom: 40px; }
   </div>
 
   <div class="settings-card">
-    <h3><i class="ti ti-bell"></i> Desktop alerts</h3>
-    <div style="font-size:12px;color:var(--text3);margin-bottom:10px;line-height:1.5;">Get a desktop notification for breaking (rating 5) news and roster changes — even if this tab isn't open.</div>
-    <button class="pill" id="pushToggleBtn" onclick="togglePush()">Enable desktop alerts</button>
+    <h3><i class="ti ti-bell"></i> Phone &amp; desktop alerts</h3>
+    <div style="font-size:12px;color:var(--text3);margin-bottom:10px;line-height:1.5;">Get a notification on this phone or computer for breaking (rating 5) news and roster changes, even when CoPublisher isn't open. Tapping it opens the story. Turn it on separately on each device.</div>
+    <button class="pill" id="pushToggleBtn" onclick="togglePush()">Turn on alerts on this device</button>
     <div id="pushStatus" style="font-size:11px;color:var(--text3);margin-top:8px;"></div>
   </div>
 
@@ -570,13 +768,13 @@ body { padding-bottom: 40px; }
     </div>
 
     <div class="sdiv-label" style="margin-top:16px;">Always excluded</div>
-    <div class="src-row ex"><i class="ti ti-x"></i> Jeff Ermann — any story authored by or attributed to you</div>
-    <div class="src-row ex"><i class="ti ti-x"></i> IMS Radio podcast — your own show</div>
+    <div class="ims-only src-row ex"><i class="ti ti-x"></i> Jeff Ermann — any story authored by or attributed to you</div>
+    <div class="ims-only src-row ex"><i class="ti ti-x"></i> IMS Radio podcast — your own show</div>
     <div class="src-row ex"><i class="ti ti-x"></i> Minor sports (tennis, track, golf, wrestling, field hockey, softball, baseball, lacrosse, soccer, gymnastics, swimming) unless major news</div>
     <div style="font-size:11px;color:var(--text3);margin-top:8px;line-height:1.5;">Note: if another outlet cites or reacts to your reporting, that reaction IS included.</div>
   </div>
 
-  <div class="settings-card">
+  <div class="ims-only settings-card">
     <h3><i class="ti ti-radar"></i> Direct-fetch URLs</h3>
     <div class="src-row"><i class="ti ti-check" style="color:var(--green);"></i> testudotimes.com</div>
     <div class="src-row"><i class="ti ti-check" style="color:var(--green);"></i> The Athletic — Maryland football &amp; basketball</div>
@@ -607,17 +805,17 @@ body { padding-bottom: 40px; }
     <div class="pri-row"><span>Game results &amp; team news</span><span>Normal — Rate 3</span></div>
     <div class="pri-row"><span>Alumni news (named individuals)</span><span>Normal — Rate 3</span></div>
     <div class="pri-row"><span>Social &amp; podcasts</span><span>Normal — Rate 2-3</span></div>
-    <div class="pri-row"><span>InsideMDSports / Jeff Ermann</span><span class="stag excluded">Excluded</span></div>
+    <div class="ims-only pri-row"><span>InsideMDSports / Jeff Ermann</span><span class="stag excluded">Excluded</span></div>
   </div>
 
-  <div class="settings-card">
+  <div class="ims-only settings-card">
     <h3><i class="ti ti-user-star"></i> Coaches &amp; staff watch list</h3>
     <div class="tag-cloud">
       <span class="stag red">Mike Locksley</span><span class="stag red">Buzz Williams</span><span class="stag red">Brenda Frese</span><span class="stag red">Ted Monachino</span><span class="stag red">Clint Trickett</span><span class="stag red">Aazaar Abdul-Rahim</span><span class="stag red">Jeremy Shapiro</span><span class="stag">Jim Smith (AD)</span><span class="stag">Darryll Pines</span><span class="stag">Johnny Holliday</span>
     </div>
   </div>
 
-  <div class="settings-card">
+  <div class="ims-only settings-card">
     <h3><i class="ti ti-trophy"></i> Football watch list — 2026 commits</h3>
     <div class="tag-cloud">
       <span class="stag red">Zion Elee</span><span class="stag red">Darrell Carey</span><span class="stag red">Jamarcus Whyce</span><span class="stag red">Javonte Williams</span><span class="stag red">Jesse Moody</span><span class="stag red">Ontario Washington Jr.</span><span class="stag red">Chuck Roberts</span>
@@ -636,7 +834,7 @@ body { padding-bottom: 40px; }
     </div>
   </div>
 
-  <div class="settings-card">
+  <div class="ims-only settings-card">
     <h3><i class="ti ti-ball-basketball"></i> Basketball watch list</h3>
     <div class="sdiv-label">2026-27 roster</div>
     <div class="tag-cloud">
@@ -648,7 +846,7 @@ body { padding-bottom: 40px; }
     </div>
   </div>
 
-  <div class="settings-card">
+  <div class="ims-only settings-card">
     <h3><i class="ti ti-award"></i> Alumni watch list</h3>
     <div class="sdiv-label">Active NFL Terps</div>
     <div class="tag-cloud">
@@ -668,7 +866,7 @@ body { padding-bottom: 40px; }
     </div>
   </div>
 
-  <div class="settings-card">
+  <div class="ims-only settings-card">
     <h3><i class="ti ti-microphone"></i> Channels monitored</h3>
     <div class="sdiv-label">Beat reporters</div>
     <div class="tag-cloud">
@@ -683,7 +881,7 @@ body { padding-bottom: 40px; }
 
   <div class="settings-card">
     <h3><i class="ti ti-mail"></i> Email &amp; alerts</h3>
-    <p style="font-size:12px;color:var(--text2);line-height:1.5;margin-bottom:8px;">Rating 5 = immediate email, any time, 24/7. Ratings 1-4 = 2-hour digest bundle. Full digest at 8 PM, morning brief at 8 AM. Requires SendGrid/Mailgun at deployment.</p>
+    <p style="font-size:12px;color:var(--text2);line-height:1.5;margin-bottom:8px;">Rating 5 = immediate email, any time, 24/7. Ratings 1-4 = the rolling updates. The nightly digest and the updates come at the times each person picks on <a href="/preferences#alerts">Permissions &amp; preferences</a>.</p>
     <div class="email-row">
       <input class="email-input" id="emailInput" type="email" placeholder="you@insidemdsports.com">
       <button class="email-save" onclick="saveEmail()">Save</button>
@@ -699,28 +897,12 @@ body { padding-bottom: 40px; }
     <p style="color:var(--muted);font-size:.85rem;margin:4px 0 0;max-width:60ch;">Connect where your traffic and engagement data lives. Once a source is linked, this page shows what's working — best day and time to publish, which topics and headline styles land, per-writer performance — and answers questions like "what's been working best for us this month?"</p>
   </div>
 
-  <div class="settings-card">
-    <h3><i class="ti ti-message-circle-question"></i> Ask about your audience</h3>
-    <div style="font-size:12px;color:var(--text3);margin-bottom:12px;line-height:1.5;">Answered strictly from your connected sources' real numbers — not general knowledge. Try "what's been working best this week?" or "when should I publish?"</div>
-    <div id="analyticsQuestionScope" style="margin-bottom:8px;"></div>
-    <div style="display:flex;gap:6px;margin-bottom:8px;">
-      <input id="analyticsQuestionInput" placeholder="Ask a question about your audience…" style="flex:1;font-size:13px;padding:8px 10px;border:1px solid var(--border);border-radius:6px" onkeydown="if(event.key==='Enter')askAnalyticsQuestion()">
-      <button class="chip" onclick="askAnalyticsQuestion()">Ask</button>
-    </div>
-    <div id="analyticsQuestionSuggestions" style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px;"></div>
-    <div id="analyticsQuestionAnswer"></div>
-  </div>
-
-  <div class="settings-card">
-    <h3><i class="ti ti-plug"></i> Connections</h3>
-    <div style="font-size:12px;color:var(--text3);margin-bottom:12px;line-height:1.5;">Chartbeat, X, Search Console, Buffer and Facebook/Instagram can be connected now; the rest are coming. Only the publisher can connect or disconnect a source.</div>
-    <div id="analyticsConnections"></div>
-  </div>
+  <div class="notice" style="margin-bottom:14px;">❌⭕ Questions about your audience and the cross-channel strategy read moved to <a href="/xos" onclick="switchTab(18);return false"><b>Xs and Os</b></a>.</div>
 
   <div class="settings-card">
     <h3><i class="ti ti-chart-line"></i> Insights</h3>
     <div id="analyticsInsights">
-      <div class="empty" style="padding:20px;">Connect at least one source above to see insights here.</div>
+      <div class="empty" style="padding:20px;">Connect at least one source under Connections at the bottom of this page to see insights here.</div>
     </div>
     <div style="font-size:11px;color:var(--text3);margin-top:8px;line-height:1.6;">
       Real-time "story going hot" alerts are on — manage who gets them in Settings → Team &amp; alerts. Planned: per-writer views &amp; engaged time by story type · proactive nudges.
@@ -754,6 +936,20 @@ body { padding-bottom: 40px; }
     <div id="analyticsTrends"></div>
   </div>
 
+  <!-- Connections last: what you see first is the numbers (Jeff, 2026-10-07: "the first thing they see should be the output; input can be below"). -->
+  <div class="settings-card">
+    <h3><i class="ti ti-plug"></i> Connections</h3>
+    <div style="font-size:12px;color:var(--text3);margin-bottom:12px;line-height:1.5;">Chartbeat, X, Search Console, Buffer, Facebook/Instagram and YouTube can be connected now; the rest are coming. Only the publisher can connect or disconnect a source.</div>
+    <div id="analyticsConnections"></div>
+  </div>
+
+  <!-- Source health moved here from Settings (Jeff, 2026-10-07: "Source health should be moved to analytics"). -->
+  <div class="settings-card">
+    <h3><i class="ti ti-heart-rate-monitor"></i> Source health</h3>
+    <div style="font-size:12px;color:var(--text3);margin-bottom:10px;line-height:1.5;">Every scan checks every source. A source that stops working for a day is fixed automatically when it can be (by searching its site through Google News instead) or skipped when it can't, and you get one email about it. A source that goes quiet for two weeks is flagged too.</div>
+    <div id="sourceHealth"><div style="font-size:12px;color:var(--text3);">Loading…</div></div>
+  </div>
+
 </div>
 
 <!-- ROSTER WATCH TAB -->
@@ -778,38 +974,319 @@ body { padding-bottom: 40px; }
 <div class="page" id="page-13">
   <div style="padding:16px 0 8px;">
     <h3 style="margin:0;font-size:1.1rem;">👀 Opp Watch</h3>
-    <p style="color:var(--text2);font-size:.85rem;margin:4px 0 0;max-width:68ch;">Follow your closest competition. Every story they publish on your beat shows up here within 15 minutes, marked <b>Gap</b> when we haven't covered it. Choose who to follow, and who emails you when they publish, in <a href="/setup">setup → Your beat</a>.</p>
+    <p style="color:var(--text2);font-size:.85rem;margin:4px 0 0;max-width:68ch;">Follow your closest competition. Every story they publish on your beat shows up here within 15 minutes, marked <b>Gap</b> when we haven't covered it. Follow a new outlet, turn email or text alerts on or off, or unfollow, right here.</p>
+  </div>
+  <div id="oppsManage" class="acc-opps" style="background:var(--bg2);border:1px solid var(--border);border-radius:10px;padding:12px;margin:8px 0 12px;">
+    <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
+      <b style="font-size:.9rem;">Follow a competitor</b>
+      <input id="oppsAddName" list="oppsKnownNames" placeholder="Competitor name (fills in the rest)" oninput="oppsNameInput()" onchange="oppsAutofill()" style="flex:1;min-width:170px;font-size:13px;padding:7px 9px;border:1px solid var(--border);border-radius:6px;" autocomplete="off">
+      <datalist id="oppsKnownNames"></datalist>
+      <input id="oppsAddSite" placeholder="Website or RSS feed" style="flex:1.4;min-width:180px;font-size:13px;padding:7px 9px;border:1px solid var(--border);border-radius:6px;" onkeydown="if(event.key==='Enter')oppsFollow()">
+      <input id="oppsAddX" list="oppsKnownX" placeholder="@X handle" style="flex:.8;min-width:120px;font-size:13px;padding:7px 9px;border:1px solid var(--border);border-radius:6px;" autocomplete="off" onkeydown="if(event.key==='Enter')oppsFollow()">
+      <datalist id="oppsKnownX"></datalist>
+      <label style="font-size:.8rem;display:flex;gap:4px;align-items:center;"><input type="checkbox" id="oppsAddEmail" checked> ✉️ Email me</label>
+      <label style="font-size:.8rem;display:flex;gap:4px;align-items:center;" title="Saved now; texts start once texting is connected"><input type="checkbox" id="oppsAddText"> 💬 Text me</label>
+      <select id="oppsAddEyes" title="How closely to watch them" style="font-size:.8rem;padding:4px 6px;border:1px solid var(--border);border-radius:6px;"><option value="5">👁 ×5 must-watch</option><option value="4">👁 ×4</option><option value="3" selected>👁 ×3</option><option value="2">👁 ×2</option><option value="1">👁 ×1 glance</option></select>
+      <button class="pill" onclick="oppsFollow()">Follow</button>
+    </div>
+    <div id="oppsAvail" style="margin-top:8px;display:flex;flex-wrap:wrap;gap:6px;align-items:center;"></div>
+    <div id="oppsMsg" style="font-size:12px;margin-top:6px;color:var(--text3);"></div>
   </div>
   <div id="oppsCards" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:10px;margin:8px 0 16px;"></div>
   <div style="display:flex;gap:8px;align-items:center;margin-bottom:8px;flex-wrap:wrap;">
     <b style="font-size:.95rem;">Latest from the competition</b>
     <label style="font-size:.82rem;color:var(--text2);display:flex;gap:5px;align-items:center;margin-left:auto;"><input type="checkbox" id="oppsGapsOnly" onchange="renderOpps()"> Gaps only</label>
+    <select id="oppsEyes" onchange="renderOpps()" title="Only outlets you watch at least this closely" style="font-size:.82rem;padding:4px 6px;border:1px solid var(--border);border-radius:6px;"><option value="0">All eyes</option><option value="2">👁 2+</option><option value="3">👁 3+</option><option value="4">👁 4+</option><option value="5">👁 5 only</option></select>
     <select id="oppsOutlet" onchange="renderOpps()" style="font-size:.82rem;padding:4px 6px;border:1px solid var(--border);border-radius:6px;"><option value="">All outlets</option></select>
   </div>
   <div id="oppsList"><div class="empty"><i class="ti ti-eye"></i>Loading…</div></div>
 </div>
 
+<!-- CALENDAR TAB -->
+<div class="page" id="page-14">
+  <div style="padding:16px 0 8px;">
+    <h3 style="margin:0;font-size:1.1rem;">📅 Calendar</h3>
+    <p style="color:var(--text2);font-size:.85rem;margin:4px 0 0;max-width:72ch;" id="calIntro">Deadlines, games, media days and events, pulled out of emails and notes and summarized. Set a reminder by email or text, from 30 minutes to 6 hours before.</p>
+  </div>
+  <div class="cal-box" id="calModeAsk" style="display:none;border-color:#93c5fd;background:#f0f7ff;">
+    <b style="font-size:.95rem;">How should CoPublisher run your calendar?</b>
+    <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:8px;">
+      <button class="cal-mode-btn" onclick="calSetMode('ai')"><b>🤖 Let the AI help</b><span>It adds your games each week, this week's 🔥 hot spots, and dated things it spots in the news (press conferences, decision dates, signing day). Delete anything you don't want and it won't come back.</span></button>
+      <button class="cal-mode-btn" onclick="calSetMode('manual')"><b>✋ Only what we add</b><span>Nothing goes on the calendar unless someone on the team adds it (by email, paste or by hand). No hot spots.</span></button>
+    </div>
+  </div>
+  <div id="calModeLine" style="font-size:.78rem;color:var(--text3);margin:0 0 8px;display:none;"></div>
+  <div class="cal-box">
+    <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:6px;"><b style="font-size:.9rem;">Add from an email or note</b><span style="font-size:.78rem;color:var(--text3);">Paste it and CoPublisher pulls out every date.</span></div>
+    <textarea id="calText" rows="4" placeholder="Paste an email, a schedule, or a note with dates…" style="width:100%;font-size:13px;padding:8px 10px;border:1px solid var(--border);border-radius:6px;font-family:inherit;"></textarea>
+    <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:6px;">
+      <button class="pill" id="calAddBtn" onclick="calAddText()">Add to calendar</button>
+      <details style="font-size:.8rem;"><summary style="cursor:pointer;color:var(--text2);">or add one by hand</summary>
+        <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:6px;">
+          <input id="calTitle" placeholder="What" style="flex:2;min-width:150px;font-size:13px;padding:6px 8px;border:1px solid var(--border);border-radius:6px;">
+          <input id="calDate" type="date" style="font-size:13px;padding:6px 8px;border:1px solid var(--border);border-radius:6px;">
+          <input id="calTime" type="time" style="font-size:13px;padding:6px 8px;border:1px solid var(--border);border-radius:6px;">
+          <input id="calWhere" placeholder="Where (optional)" style="flex:1;min-width:120px;font-size:13px;padding:6px 8px;border:1px solid var(--border);border-radius:6px;">
+          <button class="pill" onclick="calAddManual()">Add</button>
+        </div></details>
+    </div>
+    <div id="calMsg" style="font-size:12.5px;margin-top:6px;color:var(--text3);"></div>
+  </div>
+  <div class="cal-box" style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;font-size:.85rem;">
+    <b>Remind me before every event</b><span style="color:var(--text3);font-size:.78rem;">automatically, for everything on the calendar (change or turn it off for one event below)</span>
+    <select id="calDefMin" onchange="calSaveDefault()" class="cal-sel"></select>
+    <select id="calDefCh" onchange="calSaveDefault()" class="cal-sel"><option value="email">by email</option><option value="text">by text</option><option value="both">by email and text</option></select>
+    <span id="calDefMsg" style="font-size:.78rem;color:var(--text3);"></span>
+  </div>
+  <div class="cal-box" id="calHeatBox" style="font-size:.85rem;">
+    <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+      <b>🔥 Hot spots</b><span style="color:var(--text3);font-size:.78rem;">the 5 best times to publish this week, ranked from your last 4 weeks of site readers and social engagement</span>
+    </div>
+    <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:6px;">
+      <label style="display:flex;gap:5px;align-items:center;" id="calHeatOnWrap"><input type="checkbox" id="calHeatOn" onchange="calHeatToggle(this.checked)" style="width:auto"> Show on the calendar</label>
+      <button class="pill" id="calHeatRefresh" onclick="calHeatRefresh()">Refresh</button>
+      <span style="color:var(--text3);">·</span>
+      <span>Remind me before each</span>
+      <select id="calHeatMin" onchange="calHeatRemind()" class="cal-sel"></select>
+      <select id="calHeatCh" onchange="calHeatRemind()" class="cal-sel"><option value="email">by email</option><option value="text">by text</option><option value="both">by email and text</option></select>
+    </div>
+    <div id="calHeatMsg" style="font-size:.78rem;color:var(--text3);margin-top:4px;"></div>
+  </div>
+  <div id="calList"><div class="empty"><i class="ti ti-calendar"></i>Loading…</div></div>
+</div>
+
+<!-- WRITER LEADERBOARD -->
+<div class="page" id="page-15">
+  <div style="padding:16px 0 8px;display:flex;justify-content:space-between;align-items:flex-end;gap:10px;flex-wrap:wrap;">
+    <div><h3 style="margin:0;font-size:1.1rem;">🏆 Writer leaderboard</h3>
+      <p style="color:var(--text2);font-size:.85rem;margin:4px 0 0;max-width:72ch;">How each writer's stories are doing, with the change against the period before (green up, red down). Click a column to sort, a writer to see their top stories. Who wrote what comes from the stories saved, submitted or imported in CoPublisher.</p></div>
+    <div style="display:flex;gap:6px;align-items:center;">
+      <select id="lbDays" onchange="loadLeaderboard()" class="cal-sel"><option value="7">Last 7 days</option><option value="30" selected>Last 30 days</option><option value="90">Last 90 days</option></select>
+      <button class="chip" onclick="loadLeaderboard(true)">Refresh</button>
+    </div>
+  </div>
+  <div id="lbKudos"></div>
+  <div id="lbNote" style="font-size:.78rem;color:var(--text3);margin-bottom:6px;"></div>
+  <div class="table-scroll" style="overflow-x:auto;"><table id="lbTable" class="lb-table"></table></div>
+</div>
+
+<!-- HOME (the landing page: every main part of the app at a glance; Jeff,
+     2026-10-06: "The home page of the app shouldn't be only centered on
+     search. It needs to display the key elements") -->
+<div class="page" id="page-16">
+  <div class="home-hello"><div><h2 id="homeHello">Welcome</h2><div class="home-date" id="homeDate"></div></div><button class="lay-btn" onclick="toggleLayoutEdit('home',this)">✏️ Customize</button></div>
+  <form class="home-search" onsubmit="homeSearch(event)">
+    <i class="ti ti-search"></i>
+    <input id="homeSearchInput" type="search" placeholder="Search the latest news…" autocomplete="off" enterkeyhint="search">
+    <button type="submit">Search</button>
+  </form>
+  <div class="home-grid lay-cards" id="homeCards" data-layout="home">
+    <section class="home-card hc-ask" data-card="ask">
+      <div class="hc-head"><h3>💬 Ask CoPublisher</h3></div>
+      <form class="home-ask" onsubmit="homeAsk(event)">
+        <input id="homeAskInput" type="text" placeholder="Anything on the calendar? How are we doing this week?" autocomplete="off" enterkeyhint="send">
+        <button type="submit">Ask</button>
+      </form>
+      <div class="hc-chips" id="homeAskChips"></div>
+      <div id="homeAskAnswer"></div>
+    </section>
+    <section class="home-card hc-news" data-card="news" data-tab="0">
+      <div class="hc-head"><h3>📰 Latest news</h3><a href="/alerts" onclick="switchTab(0);return false">All news ›</a></div>
+      <div class="hc-stats" id="homeNewsStats">Loading the latest scan…</div>
+      <div id="homeNewsList"></div>
+      <div class="hc-actions"><button onclick="switchTab(0);runScan(true)"><i class="ti ti-refresh"></i> Scan now</button><button onclick="setHomeFilter('5')">Breaking only</button></div>
+    </section>
+    <section class="home-card hc-write" data-card="write" data-editor="1">
+      <div class="hc-head"><h3>✍️ Content Editor</h3><a href="/editor">Open ›</a></div>
+      <div class="hc-quick">
+        <a href="/editor"><span>📝</span>Edit a story</a>
+        <a href="/transcribe"><span>🎙️</span>Transcribe</a>
+        <a href="/editor#6"><span>📲</span>From social</a>
+        <a href="/editor#3"><span>🗂️</span>Drafts</a>
+      </div>
+      <div id="homeDrafts" class="hc-list"></div>
+    </section>
+    <section class="home-card hc-chat" data-card="chat" data-tab="3">
+      <div class="hc-head"><h3>💬 Team chat</h3><a href="/chat" onclick="switchTab(3);return false">Open chat ›</a></div>
+      <div id="homeChat" class="hc-list"><div class="hc-empty">Loading…</div></div>
+    </section>
+    <section class="home-card hc-cal" data-card="cal" data-tab="14">
+      <div class="hc-head"><h3>📅 Coming up</h3><a href="/calendar" onclick="switchTab(14);return false">Calendar ›</a></div>
+      <div id="homeCal" class="hc-list"><div class="hc-empty">Loading…</div></div>
+    </section>
+    <section class="home-card hc-money" data-card="money">
+      <div class="hc-head"><h3>💰 Advertising &amp; audience</h3></div>
+      <div class="hc-quick">
+        <a href="/advertising" data-tab="17" onclick="switchTab(17);return false"><span>💵</span>Advertising<em id="homeAdsCount"></em></a>
+        <a href="/analytics" data-tab="11" onclick="switchTab(11);return false"><span>📈</span>Analytics</a>
+        <a href="/xos" data-tab="18" onclick="switchTab(18);return false"><span>❌⭕</span>Xs and Os</a>
+        <a href="/leaderboard" data-tab="15" onclick="switchTab(15);return false"><span>🏆</span>Leaderboard</a>
+      </div>
+    </section>
+    <section class="home-card hc-more" data-card="more">
+      <div class="hc-head"><h3>🧭 Your beat</h3></div>
+      <div class="hc-quick">
+        <a href="/backlog" data-tab="4" onclick="switchTab(4);return false"><span>💡</span>Story ideas</a>
+        <a href="/roster" data-tab="12" onclick="switchTab(12);return false"><span>🏈</span>Roster watch</a>
+        <a href="/opps" data-tab="13" onclick="switchTab(13);return false"><span>👀</span>Opp Watch</a>
+        <a href="/digest" data-tab="1" onclick="switchTab(1);return false"><span>🗞️</span>Digest</a>
+        <a href="/podcasts" data-tab="7" onclick="switchTab(7);return false"><span>🎧</span>Podcasts</a>
+        <a href="/youtube" data-tab="8" onclick="switchTab(8);return false"><span>📺</span>YouTube</a>
+        <a href="/settings" data-tab="10" onclick="switchTab(10);return false"><span>⚙️</span>Settings</a>
+        <a href="/preferences"><span>🔔</span>My alerts</a>
+      </div>
+    </section>
+  </div>
+</div>
+
+<!-- ADVERTISING (page-17; Jeff, 2026-10-06: a top-row tab for advertising) -->
+<div class="page" id="page-17">
+  <div class="hc-head" style="margin-bottom:10px;"><h2 style="margin:0;font-size:20px;">💰 Advertising</h2></div>
+  <div class="home-grid">
+    <section class="home-card">
+      <div class="hc-head"><h3>Ad slots in every story</h3><a href="/editor#2" class="adv-edit">Manage ›</a></div>
+      <div class="hc-stats">Your ad network's code, placed automatically when an article goes through the Content Editor with <b>Ad slots</b> ticked.</div>
+      <div class="adv-pos" id="advPos-ads"></div>
+      <div id="advSlots" class="hc-list"><div class="hc-empty">Loading…</div></div>
+    </section>
+    <section class="home-card">
+      <div class="hc-head"><h3>Affiliate links</h3></div>
+      <div class="hc-stats">Programs that can drop a link box into a story (tick <b>💸 Affiliate links</b> under a draft).</div>
+      <div class="adv-pos" id="advPos-affiliate"></div>
+      <div id="advAff" class="hc-list"><div class="hc-empty">Loading…</div></div>
+    </section>
+    <section class="home-card">
+      <div class="hc-head"><h3>Promos &amp; house ads</h3><a href="/editor#2">Edit ›</a></div>
+      <div class="hc-stats">Newsletter sign-ups, VIP offers and other inserts, added to free or VIP stories.</div>
+      <div class="adv-pos" id="advPos-promos"></div>
+    </section>
+    <section class="home-card">
+      <div class="hc-head"><h3>When readers show up</h3><a href="/calendar" onclick="switchTab(14);return false">Calendar ›</a></div>
+      <div class="hc-stats">This week's hot spots: the times your stories draw the most readers, and the best time to run ad-heavy or sponsored pieces.</div>
+      <div id="advHeat" class="hc-list"><div class="hc-empty">Loading…</div></div>
+    </section>
+  </div>
+</div>
+
+<!-- XS AND OS (page-18; Jeff, 2026-10-06: "where the ombudsman and the social
+     media and analytics feedback and questions will live") -->
+<div class="page" id="page-18">
+  <div class="hc-head" style="margin-bottom:10px;"><h2 style="margin:0;font-size:20px;">❌⭕ Xs and Os</h2><button class="lay-btn" onclick="toggleLayoutEdit('xos',this)">✏️ Customize</button></div>
+  <div style="font-size:13px;color:var(--text2);margin:-4px 0 14px;max-width:80ch;">The film room: how our coverage, social posts and audience numbers are doing, and what to change.</div>
+  <div id="xosCards" class="lay-cards" data-layout="xos">
+  <div class="settings-card" data-card="social">
+    <h3><i class="ti ti-brand-instagram"></i> Social media check</h3>
+    <div style="font-size:12px;color:var(--text3);margin-bottom:10px;line-height:1.5;">What your social numbers mean and what to do next. The numbers themselves are on the Analytics tab.</div>
+    <div style="display:flex;flex-wrap:wrap;gap:6px;">
+      <button class="chip" onclick="xosAsk('What is working on social for us right now, what is not, and why?')">What's working on social, and why?</button>
+      <button class="chip" onclick="xosAsk('Which recent stories are worth re-sharing on social today?')">What should we re-share today?</button>
+      <button class="chip" onclick="xosAsk('Which stories got big traffic but little social promotion?')">Traffic we didn't promote</button>
+      <button class="chip" onclick="xosAsk('Which kinds of posts should we stop doing or change, based on how they performed?')">What should we change?</button>
+    </div>
+  </div>
+  <div class="settings-card" data-card="strategy">
+    <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;">
+      <h3 style="margin:0;"><i class="ti ti-compass"></i> Strategy &amp; overlap</h3>
+      <button class="chip" id="stratRefresh" onclick="loadStrategy(true)">Refresh now</button>
+    </div>
+    <div style="font-size:12px;color:var(--text3);margin:4px 0 10px;line-height:1.5;">Every connected source studied together: what each channel is for, which topics win across channels and which only on one, the gaps between them (a top story never posted to social, search demand with no story, a big story with no video), the best time per channel, and this week's moves. Updated every morning.</div>
+    <div id="strategyBox"><div class="empty" style="padding:14px;">Loading…</div></div>
+  </div>
+
+  <div class="settings-card" data-card="ask">
+    <h3><i class="ti ti-message-circle-question"></i> Ask about your audience</h3>
+    <div style="font-size:12px;color:var(--text3);margin-bottom:12px;line-height:1.5;">Answered strictly from your connected sources' real numbers — not general knowledge. Try "what's been working best this week?" or "when should I publish?"</div>
+    <div id="analyticsQuestionScope" style="margin-bottom:8px;"></div>
+    <div style="display:flex;gap:6px;margin-bottom:8px;">
+      <input id="analyticsQuestionInput" placeholder="Ask a question about your audience…" style="flex:1;font-size:13px;padding:8px 10px;border:1px solid var(--border);border-radius:6px" onkeydown="if(event.key==='Enter')askAnalyticsQuestion()">
+      <button class="chip" onclick="askAnalyticsQuestion()">Ask</button>
+    </div>
+    <div id="analyticsQuestionSuggestions" style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px;"></div>
+    <div id="analyticsQuestionAnswer"></div>
+  </div>
+
+  <div data-card="ombudsman" style="border:1px solid #c7d2fe;background:#f5f7ff;border-radius:10px;padding:12px 14px;margin-bottom:14px;">
+    <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;">
+      <div><b style="font-size:1rem;">⚖️ Ombudsman</b><div style="font-size:.8rem;color:var(--text2);max-width:70ch;">Holds our own coverage to account for readers: checks our recent articles for accuracy, honest headlines, sourcing, fairness and balance, and suggests the stories we should do next. Runs every morning (Coverage Desk) and with every update email.</div></div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;">
+        <button class="scan-btn" style="background:#4338ca;" onclick="runOmbReview(this)">Review our coverage</button>
+        <button class="scan-btn" style="background:#4338ca;" id="ombRunBtn" onclick="runOmbudsman(this)">Story ideas</button>
+      </div>
+    </div>
+    <div id="ombudsmanReview"></div>
+    <div id="ombudsmanIdeas"></div>
+  </div>
+  </div>
+</div>
+
+<!-- Phone navigation (under 700px only; see the PHONES CSS block) -->
+<nav class="mnav" id="mnav" aria-label="Sections">
+  <button data-tab="16" onclick="switchTab(16)"><span class="mi">🏠</span>Home</button>
+  <button data-tab="0" onclick="switchTab(0)"><span class="mi">📰</span>News</button>
+  <button data-tab="3" onclick="switchTab(3)"><span class="mi">💬</span>Chat</button>
+  <a href="/editor"><span class="mi">✍️</span>Write</a>
+  <button id="mnavMore" onclick="openMoreSheet()"><span class="mi">☰</span>More</button>
+</nav>
+<div class="msheet" id="msheet" onclick="if(event.target===this)closeMoreSheet()">
+  <div class="msheet-box"><div class="msheet-grip"></div><div class="msheet-grid" id="msheetGrid"></div></div>
+</div>
+
 <div class="bottom-bar">
   <span class="bb-brand">INSIDEMDSPORTS</span>
-  <span class="bb-tag">TERPS NEWS MONITOR</span>
+  <span class="bb-tag">NEWS MONITOR</span>
 </div>
 
 <script src="/supabase-config.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="/_auth.js"></script>
 <script>
+// Another newsroom than InsideMDSports (multi-newsroom, 2026-10-06): its own
+// name in the header, its own team in the fixed wording, its own outlet
+// excluded from results, and InsideMDSports' static panels hidden.
+function applyNewsroom(s) {
+  var b = s.beat || {}, name = (s.site && s.site.name) || b.outletName || 'Your newsroom';
+  var team = b.teamName && b.teamName !== 'our team' ? b.teamName : 'your team';
+  var short = b.short && b.short !== 'our' ? b.short : team;
+  document.body.classList.add('other-newsroom');
+  document.title = name + ' — News Monitor';
+  document.querySelectorAll('.site-name').forEach(function (el) { el.textContent = name; });
+  document.querySelectorAll('.bb-brand').forEach(function (el) { el.textContent = name.toUpperCase(); });
+  document.querySelectorAll('.ims-logo').forEach(function (el) { el.textContent = name.replace(/[^A-Za-z0-9]/g, '').slice(0, 3).toUpperCase() || 'CP'; });
+  var walk = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT, null);
+  var n, hits = [];
+  while ((n = walk.nextNode())) { if (/Maryland|Terps|Terrapins/.test(n.nodeValue) && !(n.parentNode && n.parentNode.closest && n.parentNode.closest('script,style,.ims-only'))) hits.push(n); }
+  hits.forEach(function (t) { t.nodeValue = t.nodeValue.replace(/Maryland Terrapins/g, team).replace(/\b(Maryland|Terps|Terrapins)\b/g, short); });
+  document.querySelectorAll('input[placeholder*="insidemdsports"]').forEach(function (el) { el.placeholder = 'you@yoursite.com'; });
+  try {
+    if (typeof EXCLUDED !== 'undefined') { EXCLUDED.length = 0; [name].concat(b.excludeSources || []).forEach(function (x) { if (x) EXCLUDED.push(x); }); }
+  } catch (e) {}
+}
+
 // Sign-in gate. Inert until the backend is configured; fails open on any error
 // so a problem here can never lock anyone out of the tool.
 (function () {
   if (!window.IMSAuth) return;
   IMSAuth.guard().then(function (s) {
+    if (s && s.site && s.site.slug !== 'insidemdsports') applyNewsroom(s);
+    if (typeof loadLayouts === 'function') loadLayouts();
     if (s && s.user) {
       var slot = document.querySelector('.topbar-right');
       if (slot) IMSAuth.mountMenu(slot);
+      loadRecordSuggestions();
       syncFeedPrefsFromServer().then(function () {
         renderBlockedSources(); renderOwnSites();
         if (typeof applyExclusions === 'function') applyExclusions();
       });
+    }
+    // Contributors (freelancers) work in the Content Editor only.
+    if (s && s.access && s.access.use_monitor === false) { location.replace('/editor'); return; }
+    applyLeaderboardAccess();
+    if (s && s.access && s.role !== 'publisher') applyMonitorAccess();
+    if (s && s.role && s.role !== 'publisher' && !s.access) {
+      IMSAuth.authFetch('/api/site-profile').then(function (r) { return r.json(); }).then(function (d) {
+        monitorAccess = (d && d.profile && d.profile.editorAccess) || {};
+        applyMonitorAccess();
+      }).catch(function () {});
     }
     if (s && s.role === 'publisher') {
       var t = document.getElementById('teamCardWrap');
@@ -824,6 +1301,11 @@ body { padding-bottom: 40px; }
       if (gsrch) gsrch.hidden = false;
       var xs = document.getElementById('xSettingsCardWrap');
       if (xs) xs.hidden = false;
+      // Opened straight on /settings: its loaders ran before sign-in showed
+      // these publisher cards and skipped them ("Loading team…" forever;
+      // Jeff, 2026-10-06). Load them now.
+      var p10 = document.getElementById('page-10');
+      if (p10 && p10.classList.contains('active')) switchTab(10, true);
     }
     if (s && s.preview) {
       var bar = document.createElement('div');
@@ -851,7 +1333,23 @@ let currentFilter = 'all';
 let savedEmail = '';
 let lastScanTime = null;
 let countdownInterval = null;
-const SCAN_MS = 30 * 60 * 1000;
+// Opening the page never runs a new scan (Jeff, 2026-10-06: "unless it costs
+// very little, the tool doesn't need to systematically scan news when opened";
+// a full scan is ~$0.20-0.30 of Claude). It shows the newsroom's latest saved
+// scan, from the 3x/day scheduled digest scans or anyone's "Scan now", and an
+// open tab checks for a newer saved one every SCAN_MS (free). A new scan runs
+// only from "Scan now" (or when nothing has ever been saved).
+const SCAN_MS = 10 * 60 * 1000;
+// The scheduled scans (vercel.json, rolling-digest crons), UTC hours.
+const SCHEDULED_SCAN_UTC = [12, 16, 21];
+function nextScheduledScan() {
+  const now = new Date();
+  for (let d = 0; d < 2; d++) for (const h of SCHEDULED_SCAN_UTC) {
+    const t = Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() + d, h);
+    if (t > now.getTime()) return t;
+  }
+  return null;
+}
 
 // ============================================================
 // SECTION ROUTING
@@ -861,25 +1359,71 @@ const SCAN_MS = 30 * 60 * 1000;
 // scan run on /alerts still feeds /digest, /podcasts, etc. without
 // re-fetching. vercel.json rewrites every path below back to this file.
 // ============================================================
-var TAB_PATHS = ['/alerts','/digest','/social','/chat','/backlog','/recruiting','/trending','/podcasts','/youtube','/bluesky','/settings','/analytics','/roster','/opps'];
+var TAB_PATHS = ['/alerts','/digest','/social','/chat','/backlog','/recruiting','/trending','/podcasts','/youtube','/bluesky','/settings','/analytics','/roster','/opps','/calendar','/leaderboard','/home','/advertising','/xos'];
 function pathToTab(p) {
   p = String(p || '/').replace(/\/+$/, '') || '/';
-  if (p === '/' || p === '/index.html' || p === '/index') return 0;
+  if (p === '/' || p === '/index.html' || p === '/index') return 16;  // Home
   var i = TAB_PATHS.indexOf(p);
   return i === -1 ? 0 : i;
 }
 
+// What this person's role may use, set by the publisher on /preferences
+// (site profile editorAccess; api/_access.js also enforces it on the routes
+// that spend credits or show private numbers). Unset = allowed; the publisher
+// and a login-free setup always have everything. Alerts and Settings always show.
+var MON_ACCESS = { 1:'mon_digest', 2:'mon_social', 3:'mon_chat', 4:'mon_backlog', 5:'mon_recruiting', 6:'mon_trending', 7:'mon_podcasts', 8:'mon_youtube', 9:'mon_bluesky', 11:'mon_analytics', 12:'mon_roster', 13:'mon_opps', 14:'mon_calendar', 18:'mon_analytics' };
+var monitorAccess = null;
+function accessAllows(key) {
+  var role = window.IMSAuth && IMSAuth.state && IMSAuth.state.role;
+  if (!role || role === 'publisher') return true;
+  var acc = IMSAuth.state.access; if (acc && key in acc) return acc[key] !== false;
+  if (!monitorAccess) return true;
+  var a = monitorAccess[role];
+  return !(a && a[key] === false);
+}
+// The writer leaderboard is the publisher's unless they turned it on for a
+// role; for anyone else it isn't even listed (mon_leaderboard, hidden).
+function leaderboardAllowed() {
+  var role = window.IMSAuth && IMSAuth.state && IMSAuth.state.role;
+  if (!role || role === 'publisher') return true;
+  var acc = IMSAuth.state.access; return !!(acc && acc.mon_leaderboard === true);
+}
+function monitorCanUse(idx) { if (idx === 15) return leaderboardAllowed(); if (idx === 17) return !(window.IMSAuth && IMSAuth.state && IMSAuth.state.configured && IMSAuth.state.role) || IMSAuth.isEditor(); return !MON_ACCESS[idx] || accessAllows(MON_ACCESS[idx]); }
+function applyLeaderboardAccess() { var b = document.getElementById('tab-btn-15'); if (b) b.style.display = leaderboardAllowed() ? '' : 'none'; var ad = document.getElementById('tab-btn-17'); if (ad) ad.style.display = monitorCanUse(17) ? '' : 'none'; }
+function applyMonitorAccess() {
+  applyLeaderboardAccess();
+  Object.keys(MON_ACCESS).forEach(function (i) {
+    var show = monitorCanUse(+i);
+    var b = document.getElementById('tab-btn-' + i); if (b) b.style.display = show ? '' : 'none';
+    document.querySelectorAll('.chip[onclick="switchTab(' + i + ')"]').forEach(function (c) { c.style.display = show ? '' : 'none'; });
+  });
+  document.body.classList.toggle('no-write', !accessAllows('act_write_story'));
+  document.body.classList.toggle('no-flag', !accessAllows('act_flag_block'));
+  document.body.classList.toggle('no-opps', !accessAllows('act_opps_edit'));
+  if (oppsData && oppsData.competitors) renderOpps();
+  var on = document.querySelector('.page.active');
+  var cur = on ? +on.id.replace('page-', '') : 0;
+  if (!monitorCanUse(cur)) switchTab(0, true); else syncMobileNav(cur);
+}
+
 function switchTab(idx, fromPop) {
+  if (!monitorCanUse(idx)) idx = 0;
   document.querySelectorAll('.page').forEach((p, i) => p.classList.toggle('active', i === idx));
-  document.querySelectorAll('.nav-tab').forEach((t, i) => t.classList.toggle('active', i === idx));
+  document.querySelectorAll('.nav-tab').forEach(t => t.classList.toggle('active', t.id === 'tab-btn-' + idx));
   if (idx === 3) { loadChatMessages(); startChatPolling(); } else { stopChatPolling(); }
   if (idx === 7) loadPodcasts();
   if (idx === 8) loadYouTube();
   if (idx === 9) loadBluesky();
-  if (idx === 10) { loadSourceHealth(); renderBlockedSources(); renderOwnSites(); refreshPushStatus(); loadTeam(); loadScrapeSessionStatus(); loadSocialPromoStatus(); loadSearchSettingsStatus(); loadGoogleSearchSettingsStatus(); loadXSettingsStatus(); loadXWatchHandles(); }
-  if (idx === 11) { renderAnalyticsConnections(); loadAnalyticsSuggestions(); }
+  if (idx === 10) { renderBlockedSources(); renderOwnSites(); refreshPushStatus(); loadTeam(); loadScrapeSessionStatus(); loadSocialPromoStatus(); loadSearchSettingsStatus(); loadGoogleSearchSettingsStatus(); loadXSettingsStatus(); loadXWatchHandles(); }
+  if (idx === 11) { renderAnalyticsConnections(); loadSourceHealth(); }
   if (idx === 12) loadRosterWatch();
   if (idx === 13) loadOppsSpy();
+  if (idx === 14) loadCalendar();
+  if (idx === 15) loadLeaderboard();
+  if (idx === 16) loadHome();
+  if (idx === 17) loadAdvertising();
+  if (idx === 18) { applyLayout('xos'); loadOmbudsmanIdeas(); renderAnalyticsConnections(); loadAnalyticsSuggestions(); loadStrategy(); }
+  syncMobileNav(idx);
   window.scrollTo(0, 0);
   if (!fromPop) {
     try { history.pushState({ imsTab: idx }, '', TAB_PATHS[idx]); } catch (e) {}
@@ -887,6 +1431,297 @@ function switchTab(idx, fromPop) {
     if (b) b.style.display = 'inline-flex';
   }
 }
+
+// ============================================================
+// HOME (page-16): every main part of the app at a glance. Reads only what's
+// already stored (the latest shared scan, drafts, chat, calendar, ad slots):
+// opening it never runs a scan or spends Claude credits.
+// ============================================================
+let alertQuery = '';
+function setAlertQuery(q) { alertQuery = String(q || '').trim(); renderAlerts(); }
+function homeSearch(e) {
+  if (e) e.preventDefault();
+  const q = document.getElementById('homeSearchInput').value.trim();
+  const box = document.getElementById('alertSearchInput'); if (box) box.value = q;
+  switchTab(0);
+  setAlertQuery(q);
+}
+function setHomeFilter(f) {
+  switchTab(0);
+  const chip = Array.from(document.querySelectorAll('.filters .chip')).find(c => (c.getAttribute('onclick') || '').indexOf("setFilter('" + f + "'") === 0);
+  if (chip) setFilter(f, chip);
+}
+function homeAgo(t) {
+  const ms = Date.now() - (typeof t === 'number' ? t : Date.parse(t));
+  if (!isFinite(ms)) return '';
+  const m = Math.round(ms / 60000);
+  if (m < 60) return Math.max(1, m) + 'm ago';
+  const h = Math.round(m / 60); if (h < 24) return h + 'h ago';
+  return Math.round(h / 24) + 'd ago';
+}
+function renderHomeNews() {
+  const list = document.getElementById('homeNewsList'), stats = document.getElementById('homeNewsStats');
+  if (!list || !stats) return;
+  const fresh = allAlerts.filter(a => !a.republished);
+  if (!fresh.length) { stats.textContent = scanInProgress ? 'Loading the latest scan…' : 'No stories yet. Tap Scan now for the latest news.'; list.innerHTML = ''; return; }
+  const r5 = fresh.filter(a => a.rating === 5).length, r4 = fresh.filter(a => a.rating === 4).length;
+  stats.innerHTML = '<b>' + fresh.length + '</b> stories · <b>' + r5 + '</b> breaking · <b>' + r4 + '</b> high' + (lastSharedScanAt ? ' · scanned ' + homeAgo(lastSharedScanAt) : '');
+  const top = fresh.slice().sort((a, b) => (b.rating - a.rating) || ((b.publishedAt || 0) - (a.publishedAt || 0))).slice(0, window.innerWidth < 700 ? 3 : 5);
+  list.innerHTML = top.map(a => '<a class="hc-story" href="' + escapeHtml(a.url || '#') + '" target="_blank" rel="noopener"><span class="hc-r r' + a.rating + '">' + a.rating + '</span><span><b>' + escapeHtml(a.headline) + '</b><small>' + escapeHtml(a.source || '') + (a.publishedAt ? ' · ' + homeAgo(a.publishedAt) : '') + '</small></span></a>').join('');
+}
+async function loadHome() {
+  const s = (window.IMSAuth && IMSAuth.state) || {};
+  const first = s.user && (s.user.full_name || '').split(' ')[0];
+  const hr = new Date().getHours();
+  document.getElementById('homeHello').textContent = (hr < 12 ? 'Good morning' : hr < 17 ? 'Good afternoon' : 'Good evening') + (first ? ', ' + first : '');
+  document.getElementById('homeDate').textContent = new Date().toLocaleDateString([], { weekday: 'long', month: 'long', day: 'numeric' }) + (s.site && s.site.name ? ' · ' + s.site.name : '');
+  // Cards and shortcuts this person's role can't use are hidden.
+  const canEditor = !(s.access && s.access.use_editor === false);
+  document.querySelectorAll('#page-16 [data-tab]').forEach(el => { const ok = monitorCanUse(+el.dataset.tab); el.style.display = ok ? '' : 'none'; el.classList.toggle('role-hidden', !ok); });
+  document.querySelectorAll('#page-16 [data-editor]').forEach(el => { el.style.display = canEditor ? '' : 'none'; el.classList.toggle('role-hidden', !canEditor); });
+  applyLayout('home');
+  renderHomeNews();
+  loadHomeAskChips();
+  const f = window.IMSAuth ? IMSAuth.authFetch : fetch;
+  const esc = escapeHtml;
+  if (canEditor) {
+    f('/api/drafts').then(r => r.json()).then(d => {
+      const ds = (d.drafts || []).slice().sort((a, b) => String(b.updatedAt || '').localeCompare(String(a.updatedAt || ''))).slice(0, 3);
+      document.getElementById('homeDrafts').innerHTML = ds.length ? ds.map(x => '<a class="hc-item" href="/editor#3">' + esc(x.headline || '(no headline)') + '<small>' + esc(x.status || 'draft') + (x.author ? ' · ' + esc(x.author) : '') + (x.updatedAt ? ' · ' + homeAgo(x.updatedAt) : '') + '</small></a>').join('') : '<div class="hc-empty">No drafts yet.</div>';
+    }).catch(() => { document.getElementById('homeDrafts').innerHTML = ''; });
+    f('/api/site-profile').then(r => r.json()).then(d => {
+      const n = ((d.profile && d.profile.ads && d.profile.ads.units) || []).length;
+      document.getElementById('homeAdsCount').textContent = n ? n + ' ad slot' + (n === 1 ? '' : 's') : 'Set up ads';
+    }).catch(() => {});
+  }
+  if (monitorCanUse(3)) {
+    f('/api/chat').then(r => r.json()).then(d => {
+      const ms = (d.messages || []).slice().sort((a, b) => String(b.created_at).localeCompare(String(a.created_at))).slice(0, 3);
+      document.getElementById('homeChat').innerHTML = ms.length ? ms.map(m => '<a class="hc-item" href="/chat" onclick="switchTab(3);return false"><b>' + esc(m.sender_name || 'CoPublisher') + ':</b> ' + esc(String(m.text || '').slice(0, 140)) + '<small>' + homeAgo(m.created_at) + '</small></a>').join('') : '<div class="hc-empty">No messages yet. Say hello to the team.</div>';
+    }).catch(() => { document.getElementById('homeChat').innerHTML = '<div class="hc-empty">Couldn\'t load chat.</div>'; });
+  }
+  if (monitorCanUse(14)) {
+    calFetch().then(d => {
+      const now = Date.now();
+      const evs = (d.events || []).filter(e => Date.parse(e.start) > now - 3600000).sort((a, b) => a.start.localeCompare(b.start)).slice(0, 4);
+      document.getElementById('homeCal').innerHTML = evs.length ? evs.map(e => '<a class="hc-item" href="/calendar" onclick="switchTab(14);return false">' + (e.kind === 'heat' ? '🔥 ' : '') + esc(e.title || '') + '<small>' + new Date(e.start).toLocaleString([], { weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }) + '</small></a>').join('') : '<div class="hc-empty">Nothing on the calendar this week.</div>';
+    }).catch(() => { document.getElementById('homeCal').innerHTML = '<div class="hc-empty">Couldn\'t load the calendar.</div>'; });
+  }
+}
+
+// Home "Ask CoPublisher" (api/ask.js): calendar, hot spots, the latest scan,
+// drafts, analytics, our coverage and the roster, with archive/web search.
+function askMd(t) {
+  const esc = escapeHtml(t);
+  return esc.split(/\n\s*\n/).map(p => {
+    p = p.replace(/\*\*([^*]+)\*\*/g, '<b>$1</b>');
+    const lines = p.split('\n');
+    if (lines.every(l => /^\s*[-•]\s+/.test(l))) return '<ul>' + lines.map(l => '<li>' + l.replace(/^\s*[-•]\s+/, '') + '</li>').join('') + '</ul>';
+    return '<p style="margin:6px 0">' + lines.join('<br>') + '</p>';
+  }).join('');
+}
+async function homeAsk(e, q) {
+  if (e) e.preventDefault();
+  const inp = document.getElementById('homeAskInput');
+  q = (q || inp.value || '').trim(); if (!q) return;
+  inp.value = q;
+  const out = document.getElementById('homeAskAnswer');
+  out.innerHTML = '<span style="color:var(--text3)"><i class="ti ti-loader spin"></i> Looking through your newsroom…</span>';
+  try {
+    const f = window.IMSAuth ? IMSAuth.authFetch : fetch;
+    const r = await f('/api/ask', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ question: q }) });
+    const d = await r.json();
+    out.innerHTML = d.error ? '<span style="color:#b42318">' + escapeHtml(d.error) + '</span>' : askMd(d.answer || '');
+  } catch (err) { out.innerHTML = '<span style="color:#b42318">Couldn\'t get an answer: ' + escapeHtml(err.message) + '</span>'; }
+}
+let homeAskChipsLoaded = false;
+function loadHomeAskChips() {
+  if (homeAskChipsLoaded) return; homeAskChipsLoaded = true;
+  const f = window.IMSAuth ? IMSAuth.authFetch : fetch;
+  f('/api/ask').then(r => r.json()).then(d => {
+    document.getElementById('homeAskChips').innerHTML = (d.suggestions || []).slice(0, 4).map(q => '<button type="button" onclick="homeAsk(null,this.textContent)">' + escapeHtml(q) + '</button>').join('');
+  }).catch(() => { homeAskChipsLoaded = false; });
+}
+
+// Xs and Os: the social chips ask the audience-question box.
+function xosAsk(q) {
+  const inp = document.getElementById('analyticsQuestionInput'); if (!inp) return;
+  inp.value = q;
+  askAnalyticsQuestion();
+  const ans = document.getElementById('analyticsQuestionAnswer'); if (ans) ans.scrollIntoView({ behavior: 'smooth', block: 'center' });
+}
+
+// Where promos, ad slots and affiliate boxes go by default (Jeff, 2026-10-07:
+// "need to be set up like the podcast and related links sliders"): the same
+// Top-to-Bottom sliders as Permissions & preferences › Content Editor
+// defaults (site profile editorDefaults; the publisher changes them).
+let advDefaults = {};
+const ADV_POS = { promos: ['promosPosition', 40, 'first promo'], ads: ['adsPosition', 40, 'first ad'], affiliate: ['affiliatePosition', 60, 'first partner box'] };
+function advPct(v, def) { v = (v === undefined || v === null || v === '') ? def : +v; if (isNaN(v)) v = def; return Math.max(0, Math.min(100, Math.round(v / 20) * 20)); }
+function renderAdvPos() {
+  const can = !(window.IMSAuth && IMSAuth.state.configured) || IMSAuth.isPublisher();
+  Object.keys(ADV_POS).forEach(k => {
+    const el = document.getElementById('advPos-' + k); if (!el) return;
+    const [key, def, what] = ADV_POS[k], v = advPct(advDefaults[key], def);
+    el.innerHTML = '<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;font-size:12.5px;margin:4px 0 8px;">Where the ' + what + ' goes: Top <input type="range" min="0" max="100" step="20" value="' + v + '"' + (can ? '' : ' disabled') + ' style="width:130px;padding:0" oninput="this.nextElementSibling.textContent=this.value+\'%\'" onchange="advSavePos(\'' + k + '\',this.value)"> <b>' + v + '%</b> Bottom <span class="adv-pos-msg" style="color:var(--text3)"></span></div>';
+  });
+}
+async function advSavePos(k, v) {
+  const el = document.getElementById('advPos-' + k), msg = el && el.querySelector('.adv-pos-msg');
+  const next = Object.assign({}, advDefaults, { [ADV_POS[k][0]]: +v });
+  try {
+    const f = window.IMSAuth ? IMSAuth.authFetch : fetch;
+    const r = await f('/api/site-profile', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ profile: { editorDefaults: next } }) });
+    const d = await r.json().catch(() => ({}));
+    if (!r.ok || d.error) throw new Error(d.error || ('HTTP ' + r.status));
+    advDefaults = next; if (msg) { msg.style.color = 'var(--green)'; msg.textContent = 'Saved as the default'; }
+  } catch (e) { if (msg) { msg.style.color = '#b42318'; msg.textContent = 'Couldn\'t save: ' + e.message; } }
+}
+
+// Advertising (page-17): ad slots, affiliate programs, this week's hot spots.
+async function loadAdvertising() {
+  const f = window.IMSAuth ? IMSAuth.authFetch : fetch, esc = escapeHtml;
+  document.querySelectorAll('#page-17 .adv-edit').forEach(a => { a.style.display = !(window.IMSAuth && IMSAuth.state.configured) || IMSAuth.isPublisher() ? '' : 'none'; });
+  f('/api/site-profile').then(r => r.json()).then(d => {
+    advDefaults = (d.profile && d.profile.editorDefaults) || {};
+    renderAdvPos();
+    const units = (d.profile && d.profile.ads && d.profile.ads.units) || [];
+    document.getElementById('advSlots').innerHTML = units.length ? units.map(u => '<div class="hc-item"><b>' + esc(u.name || 'Ad slot') + '</b><small>' +
+      esc((u.tier === 'vip' ? 'VIP stories' : u.tier === 'free' ? 'Free stories' : 'All stories') + (u.every ? ' · repeats every ' + u.every + ' paragraphs' : ' · once per story') + (u.max ? ' · up to ' + u.max : '') + (u.code ? '' : ' · no ad code yet')) + '</small></div>').join('')
+      : '<div class="hc-empty">No ad slots yet. Paste your ad network\'s code in the Content Editor (Inserts › Ad slots) and every story can carry it.</div>';
+  }).catch(() => { document.getElementById('advSlots').innerHTML = '<div class="hc-empty">Couldn\'t load ad slots.</div>'; });
+  f('/api/affiliate?for=editor').then(r => r.json()).then(d => {
+    const ps = d.programs || [];
+    document.getElementById('advAff').innerHTML = ps.length ? ps.map(p => '<div class="hc-item"><b>' + esc(p.name) + '</b><small>' + esc((p.domains || []).join(', ') || p.home || '') + '</small></div>').join('')
+      : '<div class="hc-empty">No affiliate programs switched on yet.</div>';
+  }).catch(() => { document.getElementById('advAff').innerHTML = '<div class="hc-empty">Couldn\'t load affiliate programs.</div>'; });
+  calFetch().then(d => {
+    const hs = (d.events || []).filter(e => e.kind === 'heat' && Date.parse(e.start) > Date.now()).sort((a, b) => a.start.localeCompare(b.start)).slice(0, 4);
+    document.getElementById('advHeat').innerHTML = hs.length ? hs.map(e => '<div class="hc-item">🔥 ' + esc(e.title || 'Hot spot') + '<small>' + new Date(e.start).toLocaleString([], { weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }) + '</small></div>').join('') : '<div class="hc-empty">No hot spots left this week. New ones arrive Monday morning.</div>';
+  }).catch(() => { document.getElementById('advHeat').innerHTML = '<div class="hc-empty">Couldn\'t load hot spots.</div>'; });
+}
+
+// Customizable layouts (Jeff, 2026-10-06: "make the tools on here customizable,
+// so they can move them up or down or remove" them). Each person's order and
+// hidden cards per page, saved to their account (api/layout.js) with a local
+// copy so the page arranges itself instantly.
+const LAYOUTS = {};
+function layoutGet(page) {
+  if (LAYOUTS[page]) return LAYOUTS[page];
+  try { const l = JSON.parse(localStorage.getItem('cp-layout-' + page) || 'null'); if (l) return l; } catch (e) {}
+  return { order: [], hidden: [] };
+}
+function layoutBox(page) { return document.querySelector('[data-layout="' + page + '"]'); }
+function layoutCards(box) { return Array.from(box.children).filter(c => c.dataset && c.dataset.card); }
+function applyLayout(page) {
+  const box = layoutBox(page); if (!box) return;
+  const L = layoutGet(page), cards = layoutCards(box);
+  cards.forEach((c, i) => { if (c.dataset.defIdx === undefined) c.dataset.defIdx = i; });
+  const rank = c => { const i = (L.order || []).indexOf(c.dataset.card); return i === -1 ? 1000 + (+c.dataset.defIdx) : i; };
+  cards.sort((a, b) => rank(a) - rank(b)).forEach(c => {
+    box.appendChild(c);
+    c.classList.toggle('lay-hidden', (L.hidden || []).indexOf(c.dataset.card) !== -1);
+  });
+  if (box.classList.contains('lay-editing')) layoutControls(page);
+}
+function layoutSave(page) {
+  const box = layoutBox(page); if (!box) return;
+  const cards = layoutCards(box);
+  const L = { order: cards.map(c => c.dataset.card), hidden: cards.filter(c => c.classList.contains('lay-hidden')).map(c => c.dataset.card) };
+  LAYOUTS[page] = L;
+  try { localStorage.setItem('cp-layout-' + page, JSON.stringify(L)); } catch (e) {}
+  const f = window.IMSAuth ? IMSAuth.authFetch : fetch;
+  f('/api/layout', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(Object.assign({ page: page }, L)) }).catch(() => {});
+}
+function layoutTitle(c) { const h = c.querySelector('h3'); return h ? h.textContent.replace(/\s+/g, ' ').trim() : c.dataset.card; }
+function layoutControls(page) {
+  const box = layoutBox(page); if (!box) return;
+  const cards = layoutCards(box).filter(c => !c.classList.contains('role-hidden'));
+  cards.forEach((c, i) => {
+    let ctl = c.querySelector(':scope > .lay-ctl');
+    if (!ctl) { ctl = document.createElement('div'); ctl.className = 'lay-ctl'; c.insertBefore(ctl, c.firstChild); }
+    const hidden = c.classList.contains('lay-hidden');
+    ctl.innerHTML = '<span>' + (hidden ? 'Hidden' : 'Showing') + '</span>' +
+      '<button type="button" title="Move up" ' + (i === 0 ? 'disabled' : '') + ' onclick="layoutMove(\'' + page + '\',\'' + c.dataset.card + '\',-1)">↑</button>' +
+      '<button type="button" title="Move down" ' + (i === cards.length - 1 ? 'disabled' : '') + ' onclick="layoutMove(\'' + page + '\',\'' + c.dataset.card + '\',1)">↓</button>' +
+      '<button type="button" onclick="layoutToggle(\'' + page + '\',\'' + c.dataset.card + '\')">' + (hidden ? '👁 Show' : '✕ Remove') + '</button>';
+  });
+}
+function layoutMove(page, id, dir) {
+  const box = layoutBox(page);
+  const cards = layoutCards(box).filter(c => !c.classList.contains('role-hidden'));
+  const i = cards.findIndex(c => c.dataset.card === id), j = i + dir;
+  if (i < 0 || j < 0 || j >= cards.length) return;
+  if (dir < 0) box.insertBefore(cards[i], cards[j]); else box.insertBefore(cards[j], cards[i]);
+  layoutControls(page); layoutSave(page);
+  cards[i].scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+}
+function layoutToggle(page, id) {
+  const c = layoutBox(page).querySelector(':scope > [data-card="' + id + '"]'); if (!c) return;
+  c.classList.toggle('lay-hidden');
+  layoutControls(page); layoutSave(page);
+}
+function toggleLayoutEdit(page, btn) {
+  const box = layoutBox(page); if (!box) return;
+  const on = !box.classList.contains('lay-editing');
+  box.classList.toggle('lay-editing', on);
+  if (btn) { btn.classList.toggle('on', on); btn.textContent = on ? '✓ Done' : '✏️ Customize'; }
+  let bar = document.getElementById('layBar-' + page);
+  if (!bar) {
+    bar = document.createElement('div'); bar.id = 'layBar-' + page; bar.className = 'lay-bar';
+    bar.innerHTML = '<span style="flex:1;min-width:180px">Move cards with ↑ ↓, or remove the ones you don\'t use (they stay listed here, faded, so you can bring them back). Only you see your layout.</span><button type="button" onclick="layoutReset(\'' + page + '\')">Reset to default</button>';
+    box.parentNode.insertBefore(bar, box);
+  }
+  bar.classList.toggle('on', on);
+  if (on) layoutControls(page);
+}
+function layoutReset(page) {
+  if (!confirm('Put every card back in its original place?')) return;
+  const box = layoutBox(page);
+  layoutCards(box).sort((a, b) => (+a.dataset.defIdx) - (+b.dataset.defIdx)).forEach(c => { box.appendChild(c); c.classList.remove('lay-hidden'); });
+  LAYOUTS[page] = { order: [], hidden: [] };
+  try { localStorage.removeItem('cp-layout-' + page); } catch (e) {}
+  const f = window.IMSAuth ? IMSAuth.authFetch : fetch;
+  f('/api/layout', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ page: page, reset: true }) }).catch(() => {});
+  layoutControls(page);
+}
+function loadLayouts() {
+  const f = window.IMSAuth ? IMSAuth.authFetch : fetch;
+  f('/api/layout').then(r => r.json()).then(d => {
+    Object.keys((d && d.layouts) || {}).forEach(p => { LAYOUTS[p] = d.layouts[p]; try { localStorage.setItem('cp-layout-' + p, JSON.stringify(d.layouts[p])); } catch (e) {} });
+    applyLayout('home'); applyLayout('xos');
+  }).catch(() => {});
+}
+
+// Phone bottom bar and its More sheet: every tab this person can use (the
+// same buttons as the desktop tab row, which hides tabs their role can't see),
+// plus the Content Editor and Preferences.
+function syncMobileNav(idx) {
+  var main = { 16: 1, 0: 1, 3: 1 };
+  document.querySelectorAll('#mnav [data-tab]').forEach(function (b) {
+    var t = +b.dataset.tab;
+    b.classList.toggle('on', t === idx);
+    var src = document.getElementById('tab-btn-' + t);
+    b.style.display = src && src.style.display === 'none' ? 'none' : '';
+  });
+  var more = document.getElementById('mnavMore');
+  if (more) more.classList.toggle('on', !main[idx] && !document.querySelector('#mtop [data-tab="' + idx + '"]'));
+  document.querySelectorAll('#mtop [data-tab]').forEach(function (b) {
+    var t = +b.dataset.tab;
+    b.classList.toggle('on', t === idx);
+    b.style.display = monitorCanUse(t) ? '' : 'none';
+  });
+}
+function openMoreSheet() {
+  var cur = (document.querySelector('.nav-tab.active') || {}).id;
+  var html = Array.from(document.querySelectorAll('.nav .nav-tab')).filter(function (b) { return b.style.display !== 'none'; }).map(function (b) {
+    var n = b.id.replace('tab-btn-', '');
+    return '<button class="' + (b.id === cur ? 'on' : '') + '" onclick="closeMoreSheet();switchTab(' + n + ')">' + b.innerHTML + '</button>';
+  }).join('') + '<a href="/editor">✍️ Content Editor</a><a href="/preferences">⚙️ Preferences</a>';
+  document.getElementById('msheetGrid').innerHTML = html;
+  document.getElementById('msheet').classList.add('open');
+}
+function closeMoreSheet() { document.getElementById('msheet').classList.remove('open'); }
 
 // Browser Back / Forward (and the on-screen Back button) move between sections
 window.addEventListener('popstate', function (e) {
@@ -897,11 +1732,11 @@ window.addEventListener('popstate', function (e) {
 // Pick the starting section from the URL. Old #N hash links still work.
 (function () {
   var start = pathToTab(location.pathname);
-  if (start === 0 && /^#\d+$/.test(location.hash || '')) {
+  if (start === 16 && /^#\d+$/.test(location.hash || '')) {
     var h = parseInt(location.hash.slice(1), 10);
     if (h >= 0 && h < TAB_PATHS.length) start = h;
   }
-  try { history.replaceState({ imsTab: start }, '', TAB_PATHS[start]); } catch (e) {}
+  try { history.replaceState({ imsTab: start }, '', start === 16 && location.pathname === '/' ? '/' : TAB_PATHS[start]); } catch (e) {}
   if (start !== 0) {
     // Deferred until the whole script has run: switchTab() touches state
     // declared further down (e.g. chatPollTimer, ANALYTICS_SOURCES), and
@@ -910,7 +1745,7 @@ window.addEventListener('popstate', function (e) {
     // (/analytics, /settings…) came up half-built.
     setTimeout(function () { switchTab(start, true); }, 0);
     var b = document.getElementById('backBtn');
-    if (b) b.style.display = 'inline-flex';
+    if (b && start !== 16) b.style.display = 'inline-flex';
   }
 
   // Facebook OAuth lands back here as a plain navigation (api/meta-oauth-callback.js
@@ -979,6 +1814,7 @@ function alertDayLabel(a) {
 
 function renderAlerts() {
   const c = document.getElementById('alertsContainer');
+  renderHomeNews();
   let filtered = allAlerts;
   if (currentFilter === 'republished') {
     filtered = allAlerts.filter(a => a.republished === true);
@@ -996,6 +1832,11 @@ function renderAlerts() {
     else if (currentFilter === 'claimed') filtered = fresh.filter(a => claimFor(a));
   }
 
+  if (alertQuery) {
+    const words = alertQuery.toLowerCase().split(/\s+/).filter(Boolean);
+    filtered = filtered.filter(a => { const t = ((a.headline || '') + ' ' + (a.summary || '') + ' ' + (a.source || '')).toLowerCase(); return words.every(w => t.includes(w)); });
+    if (!filtered.length) { c.innerHTML = '<div class="empty"><i class="ti ti-search"></i>No stories in the latest scan match “' + escapeHtml(alertQuery) + '”.</div>'; return; }
+  }
   if (!filtered.length) { c.innerHTML = '<div class="empty"><i class="ti ti-mood-empty"></i>' + (currentFilter === 'claimed' ? 'Nobody has claimed a story in this scan yet.' : 'No alerts in this category.') + '</div>'; return; }
 
   filtered = sortByDayThenRating(filtered);
@@ -1015,14 +1856,14 @@ function renderAlerts() {
     const isVideo = a.kind === 'video';
     return dayHeader + `<div class="acard ${cardClass}" id="card-${idx}">
       <div class="acard-top">
-             <div class="acard-headline">${isVideo ? '📺 ' : ''}${a.url ? `<a href="${a.url}" target="_blank" rel="noopener" style="color:inherit;text-decoration:underline;">${a.headline}</a>` : a.headline}</div>
+             <div class="acard-headline">${isVideo ? '📺 ' : a.kind === 'podcast' ? '🎙️ ' : ''}${a.url ? `<a href="${a.url}" target="_blank" rel="noopener" style="color:inherit;text-decoration:underline;">${a.headline}</a>` : a.headline}</div>
         <span class="rating ${ratingClass}">${ratingLabel}</span>
       </div>
       ${isVideo && a.thumbnail ? `<a href="${a.url}" target="_blank" rel="noopener"><img src="${a.thumbnail}" style="width:180px;max-width:45%;border-radius:6px;margin:4px 0;" alt=""></a>` : ''}
       <div class="acard-meta">
         <span class="tag ${isVideo ? 'tag-soc' : tagClass}">${isVideo ? 'YouTube' : catLabel}</span>
         ${a.sport ? `<span class="tag tag-gen">${a.sport}</span>` : ''}
-        <span class="asrc">${isVideo ? (a.channel || a.source) : a.source}</span>
+        <span class="asrc">${isVideo ? (a.channel || a.source) : a.kind === 'podcast' ? (a.show || a.source) : a.source}</span>
         <span class="atime">${a.time || (typeof a.ageHours === 'number' ? a.ageHours + 'h ago' : '')}</span>
         ${a.followUp ? `<span class="tag" style="background:var(--red);color:#fff;" title="A new X/Twitter update on a story we're already covering">🔁 Following: ${a.followUp}</span>` : ''}
         ${a.watchedAccount ? `<span class="tag" style="background:var(--text3);color:#fff;" title="From a Maryland beat account you've specifically added to watch">👁 Watched account</span>` : ''}
@@ -1032,16 +1873,17 @@ function renderAlerts() {
       ${a.summary ? `<div class="asum">${a.summary}</div>` : ''}
       <div class="myrate" id="myrate-${idx}">${myRateHtml(a, idx)}</div>
       <div class="acard-actions">
-        <button class="aaction" onclick="writeIt(${idx}, this)" title="Draft an article from this story and open it in the Content Editor" style="font-weight:700;"><i class="ti ti-pencil"></i> Write it</button>
-        <button class="aaction" onclick="getAngles(${idx})"><i class="ti ti-bulb"></i> Story angles</button>
+        <button class="aaction acc-write" onclick="writeIt(${idx}, this)" title="Draft an article from this story and open it in the Content Editor" style="font-weight:700;"><i class="ti ti-pencil"></i> Write it</button>
+        <button class="aaction acc-angles" onclick="getAngles(${idx})"><i class="ti ti-bulb"></i> Story angles</button>
         <button class="aaction" onclick="getAutoBrief(${idx})"><i class="ti ti-file-text"></i> Auto-brief</button>
         <button class="aaction" onclick="getSEO(${idx})"><i class="ti ti-search"></i> SEO</button>
         <button class="aaction" onclick="getSocial(${idx})"><i class="ti ti-brand-twitter"></i> Draft social</button>
         ${recordsWorthy(a) ? `<button class="aaction" onclick="requestRecords(${idx}, this)" title="Draft a public-records (FOIA / state open-records) request for the contract or documents behind this story"${recordsWorthy(a) === 1 ? ' style="font-weight:700;"' : ''}><i class="ti ti-file-search"></i> ${recordsWorthy(a) === 1 ? '📄 ' : ''}Request records</button>` : ''}
         <button class="aaction${claimBtnClass(a)}" id="claimbtn-${idx}" onclick="claimStory(${idx}, this)" title="Claim this story so the rest of the team sees you're writing it">${claimBtnHtml(a)}</button>
-        <button class="aaction" onclick="flagStory(${idx})" title="Flag as junk — trains the scanner to exclude similar stories" style="color:#c00;"><i class="ti ti-flag"></i> Flag</button>
-        <button class="aaction" onclick="blockSource(${idx})" title="Block ${(a.source||'').replace(/"/g,'&quot;')} — hide this site from all future results" style="color:#c00;"><i class="ti ti-ban"></i> Block source</button>
+        <button class="aaction acc-flag" onclick="flagStory(${idx})" title="Flag as junk — trains the scanner to exclude similar stories" style="color:#c00;"><i class="ti ti-flag"></i> Flag</button>
+        <button class="aaction acc-flag" onclick="blockSource(${idx})" title="Block ${(a.source||'').replace(/"/g,'&quot;')} — hide this site from all future results" style="color:#c00;"><i class="ti ti-ban"></i> Block source</button>
         <button class="aaction" onclick="hideItem('${(a.url||'').replace(/'/g,"\\'")}')" title="Hide just this story (keeps the source)" style="color:#c00;"><i class="ti ti-eye-off"></i> Hide story</button>
+        <button class="aaction amore" onclick="var p=this.parentNode;p.classList.toggle('all');this.textContent=p.classList.contains('all')?'Less':'⋯ More'">⋯ More</button>
       </div>
       <div class="aaction-output" id="output-${idx}"></div>
     </div>`;
@@ -1165,6 +2007,7 @@ function loadYouTube() {
       '<div class="acard-headline" style="font-size:.92rem;"><a href="' + v.url + '" target="_blank" rel="noopener" style="color:inherit;text-decoration:underline;">' + (v.headline || v.title) + '</a></div>' +
       '<div class="acard-meta" style="margin-top:4px;">' + badge +
         '<span class="tag tag-soc">YouTube</span>' +
+        (v.hot ? '<span class="tag" style="background:#fff1e6;color:#c2410c;" title="About who is hot on the beat right now">Hot topic</span>' : '') +
         '<span class="asrc">' + (v.channel || v.source || '') + '</span>' +
         '<span class="atime">' + (v.time || (v.age ? v.age + 'h ago' : '')) + '</span>' +
       '</div>' +
@@ -1417,6 +2260,14 @@ async function refreshPushStatus() {
   const btn = document.getElementById('pushToggleBtn');
   const status = document.getElementById('pushStatus');
   if (!btn || !status) return;
+  // iPhone/iPad only allow notifications for an app added to the home screen.
+  var ios = /iPhone|iPad|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+  var installed = window.matchMedia('(display-mode: standalone)').matches || navigator.standalone === true;
+  if (ios && !installed) {
+    btn.disabled = true;
+    status.innerHTML = 'On iPhone, first add CoPublisher to your home screen: tap <b>Share</b> (the square with the arrow), then <b>Add to Home Screen</b>. Open it from the home screen and turn alerts on here.';
+    return;
+  }
   if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
     btn.disabled = true;
     status.textContent = 'Not supported in this browser.';
@@ -1429,7 +2280,7 @@ async function refreshPushStatus() {
   }
   const sub = await getPushSubscription();
   btn.disabled = false;
-  btn.textContent = sub ? 'Disable desktop alerts' : 'Enable desktop alerts';
+  btn.textContent = sub ? 'Turn off alerts on this device' : 'Turn on alerts on this device';
   status.textContent = sub ? 'Enabled on this device.' : '';
 }
 
@@ -1653,22 +2504,199 @@ async function getSocial(idx) {
   callClaude(`You are the social media manager at InsideMDSports. Draft platform-specific posts for this story. Include a link placeholder [LINK]. Write in a sharp, direct sports news voice — not overly promotional.\n\nX/Twitter (280 chars max): \nFacebook (2-3 sentences): \nInstagram caption: \n\nStory: ${a.headline}\nSummary: ${a.summary || ''}${examples}`, `output-${idx}`, services.length ? 'Social copy · styled on your best-performing posts' : 'Social copy');
 }
 
+// "Request records": stories about coach hires/firings/contracts/buyouts
+// (tier 1), sponsorship and game/event deals (tier 2) and other business news
+// (tier 3) usually have a document behind them that a public body must release
+// under public-records law. The scan tags each story's tier (recordsTier, from
+// api/_records.js) and the button only appears on those; api/records-request.js
+// decides whether the records are actually obtainable and drafts the letter,
+// which a person reviews, edits and sends (or opens in their own email).
+// Nothing goes out without a click. (Restored 2026-10-06: these functions
+// were dropped by accident on 2026-10-03 while the button stayed, so clicking
+// Request records did nothing.)
+function recordsWorthy(a) { return (a && a.recordsTier) || 0; }
+const recordsDrafts = {};
+async function requestRecords(idx, btn) {
+  const a = allAlerts[idx];
+  const out = document.getElementById(`output-${idx}`);
+  out.className = 'aaction-output visible';
+  out.innerHTML = '<h4>Public records request</h4><i class="ti ti-loader spin"></i> Checking whether public-records law covers this and drafting a request…';
+  if (btn) btn.disabled = true;
+  try {
+    const res = await IMSAuth.authFetch('/api/records-request', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'draft', alert: { headline: a.headline, summary: a.summary, source: a.source, url: a.url } })
+    });
+    const d = await res.json();
+    if (!res.ok || d.error) throw new Error(d.error || 'Draft failed');
+    recordsDrafts[idx] = d;
+    renderRecordsDraft(idx);
+  } catch (e) {
+    out.innerHTML = '<h4>Public records request</h4>Couldn’t draft it — ' + escapeHtml(e.message || e);
+  } finally {
+    if (btn) btn.disabled = false;
+  }
+}
+function renderRecordsDraft(idx) {
+  const d = recordsDrafts[idx], out = document.getElementById(`output-${idx}`);
+  if (!d.eligible) {
+    out.innerHTML = '<h4>Public records request</h4>' + escapeHtml(d.reason || 'These records don’t look obtainable under public-records law.');
+    return;
+  }
+  const me = (IMSAuth.state.user && IMSAuth.state.user.email) || '';
+  const canSend = !IMSAuth.state.configured || IMSAuth.isEditor();
+  const fld = 'width:100%;box-sizing:border-box;font:inherit;font-size:12px;padding:6px 8px;border:1px solid var(--border);border-radius:6px;background:#fff;color:var(--text);margin:2px 0 8px;';
+  out.innerHTML = `<h4>Public records request</h4>
+    <div style="margin-bottom:6px;color:var(--text3);">CoPublisher wrote this request letter for you. Nothing has been sent yet.</div>
+    <div style="margin-bottom:6px;">${escapeHtml(d.reason || '')}</div>
+    ${d.law ? `<div style="margin-bottom:6px;"><b>Law:</b> ${escapeHtml(d.law)}${d.agency ? ' · <b>To:</b> ' + escapeHtml(d.agency) : ''}</div>` : ''}
+    ${d.records.length ? `<div style="margin-bottom:8px;"><b>Asks for:</b><ul style="margin:4px 0 0 18px;padding:0;">${d.records.map(r => '<li>' + escapeHtml(r) + '</li>').join('')}</ul></div>` : ''}
+    <label style="font-size:11px;font-weight:700;">Records office email</label>
+    <input id="rr-to-${idx}" type="email" value="${escapeHtml(d.to || '')}" placeholder="records office email address" style="${fld}">
+    ${d.to && /^https?:/.test(d.toSource || '') ? `<div style="margin:-4px 0 8px;color:var(--text3);">✓ Confirmed on the agency's page: <a href="${escapeHtml(d.toSource)}" target="_blank" rel="noopener">${escapeHtml(d.toSource.replace(/^https?:\/\//, '').slice(0, 70))}</a>.</div>` : ''}
+    ${!d.to && d.toUnconfirmed ? `<div style="margin:-4px 0 8px;color:#92400e;">Possible address: <b>${escapeHtml(d.toUnconfirmed)}</b>, but it isn't printed on ${/^https?:/.test(d.toSource || '') ? '<a href="' + escapeHtml(d.toSource) + '" target="_blank" rel="noopener">the agency page</a>' : 'the agency page'}, so check it. <a href="#" onclick="document.getElementById('rr-to-${idx}').value='${escapeHtml(d.toUnconfirmed).replace(/'/g, '')}';return false">Use it</a></div>` : ''}
+    ${!d.to && !d.toUnconfirmed ? `<div style="margin:-4px 0 8px;color:var(--text3);">${d.portal ? 'This office takes requests through an online form: <a href="' + escapeHtml(d.portal) + '" target="_blank" rel="noopener">open the request portal</a> and paste the letter there.' : 'Couldn’t find a published records email for ' + escapeHtml(d.agency || 'this agency') + '. Check its website for “public records” or “FOIA” and paste the address here.'}</div>` : (d.portal ? `<div style="margin:-4px 0 8px;color:var(--text3);">They also take requests online: <a href="${escapeHtml(d.portal)}" target="_blank" rel="noopener">request portal</a>.</div>` : '')}
+    <label style="font-size:11px;font-weight:700;">CC (you're always copied${me ? ' at ' + escapeHtml(me) : ''}; replies come to you)</label>
+    <input id="rr-cc-${idx}" type="text" value="" placeholder="${me ? 'anyone else, optional' : 'your email (required, so the office can reply to you)'}" style="${fld}">
+    <label style="font-size:11px;font-weight:700;">Subject</label>
+    <input id="rr-subject-${idx}" type="text" value="${escapeHtml(d.subject || '')}" style="${fld}">
+    <label style="font-size:11px;font-weight:700;">Letter — review and edit before sending</label>
+    <textarea id="rr-body-${idx}" rows="16" style="${fld}resize:vertical;line-height:1.5;">${escapeHtml(d.body || '')}</textarea>
+    ${d.response_note ? `<div style="margin-bottom:8px;color:var(--text3);">${escapeHtml(d.response_note)}</div>` : ''}
+    <div style="margin:4px 0 8px;padding:8px 10px;background:#eff6ff;border-radius:6px;"><b>Want CoPublisher to send it for you?</b> ${canSend ? 'Check the letter above, then tap <b>Send request</b>. It goes out under your name, you\'re copied, and the records office replies straight to you. Or tap <b>Open in my email</b> to send it yourself.' : 'An editor or the publisher can send it for you from here. Or tap <b>Open in my email</b> to send it yourself.'}</div>
+    <div style="display:flex;gap:6px;flex-wrap:wrap;">
+      ${canSend ? `<button class="aaction" style="font-weight:700;" onclick="sendRecordsRequest('${idx}', this)"><i class="ti ti-send"></i> Send request</button>` : ''}
+      <button class="aaction" onclick="mailtoRecordsRequest('${idx}')"><i class="ti ti-mail"></i> Open in my email</button>
+      ${d._suggestionId ? `<button class="aaction" onclick="recSugStatus('${d._suggestionId}','sent')"><i class="ti ti-check"></i> Mark as sent</button><button class="aaction" onclick="recSugStatus('${d._suggestionId}','dismissed')"><i class="ti ti-x"></i> Not needed</button>` : ''}
+      <button class="aaction" onclick="navigator.clipboard.writeText(document.getElementById('rr-body-${idx}').value);this.innerHTML='<i class=&quot;ti ti-check&quot;></i> Copied'"><i class="ti ti-copy"></i> Copy letter</button>
+    </div>
+    <div id="rr-status-${idx}" style="margin-top:6px;"></div>`;
+}
+// Suggested records requests (api/records-suggest.js cron, every 2 hours):
+// a banner on Alerts when there are new ones, each opening the same review
+// and send form as an alert card's "Request records" (Jeff, 2026-10-06).
+let recSuggestions = [];
+async function loadRecordSuggestions() {
+  const box = document.getElementById('recordsSuggest');
+  if (!box || !window.IMSAuth) return;
+  try {
+    const r = await IMSAuth.authFetch('/api/records-request?suggestions=1');
+    const d = await r.json();
+    recSuggestions = (d.suggestions || []).filter(s => s.status === 'new');
+  } catch (e) { recSuggestions = []; }
+  renderRecordSuggestions();
+}
+function renderRecordSuggestions(open) {
+  const box = document.getElementById('recordsSuggest');
+  if (!recSuggestions.length) { box.style.display = 'none'; box.innerHTML = ''; return; }
+  const n = recSuggestions.length;
+  box.style.display = '';
+  box.innerHTML = `<div style="background:#fffbeb;border:1px solid #f0d78a;border-radius:10px;padding:10px 14px;">
+    <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;cursor:pointer;" onclick="document.getElementById('recSugList').style.display=document.getElementById('recSugList').style.display==='none'?'':'none'">
+      <b style="color:#92400e;">📄 ${n} public records request${n === 1 ? '' : 's'} ready to review</b>
+      <span style="font-size:12px;color:var(--text3);">CoPublisher found ${n === 1 ? 'a story' : 'stories'} worth a records request (contracts, buyouts, hires and deals) and wrote the letter. Tap to review it, then have CoPublisher send it for you or send it yourself.</span></div>
+    <div id="recSugList" style="${open || location.hash === '#records' ? '' : 'display:none;'}margin-top:8px;">
+      ${recSuggestions.map((s, i) => `<div style="border-top:1px solid #f3e6bd;padding:8px 0;">
+        <div style="font-weight:600;">${s.url ? `<a href="${escapeHtml(s.url)}" target="_blank" rel="noopener" style="color:var(--text);">${escapeHtml(s.headline)}</a>` : escapeHtml(s.headline)}
+          <span style="font-size:11px;color:var(--text3);font-weight:400;">· ${escapeHtml(s.tierLabel || '')} · ${new Date(s.at).toLocaleString()}</span></div>
+        <div style="font-size:12.5px;color:var(--text2);margin:2px 0 6px;">${escapeHtml((s.draft || {}).reason || '')}</div>
+        <button class="aaction" style="font-weight:700;" onclick="openRecSuggestion(${i})"><i class="ti ti-file-search"></i> Review &amp; send</button>
+        <button class="aaction" onclick="recSugStatus('${s.id}','dismissed')"><i class="ti ti-x"></i> Not needed</button>
+        <div class="aaction-output" id="output-s${i}" style="margin-top:6px;"></div></div>`).join('')}
+    </div></div>`;
+}
+function openRecSuggestion(i) {
+  const s = recSuggestions[i]; if (!s) return;
+  const d = Object.assign({ eligible: true, records: [] }, s.draft || {});
+  d._suggestionId = s.id; d._story = { headline: s.headline, url: s.url, source: s.source, summary: '' };
+  recordsDrafts['s' + i] = d;
+  const out = document.getElementById('output-s' + i);
+  out.classList.add('visible'); out.style.display = 'block';
+  renderRecordsDraft('s' + i);
+}
+async function recSugStatus(id, status, quiet) {
+  try {
+    await IMSAuth.authFetch('/api/records-request', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'suggestion-status', id, status }) });
+  } catch (e) {}
+  if (!quiet) { recSuggestions = recSuggestions.filter(s => s.id !== id); renderRecordSuggestions(true); }
+}
+
+function mailtoRecordsRequest(idx) {
+  const v = id => document.getElementById(`rr-${id}-${idx}`).value.trim();
+  window.location.href = 'mailto:' + encodeURIComponent(v('to')) + '?subject=' + encodeURIComponent(v('subject')) +
+    (v('cc') ? '&cc=' + encodeURIComponent(v('cc')) : '') + '&body=' + encodeURIComponent(v('body'));
+}
+async function sendRecordsRequest(idx, btn) {
+  const d = recordsDrafts[idx], a = allAlerts[idx] || d._story || {};
+  const v = id => document.getElementById(`rr-${id}-${idx}`).value.trim();
+  const status = document.getElementById(`rr-status-${idx}`);
+  if (!v('to')) { status.textContent = 'Enter the records office email address first.'; return; }
+  if (!confirm(`Send this records request to ${v('to')}?\n\nIt goes out under your name from the CoPublisher mailbox. You're CC'd, and replies come straight to you.`)) return;
+  btn.disabled = true;
+  status.innerHTML = '<i class="ti ti-loader spin"></i> Sending…';
+  try {
+    const res = await IMSAuth.authFetch('/api/records-request', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'send', to: v('to'), cc: v('cc'), subject: v('subject'), body: v('body'),
+        agency: d.agency, law: d.law, responseNote: d.response_note,
+        alert: { headline: a.headline, summary: a.summary, source: a.source, url: a.url } })
+    });
+    const r = await res.json();
+    if (!res.ok || r.error) throw new Error(r.error || 'Send failed');
+    status.innerHTML = '<b>Sent</b> to ' + escapeHtml(r.request.to) + (r.request.cc.length ? ' (CC ' + escapeHtml(r.request.cc.join(', ')) + ')' : '') + '. ' + escapeHtml(d.response_note || '');
+    btn.innerHTML = '<i class="ti ti-check"></i> Sent';
+    if (d._suggestionId) recSugStatus(d._suggestionId, 'sent', true);
+  } catch (e) {
+    status.textContent = 'Couldn’t send — ' + (e.message || e);
+    btn.disabled = false;
+  }
+}
+
 // "Write it": drafts an article from this alert server-side (same generator as
 // the automatic rating-4/5 breaking drafts), saves it to Editorial Desk drafts
 // and opens the Content Editor on it. A story that already has a draft just
 // opens that one. The tab is opened up front, synchronously, so popup blockers
-// don't eat it once the ~20-40s draft call returns.
+// don't eat it once the ~30-90s draft call returns.
 async function writeIt(idx, btn) {
   const a = allAlerts[idx];
   return writeDraft({ headline: a.headline, summary: a.summary, source: a.source, time: a.time, category: a.category, url: a.url },
     document.getElementById(`output-${idx}`), btn);
 }
 
+// The page the new tab shows while the draft is written (Jeff, 2026-10-06:
+// "this screen needs to look better while it writes"): the headline, an
+// estimated progress bar against the usual ~45s (held at 95% until the draft
+// is ready) and the step it's probably on. Phone-first, follows dark mode.
+function draftLoadingHtml(headline) {
+  const h = String(headline || 'this story').replace(/&/g,'&amp;').replace(/</g,'&lt;');
+  const steps = ['Reading the story', 'Checking our archive, roster and calendar', 'Looking up current facts', 'Writing in house style', 'Adding the headline and fact-check notes'];
+  return '<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">' +
+    '<title>Writing draft…</title><style>' +
+    ':root{--bg:#f5f7fb;--card:#fff;--ink:#111827;--muted:#6b7280;--line:#e5e7eb;--accent:#2563eb;--track:#eaf1ff}' +
+    '@media (prefers-color-scheme:dark){:root{--bg:#0f1115;--card:#181b22;--ink:#f3f4f6;--muted:#9ca3af;--line:#2a2f3a;--accent:#60a5fa;--track:#1e2a44}}' +
+    '*{box-sizing:border-box}body{margin:0;min-height:100vh;display:flex;align-items:center;justify-content:center;padding:16px;background:var(--bg);color:var(--ink);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif}' +
+    '.card{width:100%;max-width:440px;background:var(--card);border:1px solid var(--line);border-radius:14px;padding:28px 24px;box-shadow:0 8px 30px rgba(0,0,0,.08)}' +
+    '.top{display:flex;align-items:center;gap:12px;margin-bottom:20px}.pen{width:44px;height:44px;border-radius:12px;background:var(--track);color:var(--accent);display:flex;align-items:center;justify-content:center;font-size:22px;animation:bob 1.6s ease-in-out infinite}' +
+    '@keyframes bob{50%{transform:translateY(-3px) rotate(-6deg)}}.lbl{font-size:12px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--accent)}.sub{font-size:13px;color:var(--muted);margin-top:2px}' +
+    'h1{font-size:20px;line-height:1.3;margin:0 0 22px;font-weight:700}.bar{height:8px;background:var(--track);border-radius:99px;overflow:hidden}.fill{height:100%;width:0;background:var(--accent);border-radius:99px;transition:width .5s ease}' +
+    '.meta{display:flex;justify-content:space-between;font-size:12px;color:var(--muted);margin:8px 0 20px}ul{list-style:none;padding:0;margin:0}li{display:flex;align-items:center;gap:10px;font-size:14px;color:var(--muted);padding:7px 0}' +
+    '.dot{width:18px;height:18px;border-radius:50%;border:2px solid var(--line);flex:none;display:flex;align-items:center;justify-content:center;font-size:11px}' +
+    'li.on{color:var(--ink);font-weight:600}li.on .dot{border-color:var(--accent);border-top-color:transparent;animation:spin .8s linear infinite}li.done .dot{background:var(--accent);border-color:var(--accent);color:#fff}' +
+    '@keyframes spin{to{transform:rotate(360deg)}}.foot{font-size:12px;color:var(--muted);margin-top:18px;text-align:center}' +
+    '</style></head><body><div class="card"><div class="top"><div class="pen">✍️</div><div><div class="lbl">Writing a draft</div><div class="sub">Usually under a minute</div></div></div>' +
+    '<h1>' + h + '</h1><div class="bar"><div class="fill" id="f"></div></div><div class="meta"><span id="p">0%</span><span id="t">0s</span></div>' +
+    '<ul>' + steps.map(function (x) { return '<li><span class="dot"></span>' + x + '</li>'; }).join('') + '</ul>' +
+    '<div class="foot">The Content Editor opens here when it’s ready.</div></div>' +
+    '<script>var s=Date.now(),li=document.querySelectorAll("li");function tick(){var e=(Date.now()-s)/1000,p=Math.min(95,Math.round(100*(1-Math.exp(-e/22))));' +
+    'document.getElementById("f").style.width=p+"%";document.getElementById("p").textContent=p+"%";document.getElementById("t").textContent=Math.round(e)+"s";' +
+    'var k=Math.min(li.length-1,Math.floor(p/20));for(var i=0;i<li.length;i++){li[i].className=i<k?"done":i===k?"on":"";li[i].firstChild.textContent=i<k?"✓":"";}}tick();setInterval(tick,500);<\/script></body></html>';
+}
+
 // Shared by alert cards and story-idea cards: drafts the article server-side,
 // saves it to Editorial Desk drafts and opens the Content Editor on it.
 async function writeDraft(story, out, btn) {
   const tab = window.open('', '_blank');
-  if (tab) tab.document.write('<p style="font-family:sans-serif;padding:24px;">Writing a draft of “' + String(story.headline || '').replace(/</g,'&lt;') + '”… this takes about 30 seconds.</p>');
+  if (tab) { tab.document.write(draftLoadingHtml(story.headline)); tab.document.close(); }
   out.className = 'aaction-output visible';
   out.innerHTML = '<h4>Write it</h4><i class="ti ti-loader spin"></i> Drafting the article…';
   if (btn) btn.disabled = true;
@@ -1847,7 +2875,7 @@ async function runScan(force) {
   btn.disabled = true;
   btn.innerHTML = '<i class="ti ti-loader spin"></i> Scanning...';
   dot.style.background = '#cf0315';
-  txt.innerHTML = '<strong>Checking for news</strong> — loading your newsroom\'s latest scan (a fresh scan takes about 2 minutes)...';
+  txt.innerHTML = force ? '<strong>Scanning for news</strong> — a fresh scan takes about 2 minutes...' : '<strong>Loading</strong> your newsroom\'s latest scan...';
   // Keep the current stories on screen while checking; most checks are instant.
   if (!allAlerts.length) document.getElementById('alertsContainer').innerHTML = '<div class="empty"><i class="ti ti-loader spin"></i>Searching news, Reddit, social, podcasts, recruiting boards...</div>';
   startScanProgress();
@@ -1857,7 +2885,7 @@ async function runScan(force) {
     const res = await fetch('/api/scan', {
       method: 'POST',
       headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({ shared: true, force: !!force, flagged: getFlagged(), blockedSources: allExcludedTerms() })
+      body: JSON.stringify({ shared: true, force: !!force, savedOnly: !force, flagged: getFlagged(), blockedSources: allExcludedTerms() })
     });
     const data = await res.json();
     if (data.error) throw new Error(typeof data.error === 'string' ? data.error : data.error.message || 'API error');
@@ -1895,15 +2923,17 @@ async function runScan(force) {
       .filter(s => !EXCLUDED.some(ex => (s.source||'').toLowerCase().includes(ex.toLowerCase())))
       .filter(s => !isBlockedSource(s.source) && !isHidden(s.url));
     allVideos = (data.videos || []).filter(v => !isBlockedSource(v.source || v.channel) && !isHidden(v.url));
-    // Countdown runs from when the shared scan actually happened; while another
-    // tab is refreshing it, check again in a minute.
-    lastScanTime = data.refreshing ? Date.now() - SCAN_MS + SHARED_RETRY_MS : scanAtServer;
+    // Check for a newer saved scan SCAN_MS from now (free); while another tab
+    // is running a new scan, check again in a minute.
+    lastScanTime = data.refreshing ? Date.now() - SCAN_MS + SHARED_RETRY_MS : Date.now();
 
     document.getElementById('m-total').textContent = allAlerts.length;
     document.getElementById('m-r5').textContent = allAlerts.filter(a => a.rating === 5).length;
     document.getElementById('m-r4').textContent = allAlerts.filter(a => a.rating === 4).length;
     document.getElementById('m-rec').textContent = allAlerts.filter(a => a.category === 'recruiting').length;
-    document.getElementById('m-last').textContent = new Date(scanAtServer).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'});
+    document.getElementById('m-last').textContent = new Date(scanAtServer).toDateString() === new Date().toDateString()
+      ? new Date(scanAtServer).toLocaleTimeString([],{hour:'numeric',minute:'2-digit'})
+      : new Date(scanAtServer).toLocaleString([],{month:'short',day:'numeric',hour:'numeric',minute:'2-digit'});
 
     dot.style.background = '#3B6D11';
     txt.innerHTML = data.refreshing
@@ -1941,8 +2971,8 @@ function startCountdown() {
   countdownInterval = setInterval(() => {
     if (!lastScanTime) return;
     const rem = Math.max(0, SCAN_MS - (Date.now() - lastScanTime));
-    const m = Math.floor(rem / 60000), s = Math.floor((rem % 60000) / 1000);
-    document.getElementById('m-next').textContent = `${m}m ${s}s`;
+    const next = nextScheduledScan();
+    document.getElementById('m-next').textContent = next ? new Date(next).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }) : '—';
     if (rem === 0 && !scanInProgress) runScan();
   }, 1000);
 }
@@ -2039,48 +3069,151 @@ async function draftReply(idx, postText) {
 function addChatMessage(text, type, sender) {
   const c = document.getElementById('chatMessages');
   const div = document.createElement('div');
-  div.className = `chat-msg ${type}`;
-  if (sender) div.innerHTML = `<div class="sender">${sender}</div>${text}`;
-  else div.textContent = text;
-  c.appendChild(div);
-  c.scrollTop = c.scrollHeight;
+  div.className = 'chat-note';
+  div.textContent = (sender ? sender + ': ' : '') + text;
+  c.insertBefore(div, c.firstChild);
+  c.scrollTop = 0;
 }
 
 let chatPollTimer = null;
 let chatLatestTs = null;
 
+// Slack-style rows: photo (or initials), name and time, then the message.
+// Newest at the top (Jeff, 2026-10-06: "the newest post needs to display at
+// top, not bottom"), under its day's divider, days newest first; the message
+// box sits above the list. Every message shows its own photo and name, since
+// "same person, within 5 minutes" grouping reads backwards upside down. Bot posts (alerts, breaking drafts, calendar, kudos) come
+// from "CoPublisher AI" with a tag.
+let chatAvatars = {};
+const CHAT_COLORS = ['#2563eb', '#7c3aed', '#db2777', '#ea580c', '#059669', '#0891b2', '#4f46e5', '#b45309'];
+function chatEsc(s) { return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); }
+function chatInitials(n) { const p = String(n || '?').replace(/@.*/, '').split(/[\s._-]+/).filter(Boolean); return ((p[0] || '?')[0] + (p.length > 1 ? p[p.length - 1][0] : '')).toUpperCase(); }
+function chatAvatarHtml(id, name, bot) {
+  if (bot) return '<div class="chat-av" style="background:#111827;">🤖</div>';
+  if (id && chatAvatars[id]) return '<img class="chat-av" src="' + chatEsc(chatAvatars[id]) + '" alt="">';
+  let h = 0; String(name || id || '?').split('').forEach(c => { h = (h * 31 + c.charCodeAt(0)) >>> 0; });
+  return '<div class="chat-av" style="background:' + CHAT_COLORS[h % CHAT_COLORS.length] + ';">' + chatEsc(chatInitials(name)) + '</div>';
+}
+function chatDayLabel(d) {
+  const t = new Date(); const y = new Date(Date.now() - 86400000);
+  if (d.toDateString() === t.toDateString()) return 'Today';
+  if (d.toDateString() === y.toDateString()) return 'Yesterday';
+  return d.toLocaleDateString([], { weekday: 'long', month: 'long', day: 'numeric' });
+}
 function renderChatMessage(m) {
   const c = document.getElementById('chatMessages');
-  const div = document.createElement('div');
-  const myId = window.IMSAuth && IMSAuth.state && IMSAuth.state.user && IMSAuth.state.user.id;
-  if (m.kind === 'breaking' || m.kind === 'alert-drop') {
-    div.className = 'chat-msg alert-drop';
-    const tag = m.tag ? `<span style="background:var(--red);color:#fff;font-size:10px;font-weight:700;padding:1px 7px;border-radius:20px;margin-right:6px;vertical-align:1px;">${m.tag}</span>` : '';
-    const link = (m.meta && m.meta.reviewUrl) ? ` — <a href="${m.meta.reviewUrl}" target="_blank" rel="noopener">open draft</a>` : '';
-    div.innerHTML = `<div class="alert-headline">${tag}🚨 ${m.text}${link}</div><div class="alert-meta">${new Date(m.created_at).toLocaleString()}</div>`;
-  } else if (m.kind === 'system') {
-    div.className = 'chat-msg system';
-    div.textContent = m.text;
-  } else {
-    div.className = 'chat-msg ' + (m.sender_user_id && m.sender_user_id === myId ? 'me' : 'other');
-    div.innerHTML = `<div class="sender">${m.sender_name || ''}</div>${m.text.replace(/</g,'&lt;')}`;
+  const at = new Date(m.created_at), dayKey = at.toDateString();
+  const bot = m.kind && m.kind !== 'user';
+  // Each day is a block (divider, then that day's messages newest first);
+  // messages arrive oldest first, so a new day's block goes on top.
+  let block = Array.from(c.querySelectorAll('.chat-dayblock')).find(b => b.dataset.day === dayKey);
+  if (!block) {
+    block = document.createElement('div'); block.className = 'chat-dayblock'; block.dataset.day = dayKey;
+    block.innerHTML = '<div class="chat-day">' + chatEsc(chatDayLabel(at)) + '</div>';
+    c.insertBefore(block, c.firstChild);
   }
-  c.appendChild(div);
-  c.scrollTop = c.scrollHeight;
+  const time = at.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+  let body = '';
+  if (m.kind === 'breaking' || m.kind === 'alert-drop') {
+    const link = (m.meta && m.meta.reviewUrl) ? ' <a href="' + chatEsc(m.meta.reviewUrl) + '" target="_blank" rel="noopener">Open draft</a>' : '';
+    body = '<span class="chat-pill" style="background:var(--red);">' + chatEsc(m.tag || 'Alert') + '</span>' + chatEsc(m.text) + link;
+  } else if (m.kind === 'calendar') {
+    body = '<span class="chat-pill" style="background:var(--blue);">' + chatEsc(m.tag || 'Calendar') + '</span>📅 ' + chatEsc(m.text) + ' <a href="#" onclick="switchTab(14);return false">Open calendar</a>';
+  } else if (bot) {
+    body = chatEsc(m.text);
+  } else {
+    body = chatEsc(m.text).replace(/(https?:\/\/[^\s<]+)/g, '<a href="$1" target="_blank" rel="noopener">$1</a>').replace(/\n/g, '<br>');
+  }
+  const div = document.createElement('div');
+  div.className = 'chat-row first';
+  div.innerHTML = chatAvatarHtml(m.sender_user_id, m.sender_name, bot) + '<div class="chat-body"><div><span class="chat-name">' + chatEsc(bot ? 'CoPublisher AI' : (m.sender_name || 'Someone')) + '</span><span class="chat-time">' + chatEsc(time) + '</span></div>' + body + '</div>';
+  // Publisher bulk delete: every saved message carries its id and a checkbox
+  // (shown only in select mode); clicking the message toggles it too.
+  if (m.id) {
+    div.dataset.id = m.id;
+    const cb = document.createElement('input');
+    cb.type = 'checkbox'; cb.className = 'chat-sel';
+    cb.onclick = ev => { ev.stopPropagation(); div.classList.toggle('picked', cb.checked); chatSelCount(); };
+    div.insertBefore(cb, div.firstChild);
+    div.addEventListener('click', ev => {
+      if (!document.getElementById('chatWrap').classList.contains('chat-selecting') || ev.target.tagName === 'A') return;
+      cb.checked = !cb.checked; div.classList.toggle('picked', cb.checked); chatSelCount();
+    });
+  }
+  const empty = document.getElementById('chatEmpty');
+  if (empty) empty.remove();
+  block.insertBefore(div, block.children[1] || null);
+  c.scrollTop = 0;
   chatLatestTs = m.created_at;
+}
+
+// Your chat photo: resized in the browser to a 128px square JPEG, then saved.
+async function chatSetPhoto(file) {
+  const btn = document.getElementById('chatPhotoBtn');
+  if (!/^image\//.test(file.type)) return alert('Pick an image file.');
+  btn.disabled = true; btn.textContent = 'Saving…';
+  try {
+    const img = await new Promise((ok, bad) => { const i = new Image(); i.onload = () => ok(i); i.onerror = () => bad(new Error('Couldn\'t read that image.')); i.src = URL.createObjectURL(file); });
+    const size = 128, cv = document.createElement('canvas'); cv.width = cv.height = size;
+    const side = Math.min(img.naturalWidth, img.naturalHeight);
+    cv.getContext('2d').drawImage(img, (img.naturalWidth - side) / 2, (img.naturalHeight - side) / 2, side, side, 0, 0, size, size);
+    const data = cv.toDataURL('image/jpeg', 0.82);
+    const r = await IMSAuth.authFetch('/api/chat', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'avatar', image: data }) });
+    const d = await r.json().catch(() => ({}));
+    if (!r.ok || d.error) throw new Error(d.error || ('HTTP ' + r.status));
+    await loadChatMessages();
+  } catch (e) { alert('Couldn\'t save your photo: ' + e.message); }
+  btn.disabled = false; btn.textContent = '🖼️ Your photo';
+}
+
+function chatSelectMode(on) {
+  document.getElementById('chatWrap').classList.toggle('chat-selecting', !!on);
+  if (!on) { document.querySelectorAll('#chatMessages .chat-sel').forEach(cb => { cb.checked = false; cb.parentNode.classList.remove('picked'); }); document.getElementById('chatSelAll').checked = false; }
+  chatSelCount();
+}
+function chatSelectAll(on) {
+  document.querySelectorAll('#chatMessages .chat-sel').forEach(cb => { cb.checked = on; cb.parentNode.classList.toggle('picked', on); });
+  chatSelCount();
+}
+function chatPicked() { return Array.from(document.querySelectorAll('#chatMessages .chat-sel:checked')).map(cb => cb.parentNode.dataset.id); }
+function chatSelCount() {
+  const el = document.getElementById('chatSelCount'); if (!el) return;
+  const n = chatPicked().length, total = document.querySelectorAll('#chatMessages .chat-sel').length;
+  el.textContent = n + ' selected';
+  // Keep the "Select all" box at the top honest as messages are ticked one by one.
+  const all = document.getElementById('chatSelAll');
+  if (all) { all.checked = total > 0 && n === total; all.indeterminate = n > 0 && n < total; }
+}
+async function chatDeleteSelected(btn) {
+  const ids = chatPicked();
+  if (!ids.length) return alert('Tick the messages to delete first.');
+  if (!confirm('Delete ' + ids.length + ' message' + (ids.length === 1 ? '' : 's') + ' from Team Chat for everyone? This can\'t be undone.')) return;
+  btn.disabled = true;
+  try {
+    const r = await IMSAuth.authFetch('/api/chat', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'delete', ids }) });
+    const d = await r.json().catch(() => ({}));
+    if (!r.ok || d.error) throw new Error(d.error || ('HTTP ' + r.status));
+    ids.forEach(id => { const el = document.querySelector('#chatMessages [data-id="' + CSS.escape(id) + '"]'); if (el) el.remove(); });
+    document.querySelectorAll('#chatMessages .chat-dayblock').forEach(b => { if (!b.querySelector('.chat-row')) b.remove(); });
+    document.getElementById('chatSelAll').checked = false;
+    chatSelCount();
+  } catch (e) { alert('Couldn\'t delete: ' + e.message); }
+  btn.disabled = false;
 }
 
 async function loadChatMessages() {
   const c = document.getElementById('chatMessages');
   if (!window.IMSAuth) return;
+  document.getElementById('chatSelectBtn').style.display = IMSAuth.isPublisher && IMSAuth.isPublisher() ? '' : 'none';
   try {
     const r = await IMSAuth.authFetch('/api/chat');
     const d = await r.json();
     if (d.error) { c.innerHTML = `<div class="chat-msg system">${d.error}</div>`; return; }
     c.innerHTML = '';
     chatLatestTs = null;
+    chatAvatars = Object.assign({}, chatAvatars, d.avatars || {});
     (d.messages || []).forEach(renderChatMessage);
-    if (!(d.messages || []).length) c.innerHTML = '<div class="chat-msg system">No messages yet — say hello, or wait for the next scan / breaking story.</div>';
+    if (!(d.messages || []).length) c.innerHTML = '<div class="chat-note" id="chatEmpty">No messages yet. Say hello, or wait for the next breaking story.</div>';
   } catch (e) {
     c.innerHTML = `<div class="chat-msg system">Couldn't load chat — ${e.message}</div>`;
   }
@@ -2091,6 +3224,7 @@ async function pollChatMessages() {
   try {
     const r = await IMSAuth.authFetch('/api/chat?since=' + encodeURIComponent(chatLatestTs));
     const d = await r.json();
+    chatAvatars = Object.assign({}, chatAvatars, d.avatars || {});
     (d.messages || []).forEach(renderChatMessage);
   } catch (e) { /* silent — next poll tries again */ }
 }
@@ -2122,98 +3256,6 @@ async function sendChat() {
 // ============================================================
 // STORY BACKLOG
 // ============================================================
-// "Request records": stories about coach hires/firings/contracts/buyouts
-// (tier 1), sponsorship and game/event deals (tier 2) and other business news
-// (tier 3) usually have a document behind them that a public body must release
-// under public-records law. The scan tags each story's tier (recordsTier, from
-// api/_records.js) and the button only appears on those; api/records-request.js
-// decides whether the records are actually obtainable and drafts the letter,
-// which a person reviews, edits and sends (or opens in their own email).
-// Nothing goes out without a click.
-function recordsWorthy(a) { return (a && a.recordsTier) || 0; }
-const recordsDrafts = {};
-async function requestRecords(idx, btn) {
-  const a = allAlerts[idx];
-  const out = document.getElementById(`output-${idx}`);
-  out.className = 'aaction-output visible';
-  out.innerHTML = '<h4>Public records request</h4><i class="ti ti-loader spin"></i> Checking whether public-records law covers this and drafting a request…';
-  if (btn) btn.disabled = true;
-  try {
-    const res = await IMSAuth.authFetch('/api/records-request', {
-      method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ action: 'draft', alert: { headline: a.headline, summary: a.summary, source: a.source, url: a.url } })
-    });
-    const d = await res.json();
-    if (!res.ok || d.error) throw new Error(d.error || 'Draft failed');
-    recordsDrafts[idx] = d;
-    renderRecordsDraft(idx);
-  } catch (e) {
-    out.innerHTML = '<h4>Public records request</h4>Couldn’t draft it — ' + escapeHtml(e.message || e);
-  } finally {
-    if (btn) btn.disabled = false;
-  }
-}
-function renderRecordsDraft(idx) {
-  const d = recordsDrafts[idx], out = document.getElementById(`output-${idx}`);
-  if (!d.eligible) {
-    out.innerHTML = '<h4>Public records request</h4>' + escapeHtml(d.reason || 'These records don’t look obtainable under public-records law.');
-    return;
-  }
-  const me = (IMSAuth.state.user && IMSAuth.state.user.email) || '';
-  const canSend = !IMSAuth.state.configured || IMSAuth.isEditor();
-  const fld = 'width:100%;box-sizing:border-box;font:inherit;font-size:12px;padding:6px 8px;border:1px solid var(--border);border-radius:6px;background:#fff;color:var(--text);margin:2px 0 8px;';
-  out.innerHTML = `<h4>Public records request</h4>
-    <div style="margin-bottom:6px;">${escapeHtml(d.reason || '')}</div>
-    ${d.law ? `<div style="margin-bottom:6px;"><b>Law:</b> ${escapeHtml(d.law)}${d.agency ? ' · <b>To:</b> ' + escapeHtml(d.agency) : ''}</div>` : ''}
-    ${d.records.length ? `<div style="margin-bottom:8px;"><b>Asks for:</b><ul style="margin:4px 0 0 18px;padding:0;">${d.records.map(r => '<li>' + escapeHtml(r) + '</li>').join('')}</ul></div>` : ''}
-    <label style="font-size:11px;font-weight:700;">Records office email</label>
-    <input id="rr-to-${idx}" type="email" value="${escapeHtml(d.to || '')}" placeholder="records office email address" style="${fld}">
-    ${d.to && /^https?:/.test(d.toSource || '') ? `<div style="margin:-4px 0 8px;color:var(--text3);">Found on <a href="${escapeHtml(d.toSource)}" target="_blank" rel="noopener">${escapeHtml(d.toSource.replace(/^https?:\/\//, '').slice(0, 70))}</a>. Worth a quick check before sending.</div>` : ''}
-    ${!d.to ? `<div style="margin:-4px 0 8px;color:var(--text3);">${d.portal ? 'This office takes requests through an online form: <a href="' + escapeHtml(d.portal) + '" target="_blank" rel="noopener">open the request portal</a> and paste the letter there.' : 'Couldn’t find a published records email for ' + escapeHtml(d.agency || 'this agency') + '. Check its website for “public records” or “FOIA” and paste the address here.'}</div>` : (d.portal ? `<div style="margin:-4px 0 8px;color:var(--text3);">They also take requests online: <a href="${escapeHtml(d.portal)}" target="_blank" rel="noopener">request portal</a>.</div>` : '')}
-    <label style="font-size:11px;font-weight:700;">CC (you're always copied${me ? ' at ' + escapeHtml(me) : ''}; replies come to you)</label>
-    <input id="rr-cc-${idx}" type="text" value="" placeholder="${me ? 'anyone else, optional' : 'your email (required, so the office can reply to you)'}" style="${fld}">
-    <label style="font-size:11px;font-weight:700;">Subject</label>
-    <input id="rr-subject-${idx}" type="text" value="${escapeHtml(d.subject || '')}" style="${fld}">
-    <label style="font-size:11px;font-weight:700;">Letter — review and edit before sending</label>
-    <textarea id="rr-body-${idx}" rows="16" style="${fld}resize:vertical;line-height:1.5;">${escapeHtml(d.body || '')}</textarea>
-    ${d.response_note ? `<div style="margin-bottom:8px;color:var(--text3);">${escapeHtml(d.response_note)}</div>` : ''}
-    <div style="display:flex;gap:6px;flex-wrap:wrap;">
-      ${canSend ? `<button class="aaction" style="font-weight:700;" onclick="sendRecordsRequest(${idx}, this)"><i class="ti ti-send"></i> Send request</button>` : ''}
-      <button class="aaction" onclick="mailtoRecordsRequest(${idx})"><i class="ti ti-mail"></i> Open in my email</button>
-      <button class="aaction" onclick="navigator.clipboard.writeText(document.getElementById('rr-body-${idx}').value);this.innerHTML='<i class=&quot;ti ti-check&quot;></i> Copied'"><i class="ti ti-copy"></i> Copy letter</button>
-    </div>
-    <div id="rr-status-${idx}" style="margin-top:6px;"></div>`;
-}
-function mailtoRecordsRequest(idx) {
-  const v = id => document.getElementById(`rr-${id}-${idx}`).value.trim();
-  window.location.href = 'mailto:' + encodeURIComponent(v('to')) + '?subject=' + encodeURIComponent(v('subject')) +
-    (v('cc') ? '&cc=' + encodeURIComponent(v('cc')) : '') + '&body=' + encodeURIComponent(v('body'));
-}
-async function sendRecordsRequest(idx, btn) {
-  const a = allAlerts[idx], d = recordsDrafts[idx];
-  const v = id => document.getElementById(`rr-${id}-${idx}`).value.trim();
-  const status = document.getElementById(`rr-status-${idx}`);
-  if (!v('to')) { status.textContent = 'Enter the records office email address first.'; return; }
-  if (!confirm(`Send this records request to ${v('to')}?\n\nIt goes out under your name from the CoPublisher mailbox. You're CC'd, and replies come straight to you.`)) return;
-  btn.disabled = true;
-  status.innerHTML = '<i class="ti ti-loader spin"></i> Sending…';
-  try {
-    const res = await IMSAuth.authFetch('/api/records-request', {
-      method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ action: 'send', to: v('to'), cc: v('cc'), subject: v('subject'), body: v('body'),
-        agency: d.agency, law: d.law, responseNote: d.response_note,
-        alert: { headline: a.headline, summary: a.summary, source: a.source, url: a.url } })
-    });
-    const r = await res.json();
-    if (!res.ok || r.error) throw new Error(r.error || 'Send failed');
-    status.innerHTML = '<b>Sent</b> to ' + escapeHtml(r.request.to) + (r.request.cc.length ? ' (CC ' + escapeHtml(r.request.cc.join(', ')) + ')' : '') + '. ' + escapeHtml(d.response_note || '');
-    btn.innerHTML = '<i class="ti ti-check"></i> Sent';
-  } catch (e) {
-    status.textContent = 'Couldn’t send — ' + (e.message || e);
-    btn.disabled = false;
-  }
-}
-
 // Story ideas: each card has Write it (drafts the idea into the Content
 // Editor, same as an alert card) and Fewer like this (hides it and tells the
 // next batch to avoid similar ideas, newsroom-wide via /api/story-ideas).
@@ -2229,7 +3271,7 @@ function renderBacklog() {
         <div class="backlog-title">${escapeHtml(idea.title)}</div>
         <div class="backlog-meta">${escapeHtml(idea.angle || '')}</div>
         <div class="acard-actions" style="margin-top:8px;">
-          <button class="aaction" style="font-weight:700;" onclick="writeIdea(${i}, this)" title="Draft this idea and open it in the Content Editor"><i class="ti ti-pencil"></i> Write it</button>
+          <button class="aaction acc-write" style="font-weight:700;" onclick="writeIdea(${i}, this)" title="Draft this idea and open it in the Content Editor"><i class="ti ti-pencil"></i> Write it</button>
           <button class="aaction" style="color:#c00;" onclick="dislikeIdea(${i})" title="Hide this idea and suggest fewer like it"><i class="ti ti-thumb-down"></i> Fewer like this</button>
         </div>
         <div class="aaction-output" id="idea-out-${i}"></div>
@@ -2272,6 +3314,81 @@ async function runCoverageDesk(btn) {
   setTimeout(function () { btn.disabled = false; btn.textContent = old; }, 4000);
 }
 
+// The Ombudsman's five ideas from the latest update email (api/_ombudsman.js).
+let ombIdeas = [];
+async function loadOmbudsmanIdeas() {
+  const el = document.getElementById('ombudsmanIdeas');
+  if (!el || !window.IMSAuth) return;
+  try {
+    const r = await IMSAuth.authFetch('/api/story-ideas'); const d = await r.json();
+    renderOmbReview(d && d.review);
+    const o = d && d.ombudsman;
+    ombIdeas = (o && o.ideas) || [];
+    if (!ombIdeas.length) { el.innerHTML = ''; return; }
+    el.innerHTML = '<div style="font-size:12px;font-weight:700;color:#4338ca;text-transform:uppercase;letter-spacing:.06em;margin:12px 0 8px;">💡 Story ideas · ' + escapeHtml(new Date(o.at).toLocaleString([], { weekday: 'short', hour: 'numeric', minute: '2-digit' })) + '</div>' +
+      ombIdeas.map((i, n) => `
+      <div class="backlog-card" style="flex-wrap:wrap;border-color:#c7d2fe;">
+        <div class="backlog-priority" style="background:#eef2ff;color:#4338ca">${n + 1}</div>
+        <div style="flex:1;min-width:0;">
+          <div class="backlog-title">${escapeHtml(i.title)}</div>
+          <div class="backlog-meta">${escapeHtml(i.kind || '')} · ${escapeHtml(i.angle || '')}${i.why ? ' <i>(' + escapeHtml(i.why) + ')</i>' : ''}</div>
+          <div class="acard-actions" style="margin-top:8px;"><button class="aaction acc-write" style="font-weight:700;" onclick="writeOmbIdea(${n}, this)"><i class="ti ti-pencil"></i> Write it</button></div>
+          <div class="aaction-output" id="omb-out-${n}"></div>
+        </div>
+      </div>`).join('');
+  } catch (e) { el.innerHTML = ''; }
+}
+// The Ombudsman's quality review of our recent articles (api/_ombudsman.js review()).
+const OMB_SEV = { correction: ['🔴', 'Possible correction'], fix: ['🟡', 'Should fix'], note: ['⚪', 'Note'] };
+function renderOmbReview(r) {
+  // Each article by name first, one line each, then a short overall read
+  // (Jeff, 2026-10-06: "this doesn't say what article it's talking about and
+  // is too wordy").
+  const el = document.getElementById('ombudsmanReview'); if (!el) return;
+  if (!r) { el.innerHTML = '<div style="font-size:12.5px;color:var(--text3);margin-top:8px;">No review yet. It runs every morning, or press Review our coverage.</div>'; return; }
+  const esc = escapeHtml;
+  const short = (t, n) => { t = String(t || '').trim(); const parts = t.match(/[^.!?]+[.!?]+/g) || [t]; t = parts.slice(0, n).join(' ').trim(); return t; };
+  const order = { correction: 0, fix: 1, clean: 2 };
+  const arts = (r.articles || []).slice().sort((x, y) => (order[x.verdict] || 2) - (order[y.verdict] || 2));
+  const badge = v => v === 'correction' ? '<span style="font-size:11px;font-weight:700;color:#dc2626;">🔴 Possible correction</span>' : v === 'fix' ? '<span style="font-size:11px;font-weight:700;color:#b45309;">🟡 Should fix</span>' : '<span style="font-size:11px;font-weight:700;color:var(--green);">✓ Clean</span>';
+  el.innerHTML = '<div style="font-size:12px;font-weight:700;color:#4338ca;text-transform:uppercase;letter-spacing:.06em;margin:12px 0 6px;">Coverage review · ' + esc(new Date(r.at).toLocaleString([], { weekday: 'short', hour: 'numeric', minute: '2-digit' })) + ' · ' + arts.length + ' article' + (arts.length === 1 ? '' : 's') + '</div>' +
+    arts.map(a => '<div style="background:#fff;border:1px solid var(--border);border-left:3px solid ' + (a.verdict === 'correction' ? '#dc2626' : a.verdict === 'fix' ? '#f59e0b' : '#16a34a') + ';border-radius:8px;padding:8px 11px;margin-bottom:6px;">' +
+      '<div style="font-weight:700;font-size:14px;line-height:1.35;">' + (a.url ? '<a href="' + esc(a.url) + '" target="_blank" rel="noopener" style="color:var(--text);">' + esc(a.headline) + '</a>' : esc(a.headline)) + '</div>' +
+      '<div style="font-size:11.5px;color:var(--text3);margin:1px 0 3px;">' + badge(a.verdict) + (a.writer ? ' · ' + esc(a.writer) : '') + (a.date ? ' · ' + esc(a.date) : '') + '</div>' +
+      ((a.note || (arts.length === 1 && r.column)) ? '<div style="font-size:13px;color:var(--text2);">' + esc(short(a.note || r.column, 1)) + '</div>' : '') +
+      (a.findings || []).slice(0, 3).map(f => '<div style="font-size:12.5px;margin-top:4px;">' + (OMB_SEV[f.severity] || OMB_SEV.note)[0] + ' ' +
+        (f.quote ? '<span style="color:var(--text3);">“' + esc(String(f.quote).slice(0, 90)) + '”</span> ' : '') + esc(short(f.issue, 1)) +
+        (f.suggestion ? ' <span style="color:var(--green);">→ ' + esc(short(f.suggestion, 1)) + '</span>' : '') + '</div>').join('') +
+    '</div>').join('') +
+    (r.column && arts.length > 1 ? '<div style="font-size:13px;color:var(--text2);margin-top:4px;"><b>Overall:</b> ' + esc(short(r.column, 2)) + '</div>' : '');
+}
+async function runOmbReview(btn) {
+  btn.disabled = true; const old = btn.textContent; btn.textContent = 'Reviewing… (up to a minute)';
+  try {
+    const r = await IMSAuth.authFetch('/api/story-ideas', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'ombudsman-review' }) });
+    const d = await r.json().catch(() => ({}));
+    if (!r.ok || d.error) throw new Error(d.error || ('HTTP ' + r.status));
+    renderOmbReview(d.review);
+  } catch (e) { document.getElementById('ombudsmanReview').innerHTML = '<div class="empty" style="padding:10px;">Couldn\'t run the review: ' + escapeHtml(e.message) + '</div>'; }
+  btn.disabled = false; btn.textContent = old;
+}
+async function runOmbudsman(btn) {
+  const el = document.getElementById('ombudsmanIdeas');
+  btn.disabled = true; const old = btn.textContent; btn.textContent = 'Thinking… (about 20 seconds)';
+  try {
+    const r = await IMSAuth.authFetch('/api/story-ideas', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'ombudsman', alerts: (allAlerts || []).slice(0, 40).map(a => ({ headline: a.headline, summary: a.summary, rating: a.rating, source: a.source })) }) });
+    const d = await r.json().catch(() => ({}));
+    if (!r.ok || d.error) throw new Error(d.error || ('HTTP ' + r.status));
+    await loadOmbudsmanIdeas();
+  } catch (e) { el.innerHTML = '<div class="empty" style="padding:10px;">Couldn\'t get ideas: ' + escapeHtml(e.message) + '</div>'; }
+  btn.disabled = false; btn.textContent = old;
+}
+function writeOmbIdea(n, btn) {
+  const i = ombIdeas[n]; if (!i) return;
+  writeDraft({ headline: i.title, summary: i.angle + (i.why ? ' Why now: ' + i.why : ''), source: 'Ombudsman idea', category: '', url: '' }, document.getElementById('omb-out-' + n), btn);
+}
+
 async function generateBacklog() {
   if (!allAlerts.length) { alert('Run a scan first.'); return; }
   const c = document.getElementById('backlogContainer');
@@ -2302,7 +3419,7 @@ async function generateBacklog() {
 function saveEmail() {
   savedEmail = document.getElementById('emailInput').value.trim();
   const st = document.getElementById('emailStatus');
-  if (savedEmail.includes('@')) { st.textContent = '✓ Saved — rating 5 alerts and 8 PM digest will send to ' + savedEmail; st.style.color = 'var(--green)'; }
+  if (savedEmail.includes('@')) { st.textContent = '✓ Saved — rating 5 alerts and the nightly digest will send to ' + savedEmail; st.style.color = 'var(--green)'; }
   else { st.textContent = 'Enter a valid email.'; st.style.color = 'var(--hot)'; }
 }
 
@@ -2622,7 +3739,7 @@ function renderTeam(team, prefs) {
   const teamPrefs = {};
   ((prefs && prefs.team) || []).forEach(t => teamPrefs[t.userId] = t.prefs);
   const roleSel = (cur, attrs) => `<select ${attrs} style="font-size:12px;padding:3px 6px;border:1px solid var(--border);border-radius:5px;">
-    ${['publisher','editor','writer'].map(r => `<option value="${r}"${r===cur?' selected':''}>${r}</option>`).join('')}</select>`;
+    ${['publisher','editor','writer','contributor','viewer'].map(r => `<option value="${r}"${r===cur?' selected':''}>${r}</option>`).join('')}</select>`;
 
   let h = '<div style="display:flex;flex-direction:column;gap:10px;">';
   (team.members || []).forEach(m => {
@@ -2632,7 +3749,7 @@ function renderTeam(team, prefs) {
           <div style="font-size:11px;color:var(--text3);">${m.email || ''}${m.byline ? ' · byline: ' + m.byline : ''}</div></div>
         <div style="display:flex;gap:6px;align-items:center;">
           ${roleSel(m.role, `onchange="teamAction('setRole',{userId:'${m.userId}',role:this.value})"`)}
-          ${m.isSelf ? '' : `<button onclick="teamAction('remove',{userId:'${m.userId}'})" style="font-size:11px;border:1px solid var(--border);background:none;border-radius:5px;padding:3px 8px;cursor:pointer;color:var(--red);">Remove</button>`}
+          ${m.isSelf ? '' : `<button onclick="if(confirm('Remove ' + this.dataset.who + ' from your newsroom? They lose access right away. Their drafts and articles stay.'))teamAction('remove',{userId:'${m.userId}'})" data-who="${escapeHtml(m.name || m.email || 'this person')}" style="font-size:11px;border:1px solid var(--border);background:none;border-radius:5px;padding:3px 8px;cursor:pointer;color:var(--red);">Remove</button>`}
         </div>
       </div>
       <div style="margin-top:8px;display:flex;flex-wrap:wrap;gap:10px;">
@@ -2647,7 +3764,8 @@ function renderTeam(team, prefs) {
   (team.invites || []).forEach(iv => {
     h += `<div style="border:1px dashed var(--border);border-radius:8px;padding:10px 12px;display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;">
       <div><strong>${iv.email}</strong> <span style="font-size:11px;color:var(--text3);">invited · ${iv.role} · not signed in yet</span></div>
-      <button onclick="teamAction('remove',{inviteId:'${iv.id}'})" style="font-size:11px;border:1px solid var(--border);background:none;border-radius:5px;padding:3px 8px;cursor:pointer;">Cancel</button>
+      <span style="display:flex;gap:6px;"><button onclick="resendInvite('${iv.id}',this)" style="font-size:11px;border:1px solid var(--border);background:none;border-radius:5px;padding:3px 8px;cursor:pointer;">Resend email</button>
+      <button onclick="teamAction('remove',{inviteId:'${iv.id}'})" style="font-size:11px;border:1px solid var(--border);background:none;border-radius:5px;padding:3px 8px;cursor:pointer;">Cancel</button></span>
     </div>`;
   });
   h += '</div>';
@@ -2656,7 +3774,7 @@ function renderTeam(team, prefs) {
     <div style="display:flex;gap:6px;flex-wrap:wrap;">
       <input id="inviteEmail" type="email" placeholder="email" style="flex:1;min-width:160px;font-size:13px;padding:7px 9px;border:1px solid var(--border);border-radius:6px;">
       <select id="inviteRole" style="font-size:13px;padding:7px 9px;border:1px solid var(--border);border-radius:6px;">
-        <option value="writer">writer</option><option value="editor">editor</option><option value="publisher">publisher</option>
+        <option value="writer">writer</option><option value="contributor">contributor (freelancer)</option><option value="viewer">viewer (read-only)</option><option value="editor">editor</option><option value="publisher">publisher</option>
       </select>
       <button class="pill" onclick="sendInvite()">Send invite</button>
     </div>
@@ -2665,6 +3783,17 @@ function renderTeam(team, prefs) {
   c.innerHTML = h;
 }
 
+// Email a pending invite again (api/team.js resendInvite).
+async function resendInvite(id, btn) {
+  btn.disabled = true; btn.textContent = 'Sending…';
+  try {
+    const res = await IMSAuth.authFetch('/api/team', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'resendInvite', inviteId: id }) });
+    const d = await res.json();
+    btn.textContent = d.error ? 'Failed' : d.emailed ? 'Sent ✓' : 'Not sent';
+    if (d.error || !d.emailed) alert(d.error || d.note);
+  } catch (e) { btn.textContent = 'Failed'; alert(e.message); }
+  setTimeout(() => { btn.disabled = false; btn.textContent = 'Resend email'; }, 4000);
+}
 async function teamAction(action, payload) {
   if (_teamBusy) return; _teamBusy = true;
   try {
@@ -2716,7 +3845,8 @@ const ANALYTICS_SOURCES = [
   { key:'gsc',    name:'Google Search Console',  gives:'Google search clicks, impressions, top and rising searches, page-1 opportunities, plus Discover and Google News', setup:'Add the app\'s Google account as a user on your Search Console property (Connect shows the email), then pick the property.' },
   { key:'meta',   name:'Facebook / Instagram',  gives:'Reach and engagement for your own Page and IG account', setup:'Needs a Meta app with pages_read_engagement.' },
   { key:'ga4',    name:'Google Analytics 4',     gives:'Page views, engaged time, real-time, traffic sources', setup:'Needs a Google Cloud OAuth client.' },
-  { key:'yta',    name:'YouTube Analytics',      gives:'Views, watch time and traffic sources for your channel', setup:'Same Google Cloud OAuth client, YouTube scope.' },
+  { key:'youtube', name:'YouTube',              gives:'Your channel: subscribers, views, likes and comments per video, Shorts vs long videos, best day and hour to upload', setup:'Just your channel\'s @handle or link. Public numbers, no sign-in.' },
+  { key:'yta',    name:'YouTube Analytics (owner stats)', gives:'Watch time, retention and traffic sources for your channel', setup:'Needs a Google sign-in with the YouTube Analytics scope (later).' },
   { key:'parsely', name:'Parse.ly',             gives:'Historical performance by post, author, section, tag', setup:'Needs your Parse.ly API secret (paste it).' }
 ];
 let analyticsConnected = {};
@@ -2768,6 +3898,7 @@ function connectAnalytics(key) {
   if (key === 'buffer') return connectBuffer();
   if (key === 'x') return connectX();
   if (key === 'gsc') return connectGsc();
+  if (key === 'youtube') return connectYouTube();
   const s = ANALYTICS_SOURCES.find(x => x.key === key);
   alert(`${s.name}\n\nThis connection isn't wired up yet. ${s.setup}\n\nWhen you're ready to set it up, tell Claude and it'll walk you through the one-time registration, then this button will start the sign-in.`);
 }
@@ -2823,6 +3954,55 @@ async function connectGsc() {
     if (d2.error) { alert('Search Console: ' + d2.error); return; }
     renderAnalyticsConnections();
   } catch (e) { alert('Search Console: ' + e.message); }
+}
+
+async function connectYouTube() {
+  const channel = prompt("Your newsroom's YouTube channel: its @handle or a youtube.com link:", '@');
+  if (!channel || channel === '@') return;
+  try {
+    const r = await IMSAuth.authFetch('/api/analytics-connections', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ source: 'youtube', channel }) });
+    const d = await r.json();
+    if (d.error) { alert('YouTube: ' + d.error); return; }
+    renderAnalyticsConnections();
+  } catch (e) { alert('YouTube: ' + e.message); }
+}
+
+// ---- Strategy & overlap (/api/analytics-strategy; see api/_analytics-strategy.js)
+async function loadStrategy(refresh) {
+  const box = document.getElementById('strategyBox'), btn = document.getElementById('stratRefresh');
+  if (!box) return;
+  if (refresh) { btn.disabled = true; btn.textContent = 'Studying every source… (about a minute)'; }
+  try {
+    const r = await IMSAuth.authFetch('/api/analytics-strategy', refresh ? { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{"refresh":true}' } : undefined);
+    const d = await r.json().catch(() => ({}));
+    if (!r.ok || d.error) throw new Error(d.error || ('HTTP ' + r.status));
+    renderStrategy(d);
+  } catch (e) { box.innerHTML = '<div class="empty" style="padding:14px;">Couldn\'t load the strategy: ' + escapeHtml(e.message) + '</div>'; }
+  if (refresh) { btn.disabled = false; btn.textContent = 'Refresh now'; }
+}
+// The overview as short paragraphs (Jeff, 2026-10-06: "paragraphs"). Older
+// reads came as one block, so those are split every two or three sentences.
+function strategyParagraphs(text) {
+  let parts = String(text || '').trim().split(/\n\s*\n/).map(p => p.trim()).filter(Boolean);
+  if (parts.length === 1) {
+    const sents = parts[0].split(/(?<=[.!?])\s+(?=[A-Z(@"\u201c])/);
+    parts = [];
+    for (let i = 0; i < sents.length; i += 2) parts.push(sents.slice(i, i + 2).join(' ').trim());
+  }
+  return parts.map(p => '<p style="margin:0 0 10px;">' + escapeHtml(p) + '</p>').join('');
+}
+function renderStrategy(d) {
+  const box = document.getElementById('strategyBox');
+  if (!d || !d.ready) { box.innerHTML = '<div class="empty" style="padding:14px;">' + escapeHtml((d && d.note) || 'No strategy read yet. It runs every morning, or press Refresh now.') + '</div>'; return; }
+  const chips = arr => (arr || []).map(c => '<span style="font-size:11px;background:var(--bg);border:1px solid var(--border);border-radius:10px;padding:1px 7px;margin-right:4px;">' + escapeHtml(c) + '</span>').join('');
+  const sec = t => '<div style="font-size:11px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.06em;margin:14px 0 6px;">' + t + '</div>';
+  box.innerHTML =
+    '<div style="font-size:13.5px;line-height:1.55;">' + strategyParagraphs(d.overview) + '</div>' +
+    sec('This week\'s moves') + (d.actions || []).map((a, i) => '<div style="padding:7px 0;border-top:1px solid var(--border);"><b>' + (i + 1) + '. ' + escapeHtml(a.title) + '</b> ' + chips(a.channels) + '<div style="font-size:12.5px;color:var(--text2);">' + escapeHtml(a.why) + '</div></div>').join('') +
+    sec('What each channel is for') + '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:8px;">' + (d.channels || []).map(c => '<div style="border:1px solid var(--border);border-radius:8px;padding:9px 11px;background:var(--bg2);"><b>' + escapeHtml(c.channel) + '</b><div style="font-size:12.5px;margin-top:3px;">' + escapeHtml(c.role) + '</div><div style="font-size:12px;color:var(--text2);margin-top:4px;">Wins: ' + escapeHtml(c.wins) + '</div>' + ('') + '</div>').join('') + '</div>' +
+    sec('Overlap across channels') + ((d.overlap || []).length ? (d.overlap || []).map(o => '<div style="padding:6px 0;border-top:1px solid var(--border);font-size:13px;"><b>' + escapeHtml(o.topic) + '</b> ' + chips(o.channels) + '<div style="font-size:12.5px;color:var(--text2);">' + escapeHtml(o.read) + '</div></div>').join('') : '<div style="font-size:12.5px;color:var(--text3);">Not enough overlapping data yet.</div>') +
+    sec('Gaps between channels') + ((d.gaps || []).length ? (d.gaps || []).map(g => '<div style="padding:6px 0;border-top:1px solid var(--border);font-size:13px;"><b>' + escapeHtml(g.gap) + '</b><div style="font-size:12.5px;color:var(--text2);">' + escapeHtml(g.evidence) + ' <span style="color:var(--green);">→ ' + escapeHtml(g.action) + '</span></div></div>').join('') : '<div style="font-size:12.5px;color:var(--text3);">No gaps found.</div>') +
+    '<div style="font-size:11px;color:var(--text3);margin-top:10px;">From ' + escapeHtml((d.sources || []).join(', ')) + ' · ' + escapeHtml(new Date(d.generatedAt).toLocaleString([], { weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })) + '</div>';
 }
 
 async function connectX() {
@@ -2885,7 +4065,7 @@ function loadAnalyticsInsights() {
     c.innerHTML = '<div class="empty" style="padding:14px;"><i class="ti ti-loader spin"></i>Loading Chartbeat…</div>';
     refreshChartbeatInsights();
   } else {
-    c.innerHTML = '<div class="empty" style="padding:20px;">Connect at least one source above to see insights here.</div>';
+    c.innerHTML = '<div class="empty" style="padding:20px;">Connect at least one source under Connections at the bottom of this page to see insights here.</div>';
   }
 
   const fb = document.getElementById('facebookInsightsCard');
@@ -3057,7 +4237,7 @@ async function refreshGscInsights() {
   }
 }
 
-const SOURCE_LABELS = { chartbeat: 'Chartbeat', meta: 'Facebook', buffer: 'Buffer', x: 'X / Twitter', gsc: 'Search Console' };
+const SOURCE_LABELS = { chartbeat: 'Chartbeat', meta: 'Facebook', buffer: 'Buffer', x: 'X / Twitter', gsc: 'Search Console', youtube: 'YouTube' };
 const HOUR_LABELS = ['12am','1am','2am','3am','4am','5am','6am','7am','8am','9am','10am','11am','12pm','1pm','2pm','3pm','4pm','5pm','6pm','7pm','8pm','9pm','10pm','11pm'];
 
 // ---- Trends charts (inline SVG, no library) ----
@@ -3228,7 +4408,7 @@ async function loadAnalyticsTrends() {
     const d = await r.json();
     if (d.error) { c.innerHTML = `<div class="empty" style="padding:14px;">Trends — ${d.error}</div>`; return; }
     if (!d.bySource || !d.bySource.length) {
-      c.innerHTML = '<div class="empty" style="padding:14px;">Connect a source above to see trends here.</div>';
+      c.innerHTML = '<div class="empty" style="padding:14px;">Connect a source under Connections at the bottom of this page to see trends here.</div>';
       return;
     }
     c.innerHTML = d.bySource.map(renderTrendSection).join('');
@@ -3271,7 +4451,7 @@ function loadQuestionBox() {
   if (!sel) return;
   const connectedKeys = Object.keys(analyticsConnected).filter(k => SOURCE_LABELS[k]);
   if (!connectedKeys.length) {
-    sel.innerHTML = '<div style="font-size:12px;color:var(--text3);">Connect a source above first.</div>';
+    sel.innerHTML = '<div style="font-size:12px;color:var(--text3);">Connect a source on the Analytics tab (Connections) first.</div>';
     document.getElementById('analyticsQuestionInput').disabled = true;
     return;
   }
@@ -3410,7 +4590,7 @@ async function rateStory(idx, n) {
 loadMyRatings();
 loadClaims();
 setInterval(function () { if (document.visibilityState === 'visible') loadClaims(); }, 60000);
-// Show the newsroom's latest shared scan as soon as the page opens (free when it's fresh).
+// Show the newsroom's latest saved scan as soon as the page opens (free: never starts a new scan).
 runScan();
 
 // ---- Source health (api/source-health.js) ----
@@ -3464,12 +4644,18 @@ function renderOpps() {
   var comps = oppsData.competitors || [];
   if (!comps.length) {
     cards.innerHTML = '';
-    list.innerHTML = '<div class="empty" style="padding:18px;"><i class="ti ti-eye"></i>You aren\'t following any competitors yet. In <a href="/setup">setup → Your beat</a>, check <b>Email me when they publish</b> or <b>Text me</b> on the outlets you compete with most.</div>';
+    renderOppsAvail();
+    list.innerHTML = '<div class="empty" style="padding:18px;"><i class="ti ti-eye"></i>You aren\'t following any competitors yet. Add the outlets you compete with most above.</div>';
     return;
   }
   cards.innerHTML = comps.map(function (c) {
     return '<div style="background:var(--bg2);border:1px solid var(--border);border-radius:10px;padding:12px;">' +
-      '<div style="display:flex;justify-content:space-between;gap:6px;"><b>' + oppsEsc(c.name) + '</b><span style="font-size:.8rem;">' + (c.alertEmail ? '✉️' : '') + (c.alertText ? '💬' : '') + '</span></div>' +
+      '<div style="display:flex;justify-content:space-between;gap:6px;align-items:flex-start;"><b>' + oppsEsc(c.name) + (c.x ? ' <a href="https://x.com/' + oppsEsc(c.x) + '" target="_blank" rel="noopener" style="font-weight:400;font-size:.75rem;color:var(--text3);">@' + oppsEsc(c.x) + '</a>' : '') + '</b>' +
+        '<button class="acc-opps" title="Unfollow" onclick="oppsAct({action:\'unfollow\',domain:\'' + oppsEsc(c.key || c.domain).replace(/'/g, '') + '\'},\'Unfollowed ' + oppsEsc(c.name).replace(/'/g, '') + '.\')" style="border:0;background:none;color:var(--text3);cursor:pointer;font-size:15px;line-height:1;padding:0 2px;">×</button></div>' +
+        oppsEyesHtml(c) +
+        '<div style="display:flex;gap:12px;font-size:.75rem;margin-top:4px;color:var(--text2);">' +
+          '<label style="display:flex;gap:4px;align-items:center;"><input type="checkbox" ' + (c.alertEmail ? 'checked ' : '') + (accessAllows('act_opps_edit') ? '' : 'disabled ') + 'onchange="oppsAct({action:\'set\',domain:\'' + oppsEsc(c.key || c.domain).replace(/'/g, '') + '\',alertEmail:this.checked})"> ✉️ Email</label>' +
+          '<label style="display:flex;gap:4px;align-items:center;" title="Saved now; texts start once texting is connected"><input type="checkbox" ' + (c.alertText ? 'checked ' : '') + (accessAllows('act_opps_edit') ? '' : 'disabled ') + 'onchange="oppsAct({action:\'set\',domain:\'' + oppsEsc(c.key || c.domain).replace(/'/g, '') + '\',alertText:this.checked})"> 💬 Text</label></div>' +
       '<div style="display:flex;gap:14px;margin:8px 0 6px;font-size:.8rem;color:var(--text2);">' +
         '<span><b style="font-size:1.15rem;color:var(--text);">' + c.last24 + '</b> today</span>' +
         '<span><b style="font-size:1.15rem;color:var(--text);">' + c.last7 + '</b> this week</span>' +
@@ -3478,8 +4664,11 @@ function renderOpps() {
       (c.topics.length ? '<div style="margin-top:6px;display:flex;flex-wrap:wrap;gap:4px;">' + c.topics.map(function (t) { return '<span style="font-size:.72rem;background:var(--bg);border:1px solid var(--border);border-radius:10px;padding:1px 7px;">' + oppsEsc(t) + '</span>'; }).join('') + '</div>' : '') +
       '</div>';
   }).join('');
+  renderOppsAvail();
   var gapsOnly = document.getElementById('oppsGapsOnly').checked, only = document.getElementById('oppsOutlet').value;
-  var items = (oppsData.items || []).filter(function (i) { return (!gapsOnly || !i.covered) && (!only || i.outlet === only); });
+  var minEyes = +(document.getElementById('oppsEyes') || {}).value || 0;
+  var eyesOf = {}; comps.forEach(function (c) { eyesOf[c.name] = c.eyes || 3; });
+  var items = (oppsData.items || []).filter(function (i) { return (!gapsOnly || !i.covered) && (!only || i.outlet === only) && (eyesOf[i.outlet] || 3) >= minEyes; });
   list.innerHTML = items.length ? items.map(function (i) {
     return '<div style="display:flex;gap:10px;align-items:flex-start;padding:10px 12px;background:var(--bg2);border:1px solid var(--border);border-radius:8px;margin-bottom:6px;">' +
       '<div style="flex:1;min-width:0;"><div style="font-size:.75rem;color:var(--text3);">' + oppsEsc(i.outlet) + ' · ' + oppsAgo(i.at) + '</div>' +
@@ -3488,6 +4677,294 @@ function renderOpps() {
         : '<span style="font-size:.72rem;color:#fff;background:var(--hot);border-radius:10px;padding:2px 8px;white-space:nowrap;">Gap</span>') +
       '</div>';
   }).join('') : '<div class="empty" style="padding:14px;">' + (gapsOnly ? 'No gaps. We\'ve covered everything they have.' : 'No stories yet. New ones appear within 15 minutes of publishing.') + '</div>';
+}
+
+// 1-5 eyeballs: how closely to watch each competitor (Jeff, 2026-10-06:
+// "opps should be ranked on whether you want to keep 1-5 eyeballs on them").
+// Cards sort by it and the story list can be filtered by it.
+function oppsEyesHtml(c) {
+  var n = c.eyes || 3, can = accessAllows('act_opps_edit'), h = '';
+  for (var k = 1; k <= 5; k++) {
+    h += '<span ' + (can ? 'role="button" tabindex="0" style="cursor:pointer;' : 'style="') + (k <= n ? '' : 'opacity:.18;filter:grayscale(1);') + '" title="' + k + ' of 5: ' + ['glance', 'light', 'normal', 'close', 'must-watch'][k - 1] + '"' +
+      (can ? ' onclick="oppsAct({action:\'set\',domain:\'' + oppsEsc(c.key || c.domain).replace(/'/g, '') + '\',eyes:' + k + '},\'Watching ' + oppsEsc(c.name).replace(/'/g, '') + ' at ' + k + ' of 5.\')"' : '') + '>👁</span>';
+  }
+  return '<div style="font-size:.9rem;letter-spacing:1px;margin-top:3px;" aria-label="' + n + ' of 5 eyes">' + h + '</div>';
+}
+
+// Follow box autofill (Jeff, 2026-10-06: "follow a competition should be a
+// box where twitter names autofill"): names and handles suggest as you type
+// (the beat's outlets and the watched X accounts); picking or finishing a
+// name fills in its website and X handle, from the beat or one web search.
+function oppsFillLists() {
+  var known = oppsData.known || [], xs = {};
+  document.getElementById('oppsKnownNames').innerHTML = known.map(function (o) { return '<option value="' + oppsEsc(o.name) + '">' + oppsEsc(o.site || '') + '</option>'; }).join('');
+  known.forEach(function (o) { if (o.x) xs[o.x.toLowerCase()] = '@' + o.x + ' (' + o.name + ')'; });
+  (oppsData.xHandles || []).forEach(function (h) { if (!xs[String(h).toLowerCase()]) xs[String(h).toLowerCase()] = '@' + h; });
+  document.getElementById('oppsKnownX').innerHTML = Object.keys(xs).map(function (k) { return '<option value="@' + oppsEsc(xs[k].split(' ')[0].slice(1)) + '">' + oppsEsc(xs[k]) + '</option>'; }).join('');
+}
+var _oppsNameTimer = null, _oppsLookedUp = '';
+function oppsNameInput() {
+  var v = document.getElementById('oppsAddName').value.trim().toLowerCase();
+  var hit = (oppsData.known || []).filter(function (o) { return o.name.toLowerCase() === v; })[0];
+  if (hit) return oppsApplyFound(hit, 'From your beat.');
+}
+function oppsApplyFound(o, note) {
+  var st = document.getElementById('oppsAddSite'), x = document.getElementById('oppsAddX'), m = document.getElementById('oppsMsg');
+  if (o.site && !st.value.trim()) st.value = o.site;
+  if (o.x && !x.value.trim()) x.value = '@' + o.x;
+  if (o.name) document.getElementById('oppsAddName').value = o.name;
+  m.style.color = 'var(--text3)';
+  m.textContent = (o.site || o.x) ? (note || '') + ' Check them, then Follow.' : 'Couldn\'t find their site or X account. Add them by hand.';
+}
+async function oppsAutofill() {
+  var n = document.getElementById('oppsAddName').value.trim(), st = document.getElementById('oppsAddSite'), x = document.getElementById('oppsAddX');
+  if (n.length < 3 || (st.value.trim() && x.value.trim()) || _oppsLookedUp === n.toLowerCase()) return;
+  var hit = (oppsData.known || []).filter(function (o) { return o.name.toLowerCase() === n.toLowerCase(); })[0];
+  if (hit && hit.site && hit.x) return oppsApplyFound(hit, 'From your beat.');
+  _oppsLookedUp = n.toLowerCase();
+  var m = document.getElementById('oppsMsg'); m.style.color = 'var(--text3)'; m.textContent = 'Looking up ' + n + '\'s site and X account…';
+  try {
+    var fetcher = window.IMSAuth ? IMSAuth.authFetch : fetch;
+    var r = await fetcher('/api/opps-spy', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'lookup', name: n }) });
+    var d = await r.json().catch(function () { return {}; });
+    if (!r.ok || d.error) throw new Error(d.error || ('HTTP ' + r.status));
+    if (document.getElementById('oppsAddName').value.trim().toLowerCase() !== n.toLowerCase()) return; // they kept typing
+    oppsApplyFound(d, d.from === 'search' ? 'Found online.' : 'From your beat.');
+  } catch (e) { m.style.color = 'var(--hot)'; m.textContent = 'Lookup failed: ' + e.message + '. Add them by hand.'; }
+}
+
+// Manage who Opp Watch follows without the setup wizard (Jeff, 2026-10-06).
+function renderOppsAvail() {
+  oppsFillLists();
+  var el = document.getElementById('oppsAvail'); if (!el) return;
+  var av = (oppsData.available || []).slice(0, 12);
+  el.innerHTML = av.length ? '<span style="font-size:.78rem;color:var(--text3);">From your beat:</span>' + av.map(function (o) {
+    return '<button class="chip" style="font-size:.75rem;padding:3px 9px;" title="' + oppsEsc(o.domain) + '" onclick="oppsAct({action:\'follow\',name:this.dataset.n,site:this.dataset.d,x:this.dataset.x||\'\',alertEmail:true},\'Following ' + oppsEsc(o.name).replace(/'/g, '') + '.\')" data-n="' + oppsEsc(o.name) + '" data-d="' + oppsEsc(o.domain) + '" data-x="' + oppsEsc(o.x || '') + '">+ ' + oppsEsc(o.name) + '</button>';
+  }).join('') : '';
+}
+async function oppsAct(body, okMsg) {
+  var m = document.getElementById('oppsMsg');
+  m.style.color = 'var(--text3)'; m.textContent = 'Saving…';
+  try {
+    var fetcher = window.IMSAuth ? IMSAuth.authFetch : fetch;
+    var r = await fetcher('/api/opps-spy', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+    var d = await r.json().catch(function () { return {}; });
+    if (!r.ok || d.error) throw new Error(d.error || ('HTTP ' + r.status));
+    m.style.color = 'var(--green)'; m.textContent = okMsg || 'Saved.';
+    if (body.action === 'follow') m.textContent += ' Their stories start showing within 15 minutes.';
+    await loadOppsSpy();
+    return true;
+  } catch (e) {
+    m.style.color = 'var(--hot)'; m.textContent = 'Couldn\'t save: ' + e.message;
+    loadOppsSpy();
+    return false;
+  }
+}
+async function oppsFollow() {
+  var n = document.getElementById('oppsAddName'), st = document.getElementById('oppsAddSite');
+  if (!st.value.trim()) { document.getElementById('oppsMsg').textContent = 'Add their website or RSS feed.'; return; }
+  var xh = document.getElementById('oppsAddX');
+  var ok = await oppsAct({ action: 'follow', name: n.value.trim(), site: st.value.trim(), x: xh.value.trim(), alertEmail: document.getElementById('oppsAddEmail').checked, alertText: document.getElementById('oppsAddText').checked, eyes: +document.getElementById('oppsAddEyes').value },
+    'Following ' + (n.value.trim() || st.value.trim()) + (xh.value.trim() ? ' (and ' + xh.value.trim().replace(/^@?/, '@') + ' on X)' : '') + '.');
+  if (ok) { n.value = ''; st.value = ''; xh.value = ''; _oppsLookedUp = ''; }
+}
+
+
+// ---- Calendar (/api/calendar; see api/_calendar.js) -------------------------
+var calData = { events: [], steps: [] };
+function calEsc(s) { return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); }
+function calMinLabel(m) { return m < 60 ? m + ' min' : (m % 60 ? (m / 60).toFixed(1) : m / 60) + ' hr'; }
+function calOpts(sel, none) {
+  return '<option value="0">' + none + '</option>' + (calData.steps || []).map(function (m) { return '<option value="' + m + '"' + (m === sel ? ' selected' : '') + '>' + calMinLabel(m) + ' before</option>'; }).join('');
+}
+async function calFetch(body) {
+  var f = window.IMSAuth ? IMSAuth.authFetch : fetch;
+  var r = body ? await f('/api/calendar', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }) : await f('/api/calendar');
+  var d = await r.json().catch(function () { return {}; });
+  if (!r.ok || d.error) throw new Error(d.error || ('HTTP ' + r.status));
+  return d;
+}
+async function loadCalendar() {
+  try {
+    calData = await calFetch();
+    if (calData.address) document.getElementById('calIntro').innerHTML = 'Email anything with dates to <a href="mailto:' + calEsc(calData.address) + '"><b>' + calEsc(calData.address) + '</b></a> (forward it from your team email), or paste it below. Each date is summarized in a line, and you can get a reminder by email or text, 30 minutes to 6 hours before.';
+    var def = calData.myDefault || {};
+    document.getElementById('calDefMin').innerHTML = calOpts(def.minutes || 0, 'Off');
+    document.getElementById('calDefCh').value = def.channel || 'email';
+    renderHeatBox();
+    renderCalendar();
+  } catch (e) {
+    document.getElementById('calList').innerHTML = '<div class="empty" style="padding:12px;">Couldn\'t load the calendar: ' + calEsc(e.message) + '</div>';
+  }
+}
+function renderCalendar() {
+  var el = document.getElementById('calList');
+  var evs = (calData.events || []).slice().sort(function (a, b) { return a.start.localeCompare(b.start); });
+  if (!evs.length) { el.innerHTML = '<div class="empty" style="padding:18px;"><i class="ti ti-calendar"></i>Nothing on the calendar yet. Email or paste something with dates.</div>'; return; }
+  var tz = calData.tz || 'America/New_York', me = calData.me || '', html = '', lastDay = '';
+  var now = Date.now();
+  evs.forEach(function (e) {
+    var d = new Date(e.start);
+    var day = d.toLocaleDateString('en-US', { timeZone: tz, weekday: 'long', month: 'long', day: 'numeric' });
+    if (day !== lastDay) { html += '<div class="cal-day">' + calEsc(day) + '</div>'; lastDay = day; }
+    var past = Date.parse(e.start) < now;
+    var mine = (e.reminders || []).filter(function (r) { return r.email === me; })[0];
+    // Your automatic reminder (Remind me before every event) unless you changed it here.
+    var myDef = calData.myDefault || {};
+    if (!mine && e.kind !== 'heat' && myDef.minutes && (e.noRemind || []).indexOf(me) === -1) mine = { minutes: myDef.minutes, channel: myDef.channel || 'email' };
+    var time = e.allDay ? 'All day' : d.toLocaleTimeString('en-US', { timeZone: tz, hour: 'numeric', minute: '2-digit' });
+    html += '<div class="cal-ev' + (e.kind === 'heat' ? ' heat' : '') + '" style="' + (past ? 'opacity:.55;' : '') + '">' +
+      '<div class="cal-time">' + calEsc(time) + '</div>' +
+      '<div class="cal-main"><b>' + calEsc(e.title) + '</b><span class="cal-kind ' + calEsc(e.kind) + '">' + calEsc(e.kind === 'heat' ? 'best time to publish' : (e.kind || 'event')) + '</span>' +
+        (e.location ? '<div style="font-size:.8rem;color:var(--text2);">📍 ' + calEsc(e.location) + '</div>' : '') +
+        (e.note ? '<div style="font-size:.8rem;color:var(--text2);margin-top:2px;">' + calEsc(e.note) + '</div>' : '') +
+        (e.sourceSubject ? '<div style="font-size:.72rem;color:var(--text3);margin-top:3px;" title="' + calEsc(e.groupSummary || '') + '">From: ' + calEsc(e.sourceSubject) + '</div>' : '') +
+        (e.source === 'ai' ? '<div style="font-size:.72rem;color:var(--text3);margin-top:3px;">🤖 Added by CoPublisher' + (e.sourceUrl ? ' · <a href="' + calEsc(e.sourceUrl) + '" target="_blank" rel="noopener">source</a>' : '') + '</div>' : '') +
+      '</div>' +
+      (past ? '' : '<div class="cal-rem">🔔 <select class="cal-sel" onchange="calRemind(\'' + e.id + '\',this.value,this.nextElementSibling.value)">' + calOpts(mine ? mine.minutes : 0, 'No reminder') + '</select>' +
+        '<select class="cal-sel" onchange="calRemind(\'' + e.id + '\',this.previousElementSibling.value,this.value)"><option value="email"' + (mine && (mine.channel === 'text' || mine.channel === 'both') ? '' : ' selected') + '>Email</option><option value="text"' + (mine && mine.channel === 'text' ? ' selected' : '') + '>Text</option><option value="both"' + (mine && mine.channel === 'both' ? ' selected' : '') + '>Both</option></select>' +
+        (mine && mine.sentAt ? '<span style="color:var(--green);">sent</span>' : '') + '</div>') +
+      '<button class="cal-x" title="Delete" onclick="calDelete(\'' + e.id + '\')">×</button>' +
+    '</div>';
+  });
+  el.innerHTML = html;
+}
+function renderCalMode() {
+  var h = calData.heat || {}, m = calData.mode, ask = document.getElementById('calModeAsk'), line = document.getElementById('calModeLine');
+  ask.style.display = !m && h.canManage ? '' : 'none';
+  document.getElementById('calHeatBox').style.display = m === 'manual' ? 'none' : '';
+  if (m) {
+    line.style.display = '';
+    line.innerHTML = (m === 'ai' ? '🤖 AI-assisted: CoPublisher adds games, hot spots and dated items from the news.' : '✋ Only what the team adds.') +
+      (h.canManage ? ' <a href="#" onclick="calSetMode(\'' + (m === 'ai' ? 'manual' : 'ai') + '\');return false;">Switch to ' + (m === 'ai' ? 'only what we add' : 'AI-assisted') + '</a>' : '');
+  } else line.style.display = 'none';
+}
+async function calSetMode(m) {
+  if (m === 'manual' && calData.mode === 'ai' && !confirm('Switch to only what the team adds? Upcoming hot spots and items the AI added will be removed.')) return;
+  calSay(m === 'ai' ? 'Setting up: finding your upcoming games… (this can take up to a minute)' : 'Saving…');
+  try {
+    var d = await calFetch({ action: 'mode', mode: m });
+    await loadCalendar();
+    calSay(m === 'ai' ? '<b style="color:var(--green);">AI-assisted calendar on.</b> ' + (d.added ? 'Added ' + d.added + ' upcoming game' + (d.added === 1 ? '' : 's') + '.' : 'No new games found for the next three weeks.') + ' It checks for games every Monday and for dated news every morning.' : 'Saved: only what the team adds.');
+  } catch (e) { calSay('Couldn\'t save: ' + calEsc(e.message), true); }
+}
+function renderHeatBox() {
+  renderCalMode();
+  var h = calData.heat || {}, mine = h.mine || {};
+  document.getElementById('calHeatOn').checked = h.on !== false;
+  document.getElementById('calHeatOn').disabled = !h.canManage;
+  document.getElementById('calHeatRefresh').style.display = h.canManage && h.on !== false ? '' : 'none';
+  document.getElementById('calHeatMin').innerHTML = calOpts(mine.minutes || 0, 'Off');
+  document.getElementById('calHeatCh').value = mine.channel || 'email';
+  var n = (calData.events || []).filter(function (e) { return e.kind === 'heat' && Date.parse(e.start) > Date.now(); }).length;
+  document.getElementById('calHeatMsg').textContent = h.on === false ? 'Off for the newsroom.' + (h.canManage ? '' : ' An editor or publisher can turn it on.')
+    : h.note ? h.note : (n ? n + ' still ahead this week' + (h.basis ? ', based on ' + h.basis : '') + '. New ones arrive every Monday morning.' : 'No hot spots left this week. New ones arrive Monday morning.');
+}
+async function calHeatToggle(on) {
+  var m = document.getElementById('calHeatMsg'); m.textContent = on ? 'Working out this week\'s hot spots…' : 'Turning off…';
+  try { await calFetch({ action: 'heat-on', on: on }); await loadCalendar(); } catch (e) { m.textContent = e.message; }
+}
+async function calHeatRefresh() {
+  var b = document.getElementById('calHeatRefresh'), m = document.getElementById('calHeatMsg');
+  b.disabled = true; m.textContent = 'Recomputing from the latest numbers…';
+  try { await calFetch({ action: 'heat-refresh' }); await loadCalendar(); } catch (e) { m.textContent = 'Couldn\'t refresh: ' + e.message; }
+  b.disabled = false;
+}
+async function calHeatRemind() {
+  var mins = +document.getElementById('calHeatMin').value, ch = document.getElementById('calHeatCh').value, m = document.getElementById('calHeatMsg');
+  try { await calFetch({ action: 'heat-remind', minutes: mins, channel: ch }); await loadCalendar(); m.textContent = mins ? 'You\'ll get a reminder ' + calMinLabel(mins) + ' before every hot spot, by ' + (ch === 'text' ? 'text (email until texting is connected)' : 'email') + '.' : 'Hot spot reminders off.'; }
+  catch (e) { m.textContent = e.message; }
+}
+function calSay(t, err) { var m = document.getElementById('calMsg'); m.style.color = err ? 'var(--hot)' : 'var(--text3)'; m.innerHTML = t; }
+async function calAddText() {
+  var t = document.getElementById('calText'), b = document.getElementById('calAddBtn');
+  if (!t.value.trim()) return calSay('Paste something with dates first.', true);
+  b.disabled = true; calSay('Reading it…');
+  try {
+    var d = await calFetch({ action: 'add-text', text: t.value });
+    calSay(d.events.length ? '<b style="color:var(--green);">Added ' + d.events.length + ' item' + (d.events.length === 1 ? '' : 's') + '.</b> ' + calEsc(d.summary || '') : 'No dates found in that, so nothing was added.');
+    if (d.events.length) t.value = '';
+    await loadCalendar();
+  } catch (e) { calSay('Couldn\'t add it: ' + calEsc(e.message), true); }
+  b.disabled = false;
+}
+async function calAddManual() {
+  var g = function (id) { return document.getElementById(id).value.trim(); };
+  try {
+    await calFetch({ action: 'add', title: g('calTitle'), date: g('calDate'), time: g('calTime'), location: g('calWhere') });
+    ['calTitle', 'calDate', 'calTime', 'calWhere'].forEach(function (id) { document.getElementById(id).value = ''; });
+    calSay('Added.'); await loadCalendar();
+  } catch (e) { calSay(calEsc(e.message), true); }
+}
+async function calRemind(id, minutes, channel) {
+  try {
+    await calFetch({ action: 'remind', id: id, minutes: +minutes, channel: channel });
+    calSay(+minutes ? 'Reminder set: ' + calMinLabel(+minutes) + ' before, by ' + (channel === 'text' ? 'text (by email until texting is connected)' : 'email') + '.' : 'Reminder off.');
+    await loadCalendar();
+  } catch (e) { calSay('Couldn\'t set it: ' + calEsc(e.message), true); }
+}
+async function calSaveDefault() {
+  var m = +document.getElementById('calDefMin').value, ch = document.getElementById('calDefCh').value, s = document.getElementById('calDefMsg');
+  try { await calFetch({ action: 'default', minutes: m, channel: ch }); s.style.color = 'var(--green)'; s.textContent = m ? 'Saved: you\'ll get a reminder ' + calMinLabel(m) + ' before every event.' : 'Saved: no automatic reminders.'; loadCalendar(); }
+  catch (e) { s.style.color = 'var(--hot)'; s.textContent = e.message; }
+}
+async function calDelete(id) {
+  var ev = (calData.events || []).filter(function (e) { return e.id === id; })[0];
+  if (!confirm('Delete "' + (ev ? ev.title : 'this event') + '" from the calendar?')) return;
+  try { await calFetch({ action: 'delete', id: id }); await loadCalendar(); } catch (e) { calSay(calEsc(e.message), true); }
+}
+
+// ---- Writer leaderboard (/api/writer-stats; see api/_writer-stats.js) -------
+var lbData = null, lbSort = 'impressions', lbDir = -1, lbOpen = {};
+var LB_COLS = [
+  ['writer', 'Writer'], ['articles', 'Stories'], ['impressions', 'Google impressions'], ['clicks', 'Google clicks'], ['ctrPct', 'CTR'],
+  ['readers', 'Site readers'], ['readersPerArticle', 'Readers / story'], ['peak', 'Peak'], ['socialPosts', 'Social posts'], ['interactions', 'Social interactions']
+];
+async function loadLeaderboard(refresh) {
+  var t = document.getElementById('lbTable'), note = document.getElementById('lbNote');
+  t.innerHTML = '<tr><td style="text-align:left;padding:14px;">Loading…</td></tr>';
+  try {
+    var r = await IMSAuth.authFetch('/api/writer-stats?days=' + document.getElementById('lbDays').value + (refresh ? '&refresh=1' : ''));
+    var d = await r.json().catch(function () { return {}; });
+    if (!r.ok || d.error) throw new Error(d.error || ('HTTP ' + r.status));
+    lbData = d;
+    document.getElementById('lbKudos').innerHTML = (d.kudos || []).length ? '<div style="border:1px solid #fde68a;background:#fffbeb;border-radius:8px;padding:9px 12px;margin-bottom:8px;font-size:13px;">' + d.kudos.map(function (k) { return '<div style="padding:2px 0;">' + escapeHtml(k) + '</div>'; }).join('') + '</div>' : '';
+    var src = [d.sources.search ? 'Google Search' : null, d.sources.site ? 'site readers (Chartbeat)' : null, d.sources.social ? 'social (Buffer)' : null].filter(Boolean);
+    note.innerHTML = (src.length ? 'From ' + src.join(', ') + '. ' : 'No analytics connected yet: connect them under Analytics. ') +
+      'Change is against the ' + d.days + ' days before. Site readers are summed from readings every 3 hours (a ranking, not exact pageviews). Updated ' + new Date(d.at).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }) + '.' +
+      (d.notes && d.notes.length ? ' <span style="color:var(--hot)">' + escapeHtml(d.notes.join(' · ')) + '</span>' : '');
+    renderLeaderboard();
+  } catch (e) { t.innerHTML = '<tr><td style="text-align:left;padding:14px;">Couldn\'t load the leaderboard: ' + escapeHtml(e.message) + '</td></tr>'; }
+}
+function lbChange(w, k) {
+  if (k === 'writer') return '';
+  if (w.isNew) return '<div class="lb-flat">new</div>';
+  var c = w.change && w.change[k];
+  if (c == null) return '';
+  return '<div class="' + (c > 0 ? 'lb-up' : c < 0 ? 'lb-down' : 'lb-flat') + '">' + (c > 0 ? '▲ ' : c < 0 ? '▼ ' : '') + (c > 0 ? '+' : '') + c + '%</div>';
+}
+function lbFmt(k, v) { if (v == null) return '—'; if (k === 'ctrPct') return v + '%'; return typeof v === 'number' ? v.toLocaleString() : escapeHtml(v); }
+function lbSortBy(k) { if (lbSort === k) lbDir = -lbDir; else { lbSort = k; lbDir = k === 'writer' ? 1 : -1; } renderLeaderboard(); }
+function renderLeaderboard() {
+  var t = document.getElementById('lbTable'); if (!lbData) return;
+  var ws = (lbData.writers || []).slice().sort(function (a, b) {
+    var x = a[lbSort], y = b[lbSort];
+    if (lbSort === 'writer') return lbDir * String(x).localeCompare(String(y));
+    return lbDir * ((x == null ? -1 : x) - (y == null ? -1 : y));
+  });
+  var h = '<tr>' + LB_COLS.map(function (c) { return '<th class="' + (c[0] === lbSort ? 'on' : '') + '" onclick="lbSortBy(\'' + c[0] + '\')">' + c[1] + (c[0] === lbSort ? (lbDir < 0 ? ' ▼' : ' ▲') : '') + '</th>'; }).join('') + '</tr>';
+  if (!ws.length) h += '<tr><td colspan="' + LB_COLS.length + '" style="text-align:left;padding:14px;">No stories by name in this period yet.</td></tr>';
+  ws.forEach(function (w, i) {
+    var key = w.writer;
+    h += '<tr class="lb-w" onclick="lbOpen[this.dataset.k]=!lbOpen[this.dataset.k];renderLeaderboard()" data-k="' + escapeHtml(key) + '">' + LB_COLS.map(function (c) {
+      return '<td>' + (c[0] === 'writer' ? '<b>' + (i + 1) + '. ' + escapeHtml(w.writer) + '</b>' : lbFmt(c[0], w[c[0]])) + lbChange(w, c[0]) + '</td>';
+    }).join('') + '</tr>';
+    if (lbOpen[key]) h += '<tr><td colspan="' + LB_COLS.length + '" style="text-align:left;background:var(--bg);">' + (w.stories || []).map(function (s) {
+      return '<div style="padding:3px 0;font-size:12.5px;">' + (s.url ? '<a href="' + escapeHtml(s.url) + '" target="_blank" rel="noopener">' + escapeHtml(s.headline) + '</a>' : escapeHtml(s.headline)) +
+        ' <span style="color:var(--text3);">' + escapeHtml(s.date) + ' · ' + (s.impressions || 0).toLocaleString() + ' impressions · ' + (s.clicks || 0).toLocaleString() + ' clicks · ' + (s.readers || 0).toLocaleString() + ' readers' + (s.interactions ? ' · ' + s.interactions.toLocaleString() + ' social' : '') + '</span></div>';
+    }).join('') + '</td></tr>';
+  });
+  t.innerHTML = h;
 }
 
 async function loadRosterWatch() {

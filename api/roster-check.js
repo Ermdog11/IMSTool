@@ -101,6 +101,7 @@ module.exports = async function handler(req, res) {
     var hasKey = cfg.list.some(function (c) { return c.events.some(function (e) { return e.key; }); });
     try {
       await sendMail({
+        alertType: 'roster_change',
         subject: (hasKey ? '★ ' : '') + cfg.subject,
         html: '<div style="font-family:Arial,sans-serif;max-width:600px"><p>' + cfg.intro + '</p>' +
           cfg.list.map(function (c) { return sectionHtml(c.target, c.events); }).join('') + '</div>'
@@ -120,3 +121,6 @@ module.exports = async function handler(req, res) {
     changesFound: changedByScope.teams.length + changedByScope.department.length, report: report
   });
 };
+
+// Per-newsroom: this request runs as the signed-in person's newsroom (_site.js).
+module.exports = require('./_site').wrap(module.exports);

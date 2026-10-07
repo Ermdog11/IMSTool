@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<link rel="manifest" href="/manifest.json">
+<meta name="theme-color" content="#0f1b2d">
+<link rel="icon" type="image/png" sizes="32x32" href="/icons/favicon-32.png">
+<link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="CoPublisher">
+<meta name="apple-mobile-web-app-status-bar-style" content="black">
+<title>CoPublisher AI — Affiliate programs</title>
+<style>
+:root{--red:#2563eb;--red-dark:#1d4ed8;--dark:#0f1b2d;--border:#e2e7ef;--bg:#f5f7fb;--bg2:#fff;--text:#1a1a1a;--text2:#555;--muted:#888;--green:#3B6D11;--green-bg:#eaf3de;--blue:#0c447c;--amber-bg:#fff8e1;--hot:#dc2626}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:var(--bg);color:var(--text);font-size:14px;line-height:1.5}
+a{color:var(--blue)}
+.topbar{background:var(--dark);padding:0 20px;display:flex;align-items:center;justify-content:space-between;gap:10px;height:52px}
+.brand{color:#fff;font-size:15px;font-weight:600;text-decoration:none;display:flex;align-items:center;gap:10px}
+.brand .mark{width:30px;height:30px;background:var(--red);border-radius:6px;display:grid;place-items:center;font-size:11px;font-weight:800}
+.toplinks{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.toplinks a{color:#ccc;font-size:12px;text-decoration:none;border:.5px solid #555;padding:4px 12px;border-radius:20px;white-space:nowrap}
+.wrap{max-width:960px;margin:0 auto;padding:24px 16px 60px}
+h1{font-size:22px;margin-bottom:4px}
+.lead{color:var(--text2);margin-bottom:16px;max-width:72ch}
+.card{background:var(--bg2);border:1px solid var(--border);border-radius:12px;padding:20px;margin-bottom:16px}
+.card h2{font-size:16px;margin-bottom:4px}
+.sub{font-size:12.5px;color:var(--muted);margin-bottom:12px;max-width:75ch}
+label{display:block;font-size:12px;font-weight:600;color:var(--text2);margin:10px 0 4px}
+input,select,textarea{width:100%;font-family:inherit;font-size:13.5px;border:1px solid var(--border);border-radius:7px;padding:8px 10px;background:#fff;color:var(--text)}
+textarea{font-family:monospace;font-size:12px}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:0 14px}
+.prog{border:1px solid var(--border);border-radius:10px;padding:14px;margin-bottom:12px}
+.prog-head{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.prog-head input[type=text]{flex:1;min-width:180px;font-weight:600}
+.btn{font:inherit;background:var(--red);color:#fff;border:none;border-radius:8px;padding:9px 18px;font-size:13.5px;font-weight:600;cursor:pointer}
+.btn.ghost{background:#fff;color:var(--text);border:1px solid var(--border)}
+.btn.small{padding:5px 10px;font-size:12.5px}
+.btn:disabled{opacity:.6}
+.msg{font-size:12.5px;margin-left:10px}
+.msg.ok{color:var(--green)}.msg.err{color:var(--hot)}
+table{width:100%;border-collapse:collapse;font-size:13px}
+th,td{text-align:left;padding:7px 8px;border-top:1px solid var(--border)}
+th{font-size:11.5px;text-transform:uppercase;letter-spacing:.03em;color:var(--text2);border-top:0}
+td.n,th.n{text-align:right}
+.row{display:flex;gap:8px;align-items:flex-end;flex-wrap:wrap}
+.row > div{flex:1;min-width:130px}
+.table-scroll{overflow-x:auto}
+.notice{background:var(--amber-bg);border:1px solid #f0e2a8;border-radius:8px;padding:9px 12px;font-size:12.5px;margin-bottom:12px}
+@media (max-width:640px){.grid{grid-template-columns:1fr}.topbar{height:auto;padding:10px 16px;flex-wrap:wrap}.card{padding:16px}}
+
+/* Phones: 16px text boxes so iPhone doesn't zoom in on tap (2026-10-06). */
+@media (max-width:700px){input,select,textarea{font-size:16px!important}}
+</style>
+</head>
+<body>
+<div class="topbar">
+  <a class="brand" href="/"><span class="mark">CP</span>CoPublisher AI</a>
+  <div class="toplinks" id="toplinks"><a href="/">News Monitor</a><a href="/editor">Content Editor</a><a href="/preferences">Preferences</a></div>
+</div>
+<div class="wrap">
+  <h1>Affiliate programs</h1>
+  <p class="lead">CoPublisher AI's affiliate accounts (team gear, tickets, sportsbooks where legal). Links in newsrooms' articles to these sites are tagged automatically and counted; each month enter what the network paid, and the payout report shows each newsroom's share.</p>
+  <div id="notice"></div>
+
+  <section class="card">
+    <h2>Programs</h2>
+    <div class="sub"><b>Tracking link</b>: the deep link from the network (Impact, CJ, Rakuten, Partnerize...). Put <code>{url}</code> where the page the reader clicked goes and <code>{site}</code> where the newsroom's sub-ID goes, e.g. <code>https://fanatics.93n6tx.net/c/123/456/789?subId1={site}&amp;u={url}</code>. <b>Box</b> (optional): a ready-made promo with <code>{link}</code>, placed in articles like an ad slot. <b>Newsroom share</b>: the percent of earnings paid to the newsroom.</div>
+    <div id="progs"></div>
+    <div><button class="btn ghost" onclick="addProg()">+ Add program</button> <button class="btn" id="saveProgs" onclick="saveProgs()">Save programs</button><span class="msg" id="progMsg"></span></div>
+  </section>
+
+  <section class="card">
+    <h2>Clicks and payouts</h2>
+    <div class="row" style="margin-bottom:8px"><div style="max-width:180px"><label>Month</label><input type="month" id="month" onchange="load()"></div></div>
+    <div class="sub" id="clickTotal"></div>
+    <div class="table-scroll"><table id="clickTable"></table></div>
+    <h3 style="font-size:14px;margin:16px 0 4px">Top articles</h3>
+    <div class="table-scroll"><table id="articleTable"></table></div>
+
+    <h3 style="font-size:14px;margin:18px 0 4px">Earnings this month</h3>
+    <div class="sub">From each network's report, filtered by sub-ID (the newsroom).</div>
+    <div class="row">
+      <div><label>Program</label><select id="eProg"></select></div>
+      <div><label>Newsroom</label><input id="eSite" placeholder="insidemdsports"></div>
+      <div><label>Earnings ($)</label><input id="eAmt" type="number" step="0.01" min="0"></div>
+      <div style="flex:0 0 auto"><button class="btn" onclick="addEarning()">Add</button></div>
+    </div>
+    <div class="table-scroll" style="margin-top:12px"><table id="payTable"></table></div>
+    <div style="margin-top:10px"><button class="btn ghost small" onclick="exportCsv()">Download payouts (CSV)</button><span class="msg" id="payMsg"></span></div>
+  </section>
+</div>
+
+<script src="/supabase-config.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="/_auth.js"></script>
+<script>
+function $(id){return document.getElementById(id);}
+function esc(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
+function money(n){return '$'+(Number(n)||0).toFixed(2);}
+var data={programs:[],earnings:[],clicks:{},payouts:[]}, progs=[];
+async function api(body){
+  var r=body?await fetch('/api/affiliate',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)}):await fetch('/api/affiliate?month='+encodeURIComponent($('month').value));
+  var d=await r.json().catch(function(){return {};});
+  if(!r.ok||d.error) throw new Error(d.error||('HTTP '+r.status));
+  return d;
+}
+function renderProgs(){
+  $('progs').innerHTML=progs.length?progs.map(function(p,i){
+    var f=function(k,label,ph,type){ return '<div><label>'+label+'</label><input type="'+(type||'text')+'" value="'+esc(p[k]==null?'':p[k])+'" placeholder="'+esc(ph||'')+'" oninput="progs['+i+'].'+k+'=this.value"></div>'; };
+    return '<div class="prog"><div class="prog-head"><input type="text" value="'+esc(p.name||'')+'" placeholder="Program name (e.g. Fanatics)" oninput="progs['+i+'].name=this.value">'+
+      '<label style="display:flex;gap:5px;align-items:center;margin:0;font-weight:400"><input type="checkbox" style="width:auto" '+(p.active!==false?'checked':'')+' onchange="progs['+i+'].active=this.checked"> Active</label>'+
+      '<button class="btn ghost small" onclick="progs.splice('+i+',1);renderProgs()">Remove</button></div>'+
+      '<div class="grid">'+f('domains','Sites to tag (comma-separated)','fanatics.com, shop.umterps.com')+f('share','Newsroom share (%)','50','number')+'</div>'+
+      f('urlTemplate','Tracking link','https://...{url}...{site}')+
+      '<div class="grid">'+f('home','Landing page (for the box)','https://www.fanatics.com/college/maryland-terrapins')+'<div class="grid">'+f('first','Box after paragraph','4','number')+f('max','Boxes per article','1','number')+'</div></div>'+
+      '<label>Box HTML (optional; {link} = the tracked link)</label><textarea rows="3" oninput="progs['+i+'].boxHtml=this.value">'+esc(p.boxHtml||'')+'</textarea>'+
+      f('notes','Notes (network, account, terms)','')+'</div>';
+  }).join(''):'<div class="sub">No programs yet. Add the first one.</div>';
+}
+function addProg(){ progs.push({name:'',active:true,domains:'',share:50,urlTemplate:'',home:'',boxHtml:'',first:4,max:1}); renderProgs(); }
+async function saveProgs(){
+  var m=$('progMsg'), b=$('saveProgs'); b.disabled=true; m.className='msg'; m.textContent='Saving…';
+  try{ var d=await api({action:'programs',programs:progs}); progs=d.programs.map(function(p){return Object.assign({},p,{domains:(p.domains||[]).join(', ')});}); renderProgs(); m.className='msg ok'; m.textContent='Saved.'; fillProgSelect(); }
+  catch(e){ m.className='msg err'; m.textContent=e.message; }
+  b.disabled=false;
+}
+function fillProgSelect(){ $('eProg').innerHTML=progs.filter(function(p){return p.id;}).map(function(p){return '<option value="'+esc(p.id)+'">'+esc(p.name)+'</option>';}).join(''); }
+function renderStats(){
+  var c=data.clicks||{}, names={}; (data.programs||[]).forEach(function(p){ names[p.id]=p.name; });
+  $('clickTotal').textContent=(c.total||0)+' clicks in '+data.month+'.';
+  var rows=Object.keys(c.bySite||{}).map(function(k){ var x=k.split('|'); return {site:x[0],prog:names[x[1]]||x[1],n:c.bySite[k]}; }).sort(function(a,b){return b.n-a.n;});
+  $('clickTable').innerHTML='<tr><th>Newsroom</th><th>Program</th><th class="n">Clicks</th></tr>'+(rows.length?rows.map(function(r){return '<tr><td>'+esc(r.site)+'</td><td>'+esc(r.prog)+'</td><td class="n">'+r.n+'</td></tr>';}).join(''):'<tr><td colspan="3" style="color:var(--muted)">No clicks yet.</td></tr>');
+  var arts=Object.keys(c.byArticle||{}).map(function(k){ var x=k.split('|'); return {site:x[0],a:x.slice(1).join('|'),n:c.byArticle[k]}; }).sort(function(a,b){return b.n-a.n;}).slice(0,15);
+  $('articleTable').innerHTML='<tr><th>Newsroom</th><th>Article</th><th class="n">Clicks</th></tr>'+(arts.length?arts.map(function(r){return '<tr><td>'+esc(r.site)+'</td><td>'+esc(r.a.replace(/-/g,' '))+'</td><td class="n">'+r.n+'</td></tr>';}).join(''):'<tr><td colspan="3" style="color:var(--muted)">No clicks yet.</td></tr>');
+  var pay=data.payouts||[], tot={};
+  pay.forEach(function(p){ tot[p.site]=(tot[p.site]||0)+p.payout; });
+  var idxs=[]; (data.earnings||[]).forEach(function(e,i){ if(e.month===data.month) idxs.push(i); });
+  $('payTable').innerHTML='<tr><th>Newsroom</th><th>Program</th><th class="n">Earnings</th><th class="n">Share</th><th class="n">Payout</th><th></th></tr>'+
+    (pay.length?pay.map(function(p,j){ return '<tr><td>'+esc(p.site)+'</td><td>'+esc(p.programName)+'</td><td class="n">'+money(p.earnings)+'</td><td class="n">'+p.share+'%</td><td class="n"><b>'+money(p.payout)+'</b></td><td><button class="btn ghost small" onclick="delEarning('+idxs[j]+')">×</button></td></tr>'; }).join('')+
+      Object.keys(tot).map(function(s){ return '<tr><td colspan="4" style="text-align:right;font-weight:600">'+esc(s)+' total</td><td class="n"><b>'+money(tot[s])+'</b></td><td></td></tr>'; }).join('')
+    :'<tr><td colspan="6" style="color:var(--muted)">No earnings entered for this month.</td></tr>');
+}
+async function load(){
+  try{
+    data=await api();
+    progs=data.programs.map(function(p){return Object.assign({},p,{domains:(p.domains||[]).join(', ')});});
+    if(!$('eSite').value) $('eSite').value=data.site||'';
+    renderProgs(); fillProgSelect(); renderStats();
+  }catch(e){ $('notice').innerHTML='<div class="notice">'+esc(e.message)+'</div>'; }
+}
+async function addEarning(){
+  var m=$('payMsg');
+  try{ await api({action:'earning',month:$('month').value,program:$('eProg').value,site:$('eSite').value.trim(),amount:$('eAmt').value}); $('eAmt').value=''; m.className='msg ok'; m.textContent='Added.'; load(); }
+  catch(e){ m.className='msg err'; m.textContent=e.message; }
+}
+async function delEarning(i){ if(!confirm('Remove this earnings entry?')) return; try{ await api({action:'delete-earning',index:i}); load(); }catch(e){ $('payMsg').textContent=e.message; } }
+function exportCsv(){
+  var lines=[['month','newsroom','program','earnings','share_percent','payout']].concat((data.payouts||[]).map(function(p){return [p.month,p.site,p.programName,p.earnings.toFixed(2),p.share,p.payout.toFixed(2)];}));
+  var csv=lines.map(function(r){return r.map(function(x){ x=String(x); return /[",\n]/.test(x)?'"'+x.replace(/"/g,'""')+'"':x; }).join(',');}).join('\n');
+  var a=document.createElement('a'); a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv'})); a.download='affiliate-payouts-'+data.month+'.csv'; a.click();
+}
+(async function(){
+  $('month').value=new Date().toISOString().slice(0,7);
+  if(window.IMSAuth){ var s=await IMSAuth.guard(); if(s&&s.user) IMSAuth.mountMenu($('toplinks')); }
+  load();
+})();
+</script>
+</body>
+</html>

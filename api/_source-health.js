@@ -18,14 +18,14 @@ var SILENT_MS = 14 * 86400 * 1000;
 
 async function load() {
   try {
-    var got = await require('@vercel/blob').get(KEY, { access: 'private', useCache: false });
+    var got = await require('./_site-blob').get(KEY, { access: 'private', useCache: false });
     if (got && got.statusCode === 200) return await new Response(got.stream).json();
   } catch (e) {}
   return { feeds: {} };
 }
 async function save(st) {
   try {
-    await require('@vercel/blob').put(KEY, JSON.stringify(st), { access: 'private', addRandomSuffix: false, allowOverwrite: true, contentType: 'application/json' });
+    await require('./_site-blob').put(KEY, JSON.stringify(st), { access: 'private', addRandomSuffix: false, allowOverwrite: true, contentType: 'application/json' });
   } catch (e) {}
 }
 

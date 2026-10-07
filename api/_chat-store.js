@@ -4,15 +4,9 @@
 // (api/rolling-digest.js) — so every viewer sees the same channel instead of
 // the old pure-client-side chat, which nobody else could ever see.
 
-var SITE_SLUG = 'insidemdsports';
-var siteIdCache = null;
-
-async function resolveSiteId(sb) {
-  if (siteIdCache) return siteIdCache;
-  var r = await sb.from('sites').select('id').eq('slug', SITE_SLUG).single();
-  if (r.error || !r.data) throw new Error('Chat store: site row missing (run db/schema.sql)');
-  siteIdCache = r.data.id;
-  return siteIdCache;
+// The signed-in person's newsroom (_site.js), InsideMDSports for crons.
+function resolveSiteId(sb) {
+  return require('./_site').siteId(sb);
 }
 
 async function recent(sb, siteId, sinceIso, limit) {
@@ -50,4 +44,36 @@ async function postSystemMessage(sb, opts) {
   }
 }
 
-module.exports = { resolveSiteId: resolveSiteId, recent: recent, post: post, postSystemMessage: postSystemMessage };
+// Publisher clean-up: removes these messages (this site's only). Returns how many.
+async function remove(sb, siteId, ids) {
+  ids = (ids || []).map(String).filter(function (x) { return /^[0-9a-f-]{8,40}$/i.test(x); }).slice(0, 500);
+  if (!ids.length) return 0;
+  var del = await sb.from('chat_messages').delete().eq('site_id', siteId).in('id', ids).select('id');
+  if (del.error) throw new Error(del.error.message);
+  return (del.data || []).length;
+}
+
+// Chat profile photos (Jeff, 2026-10-06: "give users options to upload a
+// photo that will show next to their name in chat"). Each is a small square
+// JPEG the browser resizes before upload (about 5-15 KB as a data URL),
+// kept in one private Blob map, user id -> data URL. Small enough to send
+// with the chat itself, so no public file hosting is needed.
+var AVATARS = 'chat-avatars.json';
+async function avatars() {
+  try {
+    var got = await require('./_site-blob').get(AVATARS, { access: 'private', useCache: false });
+    if (got && got.statusCode === 200) return (await new Response(got.stream).json()) || {};
+  } catch (e) { /* none */ }
+  return {};
+}
+async function setAvatar(userId, dataUrl) {
+  if (!userId) throw new Error('Sign in first.');
+  if (dataUrl && !/^data:image\/(jpeg|png|webp);base64,[A-Za-z0-9+/=]+$/.test(dataUrl)) throw new Error('That isn\'t an image.');
+  if (dataUrl && dataUrl.length > 80000) throw new Error('That photo is too big; try a smaller one.');
+  var all = await avatars();
+  if (dataUrl) all[userId] = dataUrl; else delete all[userId];
+  await require('./_site-blob').put(AVATARS, JSON.stringify(all), { access: 'private', addRandomSuffix: false, allowOverwrite: true, contentType: 'application/json' });
+  return true;
+}
+
+module.exports = { resolveSiteId: resolveSiteId, recent: recent, post: post, postSystemMessage: postSystemMessage, remove: remove, avatars: avatars, setAvatar: setAvatar };

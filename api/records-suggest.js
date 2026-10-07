@@ -1,4 +1,7 @@
-// Proactive public-records suggestions (cron, every 2 hours). Reads the
+// Proactive public-records suggestions (cron, every 2 hours). Each one is
+// also saved (Records.addSuggestion) for the News Monitor's "new suggested
+// records requests" panel and the next update email (rolling-digest.js).
+// Reads the
 // newsroom's latest shared scan (_latest-scan.js; no new scan is run), picks
 // new stories in records priority tier 1 (coach/AD hires, firings, contracts,
 // buyouts) or tier 2 (sponsorship, apparel, media rights, game and event
@@ -17,7 +20,8 @@ var Latest = require('./_latest-scan.js');
 var Records = require('./_records.js');
 var mailer = require('./_mailer.js');
 
-var SITE = 'insidemdsports';
+// The newsroom this request runs as (_site.js).
+function curSite() { return require('./_site').slug(); }
 var MAX_PER_RUN = 3;
 
 function esc(s) { return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); }
@@ -33,19 +37,21 @@ function scanAlerts(latest) {
 function emailHtml(story, d, tierLabel) {
   var mailto = 'mailto:' + encodeURIComponent(d.to || '') + '?subject=' + encodeURIComponent(d.subject || '') + '&body=' + encodeURIComponent(d.body || '');
   return '<div style="font-family:Arial,sans-serif;max-width:640px;font-size:14px;line-height:1.5">' +
-    '<p style="color:#b45309;font-weight:700;margin:0 0 6px">📄 Records request suggested · ' + esc(tierLabel) + '</p>' +
+    '<p style="color:#b45309;font-weight:700;margin:0 0 6px">📄 Public records request ready · ' + esc(tierLabel) + '</p>' +
     '<h2 style="margin:4px 0 8px;font-size:18px">' + (story.url ? '<a href="' + esc(story.url) + '">' + esc(story.headline) + '</a>' : esc(story.headline)) + '</h2>' +
     '<p style="margin:0 0 10px">' + esc(d.reason) + '</p>' +
     (d.law ? '<p style="margin:0 0 6px"><b>Law:</b> ' + esc(d.law) + (d.agency ? ' · <b>To:</b> ' + esc(d.agency) : '') + '</p>' : '') +
     (d.records.length ? '<p style="margin:8px 0 4px"><b>Asks for:</b></p><ul style="margin:0 0 10px">' + d.records.map(function (r) { return '<li>' + esc(r) + '</li>'; }).join('') + '</ul>' : '') +
-    '<p style="margin:0 0 4px"><b>Send to:</b> ' + (d.to ? esc(d.to) + (/^https?:/.test(d.toSource || '') ? ' <span style="color:#888">(found on <a href="' + esc(d.toSource) + '">' + esc(d.toSource.replace(/^https?:\/\//, '').slice(0, 60)) + '</a>; check it)</span>' : '') : '<i>no published email found</i>') +
+    '<p style="margin:0 0 4px"><b>Send to:</b> ' + (d.to ? esc(d.to) + (/^https?:/.test(d.toSource || '') ? ' <span style="color:#888">(confirmed on <a href="' + esc(d.toSource) + '">' + esc(d.toSource.replace(/^https?:\/\//, '').slice(0, 60)) + '</a>)</span>' : '')
+      : d.toUnconfirmed ? '<i>possibly ' + esc(d.toUnconfirmed) + '</i> <span style="color:#888">(not printed on the agency page' + (/^https?:/.test(d.toSource || '') ? ' <a href="' + esc(d.toSource) + '">' + esc(d.toSource.replace(/^https?:\/\//, '').slice(0, 60)) + '</a>' : '') + '; check it before sending)</span>' : '<i>no published email found</i>') +
     (d.portal ? ' · <a href="' + esc(d.portal) + '">online request portal</a>' : '') + '</p>' +
     (d.response_note ? '<p style="color:#555;margin:0 0 10px">' + esc(d.response_note) + '</p>' : '') +
     '<pre style="white-space:pre-wrap;font-family:Arial,sans-serif;background:#f7f6f3;border-radius:6px;padding:12px;font-size:13px">' + esc(d.body) + '</pre>' +
-    '<p style="margin:14px 0">' +
-    (d.to ? '<a href="' + mailto + '" style="background:#2563eb;color:#fff;padding:8px 16px;border-radius:6px;text-decoration:none;margin-right:8px">Send it from my email</a>' : '') +
-    '<a href="https://ims-tool.vercel.app/alerts" style="color:#2563eb">Review &amp; send in CoPublisher</a></p>' +
-    '<p style="color:#888;font-size:11px">Fill in any [bracketed] placeholders before sending. Nothing has been sent to the records office; CoPublisher only drafted it. Turn these suggestions off under Settings → My alerts.</p>' +
+    '<p style="margin:14px 0 6px"><b>Want CoPublisher to send it for you?</b> Open it in CoPublisher, check the letter and tap <b>Send request</b>. It goes out under your name, you\'re copied, and the records office replies straight to you.</p>' +
+    '<p style="margin:0 0 14px">' +
+    '<a href="https://ims-tool.vercel.app/alerts#records" style="background:#2563eb;color:#fff;padding:8px 16px;border-radius:6px;text-decoration:none;margin-right:8px">Yes, review &amp; send it for me</a>' +
+    (d.to ? '<a href="' + mailto + '" style="color:#2563eb">No, I\'ll send it from my email</a>' : '') + '</p>' +
+    '<p style="color:#888;font-size:11px">Fill in any [bracketed] placeholders before sending. Nothing has been sent to the records office yet; CoPublisher only wrote it. Turn these off under Permissions &amp; preferences › Your alerts.</p>' +
     '</div>';
 }
 
@@ -55,7 +61,7 @@ module.exports = async function handler(req, res) {
 
   try {
     var latest = await Latest.load();
-    var seen = await Records.suggestedKeys(SITE);
+    var seen = await Records.suggestedKeys(curSite());
     var candidates = scanAlerts(latest).filter(function (a) {
       var tier = typeof a.recordsTier === 'number' ? a.recordsTier : Records.classify(a);
       a._tier = tier;
@@ -65,7 +71,7 @@ module.exports = async function handler(req, res) {
 
     var sb = S.isConfigured() ? S.admin() : null;
     var beat = await Beat.getBeat(sb);
-    var recipients = await S.recipientsFor('records', SITE);
+    var recipients = await S.recipientsFor('records', curSite());
     if (!recipients.length && !S.isConfigured()) recipients = mailer.digestList();
 
     var results = [], done = [];
@@ -77,10 +83,15 @@ module.exports = async function handler(req, res) {
         done.push(Records.storyKey(a));
         if (!d.eligible) { results.push({ headline: story.headline, eligible: false, reason: d.reason }); continue; }
         var tierLabel = a._tier === 1 ? 'coaching hire, firing or contract' : 'sponsorship, game or event deal';
+        // Kept for the News Monitor and the next update email (Jeff, 2026-10-06).
+        try {
+          await Records.addSuggestion(curSite(), { headline: story.headline, url: story.url, source: story.source, tier: a._tier, tierLabel: tierLabel,
+            draft: { to: d.to || '', toVerified: !!d.toVerified, toUnconfirmed: d.toUnconfirmed || '', toSource: d.toSource || '', portal: d.portal || '', agency: d.agency || '', law: d.law || '', subject: d.subject || '', body: d.body || '', records: d.records || [], reason: d.reason || '', response_note: d.response_note || '' } });
+        } catch (e) { console.error('records-suggest save failed', e.message); }
         var mail = null;
         if (recipients.length) {
           try {
-            mail = await mailer.sendMail({ to: recipients, subject: '📄 Records request ready: ' + story.headline.slice(0, 120), html: emailHtml(story, d, tierLabel) });
+            mail = await mailer.sendMail({ to: recipients, alertType: 'records', subject: '📄 Records request ready: ' + story.headline.slice(0, 120), html: emailHtml(story, d, tierLabel) });
           } catch (e) { mail = { error: e.message }; }
         }
         results.push({ headline: story.headline, eligible: true, to: d.to, agency: d.agency, recipients: recipients.length, mail: mail });
@@ -88,9 +99,12 @@ module.exports = async function handler(req, res) {
         results.push({ headline: story.headline, error: e.message });
       }
     }
-    if (done.length) { try { await Records.markSuggested(SITE, done); } catch (e) { console.error('records-suggest mark failed', e.message); } }
+    if (done.length) { try { await Records.markSuggested(curSite(), done); } catch (e) { console.error('records-suggest mark failed', e.message); } }
     return res.status(200).json({ ok: true, suggested: results.filter(function (r) { return r.eligible; }).length, results: results });
   } catch (e) {
     return res.status(500).json({ error: e.message });
   }
 };
+
+// Per-newsroom: this request runs as the signed-in person's newsroom (_site.js).
+module.exports = require('./_site').wrap(module.exports);

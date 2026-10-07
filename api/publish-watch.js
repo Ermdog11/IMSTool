@@ -9,7 +9,6 @@
 // once that retrieval side is built.
 
 var S = require('./_supabase');
-var SITE_SLUG = 'insidemdsports';
 
 module.exports = async function handler(req, res) {
   var who;
@@ -23,7 +22,7 @@ module.exports = async function handler(req, res) {
 
   try {
     var sb = S.admin();
-    var siteRes = await sb.from('sites').select('id').eq('slug', SITE_SLUG).single();
+    var siteRes = await sb.from('sites').select('id').eq('slug', require('./_site').slug()).single();
     if (siteRes.error || !siteRes.data) throw new Error('Site row missing (run db/schema.sql)');
 
     var report = await require('./_publish-match').runMatchPass(sb, siteRes.data.id);
@@ -35,3 +34,6 @@ module.exports = async function handler(req, res) {
     return res.status(500).json({ error: e.message });
   }
 };
+
+// Per-newsroom: this request runs as the signed-in person's newsroom (_site.js).
+module.exports = require('./_site').wrap(module.exports);

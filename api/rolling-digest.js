@@ -14,17 +14,26 @@ const Settings = require('./_settings-store.js');
 function breakingMdToHtml(t) {
   var s = String(t || '')
     .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
-    .replace(/\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)/g, '<a href="$2">$1</a>')
+    .replace(/\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)/g, '<a href="$2" style="text-decoration:underline;text-underline-offset:2px">$1</a>')
     .replace(/\*\*([^*]+)\*\*/g, '<b>$1</b>');
   return s.split(/\n\s*\n/).map(function(p) { return '<p>' + p.replace(/\n/g, '<br>') + '</p>'; }).filter(Boolean).join('\n');
 }
 
-// Which slot -> how many hours back to look (gap since the previous send in the 8am/12pm/5pm ET schedule, plus buffer)
+// A manual ?slot= run and the newsroom-wide auto-drafts: how many hours back
+// to look (gap since the previous send in the 8am/12pm/5pm ET schedule, plus buffer)
 var WINDOW_HOURS = {
   morning: 16,  // since last night's 5pm send
   midday: 5,    // since this morning's 8am send
   evening: 6    // since today's noon send
 };
+
+// The hour (0-23) in tz at ms.
+function localHour(ms, tz) {
+  return Number(new Intl.DateTimeFormat('en-US', { timeZone: tz, hour: '2-digit', hourCycle: 'h23' }).format(new Date(ms))) % 24;
+}
+
+// Eastern hours that run the newsroom-wide work (auto-drafts, push).
+var DESK_SLOTS = { 8: 'morning', 12: 'midday', 17: 'evening' };
 
 var SLOT_LABEL = {
   morning: 'morning',
@@ -107,7 +116,50 @@ function itemHTML(item, overflowByTopic) {
   return html;
 }
 
-function buildEmailHTML(alerts, date, slot, overflowByTopic) {
+// "📄 Suggested records requests" at the top of the update email: each new
+// suggestion from the records-suggest cron goes in the next update that's
+// sent (Jeff, 2026-10-06: "include this information in the email that day,
+// or the next if it's been sent").
+function recordsHTML(list) {
+  if (!list || !list.length) return '';
+  var e = function (x) { return String(x == null ? '' : x).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); };
+  return '<div style="margin-bottom:22px;border:1px solid #f0d78a;background:#fffbeb;border-radius:8px;padding:12px 14px;">' +
+    '<div style="font-size:12px;font-weight:700;color:#b45309;text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px;">📄 Public records requests to review (' + list.length + ')</div>' +
+    list.map(function (s) {
+      var d = s.draft || {};
+      var mailto = d.to ? 'mailto:' + encodeURIComponent(d.to) + '?subject=' + encodeURIComponent(d.subject || '') + '&body=' + encodeURIComponent(d.body || '') : '';
+      return '<div style="padding:8px 0;border-top:1px solid #f3e6bd;">' +
+        '<div style="font-size:14px;font-weight:600;">' + (s.url ? '<a href="' + e(s.url) + '" style="color:#1a1a1a;text-decoration:none;">' + e(s.headline) + '</a>' : e(s.headline)) + '</div>' +
+        '<div style="font-size:12px;color:#555;line-height:1.5;margin-top:2px;">' + e(d.reason) + '</div>' +
+        '<div style="font-size:12px;color:#555;margin-top:3px;"><b>To:</b> ' + (d.agency ? e(d.agency) + ' · ' : '') + (d.to ? e(d.to) : d.toUnconfirmed ? e(d.toUnconfirmed) + ' (check it)' : 'no published email') + '</div>' +
+        '<div style="font-size:12px;margin-top:5px;">' + (mailto ? '<a href="' + mailto + '" style="color:#2563eb;margin-right:12px;">Send it from my email</a>' : '') + '<a href="https://ims-tool.vercel.app/alerts#records" style="color:#2563eb;">Have CoPublisher send it for me</a></div>' +
+      '</div>';
+    }).join('') + '</div>';
+}
+
+// Evening update: tomorrow's early hot spots (before 11 AM Eastern), so a
+// story can be ready the night before; the morning memo comes too late for them.
+async function earlyHotSpotsHtml() {
+  try {
+    var Cal = require('./_calendar');
+    var data = await Cal.load();
+    if (!Cal.heatOn(data)) return '';
+    var tomorrow = new Date(Date.now() + 86400000).toLocaleDateString('en-CA', { timeZone: 'America/New_York' });
+    var early = (data.events || []).filter(function (e) {
+      if (e.kind !== 'heat') return false;
+      var d = new Date(e.start);
+      return d.toLocaleDateString('en-CA', { timeZone: 'America/New_York' }) === tomorrow &&
+        Number(new Intl.DateTimeFormat('en-US', { timeZone: 'America/New_York', hour: '2-digit', hourCycle: 'h23' }).format(d)) % 24 < 11;
+    });
+    if (!early.length) return '';
+    return '<div style="background:#fff7ed;border:1px solid #fed7aa;border-radius:8px;padding:12px 14px;margin:0 0 16px;font-size:14px;color:#7c2d12">' +
+      '<b>🔥 Tomorrow morning\'s hot spot' + (early.length > 1 ? 's' : '') + ':</b> ' + early.map(function (e) {
+        return new Date(e.start).toLocaleTimeString('en-US', { timeZone: 'America/New_York', hour: 'numeric', minute: '2-digit' }) + (e.note ? ' (' + String(e.note).replace(/[<>&]/g, '') + ')' : '');
+      }).join('; ') + '. That\'s before the morning memo, so have a story written and scheduled tonight.</div>';
+  } catch (e) { return ''; }
+}
+
+function buildEmailHTML(alerts, date, slot, overflowByTopic, recordsList, ideas, hotSpotsHtml, heldHtml) {
   // Group by calendar day
   var days = {};
   alerts.forEach(function(a) {
@@ -141,9 +193,10 @@ function buildEmailHTML(alerts, date, slot, overflowByTopic) {
     body += '</div>';
   });
 
+  body = (heldHtml || '') + (hotSpotsHtml || '') + recordsHTML(recordsList) + body + require('./_ombudsman.js').emailHtml(ideas);
   var bodyMsg = alerts.length
-    ? '<p style="font-size:13px;color:#555;margin-bottom:20px;">' + alerts.length + ' new ' + (alerts.length === 1 ? 'story' : 'stories') + ' since the last update.</p>' + body
-    : '<p style="font-size:13px;color:#555;margin-bottom:20px;">No new Terps stories since the last update.</p>';
+    ? '<p style="font-size:13px;color:#555;margin-bottom:20px;">' + alerts.length + ' new ' + (alerts.length === 1 ? 'story' : 'stories') + ' since your last update.</p>' + body
+    : '<p style="font-size:13px;color:#555;margin-bottom:20px;">Nothing new on the beat since your last update.</p>' + body;
 
   return '<!DOCTYPE html><html><head></head><body style="font-family:-apple-system,sans-serif;background:#f7f6f3;margin:0;padding:20px;">' +
     '<div style="max-width:600px;margin:0 auto;background:white;border-radius:10px;overflow:hidden;">' +
@@ -169,10 +222,61 @@ module.exports = async function handler(req, res) {
     return res.status(500).json({ error: 'Missing ANTHROPIC_API_KEY.' });
   }
 
-  var slot = (req.query && req.query.slot) || 'morning';
-  var windowHours = WINDOW_HOURS[slot] || 8;
+  // Each person's updates come at their own times (Jeff, 2026-10-07: "three
+  // different time slots ... option to only receive 1 or 2 daily"; set on
+  // Permissions & preferences, _alert-schedule.js timesOf). The cron runs
+  // hourly; each run emails the people whose time it is, each covering
+  // everything since the last digest email they got (an earlier update, or
+  // last night's digest: "the a.m. digest needs to include what's new since
+  // the p.m. digest"). Default times: 8 AM, noon, 5 PM in their zone.
+  // ?slot=morning|midday|evening (a manual run) still sends everyone one.
+  var Sched = require('./_alert-schedule');
+  var nowMs = Date.now();
+  var slotParam = req.query && req.query.slot;
+  if (slotParam && !WINDOW_HOURS[slotParam]) slotParam = 'morning';
+  // The newsroom-wide work after the emails (breaking auto-drafts, push)
+  // keeps the old 8 AM / noon / 5 PM Eastern rhythm, whoever is due.
+  var deskSlot = slotParam || DESK_SLOTS[localHour(nowMs, Sched.DEFAULT_TZ)] || null;
+  var groups;
+  if (slotParam) {
+    groups = [{ to: null, windowHours: WINDOW_HOURS[slotParam], slot: slotParam }];
+  } else {
+    var base = await mailer.baseRecipients('digest_rolling');
+    var schedAll = await Sched.load();
+    var nightlyOff = await Sched.switchedOff('digest_nightly');
+    var byKey = {};
+    base.forEach(function(e) {
+      var k = String(e).toLowerCase(), mine = schedAll[k] || {};
+      if (!Sched.dueNow(mine, 'digest_rolling', nowMs)) return;
+      var h = Sched.hoursSinceLast(mine, nowMs, !nightlyOff[k]);
+      var lh = localHour(nowMs, Sched.tzFor(mine, 'digest_rolling'));
+      var slot = lh < 11 ? 'morning' : lh < 15 ? 'midday' : 'evening';
+      var g = byKey[h + '|' + slot] = byKey[h + '|' + slot] || { to: [], windowHours: h + 1, slot: slot };
+      g.to.push(e);
+    });
+    groups = Object.keys(byKey).map(function(k) { return byKey[k]; });
+    // Alerts that came in someone's off hours ride in their own copy of the
+    // update, at the top ("While you were off"; _held-alerts.js).
+    var Held = require('./_held-alerts');
+    var held = {};
+    try { held = await Held.peek([].concat.apply([], groups.map(function(g) { return g.to; }))); } catch (e) { held = {}; }
+    if (Object.keys(held).length) {
+      var solo = [];
+      groups.forEach(function(g) {
+        g.to = g.to.filter(function(e) {
+          var k = String(e).toLowerCase();
+          if (!held[k]) return true;
+          solo.push({ to: [e], windowHours: g.windowHours, slot: g.slot, held: held[k], tz: Sched.tzOf(schedAll[k]) });
+          return false;
+        });
+      });
+      groups = groups.filter(function(g) { return g.to.length; }).concat(solo);
+    }
+    if (!groups.length && !deskSlot) return res.status(200).json({ skipped: 'no one\'s update is due this hour' });
+  }
   // Vercel Cron can deliver a run twice; only the first sends (see _cron-once.js).
-  if (who && who.cron && !(await require('./_cron-once').claim('rolling-digest-' + slot, require('./_cron-once').today()))) {
+  var Once = require('./_cron-once');
+  if (who && who.cron && !(await Once.claim('rolling-digest-' + (slotParam || 'h' + new Date(nowMs).toISOString().slice(11, 13)), Once.today()))) {
     return res.status(200).json({ skipped: 'duplicate cron delivery' });
   }
 
@@ -183,7 +287,9 @@ module.exports = async function handler(req, res) {
         status: function() { return this; },
         json: function(d) { resolve(d); return this; }
       };
-      scanHandler({ body: { deep: true, webSearch: true, googleSearch: true } }, fakeRes).catch(reject);
+      // The paid web and Google searches stay at the three newsroom times
+      // (_web-search.js, _google-search.js budgets); other hours use the regular scan.
+      scanHandler({ body: deskSlot ? { deep: true, webSearch: true, googleSearch: true } : {} }, fakeRes).catch(reject);
     });
 
     if (scanResult.error) throw new Error('Scan failed: ' + scanResult.error);
@@ -193,30 +299,63 @@ module.exports = async function handler(req, res) {
 
     var allAlerts = JSON.parse(match[0]).filter(function(a) { return !a.republished; });
 
-    // Only stories newer than this slot's window (rolling, since the previous send)
+    // Only stories newer than the window (since that person's last email).
     // The story's real age (from its feed, search result or page) when scan.js
-    // knows it; the rater's "time" text otherwise.
-    var alerts = allAlerts.filter(function(a) { return (a.ageHours != null ? a.ageHours : hoursAgo(a.time)) <= windowHours; });
-
-    // Cap at the most recent MAX_ITEMS
-    alerts.sort(function(a, b) { return hoursAgo(a.time) - hoursAgo(b.time); });
-    alerts = alerts.slice(0, MAX_ITEMS);
-
+    // knows it; the rater's "time" text otherwise. Capped at the most recent MAX_ITEMS.
+    function windowed(windowHours) {
+      var list = allAlerts.filter(function(a) { return (a.ageHours != null ? a.ageHours : hoursAgo(a.time)) <= windowHours; });
+      list.sort(function(a, b) { return hoursAgo(a.time) - hoursAgo(b.time); });
+      return list.slice(0, MAX_ITEMS);
+    }
     // Held-out "More on this" stories (same person/topic), grouped by topic
-    var overflowByTopic = {};
-    (scanResult.overflow || []).forEach(function(s) {
-      if (!s.trendingTopic || (s.age || 0) > windowHours) return;
-      (overflowByTopic[s.trendingTopic] = overflowByTopic[s.trendingTopic] || []).push(s);
-    });
+    function overflowFor(windowHours) {
+      var out = {};
+      (scanResult.overflow || []).forEach(function(s) {
+        if (!s.trendingTopic || (s.age || 0) > windowHours) return;
+        (out[s.trendingTopic] = out[s.trendingTopic] || []).push(s);
+      });
+      return out;
+    }
 
     var date = new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' });
 
-    var mailResult = await mailer.sendMail({
-      subject: alerts.length
-        ? 'InsideMDSports ' + SLOT_LABEL[slot] + ' update — ' + alerts.length + ' new ' + (alerts.length === 1 ? 'story' : 'stories')
-        : 'InsideMDSports ' + SLOT_LABEL[slot] + ' update — nothing new',
-      html: buildEmailHTML(alerts, date, slot, overflowByTopic)
-    });
+    // Ombudsman: five story ideas at the bottom of every update (best-effort).
+    var ideas = [];
+    if (groups.length) {
+      try { ideas = await require('./_ombudsman.js').suggest(allAlerts, { slot: deskSlot || groups[0].slot }); } catch (e) { console.error('Ombudsman ideas failed (non-fatal):', e.message); }
+    }
+
+    var recordsList = [];
+    if (groups.length) {
+      try { recordsList = await require('./_records.js').pendingForDigest(require('./_site').slug()); } catch (e) { console.error('Records for digest failed (non-fatal):', e.message); }
+    }
+    var mailResult = [], anySent = false;
+    var hotSpots = null;
+    for (var gi = 0; gi < groups.length; gi++) {
+      var grp = groups[gi], list = windowed(grp.windowHours);
+      if (grp.slot === 'evening' && hotSpots === null) hotSpots = await earlyHotSpotsHtml();
+      try {
+        var sent = await mailer.sendMail({
+          to: grp.to || undefined,
+          alertType: 'digest_rolling',
+          subject: list.length
+            ? 'InsideMDSports ' + SLOT_LABEL[grp.slot] + ' update — ' + list.length + ' new ' + (list.length === 1 ? 'story' : 'stories')
+            : 'InsideMDSports ' + SLOT_LABEL[grp.slot] + ' update — nothing new',
+          html: buildEmailHTML(list, date, grp.slot, overflowFor(grp.windowHours), recordsList, ideas, grp.slot === 'evening' ? hotSpots : '', grp.held ? require('./_held-alerts').html(grp.held, grp.tz) : '')
+        });
+        if (grp.held && sent && !sent.error && !sent.skipped) {
+          await require('./_held-alerts').clear(grp.to[0], grp.held[grp.held.length - 1].at);
+        }
+        mailResult.push({ slot: grp.slot, windowHours: grp.windowHours, count: list.length, mail: sent });
+        if (sent && !sent.error && !sent.skipped) anySent = true;
+      } catch (e) { mailResult.push({ slot: grp.slot, error: e.message }); }
+    }
+    if (recordsList.length && anySent) {
+      try { await require('./_records.js').markInDigest(require('./_site').slug(), recordsList.map(function(x) { return x.id; })); } catch (e) { console.error('Records digest mark failed:', e.message); }
+    }
+
+    var slot = deskSlot;
+    var alerts = deskSlot ? windowed(WINDOW_HOURS[deskSlot]) : [];
 
     // Auto-draft a ready-to-review article for each NEW rating-4+ story (never
     // re-draft one still sitting in the window on a later run this slot),
@@ -288,12 +427,12 @@ module.exports = async function handler(req, res) {
           await Drafts.saveDraft(doc);
 
           var reviewUrl = 'https://ims-tool.vercel.app/editor#3/' + id;
-          var recipients = await S.recipientsFor('breaking', 'insidemdsports');
+          var recipients = await S.recipientsFor('breaking', require('./_site').slug());
           var mailToBreaking = null;
           if (recipients.length) {
             try {
               mailToBreaking = await mailer.sendMail({
-                to: recipients,
+                to: recipients, alertType: 'breaking',
                 subject: ((story.rating || 0) >= 5 ? '🚨 Breaking' : 'Major story') + (check.status === 'single' ? ' (single source)' : '') + ': ' + draft.headline,
                 html: '<div style="font-family:Arial,sans-serif;max-width:600px">' +
                   '<p style="color:#b91c1c;font-weight:700">CoPublisher AI drafted this from a ' + ((story.rating || 0) >= 5 ? 'breaking' : 'major') + ' story. Review it before publishing.</p>' +
@@ -344,9 +483,12 @@ module.exports = async function handler(req, res) {
     }
 
     console.log('Breaking drafts:', JSON.stringify(breakingDrafts.map(function(b) { return { headline: b.headline, status: b.status, check: b.check, detail: b.detail }; })));
-    return res.status(200).json({ success: true, slot: slot, count: alerts.length, date: date, mail: mailResult, push: pushResult, breakingDrafts: breakingDrafts });
+    return res.status(200).json({ success: true, slot: slot, groups: groups.length, date: date, mail: mailResult, push: pushResult, breakingDrafts: breakingDrafts });
   } catch (error) {
-    console.error('Rolling digest error (' + slot + '):', error);
+    console.error('Rolling digest error (' + (slotParam || deskSlot || 'hourly') + '):', error);
     return res.status(500).json({ success: false, error: error.message });
   }
 };
+
+// Per-newsroom: this request runs as the signed-in person's newsroom (_site.js).
+module.exports = require('./_site').wrap(module.exports);

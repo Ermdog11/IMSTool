@@ -88,7 +88,7 @@ async function activeStorylineTopics(sb, anthropicKey) {
 function breakingMdToHtml(t) {
   var s = String(t || '')
     .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
-    .replace(/\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)/g, '<a href="$2">$1</a>')
+    .replace(/\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)/g, '<a href="$2" style="text-decoration:underline;text-underline-offset:2px">$1</a>')
     .replace(/\*\*([^*]+)\*\*/g, '<b>$1</b>');
   return s.split(/\n\s*\n/).map(function(p) { return '<p>' + p.replace(/\n/g, '<br>') + '</p>'; }).filter(Boolean).join('\n');
 }
@@ -175,12 +175,12 @@ module.exports = async function handler(req, res) {
           await Drafts.saveDraft(doc);
 
           var reviewUrl = 'https://ims-tool.vercel.app/editor#3/' + id;
-          var recipients = await S.recipientsFor('breaking', 'insidemdsports');
+          var recipients = await S.recipientsFor('breaking', require('./_site').slug());
           var mailResult = null;
           if (recipients.length) {
             try {
               mailResult = await mailer.sendMail({
-                to: recipients,
+                to: recipients, alertType: 'breaking',
                 subject: '🚨 Breaking (X/Twitter' + (check.status === 'single' ? ', single source' : '') + '): ' + draft.headline,
                 html: '<div style="font-family:Arial,sans-serif;max-width:600px">' +
                   '<p style="color:#b91c1c;font-weight:700">CoPublisher AI drafted this from a breaking X/Twitter post. Review it before publishing.</p>' +
@@ -231,3 +231,6 @@ module.exports = async function handler(req, res) {
     return res.status(500).json({ success: false, error: error.message });
   }
 };
+
+// Per-newsroom: this request runs as the signed-in person's newsroom (_site.js).
+module.exports = require('./_site').wrap(module.exports);

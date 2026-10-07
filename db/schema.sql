@@ -48,6 +48,12 @@ do $$ begin
   create type public.member_role as enum ('publisher', 'editor', 'writer');
 exception when duplicate_object then null; end $$;
 
+-- Migration (2026-10-06): two more roles. contributor = freelancers (the
+-- Content Editor only, their own drafts); viewer = read-only News Monitor.
+-- What each role can do is decided in code (api/_access.js), not here.
+alter type public.member_role add value if not exists 'contributor';
+alter type public.member_role add value if not exists 'viewer';
+
 create table if not exists public.memberships (
   id          uuid primary key default gen_random_uuid(),
   user_id     uuid not null references public.profiles(id) on delete cascade,

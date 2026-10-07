@@ -365,7 +365,7 @@ module.exports = async function handler(req, res) {
     catch (e) { return res.status(e.status || 401).json({ error: e.message }); }
     try {
       var sb = S.admin();
-      return res.status(200).json({ profile: await Store.getProfile(sb), houseStyle: await Store.getHouseStyle(sb), beat: wizardBeat(await Beat.getBeat(sb)) });
+      return res.status(200).json({ profile: await Store.getProfile(sb), houseStyle: await Store.getHouseStyle(sb), beat: wizardBeat(await Beat.getBeat(sb)), accessDefaults: require('./_access').ROLE_DEFAULTS });
     } catch (e) {
       return res.status(200).json({ profile: {}, houseStyle: null, beat: null });
     }
@@ -374,11 +374,17 @@ module.exports = async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'GET or POST' });
   if (!S.isConfigured()) return res.status(503).json({ error: 'Sign-in is not set up yet, so settings cannot be saved.' });
 
+  var body = req.body || {};
+  // Wizard preview (/setup?preview=1): its AI suggestion steps only return
+  // suggestions, so any newsroom member may run them (a tester invited as a
+  // Viewer can try the wizard on a brand-new beat; Jeff, 2026-10-06). Nothing
+  // is saved in preview; everything else here stays publisher-only.
+  var PREVIEW_ACTIONS = ['suggest-names', 'suggest-x', 'suggest-beat', 'suggest-terms', 'build-house-style'];
+  var preview = body.preview === true && PREVIEW_ACTIONS.indexOf(body.action) !== -1;
   var ctx;
-  try { ctx = await S.requireRole(req, 'publisher'); }
+  try { ctx = preview ? await S.requireUser(req) : await S.requireRole(req, 'publisher'); }
   catch (e) { return res.status(e.status || 401).json({ error: e.message }); }
 
-  var body = req.body || {};
   try {
     if (body.action === 'suggest-names') return res.status(200).json(await suggestNames(body));
     if (body.action === 'suggest-x') return res.status(200).json(await suggestXAccounts(body, ctx.supabase));
@@ -396,7 +402,8 @@ module.exports = async function handler(req, res) {
     }
     if (body.action === 'build-house-style') {
       var built = await buildHouseStyle(body);
-      await Store.saveHouseStyle(ctx.supabase, built.guide);
+      // Preview never touches the live house style.
+      if (!preview) await Store.saveHouseStyle(ctx.supabase, built.guide);
       return res.status(200).json({ ok: true, guide: built.guide });
     }
     if (body.houseStyle !== undefined) {
@@ -411,3 +418,6 @@ module.exports = async function handler(req, res) {
     return res.status(500).json({ error: e.message });
   }
 };
+
+// Per-newsroom: this request runs as the signed-in person's newsroom (_site.js).
+module.exports = require('./_site').wrap(module.exports);

@@ -93,6 +93,64 @@ function glanceHtml(y) {
   return h + '</div>';
 }
 
+// "📅 Today on the calendar" box at the top of the memo.
+function calendarHtml(list) {
+  if (!list || !list.length) return '';
+  var Cal = require('./_calendar');
+  return '<div style="border:1px solid #cfe0f5;background:#f3f8fe;border-radius:8px;padding:10px 14px;margin-bottom:16px">' +
+    '<div style="font-size:12px;font-weight:700;color:#1d4ed8;text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px">📅 Today on the calendar</div>' +
+    list.map(function (e) {
+      return '<div style="font-size:13px;padding:3px 0"><b>' + esc(Cal.timeOf(e)) + '</b> &nbsp;' + esc(e.title) +
+        (e.location ? ' <span style="color:#666">· ' + esc(e.location) + '</span>' : '') +
+        (e.note ? '<div style="font-size:12px;color:#555;margin-left:2px">' + esc(e.note) + '</div>' : '') + '</div>';
+    }).join('') +
+    '<div style="font-size:11px;margin-top:6px"><a href="https://ims-tool.vercel.app/calendar" style="color:#2563eb">Open the calendar</a></div></div>';
+}
+
+// Story ideas for the coming week's calendar dates: one forced-tool call.
+var CAL_IDEAS_TOOL = {
+  name: 'submit_calendar_ideas',
+  description: 'Story ideas for the upcoming calendar dates.',
+  input_schema: {
+    type: 'object',
+    properties: {
+      summary: { type: 'string', description: 'Two sentences at most for the morning memo: the one or two dates this week most worth a story and what to do about them. Empty if nothing is worth a story.' },
+      ideas: { type: 'array', maxItems: 4, items: { type: 'object', properties: {
+        date: { type: 'string', description: 'The calendar date and event, e.g. "Thu, Oct 9: Media day".' },
+        idea: { type: 'string', description: 'The story to write, one sentence.' },
+        publish: { type: 'string', description: 'When to publish it, e.g. "Wednesday evening".' }
+      }, required: ['date', 'idea', 'publish'] } }
+    },
+    required: ['summary', 'ideas']
+  }
+};
+async function calendarIdeas(key, aheadList, outlet, beat, today) {
+  var r = await fetch('https://api.anthropic.com/v1/messages', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'x-api-key': key, 'anthropic-version': '2023-06-01' },
+    body: JSON.stringify({ model: 'claude-sonnet-4-6', max_tokens: 900, system: require('./_writer').rules(),
+      tools: [CAL_IDEAS_TOOL], tool_choice: { type: 'tool', name: CAL_IDEAS_TOOL.name },
+      messages: [{ role: 'user', content: 'You are the managing editor of ' + outlet + ', which covers ' + ((beat && beat.coverage) || 'its beat') + '. It is ' + today + '. ' +
+        'From the dates coming up on our calendar this week, suggest up to 4 stories to write ahead of them (a preview, what to watch for, a deadline that needs a story or a credential request) and when to publish each. Only dates genuinely worth a story; skip routine ones. Use only what the calendar says.\n\nCOMING UP (next 7 days):\n' + aheadList }] })
+  });
+  var d = await r.json();
+  if (d.error) throw new Error(d.error.message || JSON.stringify(d.error));
+  var tu = (d.content || []).filter(function (b) { return b.type === 'tool_use'; })[0];
+  var out = tu && tu.input || {};
+  return { summary: String(out.summary || '').trim(), ideas: (out.ideas || []).filter(function (i) { return i && i.idea; }).slice(0, 4) };
+}
+function calIdeasMemoHtml(c) {
+  if (!c || !c.summary) return '';
+  return '<div style="border:1px solid #cfe0f5;background:#f8fbff;border-radius:8px;padding:10px 14px;margin-bottom:16px;font-size:13px">' +
+    '<div style="font-size:12px;font-weight:700;color:#1d4ed8;text-transform:uppercase;letter-spacing:.06em;margin-bottom:4px">📅 Coming up on the calendar</div>' + esc(c.summary) + '</div>';
+}
+function calIdeasEmailHtml(c) {
+  return '<div style="font-family:-apple-system,Segoe UI,Arial,sans-serif;max-width:620px;font-size:14px;line-height:1.5">' +
+    (c.summary ? '<p>' + esc(c.summary) + '</p>' : '') +
+    c.ideas.map(function (i) { return '<div style="padding:8px 0;border-top:1px solid #eee"><b>' + esc(i.date) + '</b><br>' + esc(i.idea) + '<br><span style="color:#666">Publish: ' + esc(i.publish) + '</span></div>'; }).join('') +
+    '<p style="font-size:12px;color:#888;margin-top:12px"><a href="https://ims-tool.vercel.app/calendar">Open the calendar</a> · Turn these off under <a href="https://ims-tool.vercel.app/preferences#alerts">Permissions &amp; preferences</a>.</p></div>';
+}
+
 module.exports = async function handler(req, res) {
   var who;
   try { who = await require('./_supabase').requireUserOrCron(req, res); }
@@ -130,7 +188,7 @@ module.exports = async function handler(req, res) {
     if (S.isConfigured()) {
       try {
         var sb = S.admin();
-        var site = await sb.from('sites').select('id').eq('slug', 'insidemdsports').single();
+        var site = await sb.from('sites').select('id').eq('slug', require('./_site').slug()).single();
         if (site.data) yesterday = await require('./_yesterday-analytics').gatherYesterday(sb, site.data.id);
       } catch (e) { console.error('coverage-desk analytics failed (non-fatal):', e.message); }
     }
@@ -143,26 +201,114 @@ module.exports = async function handler(req, res) {
       .join('\n');
     var ownList = ownIndex.slice(0, 25).map(function (a) { return '- ' + a.headline; }).join('\n');
 
+    // This week's hot spots (best times to publish; filled in now if the
+    // Monday cron hasn't run). Today's show in the calendar box; all of the
+    // week's remaining ones go to the memo's WHEN TO PUBLISH section.
+    var heatList = '';
+    if (S.isConfigured()) {
+      try {
+        var hsb = S.admin();
+        var hsite = await hsb.from('sites').select('id').eq('slug', require('./_site').slug()).single();
+        if (hsite.data) {
+          var heat = await require('./_calendar').ensureHeatSpots(hsb, hsite.data.id, false);
+          var nowMs = Date.now();
+          // Only spots far enough ahead to act on (the memo lands at 7 AM;
+          // a 7 or 8 AM spot is too soon to plan for from it).
+          heatList = (heat.spots || []).filter(function (e) { return Date.parse(e.start) > nowMs + 90 * 60000; })
+            .sort(function (a, b) { return (a.heatRank || 9) - (b.heatRank || 9); })
+            .map(function (e) {
+              return '- #' + e.heatRank + ' ' + new Date(e.start).toLocaleString('en-US', { timeZone: 'America/New_York', weekday: 'long', hour: 'numeric', minute: '2-digit' }) + (e.note ? ' — ' + e.note : '');
+            }).join('\n');
+          if (!heatList && heat.note) heatList = '(' + heat.note + ')';
+        }
+      } catch (e) { console.error('Coverage Desk: hot spots failed (non-fatal):', e.message); }
+    }
+
+    // AI-assisted calendar: add the dated, upcoming items in today's news first,
+    // so anything happening today shows in the box below.
+    try {
+      var CalM = require('./_calendar');
+      if (CalM.mode(await CalM.load()) === 'ai') {
+        var noticed = await require('./_ai-calendar').addFromNews(alerts);
+        if (noticed.length) console.log('Coverage Desk: AI calendar added', noticed.length);
+      }
+    } catch (e) { console.error('Coverage Desk: AI calendar failed (non-fatal):', e.message); }
+
+    // Ombudsman: daily quality review of our last 3 days of articles (best-effort).
+    var ombReview = null;
+    try { ombReview = await require('./_ombudsman.js').review({}); } catch (e) { console.error('Coverage Desk: ombudsman review failed (non-fatal):', e.message); }
+    // Writer leaderboard kudos (last 7 days): in the memo, and in Team Chat
+    // when the publisher has shared the leaderboard with any role.
+    var kudosLines = [];
+    try {
+      if (S.isConfigured()) {
+        var ksb = S.admin();
+        var ksite = await ksb.from('sites').select('id').eq('slug', require('./_site').slug()).single();
+        if (ksite.data) {
+          var WS = require('./_writer-stats');
+          kudosLines = WS.kudos(await WS.get(ksb, ksite.data.id, 7, true));
+          var prof = await require('./_settings-store').getProfile(ksb);
+          var acc = (prof && prof.editorAccess) || {};
+          var shared = ['editor', 'writer', 'contributor', 'viewer'].some(function (r) { return acc[r] && acc[r].mon_leaderboard === true; });
+          if (shared && kudosLines.length) {
+            await require('./_chat-store').postSystemMessage(ksb, { senderName: 'CoPublisher AI', kind: 'system', text: 'Kudos this week: ' + kudosLines.join(' ') + ' (Leaderboard)' });
+          }
+        }
+      }
+    } catch (e) { console.error('Coverage Desk: kudos failed (non-fatal):', e.message); }
+
+    // Today's calendar: shown at the top of the email and given to the memo.
+    var todayEvents = [];
+    try { todayEvents = await require('./_calendar').eventsOn(); } catch (e) { console.error('Coverage Desk: calendar failed (non-fatal):', e.message); }
+    var Cal = require('./_calendar');
+    var calList = todayEvents.map(function (e) { return '- ' + Cal.timeOf(e) + ': ' + e.title + (e.location ? ' (' + e.location + ')' : '') + (e.note ? ' — ' + e.note : ''); }).join('\n');
+    // The next 7 days on the calendar, for story ideas ahead of them (Jeff,
+    // 2026-10-07: use the calendar to suggest stories, automatically).
+    var aheadList = '';
+    try {
+      var calData = await Cal.load(), tomorrowMs = Date.now() + 12 * 3600000;
+      aheadList = (calData.events || []).filter(function (e) { var s = Date.parse(e.start); return e.kind !== 'heat' && s > tomorrowMs && s < Date.now() + 7 * 86400000; })
+        .sort(function (a, b) { return a.start.localeCompare(b.start); }).slice(0, 15)
+        .map(function (e) { return '- ' + new Date(e.start).toLocaleDateString('en-US', { timeZone: Cal.TZ, weekday: 'short', month: 'short', day: 'numeric' }) + ' ' + Cal.timeOf(e) + ': ' + e.title + (e.location ? ' (' + e.location + ')' : '') + (e.note ? ' — ' + e.note : ''); }).join('\n');
+    } catch (e) { console.error('Coverage Desk: calendar ahead failed (non-fatal):', e.message); }
+
+    // Outlet and beat from the beat profile, never hard-coded.
+    var cdBeat = await require('./_beat').getBeat(require('./_supabase').isConfigured() ? require('./_supabase').admin() : null).catch(function () { return null; });
+    var cdOutlet = (cdBeat && cdBeat.outletName) || 'the outlet', cdShort = (cdBeat && cdBeat.team && cdBeat.team.short) || 'the team';
     var prompt =
-      'You are the managing editor of InsideMDSports, a University of Maryland Terrapins beat site. It is the morning of ' + today + '. ' +
+      'You are the managing editor of ' + cdOutlet + ', which covers ' + ((cdBeat && cdBeat.coverage) || 'its beat') + '. It is the morning of ' + today + '. ' +
       'Write a SHORT daily coverage memo to the publisher — the kind an assistant editor leaves on the desk. Plain, direct, skimmable. ' +
       'Use these sections, each 1-4 bullets; skip a section only if there is genuinely nothing real to say.\n\n' +
       "TODAY'S PRIORITIES — the 2-4 stories from the news below worth putting a writer on today, and one clause on why (fresh, major, or ours to own).\n" +
-      'GAPS — anything in the news below that matters to Terps readers that InsideMDSports has NOT already covered (compare against the recently-published list). Name the story and, if the source shows it, who already has it.\n' +
+      'GAPS — anything in the news below that matters to ' + cdShort + ' readers that ' + cdOutlet + ' has NOT already covered (compare against the recently-published list). Name the story and, if the source shows it, who already has it.\n' +
       'FOLLOW UPS — developing threads from roughly the last one to two weeks that deserve a check-in: a recruit deciding soon, an injury with no update, a pending decision, a story that said "more to come."\n' +
       (hasNumbers
         ? "WHAT WORKED YESTERDAY — 3-5 bullets reading YESTERDAY'S NUMBERS below (the publisher also sees the raw figures in a box above your memo, so don't just repeat them): what pulled readers on the site and why it likely did (topic, timing, angle), what did or didn't land on social (Buffer posts and the X account's own tweets), any top site story that got no social push, and how yesterday compared with the prior week, where readers came from (search vs social vs direct, and any shift vs the prior week), and what people searched on Google to find us (Search Console; preliminary numbers). End with 1-2 concrete actions for today drawn from this (e.g. a follow-up on a story that pulled readers, re-push a strong story on social, post at the hour that worked). Use ONLY the numbers given; never invent figures. If a source is missing or thin, say so in a few words rather than guessing.\n"
         : 'WHAT WORKED — write exactly one line: "No analytics from yesterday yet (connect Chartbeat and Buffer under Analytics)." Do not invent numbers or name a top story.\n') +
+      (calList ? "TODAY'S CALENDAR is shown to the publisher in its own box above your memo; don't list it again, but factor it into TODAY'S PRIORITIES (who covers a game, presser or deadline today).\n" : '') +
+      (heatList ? "WHEN TO PUBLISH — two or three sentences on this week's hot spots (the best times to publish, ranked from our own last 4 weeks of site readers and social engagement, listed below): name today's if any and what story from TODAY'S PRIORITIES to hold for it, then the best ones still ahead this week in order. If tomorrow has one before 10 AM, say to have a story written and scheduled before the end of today, since there won't be time in the morning. Use only the reasons given; don't invent numbers. If the list says there isn't enough history yet, say that in one line.\n" : '') +
       "EDITOR'S READ — one or two sentences: an honest take on where the beat is right now and the single thing you would focus on today.\n\n" +
       "TODAY'S RATED NEWS:\n" + (newsList || '(nothing notable in the scan)') + '\n\n' +
-      'RECENTLY PUBLISHED BY INSIDEMDSPORTS:\n' + (ownList || '(unavailable this run)') + '\n\n' +
+      (calList ? "TODAY'S CALENDAR:\n" + calList + '\n\n' : '') +
+      (heatList ? "THIS WEEK'S HOT SPOTS (ranked):\n" + heatList + '\n\n' : '') +
+      'RECENTLY PUBLISHED BY ' + cdOutlet.toUpperCase() + ':\n' + (ownList || '(unavailable this run)') + '\n\n' +
       (hasNumbers ? "YESTERDAY'S NUMBERS (" + yesterday.day + ', Eastern; site readers are summed from readings every 3 hours, a ranking rather than exact pageviews):\n' + JSON.stringify({ site: yesterday.site, social: yesterday.social, x: yesterday.x, googleSearch: yesterday.search, errors: yesterday.errors }) + '\n\n' : '') +
       'Return ONLY clean HTML: <h3> for each section header, <ul><li> for bullets, <p> for the read. No preamble, no markdown fences.';
+
+    // Story ideas from the calendar (Jeff, 2026-10-07: "it should be a
+    // preference but also a couple sentences in the coverage desk email"):
+    // a short summary in the memo, the full list to everyone with the
+    // "Story ideas from the calendar" alert on. Best-effort.
+    var calIdeas = null;
+    if (aheadList) {
+      try { calIdeas = await calendarIdeas(key, aheadList, cdOutlet, cdBeat, today); }
+      catch (e) { console.error('Coverage Desk: calendar ideas failed (non-fatal):', e.message); }
+    }
 
     var cr = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'x-api-key': key, 'anthropic-version': '2023-06-01' },
-      body: JSON.stringify({ model: 'claude-sonnet-4-6', max_tokens: 2200, messages: [{ role: 'user', content: prompt }] })
+      body: JSON.stringify({ model: 'claude-sonnet-4-6', max_tokens: 2200, system: require('./_writer').rules() + '\n\nCONTEXT (from our knowledge base and records; trust it over your memory):\n' + (await require('./_writer').context('')), messages: [{ role: 'user', content: prompt }] })
     });
     var cd = await cr.json();
     if (cd.error) throw new Error('Claude error: ' + JSON.stringify(cd.error));
@@ -173,17 +319,28 @@ module.exports = async function handler(req, res) {
       '<div style="font-family:-apple-system,BlinkMacSystemFont,Arial,sans-serif;max-width:620px;margin:0 auto;color:#1a1a1a">' +
       '<div style="background:#0f1b2d;padding:12px 16px;border-radius:8px 8px 0 0"><span style="color:#fff;font-weight:700">Coverage Desk &mdash; ' + today + '</span></div>' +
       '<div style="background:#fff;border:1px solid #e8e6e1;border-top:none;border-radius:0 0 8px 8px;padding:18px;font-size:14px;line-height:1.55">' +
+      calendarHtml(todayEvents) +
+      calIdeasMemoHtml(calIdeas) +
+      require('./_ombudsman.js').reviewHtml(ombReview) +
+      (kudosLines.length ? '<div style="border:1px solid #fde68a;background:#fffbeb;border-radius:8px;padding:10px 14px;margin-bottom:16px"><div style="font-size:12px;font-weight:700;color:#b45309;text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px">🏆 Writer kudos · last 7 days</div>' + kudosLines.map(function (k) { return '<div style="font-size:13px;padding:2px 0">' + esc(k) + '</div>'; }).join('') + '<div style="font-size:11px;margin-top:4px"><a href="https://ims-tool.vercel.app/leaderboard" style="color:#2563eb">Full leaderboard</a></div></div>' : '') +
       glanceHtml(yesterday) +
       memo +
       '<p style="color:#888;font-size:11px;margin-top:20px;border-top:1px solid #eee;padding-top:10px">Auto-generated from this morning’s scan of ' + alerts.length + ' rated stories. A starting point &mdash; review before assigning.</p>' +
       '</div></div>';
 
-    var mailResult = await mailer.sendMail({ subject: 'Coverage Desk — ' + today, html: html });
+    var mailResult = await mailer.sendMail({ alertType: 'coverage_desk', subject: 'Coverage Desk — ' + today, html: html });
+    if (calIdeas && calIdeas.ideas.length) {
+      try { await mailer.sendMail({ alertType: 'calendar_ideas', subject: '📅 Story ideas from the calendar: ' + calIdeas.ideas.length + ' this week', html: calIdeasEmailHtml(calIdeas) }); }
+      catch (e) { console.error('Coverage Desk: calendar ideas email failed (non-fatal):', e.message); }
+    }
 
-    console.log('Coverage Desk sent | alerts:', alerts.length, '| own index:', ownIndex.length, '| analytics:', hasNumbers, '| mail:', JSON.stringify(mailResult));
+    console.log('Coverage Desk sent | alerts:', alerts.length, '| own index:', ownIndex.length, '| analytics:', hasNumbers, '| calendar:', todayEvents.length, '| heat:', heatList ? heatList.split('\n').length : 0, '| mail:', JSON.stringify(mailResult));
     return res.status(200).json({ ok: true, alerts: alerts.length, ownIndex: ownIndex.length, analytics: hasNumbers ? { site: !!(yesterday.site && yesterday.site.readings), social: !!yesterday.social, x: !!(yesterday.x && yesterday.x.totals), errors: yesterday.errors } : null, mail: mailResult });
   } catch (e) {
     console.error('coverage-desk error:', e.message);
     return res.status(500).json({ error: e.message });
   }
 };
+
+// Per-newsroom: this request runs as the signed-in person's newsroom (_site.js).
+module.exports = require('./_site').wrap(module.exports);

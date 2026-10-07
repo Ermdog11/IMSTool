@@ -2,7 +2,15 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<link rel="manifest" href="/manifest.json">
+<meta name="theme-color" content="#0f1b2d">
+<link rel="icon" type="image/png" sizes="32x32" href="/icons/favicon-32.png">
+<link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="CoPublisher">
+<meta name="apple-mobile-web-app-status-bar-style" content="black">
 <title>InsideMDSports — Content Editor</title>
 <style>
 :root{--red:#2563eb;--red-dark:#1d4ed8;--gold:#f59e0b;--dark:#0f1b2d;--border:#e2e7ef;--bg:#f5f7fb;--bg2:#fff;--text:#1a1a1a;--text2:#333;--muted:#4a4a4a;--green:#3B6D11;--blue:#0c447c;--blue-light:#e8f4ff;--amber-bg:#fff8e1;--amber:#8a6d00;--hot:#dc2626;--red-light:#eaf1ff;--hot-dark:#b91c1c;--hot-light:#fef2f2;--nav:#16263f;--nav-on:#60a5fa;}
@@ -23,8 +31,12 @@ a{color:var(--blue)}
   .site-sub{display:none}
   .topbar-slot{flex-wrap:wrap;gap:6px}
   .topbar-slot span{max-width:52vw;overflow:hidden;text-overflow:ellipsis}
-  .nav{padding:0 8px}
-  .nav button{padding:10px 10px}
+  /* One row of tabs you swipe sideways, instead of three rows (2026-10-06). */
+  body .nav{padding:0 8px;flex-wrap:nowrap;overflow-x:auto;-webkit-overflow-scrolling:touch;scrollbar-width:none}
+  body .nav::-webkit-scrollbar{display:none}
+  body .nav button{padding:12px 12px;flex:0 0 auto;white-space:nowrap;font-size:13px}
+  input,select,textarea{font-size:16px!important}
+  body .btn{min-height:40px}
 }
 .nav{background:var(--nav);display:flex;flex-wrap:wrap;padding:0 20px}
 .nav button{font-size:12px;font-weight:600;padding:11px 16px;color:rgba(255,255,255,.7);border:none;background:transparent;cursor:pointer;border-bottom:2px solid transparent}
@@ -61,6 +73,41 @@ button.btn:disabled{opacity:.6;cursor:default}
 .spin{display:inline-block;width:14px;height:14px;border:2px solid rgba(255,255,255,.4);border-top-color:#fff;border-radius:50%;animation:sp .7s linear infinite;vertical-align:-2px;margin-right:6px}
 @keyframes sp{to{transform:rotate(360deg)}}
 .savedmsg{color:var(--green);font-size:12px;font-weight:600;margin-left:8px}
+.dm-filters{display:grid;grid-template-columns:2fr 1fr 1fr 1fr;gap:8px;margin-bottom:8px}
+.dm-filters input,.dm-filters select{margin:0;font-size:13px;padding:7px 9px}
+.dm-bulk{display:flex;align-items:center;gap:10px;flex-wrap:wrap;font-size:12.5px;color:var(--muted);min-height:30px;padding:0 4px}
+.dm-all{display:flex;align-items:center;gap:6px;margin:0;cursor:pointer;font-weight:600;color:var(--text)}
+.dm-all input{width:auto;margin:0}
+.dm-row{display:grid;grid-template-columns:22px minmax(0,1fr) 128px 120px 110px 178px;gap:10px;align-items:center;padding:9px 4px;border-top:1px solid var(--border);font-size:13px}
+.dm-row.head{border-top:0;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.03em;color:var(--muted);padding-top:2px}
+.dm-row input[type=checkbox]{width:auto;margin:0}
+.dm-row:not(.head):hover{background:#fafbfd}
+.dm-hl{min-width:0}
+.dm-hl a{color:var(--text);font-weight:600;text-decoration:none;cursor:pointer}
+.dm-hl a:hover{color:var(--blue);text-decoration:underline}
+.dm-hl input{margin:0;font-size:13px;padding:5px 7px}
+.dm-badge{display:inline-block;font-size:10.5px;font-weight:700;padding:1px 6px;border-radius:4px;background:#f1f3f7;color:var(--muted);margin-left:6px;vertical-align:1px;white-space:nowrap}
+.dm-badge.vip{background:#fde8e8;color:#9b1c1c}
+.dm-badge.email{background:#e8f0fe;color:#1e40af}
+.dm-badge.breaking{background:#fff1e6;color:#9a3412}
+.dm-row select{margin:0;font-size:12.5px;padding:4px 6px}
+.dm-meta{color:var(--muted);font-size:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.dm-acts{display:flex;gap:4px;justify-content:flex-end;flex-wrap:nowrap}
+.dm-acts button{font:inherit;font-size:12px;border:1px solid var(--border);background:#fff;border-radius:6px;padding:4px 8px;cursor:pointer;color:var(--text)}
+.dm-acts button:hover{border-color:var(--blue);color:var(--blue)}
+.dm-acts button.del:hover{border-color:var(--hot);color:var(--hot)}
+.dm-pager{display:flex;gap:6px;align-items:center;justify-content:flex-end;margin-top:10px;font-size:12.5px;color:var(--muted)}
+.dm-pager button{font:inherit;font-size:12.5px;border:1px solid var(--border);background:#fff;border-radius:6px;padding:4px 10px;cursor:pointer}
+.dm-pager button:disabled{opacity:.4;cursor:default}
+.dm-toast{position:fixed;left:50%;bottom:20px;transform:translateX(-50%);background:#1f2937;color:#fff;font-size:13px;padding:10px 14px;border-radius:8px;box-shadow:0 6px 20px rgba(0,0,0,.25);z-index:50;display:flex;gap:14px;align-items:center;max-width:92vw}
+.dm-toast button{font:inherit;font-size:13px;font-weight:700;background:none;border:0;color:#93c5fd;cursor:pointer}
+@media (max-width:760px){.dm-filters{grid-template-columns:1fr 1fr}.dm-filters input{grid-column:1/-1}.dm-row{grid-template-columns:22px minmax(0,1fr) auto;gap:6px 8px}.dm-row.head{display:none}.dm-row .dm-st{grid-column:2}.dm-row .dm-who{display:none}.dm-row .dm-when{grid-column:3;grid-row:2;text-align:right}.dm-row .dm-acts{grid-column:2/-1;justify-content:flex-start}}
+.aa-row{display:flex;align-items:center;gap:4px 14px;flex-wrap:wrap;padding:3px 0}
+.aa-lab{display:flex;align-items:center;gap:6px;margin:0;font-weight:400;color:var(--text);min-width:200px}
+.aa-pos{display:flex;align-items:center;gap:6px;font-size:12px;color:var(--muted)}
+.aa-pos input{width:130px;padding:0}
+.aa-pos b{color:var(--text);min-width:16px}
+body.no-factcheck .acc-factcheck,body.no-add #ed-autoadd,body.no-add #pre-tabs-wrap,body.no-add #pre-panel,body.no-ask #pre-ask-wrap,body.no-ask #ed-ask-wrap{display:none!important}
 </style>
 </head>
 <body>
@@ -95,7 +142,7 @@ button.btn:disabled{opacity:.6;cursor:default}
     <div class="card" id="copydesk-card">
       <div style="display:flex;align-items:flex-end;gap:18px;flex-wrap:wrap;border-bottom:1px solid var(--border)">
         <h2 style="margin:0 0 8px">Copydesk</h2>
-        <div style="display:flex;gap:2px;flex-wrap:wrap">
+        <div id="pre-tabs-wrap" style="display:flex;gap:2px;flex-wrap:wrap">
           <button type="button" id="pre-tab-podcast" style="padding:7px 14px;font-size:13px;border:1px solid transparent;border-radius:8px 8px 0 0;background:transparent;cursor:pointer;font-family:inherit;margin-bottom:-1px" onclick="openPreTab('podcast')">🎙️ Podcast</button>
           <button type="button" id="pre-tab-related" style="padding:7px 14px;font-size:13px;border:1px solid transparent;border-radius:8px 8px 0 0;background:transparent;cursor:pointer;font-family:inherit;margin-bottom:-1px" onclick="openPreTab('related')">🔗 Related links</button>
           <button type="button" id="pre-tab-promos" style="padding:7px 14px;font-size:13px;border:1px solid transparent;border-radius:8px 8px 0 0;background:transparent;cursor:pointer;font-family:inherit;margin-bottom:-1px" onclick="openPreTab('promos')">📣 Promos</button>
@@ -108,16 +155,16 @@ button.btn:disabled{opacity:.6;cursor:default}
           <label>Writer</label>
           <select id="ed-writer"><option value="">House style only</option></select>
         </div>
-        <div style="flex:1;min-width:160px">
+        <div style="flex:1;min-width:160px" id="ed-tier-wrap">
           <label>Tier</label>
-          <select id="ed-tier" onchange="if(preTab==='promos')renderPrePanel()"><option value="free">Free</option><option value="vip">VIP</option></select>
+          <select id="ed-tier" onchange="if(preTab==='promos')renderPrePanel();updatePromoCount()"><option value="free">Free</option><option value="vip">VIP</option></select>
         </div>
         <div style="flex:1;min-width:160px">
           <label>Mode</label>
           <select id="ed-mode" onchange="updateModeHint()">
             <option value="edit">Full edit — rewrite in house style</option>
             <option value="keep">Keep my words — review only</option>
-            <option value="links">Hotlinks only — insert links, don't edit</option>
+            <option value="links">Hotlinks only — keep every word, add links</option>
           </select>
         </div>
         <div style="flex:1;min-width:160px">
@@ -134,16 +181,37 @@ button.btn:disabled{opacity:.6;cursor:default}
         </div>
       </div>
       <div class="hint" id="ed-mode-hint" style="margin-top:2px"></div>
-      <div style="margin:14px 0;padding-bottom:14px;border-bottom:1px solid var(--border)">
-        <div class="hint" style="margin-bottom:8px">Ask a question or tell it what to do while you write or edit &mdash; can search the web for current stats, injuries, and this week's news when a question needs it; sources cited below the reply.</div>
+      <div id="pre-ask-wrap" style="margin:14px 0;padding-bottom:14px;border-bottom:1px solid var(--border)">
+        <div style="font-weight:600;font-size:14px;margin-bottom:2px">Give directions / ask a question</div>
+        <div class="hint" style="margin-bottom:8px">Tell it what to write or change (&ldquo;write a 600-word preview from my notes below&rdquo;, &ldquo;add a section on the injury report&rdquo;, &ldquo;give me five headlines&rdquo;), or ask anything. It searches the web for current stats, injuries and this week's news when it needs to, and cites its sources below the reply.</div>
         <div id="pre-ed-chat" style="display:flex;flex-direction:column;gap:8px;margin-bottom:8px"></div>
         <div style="display:flex;gap:6px">
-          <input id="pre-ed-ask" placeholder="Ask a question, or tell it what to change in the draft below…" style="flex:1;font-size:13px;padding:8px 10px;border:1px solid var(--border);border-radius:6px" onkeydown="if(event.key==='Enter')askEditorPre()">
+          <input id="pre-ed-ask" placeholder="Give directions (write, rewrite, add a section…) or ask a question" style="flex:1;font-size:13px;padding:8px 10px;border:1px solid var(--border);border-radius:6px" onkeydown="if(event.key==='Enter')askEditorPre()">
           <button class="btn" onclick="askEditorPre()">Send</button>
         </div>
       </div>
       <label>Draft</label>
       <textarea id="ed-draft" rows="16" placeholder="Paste the writer's draft here…"></textarea>
+      <div id="ed-autoadd" style="font-size:13px;margin-top:10px;border:1px solid var(--border);border-radius:8px;padding:8px 10px">
+        <div style="font-weight:600;margin-bottom:4px">Add with this edit:</div>
+        <div class="aa-row"><label class="aa-lab"><input type="checkbox" id="aa-podcast" style="width:auto"> 🎙️ Your latest podcast episode</label>
+          <span class="aa-pos" title="How far down the article it goes: 0% is above the first paragraph, 100% after the last. In a 10-paragraph story, 40% goes after paragraph 4.">Top <input type="range" id="aa-podcast-pos" min="0" max="100" step="20" value="100" oninput="this.nextElementSibling.textContent=this.value+'%'"> <b>100%</b> Bottom</span></div>
+        <div class="aa-row"><label class="aa-lab"><input type="checkbox" id="aa-related" style="width:auto"> 🔗 Related links box</label>
+          <span class="aa-pos" title="How far down the article it goes: 0% is above the first paragraph, 100% after the last. In a 10-paragraph story, 40% goes after paragraph 4.">Top <input type="range" id="aa-related-pos" min="0" max="100" step="20" value="100" oninput="this.nextElementSibling.textContent=this.value+'%'"> <b>100%</b> Bottom</span></div>
+        <div class="aa-row"><label class="aa-lab"><input type="checkbox" id="aa-promos" style="width:auto"> 📣 <span id="aa-promos-label">Promos for this tier</span></label>
+          <span class="aa-pos" title="Where the first promo goes: 0% is above the first paragraph, 100% after the last. More promos keep their spacing after it.">Top <input type="range" id="aa-promos-pos" min="0" max="100" step="20" value="40" oninput="this.nextElementSibling.textContent=this.value+'%'"> <b>40%</b> Bottom</span></div>
+        <div class="aa-row" id="aa-ads-row" style="display:none"><label class="aa-lab"><input type="checkbox" id="aa-ads" style="width:auto"> 💰 <span id="aa-ads-label">Ad slots</span></label>
+          <span class="aa-pos" title="Where the first ad goes: 0% is above the first paragraph, 100% after the last. More ads keep their spacing after it.">Top <input type="range" id="aa-ads-pos" min="0" max="100" step="20" value="40" oninput="this.nextElementSibling.textContent=this.value+'%'"> <b>40%</b> Bottom</span></div>
+        <div class="aa-row" id="aa-aff-row" style="display:none"><label class="aa-lab"><input type="checkbox" id="aa-affiliate" style="width:auto"> 💸 Affiliate links <span id="aa-aff-note" style="font-weight:400;color:var(--muted);font-size:12px"></span></label>
+          <span class="aa-pos" title="Where the first partner box goes (links inside the story stay where they are): 0% is above the first paragraph, 100% after the last.">Top <input type="range" id="aa-affiliate-pos" min="0" max="100" step="20" value="60" oninput="this.nextElementSibling.textContent=this.value+'%'"> <b>60%</b> Bottom</span></div>
+        <div class="aa-pos" style="margin:0 0 4px 22px">The % is how far down the article it goes, counted in paragraphs: 0% is above the first paragraph, 50% the middle, 100% after the last. (In a 10-paragraph story, 40% goes after paragraph 4.)</div>
+        <div class="aa-row acc-factcheck"><label class="aa-lab"><input type="checkbox" id="aa-factcheck" style="width:auto"> 🔎 Extra fact-check</label><span class="aa-pos">Checks every name, number and date against live sources. About a minute more.</span></div>
+        <div style="font-size:12px;color:var(--muted);margin-top:4px;display:flex;gap:4px 12px;flex-wrap:wrap;align-items:center">
+          <span id="aa-default-note">Ticks and spots start from your newsroom’s defaults.</span>
+          <a href="#" id="aa-save-default" style="display:none" onclick="saveAutoAddDefault(this);return false">Make these the default</a>
+          <a href="/preferences#editor">Preferences</a>
+        </div>
+      </div>
       <div class="row">
         <button class="btn" id="ed-go" onclick="runEdit()">Edit draft</button>
         <span id="ed-status" style="font-size:12px;color:var(--muted)"></span>
@@ -175,6 +243,12 @@ button.btn:disabled{opacity:.6;cursor:default}
       <div id="promo-list"></div>
       <div class="row"><button class="btn ghost" onclick="addPromo()">+ Add insert</button></div>
     </div>
+    <div class="card" id="ads-card">
+      <h2>💰 Ad slots</h2>
+      <div class="hint">Monetize every article: paste the ad code your network gives you (Google AdSense or Ad Manager, Raptive, Mediavine, any tag) and how often it repeats, e.g. every 6 paragraphs. Where the first ad lands is the <b>Ad slots</b> slider under the draft (its default is on Permissions &amp; preferences); with more than one unit, "After paragraph" sets their spacing from the first. With <b>Ad slots</b> ticked under the draft, they're placed in the same pass as the edit. The preview shows a labeled box; <b>Copy HTML</b>, <b>Copy embed code</b> and saved drafts carry the real code. Your CMS has to allow ad code in an article's HTML; if it strips scripts, use its own ad block with <b>Copy embed code</b>. Shared by the whole newsroom; the publisher edits them.</div>
+      <div id="ads-list"></div>
+      <div class="row"><button class="btn ghost ads-edit" onclick="adsAdd()">+ Add ad slot</button><button class="btn ads-edit" onclick="adsSave(this)">Save ad slots</button><span class="savedmsg" id="ads-msg"></span></div>
+    </div>
     <div class="card">
       <h2>Podcast</h2>
       <div class="hint">Lets writers drop your latest episode into any article with one click. Pick your podcast platform, then paste the embed code your platform gives you for <b>any one episode</b>. The editor reuses that exact format for every other episode, so embeds look the way your CMS expects. Leave the embed code empty to use a simple audio player with a listen link.</div>
@@ -188,7 +262,7 @@ button.btn:disabled{opacity:.6;cursor:default}
       <textarea id="pod-sample" rows="4" placeholder="Paste the embed code for any one episode, e.g. &lt;iframe src=&quot;…&quot;&gt;&lt;/iframe&gt;"></textarea>
       <div class="hint" id="pod-platform-hint" style="margin-top:4px"></div>
       <label for="pod-pos">Default spot in the article</label>
-      <div style="display:flex;align-items:center;gap:8px;font-size:12.5px;color:var(--muted)">Top <input id="pod-pos" type="range" min="1" max="10" step="1" value="10" oninput="document.getElementById('pod-pos-val').textContent=this.value" style="width:200px;padding:0"> Bottom <b id="pod-pos-val" style="color:var(--text)">10</b></div>
+      <div style="display:flex;align-items:center;gap:8px;font-size:12.5px;color:var(--muted)">Top <input id="pod-pos" type="range" min="0" max="100" step="20" value="100" oninput="document.getElementById('pod-pos-val').textContent=this.value+'%'" style="width:200px;padding:0"> Bottom <b id="pod-pos-val" style="color:var(--text)">100%</b></div>
       <div class="hint" style="margin-top:4px">1 puts the episode at the very top, 10 at the very end. Writers can still move it for any one article.</div>
       <div class="row"><button class="btn" onclick="savePodcastSettings()">Save podcast settings</button><button class="btn ghost" onclick="testPodcastEmbed(this)">Preview latest episode</button><span class="savedmsg" id="pod-saved" style="display:none">Saved</span></div>
       <div id="pod-test" style="margin-top:10px"></div>
@@ -219,11 +293,11 @@ button.btn:disabled{opacity:.6;cursor:default}
       </div>
       <div class="row" style="margin-top:12px;align-items:flex-end">
         <div style="flex:1;min-width:240px">
-          <label>Or paste a direct link to an audio or video file</label>
-          <input id="tr-url" placeholder="https://…/episode.mp3">
+          <label>Or paste a YouTube link, or a direct link to an audio or video file</label>
+          <input id="tr-url" placeholder="https://youtube.com/watch?v=…  or  https://…/episode.mp3" onkeydown="if(event.key==='Enter')transcribeUrl()">
         </div>
         <button class="btn ghost" style="margin-top:0" onclick="transcribeUrl()">Transcribe link</button>
-        <button class="btn ghost" style="margin-top:0" onclick="transcribeLatestEpisode(this)">🎙️ Latest podcast episode</button>
+        <button class="btn ghost" style="margin-top:0" onclick="transcribeLatestEpisode(this)">🎙️ Your latest podcast episode</button>
       </div>
       <div style="margin-top:14px;padding-top:12px;border-top:1px solid var(--border)">
         <label style="margin-top:0">Or transcribe live, as it plays</label>
@@ -237,8 +311,16 @@ button.btn:disabled{opacity:.6;cursor:default}
     </div>
     <div id="tr-result"></div>
     <div class="card" id="tr-recent-card" style="display:none">
-      <h2 style="font-size:14px">Recent transcripts</h2>
+      <h2 style="font-size:14px">Still transcribing</h2>
       <div id="tr-recent"></div>
+    </div>
+    <div class="card" id="tr-lib-card">
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap">
+        <h2 style="font-size:15px;margin:0">📚 Transcript library</h2>
+        <input id="tr-lib-q" placeholder="Search titles and text…" style="max-width:260px;margin:0" oninput="renderTrLibrary()">
+      </div>
+      <div class="hint" style="margin:6px 0 4px">Every transcript is saved here automatically for the whole newsroom, with a descriptive title and the date.</div>
+      <div id="tr-lib"><div class="hint">Loading…</div></div>
     </div>
   </div>
 
@@ -261,6 +343,7 @@ button.btn:disabled{opacity:.6;cursor:default}
       </div>
       <label>What you know (optional)</label>
       <textarea id="fs-note" rows="2" placeholder="e.g. Chris Kelley played at our school; Gerald Dixon is our current GM"></textarea>
+      <label class="acc-factcheck" style="display:flex;align-items:center;gap:6px;font-weight:400;margin:10px 0 0;color:var(--text)"><input type="checkbox" id="fs-factcheck" style="width:auto"> 🔎 Extra fact-check the draft (about a minute more)</label>
       <button class="btn" id="fs-go" onclick="fsWrite()">Find the angle &amp; write it</button>
       <div id="fs-status" style="display:none;margin-top:12px;font-size:13px"></div>
     </div>
@@ -268,12 +351,28 @@ button.btn:disabled{opacity:.6;cursor:default}
   </div>
 
   <div class="page" id="page-3">
-    <div class="card">
-      <h2>Drafts</h2>
-      <div class="hint">Articles submitted from Copydesk land here, staged for your review &mdash; nothing here is published. Click one to view, edit, and copy the final HTML.</div>
+    <div class="card" id="drafts-manager">
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap">
+        <h2 style="margin:0">Drafts</h2>
+        <div style="display:flex;gap:6px;flex-wrap:wrap">
+          <button class="btn ghost" style="margin:0" onclick="checkEmailDrafts(this)">Check email now</button>
+          <button class="btn" style="margin:0" onclick="show(0)">New draft</button>
+        </div>
+      </div>
+      <div class="hint" id="drafts-inbox" style="margin:6px 0 10px">Nothing here is published. Click a headline to open it.</div>
+      <div class="hint" id="dm-mine" style="display:none;margin:-4px 0 8px">Showing your own drafts.</div>
+      <div class="dm-filters">
+        <input id="dm-q" placeholder="Search headlines" oninput="dmState.page=0;renderDraftsList()">
+        <select id="dm-writer" onchange="dmState.page=0;renderDraftsList()"><option value="">All writers</option></select>
+        <select id="dm-status" onchange="dmState.page=0;renderDraftsList()"><option value="">All statuses</option></select>
+        <select id="dm-source" onchange="dmState.page=0;renderDraftsList()"><option value="">All sources</option></select>
+      </div>
+      <div class="dm-bulk" id="dm-bulk"></div>
       <div id="drafts-list"><div class="empty">Loading&hellip;</div></div>
+      <div class="dm-pager" id="dm-pager"></div>
     </div>
     <div id="draft-detail"></div>
+    <div id="dm-toast" class="dm-toast" style="display:none"></div>
   </div>
 
 </div>
@@ -282,10 +381,41 @@ button.btn:disabled{opacity:.6;cursor:default}
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="/_auth.js"></script>
 <script>
+// Another newsroom than InsideMDSports (multi-newsroom, 2026-10-06): its own
+// name, no InsideMDSports house style or promo blocks as defaults, and this
+// browser's cached guide/writers/promos kept separate per newsroom.
+function applyNewsroomEditor(s) {
+  var name = s.site.name || 'Your newsroom', slug = s.site.slug;
+  document.title = name + ' — Content Editor';
+  document.querySelectorAll('.site-sub').forEach(function (el) { el.textContent = name + ' — writing & production tools'; });
+  try {
+    LS_GUIDE = 'ims_editor_styleguide:' + slug; LS_WRITERS = 'ims_editor_writers:' + slug; LS_PROMOS = 'ims_editor_promos:' + slug;
+    DEFAULT_GUIDE = '';
+    DEFAULT_PROMOS.length = 0;
+    var sg = document.getElementById('sg'); if (sg) sg.value = getGuide();
+    if (typeof loadGuideFromServer === 'function') loadGuideFromServer();
+    if (typeof loadEditorLists === 'function') loadEditorLists(); else window._listsPending = true;
+    if (typeof renderPromos === 'function') renderPromos();
+    if (typeof renderWriters === 'function') renderWriters();
+  } catch (e) { console.warn('newsroom editor setup', e && e.message); }
+  document.body.innerHTML.indexOf('InsideMDSports') !== -1 && document.querySelectorAll('.hint, .note, p, div').forEach(function (el) {
+    if (el.children.length === 0 && /InsideMDSports/.test(el.textContent)) el.textContent = el.textContent.replace(/InsideMDSports/g, name);
+  });
+}
+
 // Sign-in gate — inert until the backend is configured, fails open on error.
 (function () {
   if (!window.IMSAuth) return;
   IMSAuth.guard().then(function (s) {
+    // Shared promos and writers load once the newsroom is known (another
+    // newsroom's copy is loaded by applyNewsroomEditor, under its own keys).
+    if (s && s.site && s.site.slug !== 'insidemdsports') applyNewsroomEditor(s); else if (typeof loadEditorLists === 'function') loadEditorLists(); else window._listsPending = true;
+    var sv = document.getElementById('aa-save-default');
+    if (sv) sv.style.display = IMSAuth.isPublisher() ? '' : 'none';
+    // Viewers don't use the Content Editor (Permissions & preferences).
+    if (s && s.access && s.access.use_editor === false) { location.replace('/'); return; }
+    if (typeof applyAccess === 'function') applyAccess();
+    if (typeof renderAds === 'function') renderAds();
     if (s && s.user) {
       var bar = document.querySelector('.topbar');
       if (bar) {
@@ -319,7 +449,7 @@ var DEFAULT_PROMOS = [
 ];
 
 function getPromos(){try{var v=JSON.parse(localStorage.getItem(LS_PROMOS)||'null');return Array.isArray(v)?v:DEFAULT_PROMOS.slice();}catch(e){return DEFAULT_PROMOS.slice();}}
-function setPromos(list){localStorage.setItem(LS_PROMOS,JSON.stringify(list));}
+function setPromos(list){localStorage.setItem(LS_PROMOS,JSON.stringify(list)); pushEditorList('promos',list);}
 
 var PLACEMENT_LABELS={top:'Top of article',early:'Early (paragraph 3-5)',middle:'Middle of article',end:'End of article'};
 
@@ -413,13 +543,40 @@ function esc(s){var d=document.createElement('div');d.textContent=(s==null?'':St
 function md(t){
   t = esc(t);
   t = t.replace(/^\s*#{1,3}\s*(.+)$/gm,'<h2>$1</h2>');
-  t = t.replace(/\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)/g,'<a href="$2" target="_blank" rel="noopener">$1</a>');
+  t = t.replace(/\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)/g,'<a href="$2" target="_blank" rel="noopener" style="'+linkStyle()+'">$1</a>');
   t = t.replace(/\*\*([^*]+)\*\*/g,'<b>$1</b>');
   return t.split(/\n\s*\n/).map(function(p){return /^<h2>/.test(p) ? p : '<p>'+p.replace(/\n/g,'<br>')+'</p>';}).join('');
 }
 
 function getWriters(){try{return JSON.parse(localStorage.getItem(LS_WRITERS)||'[]');}catch(e){return [];}}
-function setWriters(w){localStorage.setItem(LS_WRITERS,JSON.stringify(w));}
+function setWriters(w){localStorage.setItem(LS_WRITERS,JSON.stringify(w)); pushEditorList('writers',w);}
+// Promos and writers are the newsroom's, not this browser's (Jeff,
+// 2026-10-07): saved through /api/editor-lists so they follow everyone to any
+// computer or phone. This browser keeps a copy for speed; the first time a
+// newsroom has none saved, this browser's list is shared (an older setup).
+var _listTimers={};
+function pushEditorList(kind,list){
+  clearTimeout(_listTimers[kind]);
+  _listTimers[kind]=setTimeout(function(){
+    var body={}; body[kind]=list;
+    fetch('/api/editor-lists',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)})
+      .then(function(r){ return r.json().then(function(d){ if(!r.ok||d.error) throw new Error(d.error||('HTTP '+r.status)); }); })
+      .catch(function(e){ alert('Saved on this device only, not for the newsroom: '+e.message); });
+  },600);
+}
+async function loadEditorLists(){
+  try{
+    var r=await fetch('/api/editor-lists'); if(!r.ok) return;
+    var d=await r.json(); if(!d||d.local) return;
+    [['promos',LS_PROMOS],['writers',LS_WRITERS]].forEach(function(k){
+      if(Array.isArray(d[k[0]])) localStorage.setItem(k[1],JSON.stringify(d[k[0]]));
+      else{ var mine=null; try{ mine=JSON.parse(localStorage.getItem(k[1])||'null'); }catch(e){} if(Array.isArray(mine)&&mine.length){ var b={}; b[k[0]]=mine; fetch('/api/editor-lists',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(b)}).catch(function(){}); } }
+    });
+    if(typeof renderPromos==='function') renderPromos();
+    if(typeof renderWriters==='function') renderWriters();
+    if(typeof updatePromoCount==='function') updatePromoCount();
+  }catch(e){ /* keep this browser's copy */ }
+}
 function getGuide(){return localStorage.getItem(LS_GUIDE)||DEFAULT_GUIDE;}
 
 // The house style guide used to live ONLY in localStorage — per-browser, and
@@ -441,7 +598,7 @@ async function loadGuideFromServer(){
 function setActive(i){
   document.querySelectorAll('.page').forEach(function(p){p.classList.toggle('active',p.id==='page-'+i);});
   document.querySelectorAll('.nav button').forEach(function(b){b.classList.remove('active');});
-  var n=document.getElementById('nav-'+i); if(n)n.classList.add('active');
+  var n=document.getElementById('nav-'+i); if(n){ n.classList.add('active'); try{ n.scrollIntoView({block:'nearest',inline:'center'}); }catch(e){} } // keeps the active tab in view in the phone's swipe row
 }
 // House style has its own shareable URL (/house-style, rewritten to this page
 // in vercel.json); the other tabs keep their /editor#N hashes.
@@ -524,7 +681,7 @@ function updateModeHint(){
     el.innerHTML='The writer’s words are returned <b>unchanged</b> (only obvious typos fixed). You still get headline options, questions to resolve, suggested context, and related links to add — as suggestions, nothing is inserted.';
     if(btn) btn.textContent='Review draft';
   } else if(m==='links'){
-    el.innerHTML='The writer’s words are returned <b>unchanged</b> — no rewriting, no added context. The only change made is inserting hotlinks to related InsideMDSports coverage directly into the text.';
+    el.innerHTML='<b>Every word stays exactly as written</b>: nothing is added, cut or reworded. CoPublisher finds past '+((window.IMSAuth&&IMSAuth.state&&IMSAuth.state.site&&IMSAuth.state.site.name)||'InsideMDSports').replace(/[<>&"]/g,'')+' articles that match phrases already in the story (a player, a game, a coaching change) and turns those exact phrases into links to them, so each link points to the right article.';
     if(btn) btn.textContent='Add hotlinks';
   } else {
     el.innerHTML='The draft comes back rewritten in house style and the selected writer’s voice, with context added ([VERIFY]-flagged) and related links inserted.';
@@ -542,6 +699,27 @@ async function runEdit(){
   window._queuedEpisode=podMatch?{name:'🎙️ Podcast episode',html:podMatch[1].trim()}:null;
   draft=draft.replace(POD_BLOCK_RE,'').trim();
   if(draft.length<40){document.getElementById('ed-status').textContent='Paste a longer draft.';return;}
+  // One pass (Jeff, 2026-10-05: "add related links and podcast at the same
+  // time as edit, no need for multiple processes"): whatever is ticked under
+  // the draft is fetched alongside the edit and placed in the finished article.
+  var aa=getAutoAdd();
+  window._adsQueued=!!aa.ads; window._adsPos=aa.adsPosition;
+  window._affQueued=!!aa.affiliate; window._affPos=aa.affiliatePosition;
+  window._promoPos=aa.promos?aa.promosPosition:null;
+  window._relPos=null;
+  if(aa.related){ window._relQueued=true; window._relPos=aa.relatedPosition; }
+  if(aa.promos){
+    var tierNow=document.getElementById('ed-tier').value;
+    getPromos().forEach(function(p){ if((p.tier===tierNow||p.tier==='both') && (p.html||'').trim()) window._promoQueued[p.name]=1; });
+  }
+  var podPromise=null;
+  if(aa.podcast && !podMatch) window._podPos=aa.podcastPosition;
+  if(aa.podcast && !podMatch){
+    podPromise=fetchEpisodes().then(function(eps){
+      if(!eps.length) return null;
+      return {name:'🎙️ '+eps[0].title, html:buildPodcastEmbed(eps[0],eps).html};
+    }).catch(function(){ return null; });
+  }
   var wi=document.getElementById('ed-writer').value;
   var w=getWriters();
   var prof=wi!==''?((w[wi]&&w[wi].profile)||''):'';
@@ -571,11 +749,13 @@ async function runEdit(){
     clearInterval(timer);bar.style.width='100%';
     if(d.error){document.getElementById('ed-status').textContent=d.error;}
     else {
+      if(podPromise){ var ep=await podPromise; if(ep) window._queuedEpisode=ep; }
       lastEdit={d:d,writerName:wname,draftId:null,sourceDraft:draft};
       _chatHistory=[];
       document.getElementById('copydesk-card').style.display='none';   // result goes to the top
       renderEdit(d);
       window.scrollTo(0,0);
+      if(aa.factCheck) runEditFactCheck(document.querySelector('#fc-edit button'));
     }
   }catch(e){clearInterval(timer);document.getElementById('ed-status').textContent='Failed: '+e.message;}
   setTimeout(function(){wrap.style.display='none';bar.style.width='0%';},400);
@@ -610,20 +790,22 @@ function renderEdit(d){
     ? 'Your draft &mdash; <span class="hint" style="font-weight:400">unchanged, only obvious typos fixed</span>'
     : 'Edited draft <span class="hint" style="font-weight:400"> &middot; '+(d.relatedCount||0)+' related articles available for links</span>';
   h+='<div class="card"><h2>'+draftHead+'</h2>'+
-     '<div style="margin-bottom:14px;padding-bottom:12px;border-bottom:1px solid var(--border)">'+
+     '<div id="ed-ask-wrap" style="margin-bottom:14px;padding-bottom:12px;border-bottom:1px solid var(--border)">'+
        '<div class="hint" style="margin-bottom:8px">Can search the web for current stats, injuries, and this week\'s news when a question needs it — sources are cited below the reply. Still double-check anything you\'ll publish.</div>'+
        '<div id="ed-chat" style="display:flex;flex-direction:column;gap:8px;margin-bottom:8px"></div>'+
        '<div style="display:flex;gap:6px">'+
-         '<input id="ed-ask" placeholder="Ask for a change, or a question about the piece…" style="flex:1;font-size:13px;padding:8px 10px;border:1px solid var(--border);border-radius:6px" onkeydown="if(event.key===\'Enter\')askEditor()">'+
+         '<input id="ed-ask" placeholder="Give directions (rewrite, add, cut…) or ask a question" style="flex:1;font-size:13px;padding:8px 10px;border:1px solid var(--border);border-radius:6px" onkeydown="if(event.key===\'Enter\')askEditor()">'+
          '<button class="btn" onclick="askEditor()">Send</button>'+
        '</div>'+
      '</div>'+
      '<div class="out-article" id="ed-article">'+md(d.edited||'')+'</div>'+
      '<div class="row"><button class="btn ghost" onclick="copyArticle(this)">Copy article</button>'+
+     '<button class="btn ghost" onclick="copyArticleHtml(this)" title="The article as HTML code, podcast player and inserts included">Copy HTML</button>'+
      '<button class="btn ghost" onclick="copyMd(this)">Copy Markdown</button>'+
      '<button class="btn ghost" id="ed-save" onclick="submitArticle(this,\'save\')">Save draft</button>'+
      '<button class="btn" id="ed-submit" onclick="submitArticle(this,\'submit\')">Send to publisher</button>'+
      '<span id="ed-submit-status" style="font-size:12px;color:var(--muted)"></span></div>'+
+     '<div class="hint" style="margin-top:6px">A CMS\u2019s visual editor drops embedded players when you paste. To keep the podcast player: paste <b>Copy HTML</b> into the CMS\u2019s HTML (code) view, or paste the whole article as usual and then use <b>Copy embed code</b> in the Inserts card to drop just the player into an embed block.</div>'+
      '<textarea id="ed-md" style="position:absolute;left:-9999px;top:0">'+esc(d.edited||'')+'</textarea>'+
      '</div>'+
      '<div id="ed-final" style="display:none"></div>';
@@ -631,6 +813,7 @@ function renderEdit(d){
     h+='<div class="card"><h2>'+(kept?'What a full edit would change':'Editor’s notes')+'</h2><ul class="notes">'+d.notes.map(function(n){return '<li>'+esc(n)+'</li>';}).join('')+'</ul></div>';
   if(d.addedContext&&d.addedContext.length)
     h+='<div class="card"><h2>'+(kept?'Context you could add':'Context added')+'</h2>'+d.addedContext.map(function(c){return '<div class="ctx">'+esc(c).replace(/\[VERIFY\]/g,'<b>[VERIFY]</b>')+'</div>';}).join('')+'</div>';
+  h+='<div id="fc-edit" class="acc-factcheck">'+fcButton('runEditFactCheck(this)')+'</div>';
   if(d.factsToCheck&&d.factsToCheck.length)
     h+='<div class="card"><h2>Questions to resolve</h2><ul class="notes">'+d.factsToCheck.map(function(n){return '<li>'+esc(n)+'</li>';}).join('')+'</ul></div>';
   if(d.seo){
@@ -691,6 +874,7 @@ function renderEdit(d){
   window._availableInserts=inserts;
   var artEl=document.querySelector('#ed-result .out-article');
   window._articleBaseHtml=artEl?artEl.innerHTML:'';
+  if(window._affQueued) applyAffiliateLinks(d);
 
   // Hover preview on inserted hotlinks — shows which article a link points
   // to (from the same list the editor was told to link from) so it can be
@@ -700,7 +884,11 @@ function renderEdit(d){
   initHotlinkPreviews();
   if(window._queuedEpisode){ embedPodcast(window._queuedEpisode.name, window._queuedEpisode.html, window._podPos); }
   if(window._relQueued){ openRelatedBox(); addRelatedLinks(document.querySelector('#related-box .btn')); }
-  (window._availableInserts||[]).forEach(function(p,i){ if(window._promoQueued[p.name] && !p.podcast && !p.related) toggleInsert(i); });
+  var promoIdx=[];
+  (window._availableInserts||[]).forEach(function(p,i){ if(window._promoQueued[p.name] && !p.podcast && !p.related && !p.ad){ toggleInsert(i); promoIdx.push(i); } });
+  if(promoIdx.length && window._promoPos!=null) placePromosAt(promoIdx, window._promoPos);
+  if(window._adsQueued) placeAds();
+  if(window._affQueued) placeAffiliateBoxes();
 }
 
 // Delegated on #ed-result (not the article div itself) so it keeps working
@@ -739,7 +927,7 @@ function toggleInsert(i){
   var at=addedInserts.map(function(x){return x.idx;}).indexOf(i);
   if(at===-1){
     var def=(window._availableInserts[i].placement||'end');
-    if(PLACEMENTS.indexOf(def)===-1 && !/^pos\d{1,2}$/.test(def)) def='end';
+    if(PLACEMENTS.indexOf(def)===-1 && !/^(pos\d{1,2}|after\d{1,3})$/.test(def)) def='end';
     addedInserts.push({idx:i,placement:def});
   } else addedInserts.splice(at,1);
   var on=addedInserts.some(function(x){return x.idx===i;});
@@ -748,7 +936,17 @@ function toggleInsert(i){
   renderInsertControls();
   renderInsertPreview();
 }
-function podPosNum(pl){ var m=/^pos(\d{1,2})$/.exec(pl||''); return m?+m[1]:10; }
+// Placement sliders are percentages in 20% steps (Jeff, 2026-10-06: "define
+// what the placement sliders mean and make them percentages instead, in
+// increments of 20%"): how far down the article, counted in paragraphs.
+// 0% = above the first paragraph, 100% = after the last. Saved placements
+// are 'pct0'..'pct100'; older 'pos1'..'pos10' (the 1-10 scale) and saved 1-10
+// positions are converted to the nearest 20%.
+function pick(){ for(var i=0;i<arguments.length;i++){ var v=arguments[i]; if(v!==undefined&&v!==null&&v!==''&&!(typeof v==='number'&&isNaN(v))) return v; } return null; }
+function pct(v){ v=+pick(v,100); if(isNaN(v)) v=100; if(v>=1&&v<=10) v=(v-1)/9*100; return Math.max(0,Math.min(100,Math.round(v/20)*20)); }
+function pctOfPlacement(pl){ var m=/^pct(\d{1,3})$/.exec(pl||''); if(m) return pct(+m[1]); var p=/^pos(\d{1,2})$/.exec(pl||''); if(p) return pct(+p[1]); return null; }
+function podPosNum(pl){ return pick(pctOfPlacement(pl),100); }
+function pctSliderHtml(val,oninput,width,onchange){ return 'Top <input type="range" min="0" max="100" step="20" value="'+val+'"'+(onchange?' onchange="'+onchange+'"':'')+' oninput="'+oninput+';this.nextElementSibling.textContent=this.value+\'%\'" style="width:'+(width||140)+'px;padding:0" title="0% = above the first paragraph, 100% = after the last"> <b style="color:var(--text);min-width:34px">'+val+'%</b> Bottom'; }
 function setInsertPos(i,val){
   var e=addedInserts.filter(function(x){return x.idx===i;})[0];
   if(e){ e.placement=val; renderInsertPreview(); }
@@ -760,13 +958,15 @@ function renderInsertControls(){
   out.innerHTML='<div style="font-size:12px;font-weight:600;color:var(--text2);margin-bottom:4px">Added to this article</div>'+
     addedInserts.map(function(e){
       var name=window._availableInserts[e.idx].name||('Insert '+(e.idx+1));
-      return '<div style="display:flex;align-items:center;gap:8px;padding:4px 0;font-size:13px">'+
-        '<span style="flex:1">'+esc(name)+'</span>'+
-        (window._availableInserts[e.idx].podcast||window._availableInserts[e.idx].slider
-          ? '<label style="display:flex;align-items:center;gap:6px;margin:0;font-weight:400;font-size:12px;color:var(--muted)">Top <input type="range" min="1" max="10" step="1" value="'+podPosNum(e.placement)+'" oninput="setInsertPos('+e.idx+',\'pos\'+this.value);this.nextElementSibling.textContent=this.value" style="width:120px;padding:0"> <b style="color:var(--text);min-width:16px">'+podPosNum(e.placement)+'</b> Bottom</label>'
+      return '<div style="display:flex;align-items:center;flex-wrap:wrap;gap:6px 8px;padding:4px 0;font-size:13px">'+
+        '<span style="flex:1 1 140px">'+esc(name)+'</span>'+
+        (window._availableInserts[e.idx].ad ? '<span style="font-size:12px;color:var(--muted)">'+(e.placement==='top'?'at the top':'after paragraph '+String(e.placement).replace('after',''))+'</span>' :
+         window._availableInserts[e.idx].podcast||window._availableInserts[e.idx].slider
+          ? '<label style="display:flex;align-items:center;gap:6px;margin:0;font-weight:400;font-size:12px;color:var(--muted)">'+pctSliderHtml(podPosNum(e.placement),'setInsertPos('+e.idx+',\'pct\'+this.value)',120)+'</label>'
           : '<select onchange="setInsertPos('+e.idx+',this.value)" style="font-size:12px;padding:3px 6px;border:1px solid var(--border);border-radius:5px">'+
               PLACEMENTS.map(function(pl){return '<option value="'+pl+'"'+(pl===e.placement?' selected':'')+'>'+PLACE_LABEL[pl]+'</option>';}).join('')+
             '</select>')+
+        '<button class="btn ghost" style="padding:2px 8px;font-size:11px" onclick="copyInsertCode(this,'+e.idx+')">Copy embed code</button>'+
         '<button class="btn ghost" style="padding:2px 8px;font-size:11px" onclick="toggleInsert('+e.idx+')">remove</button>'+
       '</div>';
     }).join('');
@@ -812,6 +1012,8 @@ function getPodcastSettings(){
   var f=window.IMSAuth?IMSAuth.authFetch:fetch;
   f('/api/site-profile').then(function(r){return r.json();}).then(function(d){
     if(d&&d.profile&&d.profile.podcast){ window._profilePodcast=d.profile.podcast; if(typeof loadPodcastSettingsForm==='function') loadPodcastSettingsForm(); }
+    if(d&&d.profile){ window._adsCfg=d.profile.ads||{units:[]}; renderAds();
+      window._editorDefaults=d.profile.editorDefaults||{}; window._editorAccess=d.profile.editorAccess||{}; applyAccess(); applyTierMode(); if(!window._aaTouched) loadAutoAdd(); }
   }).catch(function(){});
 })();
 function podPlatformHint(){var el=document.getElementById('pod-platform-hint');if(el)el.textContent=POD_HINTS[document.getElementById('pod-platform').value]||'';}
@@ -821,11 +1023,11 @@ function loadPodcastSettingsForm(){
   pl.value=c.platform||'amperwave';
   document.getElementById('pod-feed').value=c.feedUrl||'';
   document.getElementById('pod-sample').value=c.sampleEmbed||'';
-  document.getElementById('pod-pos').value=c.position||10; document.getElementById('pod-pos-val').textContent=c.position||10;
+  var pp=pct(c.position); document.getElementById('pod-pos').value=pp; document.getElementById('pod-pos-val').textContent=pp+'%';
   podPlatformHint();
 }
 function savePodcastSettings(){
-  var c={platform:document.getElementById('pod-platform').value,feedUrl:document.getElementById('pod-feed').value.trim(),sampleEmbed:document.getElementById('pod-sample').value.trim(),position:+document.getElementById('pod-pos').value||10};
+  var c={platform:document.getElementById('pod-platform').value,feedUrl:document.getElementById('pod-feed').value.trim(),sampleEmbed:document.getElementById('pod-sample').value.trim(),position:pct(document.getElementById('pod-pos').value)};
   try{localStorage.setItem(LS_PODCAST,JSON.stringify(c));}catch(e){}
   window._podEpisodes=null;
   var m=document.getElementById('pod-saved'); if(m){m.style.display='inline';setTimeout(function(){m.style.display='none';},1500);}
@@ -859,7 +1061,7 @@ function buildPodcastEmbed(ep,episodes){
   if(built) return {html:built, matched:true, method:'template'};
   // 3. Plain audio player with a listen link.
   var listen=ep.page||ep.audioUrl;
-  return {matched:false, method:'fallback', html:'<p><strong>🎙️ Listen: '+esc(ep.title)+'</strong></p>\n<p><audio controls preload="none" src="'+esc(ep.audioUrl)+'" style="width:100%"></audio></p>\n<p><a href="'+esc(listen)+'" target="_blank">Listen to the full episode</a></p>'};
+  return {matched:false, method:'fallback', html:'<p><strong>🎙️ Listen: '+esc(ep.title)+'</strong></p>\n<p><audio controls preload="none" src="'+esc(ep.audioUrl)+'" style="width:100%"></audio></p>\n<p><a href="'+esc(listen)+'" target="_blank" style="'+linkStyle()+'">Listen to the full episode</a></p>'};
 }
 async function embedLatestEpisode(btn){
   var old=btn.textContent; btn.disabled=true; btn.textContent='Loading…';
@@ -915,12 +1117,12 @@ function podcastPanel(){
   if(!preTabState().podcast||!q){
     return '<div style="font-size:12.5px;margin-bottom:8px">Add your latest episode’s player to this article.</div>'+
       '<button class="btn" style="margin:0" onclick="queueLatestEpisode(this)">Add latest episode</button>'+
-      '<div style="'+TIP_STYLE+'"><b>Tip:</b> the 1–10 position is counted on the finished article, so it’s easiest to add the podcast <b>after the edit is complete</b>. Run the edit, then use <b>Embed latest episode</b> in the Inserts card and slide it until it sits where you want.</div>';
+      '<div style="'+TIP_STYLE+'"><b>Tip:</b> the simplest way is the <b>Your latest podcast episode</b> box under the draft: it’s added in the same pass as the edit, at the spot set on the slider next to it, and you can still slide it in the Inserts card afterwards.</div>';
   }
-  var pos=window._podPos||getPodcastSettings().position||10;
+  var pos=pct(pick(window._podPos,getPodcastSettings().position));
   return '<div style="font-size:12.5px;margin-bottom:6px">Added the embed code for <b>'+esc(q.title)+'</b> to your draft. It stays exactly as is when you edit, and it’s included when you copy, save or send the article.</div>'+
-    '<div style="'+TIP_STYLE+'"><b>Tip:</b> the 1–10 position is counted on the finished article, so it’s easiest to add the podcast <b>after the edit is complete</b>. You can slide it again in the Inserts card once the edit is done.</div>'+
-    '<label style="display:flex;align-items:center;gap:8px;margin:0 0 8px;font-weight:400;font-size:12.5px;color:var(--text)">Where in the article: Top <input type="range" min="1" max="10" step="1" value="'+pos+'" oninput="window._podPos=+this.value;this.nextElementSibling.textContent=this.value" style="width:160px;padding:0"> <b>'+pos+'</b> Bottom</label>'+
+    '<div style="'+TIP_STYLE+'"><b>Tip:</b> the % position is counted on the finished article’s paragraphs, so it’s easiest to add the podcast <b>after the edit is complete</b>. You can slide it again in the Inserts card once the edit is done.</div>'+
+    '<label style="display:flex;align-items:center;gap:8px;margin:0 0 8px;font-weight:400;font-size:12.5px;color:var(--text)">Where in the article: '+pctSliderHtml(pos,'window._podPos=+this.value',160)+'</label>'+
     '<div style="font-size:12px;color:var(--muted);margin-bottom:6px">Preview:</div><div style="background:#fff;border:1px solid var(--border);border-radius:6px;padding:8px">'+q.html+'</div>'+
     '<button class="btn ghost" style="margin:8px 0 0" onclick="removeQueuedEpisode()">Remove podcast</button>';
 }
@@ -1002,7 +1204,7 @@ async function testPodcastEmbed(btn){
 }
 function embedPodcast(name,html,pos){
   window._availableInserts=window._availableInserts||[];
-  window._availableInserts.push({name:name,tier:'both',placement:'pos'+(pos||window._podPos||getPodcastSettings().position||10),html:html,podcast:true});
+  window._availableInserts.push({name:name,tier:'both',placement:'pct'+pct(pick(pos,window._podPos,getPodcastSettings().position)),html:html,podcast:true});
   var idx=window._availableInserts.length-1;
   toggleInsert(idx);
   var wrap=document.getElementById('insert-btns');
@@ -1016,7 +1218,8 @@ function embedPodcast(name,html,pos){
 var LS_RELATED='ims_editor_related';
 function getRelCfg(){
   var c={}; try{c=JSON.parse(localStorage.getItem(LS_RELATED)||'{}')||{};}catch(e){}
-  return {count:c.count||3, scope:c.scope==='web'?'web':'site', position:c.position||10};
+  var nd=editorDefaults();
+  return {count:c.count||nd.relatedCount, scope:(c.scope||nd.relatedScope)==='web'?'web':'site', position:pct(pick(c.position,nd.relatedPosition))};
 }
 function setRelCfg(k,v){
   var c=getRelCfg(); c[k]=v;
@@ -1029,7 +1232,7 @@ function relControls(){
   return '<div class="rel-ctl" style="display:flex;flex-direction:column;gap:8px;font-size:12.5px">'+
     '<div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap"><span style="width:110px">How many links:</span>'+[1,2,3,4].map(function(n){return seg('count',n,String(n));}).join('')+'</div>'+
     '<div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap"><span style="width:110px">Link to:</span>'+seg('scope','site','Our site only')+seg('scope','web','Anywhere on the web')+'</div>'+
-    '<label style="display:flex;align-items:center;gap:8px;margin:0;font-weight:400;font-size:12.5px;color:var(--text)"><span style="width:110px">Where:</span>Top <input type="range" min="1" max="10" step="1" value="'+c.position+'" onchange="setRelCfg(\'position\',+this.value)" oninput="this.nextElementSibling.textContent=this.value" style="width:160px;padding:0"> <b>'+c.position+'</b> Bottom</label>'+
+    '<label style="display:flex;align-items:center;gap:8px;margin:0;font-weight:400;font-size:12.5px;color:var(--text)"><span style="width:110px">Where:</span>'+pctSliderHtml(c.position,'void 0',160,'setRelCfg(\'position\',+this.value)')+'</label>'+
     '</div>';
 }
 function openRelatedBox(){
@@ -1038,9 +1241,29 @@ function openRelatedBox(){
   box.style.display=box.style.display==='block'?'none':'block';
   box.innerHTML=relControls()+'<div style="margin-top:8px"><button class="btn" style="margin:0" onclick="addRelatedLinks(this)">Find related links</button> <span id="related-status" style="font-size:12px;color:var(--muted);margin-left:6px"></span></div>';
 }
+// Links we put in an article style themselves (Jeff, 2026-10-07: "the
+// embedded hotlinks don't look like hotlinks on the front end. They look like
+// static text" ... "afraid people won't click"): some sites' styles (247Sports'
+// Related lists, dark mode) show a link exactly like body text. Bold,
+// underlined and in the newsroom's link color (editorDefaults.linkColor, set
+// on Permissions & preferences; 'site' = underline only, the site's color).
+var LINK_DEFAULT_COLOR='#3b82f6';
+function linkStyle(){
+  var c=(window._editorDefaults||{}).linkColor;
+  if(c==='site') return 'text-decoration:underline;text-underline-offset:2px;font-weight:600';
+  if(!/^#[0-9a-f]{6}$/i.test(c||'')) c=LINK_DEFAULT_COLOR;
+  return 'color:'+c+';text-decoration:underline;text-underline-offset:2px;font-weight:600';
+}
+// Styles every link in saved HTML that has no style of its own (older and
+// emailed drafts), and upgrades the underline-only style links had before.
+function restyleLinks(html){
+  var st=linkStyle();
+  return String(html||'').replace(/style="text-decoration:underline;text-underline-offset:2px"/g,'style="'+st+'"')
+    .replace(/<a (?![^>]*\bstyle=)/g,'<a style="'+st+'" ');
+}
 function relatedBlockHtml(links){
   return '<div class="related-links"><p><strong>RELATED</strong></p><ul>'+links.map(function(l){
-    return '<li><a href="'+esc(l.url).replace(/"/g,'&quot;')+'"'+(l.external?' target="_blank" rel="noopener"':'')+'>'+esc(l.headline)+'</a></li>';
+    return '<li><a href="'+esc(l.url).replace(/"/g,'&quot;')+'"'+(l.external?' target="_blank" rel="noopener"':'')+' style="'+linkStyle()+'">'+esc(l.headline)+'</a></li>';
   }).join('')+'</ul></div>';
 }
 async function addRelatedLinks(btn){
@@ -1060,7 +1283,7 @@ async function addRelatedLinks(btn){
     if(!d.links||!d.links.length) throw new Error(d.note||'No related links found.');
     // Replace an earlier Related block rather than stacking a second one.
     addedInserts.filter(function(e){return window._availableInserts[e.idx].related;}).forEach(function(e){ toggleInsert(e.idx); });
-    window._availableInserts.push({name:'🔗 Related links ('+d.links.length+')',tier:'both',placement:'pos'+cfg.position,html:relatedBlockHtml(d.links),slider:true,related:true});
+    window._availableInserts.push({name:'🔗 Related links ('+d.links.length+')',tier:'both',placement:'pct'+pct(pick(window._relPos,cfg.position)),html:relatedBlockHtml(d.links),slider:true,related:true});
     var idx=window._availableInserts.length-1;
     toggleInsert(idx);
     var wrap=document.getElementById('insert-btns');
@@ -1076,13 +1299,16 @@ function renderInsertPreview(){
   art.innerHTML=window._articleBaseHtml||art.innerHTML;
   var blocks=Array.prototype.filter.call(art.children,function(n){return n.id!=='ed-insert-preview';});
   var n=blocks.length;
-  var idxFor=function(pl){ var m=/^pos(\d{1,2})$/.exec(pl||''); if(m) return Math.round((Math.max(1,Math.min(10,+m[1]))-1)/9*n); return pl==='top'?0 : pl==='early'?Math.min(3,n) : pl==='middle'?Math.floor(n/2) : n; };
+  var idxFor=function(pl){ var a=/^after(\d{1,3})$/.exec(pl||''); if(a) return Math.min(+a[1],n); var q=pctOfPlacement(pl); if(q!==null) return Math.round(q/100*n); return pl==='top'?0 : pl==='early'?Math.min(3,n) : pl==='middle'?Math.floor(n/2) : n; };
   // Insert from the end backwards so earlier indices stay valid.
   addedInserts.slice().sort(function(a,b){return idxFor(b.placement)-idxFor(a.placement);}).forEach(function(e){
     var wrap=document.createElement('div');
     wrap.className='ins-prev';
     wrap.style.cssText='border-left:3px solid var(--red);padding-left:10px;margin:14px 0;opacity:.9';
-    wrap.innerHTML=window._availableInserts[e.idx].html;
+    var ins=window._availableInserts[e.idx];
+    // Ad code usually only runs on the live page, so the preview shows a
+    // labeled box; copies and saved drafts get the real code (data-real).
+    if(ins.previewHtml){ wrap.innerHTML=ins.previewHtml; wrap.setAttribute('data-real',e.idx); } else wrap.innerHTML=ins.html;
     var k=idxFor(e.placement);
     if(k>=blocks.length) art.appendChild(wrap); else art.insertBefore(wrap,blocks[k]);
   });
@@ -1105,7 +1331,7 @@ async function askEditorPre(){
     var draftNow=document.getElementById('ed-draft').value||'';
     var r=await fetch('/api/copyedit',{method:'POST',headers:{'Content-Type':'application/json'},
       body:JSON.stringify({refine:{current:draftNow,instruction:q,history:_preChatHistory,stage:'draft'},
-        styleGuide:document.getElementById('sg').value, writerName:(wi!==''?((w[wi]&&w[wi].name)||''):'')})});
+        styleGuide:document.getElementById('sg').value, writerName:(wi!==''?((w[wi]&&w[wi].name)||''):''), writerProfile:(wi!==''?((w[wi]&&w[wi].profile)||''):'')})});
     var res=await r.json();
     wait.remove();
     if(res.error){ log.innerHTML+='<div style="align-self:flex-start;color:var(--hot);font-size:13px">'+esc(res.error)+'</div>'; }
@@ -1114,7 +1340,7 @@ async function askEditorPre(){
         ?'<div style="margin-top:5px;padding-top:5px;border-top:1px solid var(--border);font-size:11px;color:var(--muted)">Sources: '+
           res.sources.map(function(s){return '<a href="'+esc(s.url)+'" target="_blank" rel="noopener">'+esc(s.title)+'</a>';}).join(' · ')+'</div>'
         :'';
-      log.innerHTML+='<div style="align-self:flex-start;background:#f1efe9;padding:6px 10px;border-radius:10px 10px 10px 2px;font-size:13px;max-width:85%">'+esc(res.reply||(res.changed?'Done.':'—'))+sourcesHtml+'</div>';
+      log.innerHTML+='<div style="align-self:flex-start;background:#f1efe9;padding:6px 10px;border-radius:10px 10px 10px 2px;font-size:13px;max-width:85%">'+esc(res.reply||(res.changed?'Done.':'—')).replace(/\n/g,'<br>')+sourcesHtml+'</div>';
       _preChatHistory.push({role:'user',text:q});
       _preChatHistory.push({role:'assistant',text:res.reply||''});
       if(res.changed && res.edited) document.getElementById('ed-draft').value=res.edited;
@@ -1140,7 +1366,7 @@ async function askEditor(){
     var wi=document.getElementById('ed-writer').value, w=getWriters();
     var r=await fetch('/api/copyedit',{method:'POST',headers:{'Content-Type':'application/json'},
       body:JSON.stringify({refine:{current:lastEdit.d.edited||'',instruction:q,history:_chatHistory},
-        styleGuide:document.getElementById('sg').value, writerName:(wi!==''?((w[wi]&&w[wi].name)||''):'')})});
+        styleGuide:document.getElementById('sg').value, writerName:(wi!==''?((w[wi]&&w[wi].name)||''):''), writerProfile:(wi!==''?((w[wi]&&w[wi].profile)||''):'')})});
     var res=await r.json();
     wait.remove();
     if(res.error){ log.innerHTML+='<div style="align-self:flex-start;color:var(--hot);font-size:13px">'+esc(res.error)+'</div>'; }
@@ -1149,7 +1375,7 @@ async function askEditor(){
         ?'<div style="margin-top:5px;padding-top:5px;border-top:1px solid var(--border);font-size:11px;color:var(--muted)">Sources: '+
           res.sources.map(function(s){return '<a href="'+esc(s.url)+'" target="_blank" rel="noopener">'+esc(s.title)+'</a>';}).join(' · ')+'</div>'
         :'';
-      log.innerHTML+='<div style="align-self:flex-start;background:#f1efe9;padding:6px 10px;border-radius:10px 10px 10px 2px;font-size:13px;max-width:85%">'+esc(res.reply||(res.changed?'Done.':'—'))+sourcesHtml+'</div>';
+      log.innerHTML+='<div style="align-self:flex-start;background:#f1efe9;padding:6px 10px;border-radius:10px 10px 10px 2px;font-size:13px;max-width:85%">'+esc(res.reply||(res.changed?'Done.':'—')).replace(/\n/g,'<br>')+sourcesHtml+'</div>';
       _chatHistory.push({role:'user',text:q});
       _chatHistory.push({role:'assistant',text:res.reply||''});
       if(res.changed && res.edited){
@@ -1204,36 +1430,397 @@ async function submitArticle(btn,action){
 
 var TIER_LABELS={vip:'VIP',free:'Free'};
 
-async function loadDrafts(){
+// ---- Ad slots (Jeff, 2026-10-06: "could we add monetization with embedded ad
+// code, as an option") ---------------------------------------------------------
+// Newsroom-wide units in the site profile (profile.ads.units), edited by the
+// publisher on the Inserts tab: name, code, tier, after paragraph N, then every
+// M paragraphs, at most K per article. Placed as inserts at 'afterN'.
+window._adsCfg=window._adsCfg||{units:[]};
+function adsUnits(){ return (window._adsCfg&&window._adsCfg.units)||[]; }
+function adsForTier(){
+  var t=(document.getElementById('ed-tier')||{}).value||'free';
+  return adsUnits().filter(function(u){ return (u.tier==='both'||u.tier===t) && String(u.code||'').trim(); });
+}
+function adsCanEdit(){ return !window.IMSAuth || !IMSAuth.state || !IMSAuth.state.configured || IMSAuth.isPublisher(); }
+function renderAds(){
+  var c=document.getElementById('ads-list'); if(!c) return;
+  var can=adsCanEdit(), units=adsUnits(), dis=can?'':' disabled';
+  document.querySelectorAll('.ads-edit').forEach(function(b){ b.style.display=can?'':'none'; });
+  c.innerHTML=units.length?units.map(function(u,i){
+    var num=function(k,v,min,max,w){ return '<input type="number" min="'+min+'" max="'+max+'" value="'+v+'"'+dis+' style="width:'+w+'px;display:inline-block;padding:4px 6px" onchange="adsSet('+i+',\''+k+'\',+this.value)">'; };
+    return '<div class="writer-item"><div class="whead"><input value="'+esc(u.name||'')+'" placeholder="Name (e.g. In-article 300x250)"'+dis+' style="flex:1;margin:0" onchange="adsSet('+i+',\'name\',this.value)">'+
+      '<select'+dis+' style="width:auto;margin:0" onchange="adsSet('+i+',\'tier\',this.value)">'+['both','free','vip'].map(function(t){ return '<option value="'+t+'"'+((u.tier||'both')===t?' selected':'')+'>'+({both:'Both tiers',free:'Free only',vip:'VIP only'})[t]+'</option>'; }).join('')+'</select>'+
+      (can?'<button class="btn ghost" style="margin:0" onclick="adsRemove('+i+')">Remove</button>':'')+'</div>'+
+      '<div style="font-size:13px;margin:8px 0;display:flex;gap:6px 14px;flex-wrap:wrap;align-items:center">After paragraph '+num('first',u.first||3,1,40,64)+' then every '+num('every',u.every||0,0,40,64)+' paragraphs (0 = once), at most '+num('max',u.max||3,1,10,56)+' per article</div>'+
+      '<textarea rows="3" placeholder="Paste the ad code"'+dis+' style="font-family:monospace;font-size:12px" onchange="adsSet('+i+',\'code\',this.value)">'+esc(u.code||'')+'</textarea></div>';
+  }).join(''):'<div class="empty">No ad slots yet.'+(can?' Add one to monetize every article.':' The publisher sets these up.')+'</div>';
+  updatePromoCount();
+}
+function adsSet(i,k,v){ var u=adsUnits()[i]; if(u){ u[k]=v; if(k==='tier') updatePromoCount(); } }
+function adsAdd(){ window._adsCfg.units=adsUnits().concat([{id:Date.now().toString(36),name:'',code:'',tier:'both',first:3,every:6,max:3}]); renderAds(); }
+function adsRemove(i){ var u=adsUnits(); u.splice(i,1); renderAds(); }
+async function adsSave(btn){
+  var m=document.getElementById('ads-msg'); btn.disabled=true; m.style.color='var(--muted)'; m.textContent='Saving…';
+  try{
+    var units=adsUnits().filter(function(u){ return String(u.code||'').trim(); }).map(function(u){ return {id:u.id||Date.now().toString(36),name:String(u.name||'Ad').slice(0,80),code:String(u.code).slice(0,20000),tier:u.tier||'both',first:Math.max(1,+u.first||3),every:Math.max(0,+u.every||0),max:Math.max(1,Math.min(10,+u.max||3))}; });
+    var r=await fetch('/api/site-profile',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({profile:{ads:{units:units}}})});
+    var d=await r.json().catch(function(){return {};});
+    if(!r.ok||d.error) throw new Error(d.error||('HTTP '+r.status));
+    window._adsCfg={units:units}; renderAds(); m.style.color='var(--green)'; m.textContent='Saved';
+  }catch(e){ m.style.color='var(--hot)'; m.textContent='Couldn’t save: '+e.message; }
+  btn.disabled=false;
+}
+// Moves this tier's promos (just added from the newsroom's list) so the first
+// sits where the Promos slider says; the rest keep their spacing after it,
+// in the order their own placements gave them (Jeff, 2026-10-07).
+function placePromosAt(idxs, pos){
+  var tmp=document.createElement('div'); tmp.innerHTML=window._articleBaseHtml||'';
+  var n=tmp.children.length;
+  var own=function(pl){ var a=/^after(\d{1,3})$/.exec(pl||''); if(a) return Math.min(+a[1],n); var q=pctOfPlacement(pl); if(q!==null) return Math.round(q/100*n); return pl==='top'?0 : pl==='early'?Math.min(3,n) : pl==='middle'?Math.floor(n/2) : n; };
+  var entries=addedInserts.filter(function(e){ return idxs.indexOf(e.idx)!==-1; });
+  if(!entries.length) return;
+  var at=entries.map(function(e){ return own(e.placement); });
+  var minAt=Math.min.apply(null,at), start=Math.round(pct(pos)/100*n);
+  entries.forEach(function(e,j){ var k=Math.min(n,start+(at[j]-minAt)); e.placement=k?'after'+k:'top'; });
+  renderInsertControls(); renderInsertPreview();
+}
+// Drops this tier's ad units into the finished article. The Ad slots slider
+// (under the draft; default on Permissions & preferences) is where the first
+// ad goes, as a share of the article like the podcast and related links
+// (Jeff, 2026-10-07: "ad slots should have the slider to put ad code where
+// you want it by default and in individual content"); other units keep their
+// spacing from it, and each repeats every M paragraphs as set on Inserts.
+function placeAds(){
+  var tmp=document.createElement('div'); tmp.innerHTML=window._articleBaseHtml||'';
+  var n=tmp.children.length; // same blocks renderInsertPreview counts
+  window._availableInserts=window._availableInserts||[];
+  var units=adsForTier();
+  var start=window._adsPos==null?null:Math.round(pct(window._adsPos)/100*n);
+  var minFirst=Math.min.apply(null,units.map(function(u){ return Math.max(1,+u.first||3); }).concat([Infinity]));
+  units.forEach(function(u){
+    var first=Math.max(1,+u.first||3), every=+u.every||0, max=Math.max(1,+u.max||3), count=0;
+    if(start!=null) first=start+(first-minFirst);
+    for(var at=first; count<max && (at<n || (count===0 && at<=n)); at+=every||Infinity){
+      window._availableInserts.push({name:'💰 '+(u.name||'Ad')+(at?' (after ¶'+at+')':' (top)'),tier:'both',placement:at?'after'+at:'top',html:u.code,ad:true,
+        previewHtml:'<div style="border:1px dashed #b45309;background:#fffbeb;color:#92400e;font-size:12px;padding:10px;text-align:center">💰 Ad: '+esc(u.name||'ad slot')+'</div>'});
+      toggleInsert(window._availableInserts.length-1); count++;
+      if(!every) break;
+    }
+  });
+}
+
+// ---- Affiliate links (/api/affiliate, /api/go; see api/_affiliate.js) -------
+// CoPublisher AI's affiliate programs (gear, tickets...). With the box ticked,
+// links in the finished article to a program's sites go through /api/go,
+// which counts the click for this newsroom and article and forwards it with
+// the affiliate tag; programs with a ready-made box are placed like ad slots.
+window._aff={site:'',programs:[]};
+function affPrograms(){ return (window._aff&&window._aff.programs)||[]; }
+(function(){
+  var f=window.IMSAuth?IMSAuth.authFetch:fetch;
+  f('/api/affiliate?for=editor').then(function(r){return r.json();}).then(function(d){
+    if(!d||!d.programs) return;
+    window._aff=d;
+    var row=document.getElementById('aa-aff-row'); if(row) row.style.display=d.programs.length?'':'none';
+    var note=document.getElementById('aa-aff-note'); if(note) note.textContent='('+d.programs.map(function(p){return p.name;}).join(', ')+')';
+  }).catch(function(){});
+})();
+function affHost(u){ try{ return new URL(u).hostname.replace(/^www\./,'').toLowerCase(); }catch(e){ return ''; } }
+function affProgramFor(url){
+  var h=affHost(url); if(!h) return null;
+  return affPrograms().filter(function(p){ return (p.domains||[]).some(function(d){ return h===d || h.slice(-(d.length+1))==='.'+d; }); })[0]||null;
+}
+function affArticleRef(){
+  var heds=(lastEdit&&lastEdit.d&&lastEdit.d.headlines)||[];
+  return String((heds[0]&&heds[0].text)||'article').toLowerCase().replace(/[^a-z0-9]+/g,'-').slice(0,60);
+}
+function affLink(p,url){
+  return location.origin+'/api/go?p='+encodeURIComponent(p.id)+'&s='+encodeURIComponent(window._aff.site||'')+'&a='+encodeURIComponent(affArticleRef())+(url?'&u='+encodeURIComponent(url):'');
+}
+// Rewrites matching links in the edited article (Markdown, so saved drafts keep them).
+function applyAffiliateLinks(d){
+  if(!d||!d.edited||!affPrograms().length) return;
+  var n=0;
+  d.edited=d.edited.replace(/\]\((https?:\/\/[^\s)]+)\)/g,function(m,u){ var p=affProgramFor(u); if(!p) return m; n++; return ']('+affLink(p,u)+')'; });
+  if(!n) return;
+  var art=document.getElementById('ed-article'); if(art){ art.innerHTML=md(d.edited); window._articleBaseHtml=art.innerHTML; }
+  var mdb=document.getElementById('ed-md'); if(mdb) mdb.value=d.edited;
+  var st=document.getElementById('ed-status'); if(st) st.textContent=n+' affiliate link'+(n>1?'s':'')+' tagged.';
+}
+// The Affiliate links slider (under the draft; default on Permissions &
+// preferences) is where the first partner box goes, like the ad slots
+// (Jeff, 2026-10-07: promos, ad slots and affiliate links "need to be set up
+// like the podcast and related links sliders"); others keep their spacing.
+function placeAffiliateBoxes(){
+  var tmp=document.createElement('div'); tmp.innerHTML=window._articleBaseHtml||'';
+  var n=tmp.children.length;
+  window._availableInserts=window._availableInserts||[];
+  var progs=affPrograms().filter(function(p){ return String(p.boxHtml||'').trim(); });
+  var start=window._affPos==null?null:Math.round(pct(window._affPos)/100*n);
+  var minFirst=Math.min.apply(null,progs.map(function(p){ return Math.max(1,+p.first||4); }).concat([Infinity]));
+  progs.forEach(function(p){
+    var html=p.boxHtml.replace(/\{link\}/g,affLink(p,p.home||''));
+    var first=Math.max(1,+p.first||4), every=+p.every||0, max=Math.max(1,+p.max||1), count=0;
+    if(start!=null) first=start+(first-minFirst);
+    for(var at=first; count<max && (at<n || (count===0 && at<=n)); at+=every||Infinity){
+      window._availableInserts.push({name:'💸 '+p.name+(at?' (after ¶'+at+')':' (top)'),tier:'both',placement:at?'after'+at:'top',html:html,ad:true});
+      toggleInsert(window._availableInserts.length-1); count++;
+      if(!every) break;
+    }
+  });
+}
+
+// ---- Extra fact-check (/api/fact-check) --------------------------------------
+// Opt-in deeper check: every name, number and date in the piece against live
+// sources and the newsroom's past coverage (api/_fact-check.js). Offered under
+// the draft (runs after the edit), on the edit result, on any open draft and
+// in From social.
+var FC_LABEL={conflict:['#b91c1c','#fef2f2','Conflict'],unverified:['#92400e','#fffbeb','Unverified'],confirmed:['#15803d','#f0fdf4','Confirmed']};
+function fcButton(onclick){
+  return '<div class="card" style="padding:12px 16px"><div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap"><b>🔎 Extra fact-check</b><span class="hint" style="margin:0;flex:1;min-width:180px">Checks every name, number and date against live sources. About a minute.</span><button class="btn ghost" style="margin:0" onclick="'+onclick+'">Run it</button></div></div>';
+}
+function fcHtml(r){
+  var n={conflict:0,unverified:0,confirmed:0}; (r.claims||[]).forEach(function(c){ n[c.status]=(n[c.status]||0)+1; });
+  return '<div class="card"><h2>🔎 Extra fact-check</h2>'+
+    '<div style="font-size:13.5px;margin-bottom:8px">'+esc(r.summary||'')+' <span style="color:var(--muted)">('+n.conflict+' conflict'+(n.conflict===1?'':'s')+', '+n.unverified+' unverified, '+n.confirmed+' confirmed)</span></div>'+
+    (r.claims||[]).map(function(c){
+      var L=FC_LABEL[c.status]||FC_LABEL.unverified;
+      return '<div style="border-left:3px solid '+L[0]+';background:'+L[1]+';padding:7px 10px;margin:6px 0;border-radius:0 6px 6px 0;font-size:13.5px">'+
+        '<b style="color:'+L[0]+'">'+L[2]+':</b> '+esc(c.claim)+(c.detail?'<div style="color:var(--muted);font-size:12.5px;margin-top:2px">'+esc(c.detail)+
+        (c.url?' <a href="'+esc(c.url)+'" target="_blank" rel="noopener">'+esc(c.source||'source')+'</a>':c.source?' ('+esc(c.source)+')':'')+'</div>':'')+'</div>';
+    }).join('')+
+    (r.checkedAt?'<div class="hint" style="margin-top:6px">Checked '+new Date(r.checkedAt).toLocaleString()+'. Still read it yourself: sources can be wrong too.</div>':'')+
+  '</div>';
+}
+async function runFactCheck(body,box,btn){
+  if(btn){ btn.disabled=true; btn.innerHTML='<span class="spin" style="border-color:var(--border);border-top-color:var(--muted)"></span>Checking…'; }
+  try{
+    var r=await fetch('/api/fact-check',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
+    var d=await r.json().catch(function(){return {};});
+    if(!r.ok||d.error) throw new Error(d.error||('HTTP '+r.status));
+    box.innerHTML=fcHtml(d);
+    return d;
+  }catch(e){
+    if(btn){ btn.disabled=false; btn.textContent='Try again'; }
+    box.insertAdjacentHTML('beforeend','<div style="color:var(--hot);font-size:12.5px;margin:-6px 0 10px">Fact-check failed: '+esc(e.message)+'</div>');
+  }
+}
+function runEditFactCheck(btn){
+  var art=document.getElementById('ed-article'); if(!art) return;
+  var heds=lastEdit&&lastEdit.d&&lastEdit.d.headlines||[];
+  runFactCheck({article:art.innerText,headline:(heds[0]&&heds[0].text)||''},document.getElementById('fc-edit'),btn);
+}
+
+// ---- Drafts manager ----------------------------------------------------------
+// A searchable, filterable list (Jeff, 2026-10-06: "the current draft system is
+// very clunky ... needs a quick delete or quick edit"): rename a headline or
+// change status/tier right in the row, delete with one click (Undo for a few
+// seconds), bulk delete, duplicate, or send a draft to Copydesk to edit.
+var DM_SOURCES={copydesk:'Copydesk',email:'Emailed in',breaking:'Breaking auto-draft',alert:'Write it',social:'From social'};
+var DM_STATUSES=['draft','submitted','in review','ready to publish','published'];
+var DM_PAGE=25;
+var dmState={all:[],page:0,sel:{},pendingDelete:null};
+async function loadDrafts(keepDetail){
   var c=document.getElementById('drafts-list');
-  c.innerHTML='<div class="empty">Loading&hellip;</div>';
-  document.getElementById('draft-detail').innerHTML='';
+  if(!dmState.all.length) c.innerHTML='<div class="empty">Loading&hellip;</div>';
+  if(!keepDetail) closeDraftDetail();
   try{
     var r=await fetch('/api/drafts');
     var d=await r.json();
-    renderDraftsList(d.drafts||[]);
+    var hint=document.getElementById('dm-mine'); if(hint) hint.style.display=d.mineOnly?'':'none';
+    dmState.all=(d.drafts||[]).filter(function(x){ return !dmState.pendingDelete||dmState.pendingDelete.ids.indexOf(x.id)===-1; });
+    fillDraftFilters();
+    renderDraftsList();
   }catch(e){c.innerHTML='<div class="empty">Failed to load: '+esc(e.message)+'</div>';}
+  loadDraftInbox();
 }
-
-function renderDraftsList(drafts){
-  var c=document.getElementById('drafts-list');
-  if(!drafts.length){c.innerHTML='<div class="empty">No drafts yet &mdash; submit one from Copydesk.</div>';return;}
-  c.innerHTML=drafts.map(function(d){
-    return '<div class="writer-item" id="draft-item-'+d.id+'" style="cursor:pointer" onclick="openDraft(\''+d.id+'\')">'+
-      '<div class="whead" style="cursor:pointer" onclick="openDraft(\''+d.id+'\')"><b>'+esc(d.headline||'(no headline)')+'</b>'+
-        '<span><span class="pill">'+esc(TIER_LABELS[d.tier]||d.tier)+'</span> <span class="pill">'+esc(d.status||'submitted')+'</span> '+
-        '<button class="btn ghost" onclick="event.stopPropagation();deleteDraftItem(\''+d.id+'\')">Delete</button></span></div>'+
-      '<div class="hint" style="margin:4px 0 0;cursor:pointer" onclick="openDraft(\''+d.id+'\')">'+esc(d.writerName||'')+' &middot; '+new Date(d.updatedAt).toLocaleString()+'</div>'+
-    '</div>';
-  }).join('');
-}
-
-async function deleteDraftItem(id){
-  if(!confirm('Delete this draft? This cannot be undone.'))return;
+var _dmInbox=null;
+async function loadDraftInbox(){
+  if(_dmInbox) return;
   try{
-    await fetch('/api/drafts?id='+encodeURIComponent(id),{method:'DELETE'});
-    loadDrafts();
+    var r=await fetch('/api/drafts?inbox=1'); var d=await r.json(); _dmInbox=d;
+    if(d&&d.address) document.getElementById('drafts-inbox').innerHTML='Nothing here is published. <b>Email an article in:</b> send it to <a href="mailto:'+esc(d.address)+'">'+esc(d.address)+'</a> from your team email (paste it in the email or attach a Word file) and it shows up here as a draft within 5 minutes.';
   }catch(e){}
+}
+function fillDraftFilters(){
+  var keep=function(id,vals,labels){
+    var el=document.getElementById(id), cur=el.value, first=el.options[0].outerHTML;
+    el.innerHTML=first+vals.map(function(v){return '<option value="'+esc(v)+'">'+esc(labels?labels[v]||v:v)+'</option>';}).join('');
+    el.value=vals.indexOf(cur)!==-1?cur:'';
+  };
+  var uniq=function(k){ var o={}; dmState.all.forEach(function(d){ if(d[k]) o[d[k]]=1; }); return Object.keys(o).sort(); };
+  keep('dm-writer',uniq('writerName'));
+  keep('dm-status',DM_STATUSES.concat(uniq('status').filter(function(x){return DM_STATUSES.indexOf(x)===-1;})));
+  keep('dm-source',Object.keys(DM_SOURCES),DM_SOURCES);
+}
+function filteredDrafts(){
+  var q=(document.getElementById('dm-q').value||'').trim().toLowerCase();
+  var w=document.getElementById('dm-writer').value, st=document.getElementById('dm-status').value, src=document.getElementById('dm-source').value;
+  return dmState.all.filter(function(d){
+    if(q && String(d.headline||'').toLowerCase().indexOf(q)===-1) return false;
+    if(w && d.writerName!==w) return false;
+    if(st && (d.status||'submitted')!==st) return false;
+    if(src && (d.source||'copydesk')!==src) return false;
+    return true;
+  }).sort(function(a,b){ return String(b.updatedAt||'').localeCompare(String(a.updatedAt||'')); });
+}
+function dmWhen(iso){
+  if(!iso) return '';
+  var d=new Date(iso), now=new Date();
+  var t=d.toLocaleTimeString([], {hour:'numeric',minute:'2-digit'});
+  if(d.toDateString()===now.toDateString()) return 'Today '+t;
+  var y=new Date(now); y.setDate(now.getDate()-1);
+  if(d.toDateString()===y.toDateString()) return 'Yesterday '+t;
+  return d.toLocaleDateString([], {month:'short',day:'numeric'})+' '+t;
+}
+function renderDraftsList(){
+  var c=document.getElementById('drafts-list');
+  var list=filteredDrafts();
+  var pages=Math.max(1,Math.ceil(list.length/DM_PAGE));
+  if(dmState.page>=pages) dmState.page=pages-1;
+  var rows=list.slice(dmState.page*DM_PAGE,(dmState.page+1)*DM_PAGE);
+  if(!dmState.all.length){ c.innerHTML='<div class="empty">No drafts yet. Save one from Copydesk, or email one in.</div>'; document.getElementById('dm-pager').innerHTML=''; renderDmBulk(); return; }
+  if(!list.length){ c.innerHTML='<div class="empty">No drafts match.</div>'; document.getElementById('dm-pager').innerHTML=''; renderDmBulk(); return; }
+  c.innerHTML='<div class="dm-row head"><span></span><span>Headline</span><span>Status</span><span>Writer</span><span>Updated</span><span></span></div>'+
+    rows.map(function(d){
+      var src=d.source||'copydesk';
+      var badges=(d.tier==='vip'&&!singleTier()?'<span class="dm-badge vip">VIP</span>':'')+(src!=='copydesk'?'<span class="dm-badge '+(src==='email'?'email':src==='breaking'?'breaking':'')+'">'+esc(DM_SOURCES[src]||src)+'</span>':'');
+      var st=d.status||'submitted';
+      var opts=DM_STATUSES.indexOf(st)===-1?DM_STATUSES.concat([st]):DM_STATUSES;
+      return '<div class="dm-row" id="draft-item-'+d.id+'">'+
+        '<input type="checkbox" '+(dmState.sel[d.id]?'checked ':'')+'onchange="dmSelect(\''+d.id+'\',this.checked)">'+
+        '<div class="dm-hl" id="dm-hl-'+d.id+'"><a onclick="openDraft(\''+d.id+'\')">'+esc(d.headline||'(no headline)')+'</a>'+badges+'</div>'+
+        '<div class="dm-st"><select title="Change status" onchange="dmQuick(\''+d.id+'\',{status:this.value})">'+opts.map(function(o){return '<option'+(o===st?' selected':'')+'>'+esc(o)+'</option>';}).join('')+'</select></div>'+
+        '<div class="dm-meta dm-who" title="'+esc(d.writerName||'')+'">'+esc(d.writerName||'')+'</div>'+
+        '<div class="dm-meta dm-when" title="'+esc(d.updatedAt?new Date(d.updatedAt).toLocaleString():'')+'">'+esc(dmWhen(d.updatedAt))+'</div>'+
+        '<div class="dm-acts">'+
+          '<button title="Rename" onclick="dmRename(\''+d.id+'\')">✎</button>'+
+          '<button title="Load it into Copydesk to edit" onclick="dmToCopydesk(\''+d.id+'\',this)">Edit</button>'+
+          '<button title="Make a copy" onclick="dmDuplicate(\''+d.id+'\',this)">Copy</button>'+
+          '<button class="del" title="Delete" onclick="dmDelete([\''+d.id+'\'])">🗑</button>'+
+        '</div></div>';
+    }).join('');
+  var pg=document.getElementById('dm-pager');
+  pg.innerHTML=pages>1?'<span>'+(dmState.page*DM_PAGE+1)+'–'+Math.min(list.length,(dmState.page+1)*DM_PAGE)+' of '+list.length+'</span><button '+(dmState.page?'':'disabled ')+'onclick="dmState.page--;renderDraftsList()">‹ Prev</button><button '+(dmState.page<pages-1?'':'disabled ')+'onclick="dmState.page++;renderDraftsList()">Next ›</button>':'<span>'+list.length+' draft'+(list.length===1?'':'s')+'</span>';
+  renderDmBulk();
+}
+function dmSelect(id,on){ if(on) dmState.sel[id]=1; else delete dmState.sel[id]; renderDmBulk(); }
+// "Select all" sits in the bar above the list (Jeff, 2026-10-06: "check all
+// boxes atop any lists with bulk delete"), so it shows on phones too, where the
+// column header row is hidden. It ticks every draft the filters match, on every
+// page, not just the 25 on screen.
+function dmSelectAll(on){
+  filteredDrafts().forEach(function(d){ if(on) dmState.sel[d.id]=1; else delete dmState.sel[d.id]; });
+  renderDraftsList();
+}
+function renderDmBulk(){
+  var bar=document.getElementById('dm-bulk');
+  var list=filteredDrafts();
+  if(!list.length){ bar.innerHTML=''; return; }
+  var ids=Object.keys(dmState.sel).filter(function(id){ return dmState.all.some(function(d){return d.id===id;}); });
+  var on=list.filter(function(d){return dmState.sel[d.id];}).length;
+  bar.innerHTML='<label class="dm-all"><input type="checkbox" id="dm-all" '+(on===list.length?'checked ':'')+'onchange="dmSelectAll(this.checked)"> Select all'+(list.length>1?' '+list.length:'')+'</label>'+
+    (ids.length?'<b style="color:var(--text)">'+ids.length+' selected</b> <button class="btn ghost" style="margin:0;padding:4px 10px;font-size:12px" onclick="dmDelete(Object.keys(dmState.sel))">Delete selected</button> <a href="#" onclick="dmState.sel={};renderDraftsList();return false">Clear</a>':'');
+  document.getElementById('dm-all').indeterminate=on>0&&on<list.length;
+}
+// Quick edits save straight away; the row updates in place.
+async function dmQuick(id,fields){
+  var d=dmState.all.filter(function(x){return x.id===id;})[0]; if(!d) return;
+  var before=Object.assign({},d);
+  Object.assign(d,fields,{updatedAt:new Date().toISOString()});
+  renderDraftsList();
+  try{
+    var r=await fetch('/api/drafts',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(Object.assign({id:id},fields))});
+    var res=await r.json().catch(function(){return {};});
+    if(!r.ok||res.error) throw new Error(res.error||('HTTP '+r.status));
+    dmToast('Saved.');
+  }catch(e){ Object.assign(d,before); renderDraftsList(); dmToast('Couldn’t save: '+e.message); }
+}
+function dmRename(id){
+  var d=dmState.all.filter(function(x){return x.id===id;})[0]; if(!d) return;
+  var cell=document.getElementById('dm-hl-'+id); if(!cell) return;
+  cell.innerHTML='<input value="'+esc(d.headline||'')+'" onkeydown="if(event.key===\'Enter\')this.blur();if(event.key===\'Escape\'){this.dataset.cancel=1;this.blur();}" onblur="dmRenameDone(\''+id+'\',this)">';
+  var inp=cell.querySelector('input'); inp.focus(); inp.select();
+}
+function dmRenameDone(id,inp){
+  var d=dmState.all.filter(function(x){return x.id===id;})[0];
+  var v=inp.value.trim();
+  if(inp.dataset.cancel||!d||!v||v===d.headline){ renderDraftsList(); return; }
+  dmQuick(id,{headline:v});
+}
+// One-click delete with a few seconds to undo; the server delete happens when
+// the toast closes (or right away if another delete starts).
+function dmDelete(ids){
+  ids=ids.filter(Boolean); if(!ids.length) return;
+  dmFlushDelete();
+  var removed=dmState.all.filter(function(d){return ids.indexOf(d.id)!==-1;});
+  dmState.all=dmState.all.filter(function(d){return ids.indexOf(d.id)===-1;});
+  ids.forEach(function(id){ delete dmState.sel[id]; });
+  renderDraftsList();
+  var label=removed.length===1?'“'+(removed[0].headline||'Draft').slice(0,50)+'”':removed.length+' drafts';
+  var timer=setTimeout(dmFlushDelete,6000);
+  dmState.pendingDelete={ids:ids,removed:removed,timer:timer};
+  dmToast('Deleted '+esc(label)+'.',function(){
+    var p=dmState.pendingDelete; if(!p||p.ids!==ids) return;
+    clearTimeout(p.timer); dmState.pendingDelete=null;
+    dmState.all=dmState.all.concat(p.removed); renderDraftsList(); dmToast('Restored.');
+  },6000);
+}
+function dmFlushDelete(){
+  var p=dmState.pendingDelete; if(!p) return;
+  clearTimeout(p.timer); dmState.pendingDelete=null;
+  var calls=[]; for(var i=0;i<p.ids.length;i+=100) calls.push(fetch('/api/drafts?ids='+encodeURIComponent(p.ids.slice(i,i+100).join(',')),{method:'DELETE',keepalive:true}).then(function(r){ if(!r.ok) throw new Error('HTTP '+r.status); }));
+  Promise.all(calls)
+    .catch(function(e){ dmState.all=dmState.all.concat(p.removed); renderDraftsList(); dmToast('Couldn’t delete: '+e.message); });
+}
+window.addEventListener('beforeunload',dmFlushDelete);
+async function dmDuplicate(id,btn){
+  btn.disabled=true;
+  try{
+    var r=await fetch('/api/drafts',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({id:id,action:'duplicate'})});
+    var res=await r.json(); if(!r.ok||res.error) throw new Error(res.error||('HTTP '+r.status));
+    dmToast('Copy made.'); loadDrafts();
+  }catch(e){ dmToast('Couldn’t copy: '+e.message); btn.disabled=false; }
+}
+// Puts the draft's text into Copydesk, ready for "Edit draft".
+async function dmToCopydesk(id,btn){
+  if(btn) btn.disabled=true;
+  try{
+    var r=await fetch('/api/drafts?id='+encodeURIComponent(id)); var d=await r.json();
+    if(d.error) throw new Error(d.error);
+    var tmp=document.createElement('div'); tmp.innerHTML=safeHtml(d.html||'');
+    tmp.querySelectorAll('p,h1,h2,h3,h4,li,blockquote').forEach(function(el){ el.insertAdjacentText('afterend','\n\n'); });
+    tmp.querySelectorAll('br').forEach(function(el){ el.replaceWith('\n'); });
+    var text=(d.headline?d.headline+'\n\n':'')+(tmp.textContent||'').replace(/\n{3,}/g,'\n\n').trim();
+    show(0);
+    var ta=document.getElementById('ed-draft'); ta.value=text; ta.focus();
+    if(d.tier){ var t=document.getElementById('ed-tier'); if(t){ t.value=d.tier; applyTierMode(); updatePromoCount(); } }
+    document.getElementById('ed-status').textContent='Loaded “'+(d.headline||'draft').slice(0,60)+'” from Drafts. Pick a mode and click Edit draft.';
+    renderPreTabs();
+  }catch(e){ dmToast('Couldn’t load it: '+e.message); }
+  if(btn) btn.disabled=false;
+}
+function dmToast(html,undo,ms){
+  var t=document.getElementById('dm-toast'); if(!t) return;
+  t.innerHTML='<span>'+html+'</span>'+(undo?'<button>Undo</button>':'');
+  if(undo) t.querySelector('button').onclick=function(){ t.style.display='none'; undo(); };
+  t.style.display='flex';
+  clearTimeout(t._h); t._h=setTimeout(function(){ t.style.display='none'; },ms||2500);
+}
+async function checkEmailDrafts(btn){
+  btn.disabled=true; var old=btn.textContent; btn.textContent='Checking…';
+  try{
+    var r=await fetch('/api/email-drafts'); var d=await r.json();
+    if(d.error) throw new Error(d.error);
+    if(d.configured===false) dmToast('Email-in isn’t set up: the app’s Gmail sign-in is missing.');
+    else dmToast(d.saved.length?d.saved.length+' new draft'+(d.saved.length>1?'s':'')+' from email.':'No new emailed articles.'+(d.skipped.length?' Skipped '+d.skipped.length+' ('+esc(d.skipped[0].why)+').':''),null,4000);
+    if(d.saved&&d.saved.length) loadDrafts();
+  }catch(e){ dmToast('Couldn’t check email: '+e.message); }
+  btn.disabled=false; btn.textContent=old;
+}
+function closeDraftDetail(){
+  var m=document.getElementById('drafts-manager'); if(m) m.style.display='';
+  var c=document.getElementById('draft-detail'); if(c) c.innerHTML='';
 }
 
 // Preview-safe copy of a draft's HTML: drops scripts, inline event handlers
@@ -1252,34 +1839,61 @@ function safeHtml(html){
 // appear off-screen ("nothing happens"): mark the tapped item and scroll to it.
 async function openDraft(id){
   var c=document.getElementById('draft-detail');
-  document.querySelectorAll('#drafts-list .writer-item').forEach(function(el){ el.style.outline=''; });
-  var item=document.getElementById('draft-item-'+id); if(item) item.style.outline='2px solid var(--blue)';
+  document.getElementById('drafts-manager').style.display='none';
   c.innerHTML='<div class="card"><div class="empty">Loading&hellip;</div></div>';
-  c.scrollIntoView({behavior:'smooth',block:'start'});
+  window.scrollTo(0,0);
   try{
     var r=await fetch('/api/drafts?id='+encodeURIComponent(id));
     var d=await r.json();
     if(d.error){c.innerHTML='<div class="card"><div class="empty">'+esc(d.error)+'</div></div>';return;}
     c.innerHTML='<div class="card">'+
-      '<h2>'+esc(d.headline||'(no headline)')+'</h2>'+
+      '<a href="#" onclick="closeDraftDetail();renderDraftsList();return false" style="font-size:13px">&larr; All drafts</a>'+
+      '<h2 style="margin-top:8px">'+esc(d.headline||'(no headline)')+'</h2>'+
       '<div class="hint">'+esc(d.writerName||'')+' &middot; '+esc(TIER_LABELS[d.tier]||d.tier)+' &middot; last updated '+new Date(d.updatedAt).toLocaleString()+'</div>'+
+      draftRewriteHtml(d)+
       '<label>Article</label>'+
-      '<div id="draft-preview" style="border:1px solid var(--border);border-radius:8px;padding:12px 14px;background:#fff;font-size:15px;line-height:1.6;max-height:520px;overflow:auto">'+(safeHtml(d.html)||'<i>(empty)</i>')+'</div>'+
+      '<div id="draft-preview" style="border:1px solid var(--border);border-radius:8px;padding:12px 14px;background:#fff;font-size:15px;line-height:1.6;max-height:520px;overflow:auto">'+(safeHtml(restyleLinks(d.html))||'<i>(empty)</i>')+'</div>'+
       ((d.factsToCheck||[]).length?'<label>Verify before publishing</label><ul style="margin:4px 0 0 18px;padding:0;font-size:13.5px">'+d.factsToCheck.map(function(f){return '<li>'+esc(f)+'</li>';}).join('')+'</ul>':'')+
+      '<div id="fc-draft" class="acc-factcheck" style="margin-top:12px">'+(d.factCheck?fcHtml(d.factCheck):fcButton('runFactCheck({draftId:\''+d.id+'\'},document.getElementById(\'fc-draft\'),this)'))+'</div>'+
       ((d.notes||[]).length?'<label>Notes</label><ul style="margin:4px 0 0 18px;padding:0;font-size:13.5px;color:var(--muted)">'+d.notes.map(function(n){return '<li>'+esc(n)+'</li>';}).join('')+'</ul>':'')+
       '<label>Status</label>'+
       '<select id="draft-status">'+['draft','submitted','in review','ready to publish','published'].map(function(s){return '<option value="'+s+'"'+(d.status===s?' selected':'')+'>'+s+'</option>';}).join('')+'</select>'+
       '<label>Article HTML (edit freely, then Save or Send)</label>'+
-      '<textarea id="draft-html" rows="18" oninput="var p=document.getElementById(\'draft-preview\');if(p)p.innerHTML=safeHtml(this.value)">'+esc(d.html||'')+'</textarea>'+
+      '<textarea id="draft-html" rows="18" oninput="var p=document.getElementById(\'draft-preview\');if(p)p.innerHTML=safeHtml(this.value)">'+esc(restyleLinks(d.html||''))+'</textarea>'+
       '<div class="row">'+
         '<button class="btn ghost" onclick="saveDraftEdit(\''+d.id+'\',false)">Save changes</button>'+
         '<button class="btn" onclick="saveDraftEdit(\''+d.id+'\',true)">Send to publisher</button>'+
         '<button class="btn ghost" onclick="copyDraftHtml()">Copy HTML</button>'+
+        '<button class="btn ghost" onclick="dmToCopydesk(\''+d.id+'\',this)">Edit in Copydesk</button>'+
         '<span id="draft-save-status" style="font-size:12px;color:var(--muted)"></span>'+
       '</div>'+
     '</div>';
-    c.scrollIntoView({behavior:'smooth',block:'start'});
-  }catch(e){c.innerHTML='<div class="card"><div class="empty">Failed: '+esc(e.message)+'</div></div>';}
+  }catch(e){c.innerHTML='<div class="card"><a href="#" onclick="closeDraftDetail();return false" style="font-size:13px">&larr; All drafts</a><div class="empty">Failed: '+esc(e.message)+'</div></div>';}
+}
+
+// AI drafts from a news story can be written again with today's facts (our
+// knowledge base, current roster, roster changes). Ones written before those
+// rules (GROUNDED_SINCE in api/write-story.js) get a warning: they can name
+// players who are long gone (Jeff, 2026-10-06).
+var DRAFT_GROUNDED_SINCE='2026-10-06T16:02:00Z';
+function draftRewriteHtml(d){
+  if(!/^AI\b/.test(d.writerName||'')||!d.sourceUrl) return '';
+  var old=Date.parse(d.createdAt||0)<Date.parse(DRAFT_GROUNDED_SINCE);
+  return '<div style="margin:10px 0;padding:10px 12px;border-radius:8px;font-size:13.5px;'+(old?'background:#fff4e5;border:1px solid #f5c27a':'background:var(--bg2,#f7f6f2);border:1px solid var(--border)')+'">'+
+    (old?'<b>⚠️ Written before the fact checks.</b> This AI draft can name players or staff who have left. Rewrite it with today\'s roster and our coverage before using it.<br>':'')+
+    '<button class="btn'+(old?'':' ghost')+'" style="margin-top:6px" onclick="rewriteDraft(\''+d.id+'\',this)">🔄 Rewrite with current facts</button> <span id="draft-rewrite-msg" style="font-size:12px;color:var(--muted)"></span></div>';
+}
+async function rewriteDraft(id,btn){
+  var msg=document.getElementById('draft-rewrite-msg');
+  if(!confirm('Rewrite this draft from the original story with current facts? Any edits made to it here will be replaced.')) return;
+  btn.disabled=true; msg.textContent='Rewriting… about a minute.';
+  try{
+    var g=await (await fetch('/api/drafts?id='+encodeURIComponent(id))).json();
+    var r=await fetch('/api/write-story',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({rewrite:true,alert:{headline:g.headline,url:g.sourceUrl}})});
+    var d=await r.json();
+    if(d.error) throw new Error(d.error);
+    openDraft(d.id||id);
+  }catch(e){ msg.textContent='Failed: '+e.message; btn.disabled=false; }
 }
 
 async function saveDraftEdit(id,send){
@@ -1290,7 +1904,7 @@ async function saveDraftEdit(id,send){
       body:JSON.stringify({id:id,html:document.getElementById('draft-html').value,status:send?'submitted':document.getElementById('draft-status').value,notify:!!send})});
     var res=await r.json();
     if(res.error){status.textContent='Failed: '+res.error;}
-    else{status.textContent=send?'Sent — publisher notified by email.':'Saved.';loadDrafts();}
+    else{status.textContent=send?'Sent — publisher notified by email.':'Saved.';loadDrafts(true);}
   }catch(e){status.textContent='Failed: '+e.message;}
 }
 
@@ -1313,7 +1927,7 @@ async function copyArticle(btn){
   var src=document.getElementById('ed-article'); if(!src)return;
   // Copy without the editor's red preview frame around inserts and embeds.
   var el=src.cloneNode(true);
-  Array.prototype.forEach.call(el.querySelectorAll('.ins-prev'),function(w){ while(w.firstChild) w.parentNode.insertBefore(w.firstChild,w); w.parentNode.removeChild(w); });
+  Array.prototype.forEach.call(el.querySelectorAll('.ins-prev'),function(w){ if(w.hasAttribute('data-real')) w.innerHTML=((window._availableInserts||[])[+w.getAttribute('data-real')]||{}).html||''; while(w.firstChild) w.parentNode.insertBefore(w.firstChild,w); w.parentNode.removeChild(w); });
   el.style.cssText='position:fixed;left:-9999px;top:0'; document.body.appendChild(el);
   var reset=function(){setTimeout(function(){btn.textContent='Copy article';},1500); if(el.parentNode) el.parentNode.removeChild(el);};
   try{
@@ -1336,10 +1950,125 @@ async function copyArticle(btn){
   }
 }
 function copyStr(btn,s){
+  var old=btn.textContent;
   var ta=document.createElement('textarea'); ta.value=s; ta.style.position='fixed'; ta.style.left='-9999px';
   document.body.appendChild(ta); ta.select();
-  try{ document.execCommand('copy'); btn.textContent='Copied'; setTimeout(function(){btn.textContent='Copy';},1500); }catch(e){}
+  try{ document.execCommand('copy'); btn.textContent='Copied'; setTimeout(function(){btn.textContent=old==='Copied'?'Copy':old;},1500); }catch(e){}
   document.body.removeChild(ta);
+}
+// The finished article as HTML code (not rich text), so a CMS's HTML / code
+// view keeps the podcast player and other embeds, which a visual editor strips
+// on paste (Jeff, 2026-10-05: "the podcast embed comes out as text").
+function copyArticleHtml(btn){
+  var src=document.getElementById('ed-article'); if(!src) return;
+  var el=src.cloneNode(true);
+  Array.prototype.forEach.call(el.querySelectorAll('.ins-prev'),function(w){ if(w.hasAttribute('data-real')) w.innerHTML=((window._availableInserts||[])[+w.getAttribute('data-real')]||{}).html||''; while(w.firstChild) w.parentNode.insertBefore(w.firstChild,w); w.parentNode.removeChild(w); });
+  copyStr(btn, el.innerHTML.trim());
+}
+// One insert's code (the podcast player, a promo), for a CMS embed block.
+function copyInsertCode(btn,i){
+  var ins=(window._availableInserts||[])[i]; if(!ins) return;
+  copyStr(btn, String(ins.html||'').trim());
+}
+// What this person's role may use, set by the publisher on /preferences
+// (profile.editorAccess; see api/_access.js, which also enforces it).
+// Unset = allowed; the publisher always has everything.
+var TAB_ACCESS={1:'tab_writers',2:'tab_inserts',3:'tab_drafts',4:'tab_house_style',5:'tab_transcribe',6:'tab_social'};
+function canUse(key){
+  var role=window.IMSAuth&&IMSAuth.state&&IMSAuth.state.role;
+  if(!role||role==='publisher') return true;
+  var acc=IMSAuth.state.access; if(acc && key in acc) return acc[key]!==false;
+  var a=(window._editorAccess||{})[role];
+  return !(a&&a[key]===false);
+}
+function applyAccess(){
+  var sel=document.getElementById('ed-mode'), first=null;
+  Array.prototype.forEach.call(sel.options,function(o){ var ok=canUse('mode_'+o.value); o.hidden=!ok; o.disabled=!ok; if(ok&&first===null) first=o.value; });
+  if(first!==null && !canUse('mode_'+sel.value)){ sel.value=first; updateModeHint(); }
+  var go=document.getElementById('ed-go');
+  go.disabled=first===null;
+  if(first===null) document.getElementById('ed-status').textContent='Editing is turned off for your role. Ask your publisher.';
+  document.body.classList.toggle('no-add',!canUse('add_with_edit'));
+  document.body.classList.toggle('no-ask',!canUse('ask_editor'));
+  document.body.classList.toggle('no-factcheck',!canUse('act_fact_check'));
+  Object.keys(TAB_ACCESS).forEach(function(i){ var b=document.getElementById('nav-'+i); if(b) b.style.display=canUse(TAB_ACCESS[i])?'':'none'; });
+  var on=document.querySelector('.nav button.active, nav button.active');
+  var cur=on&&on.id?+on.id.replace('nav-',''):0;
+  if(TAB_ACCESS[cur] && !canUse(TAB_ACCESS[cur])) show(0);
+}
+
+// "Add with this edit" checkboxes under the draft, each with its 1-10 spot.
+// They start from the newsroom's defaults (site profile editorDefaults, set
+// on /preferences or with "Make these the default" here) every time the page
+// loads; ticking or sliding one only changes this article (Jeff, 2026-10-05:
+// "there should still be a positioning scale for pod and related links, and
+// a way to keep them checked default").
+function editorDefaults(){
+  var d=window._editorDefaults||{}, pod=getPodcastSettings();
+  return {
+    podcast:d.podcast!==false, related:d.related!==false, promos:!!d.promos, factCheck:!!d.factCheck, ads:d.ads!==false, affiliate:d.affiliate!==false,
+    podcastPosition:pct(pick(d.podcastPosition,pod.position)),
+    relatedPosition:pct(d.relatedPosition),
+    adsPosition:pct(pick(d.adsPosition,40)),
+    promosPosition:pct(pick(d.promosPosition,40)),
+    affiliatePosition:pct(pick(d.affiliatePosition,60)),
+    relatedCount:+(d.relatedCount||3), relatedScope:d.relatedScope==='web'?'web':'site'
+  };
+}
+function getAutoAdd(){
+  var c={};
+  var addOk=canUse('add_with_edit');
+  ['podcast','related','promos'].forEach(function(k){ var el=document.getElementById('aa-'+k); c[k]=addOk&&!!(el&&el.checked); });
+  var fc=document.getElementById('aa-factcheck'); c.factCheck=canUse('act_fact_check')&&!!(fc&&fc.checked);
+  var ad=document.getElementById('aa-ads'); c.ads=addOk&&adsForTier().length>0&&!!(ad&&ad.checked);
+  var af=document.getElementById('aa-affiliate'); c.affiliate=addOk&&affPrograms().length>0&&!!(af&&af.checked);
+  ['podcast','related','ads','promos','affiliate'].forEach(function(k){ var el=document.getElementById('aa-'+k+'-pos'); c[k+'Position']=el?pct(el.value):100; });
+  return c;
+}
+function setAaPos(k,v){
+  var el=document.getElementById('aa-'+k+'-pos'); if(!el) return;
+  v=pct(v); el.value=v; el.nextElementSibling.textContent=v+'%';
+}
+function loadAutoAdd(){
+  var d=editorDefaults();
+  ['podcast','related','promos','factCheck','ads','affiliate'].forEach(function(k){ var el=document.getElementById('aa-'+k.toLowerCase()); if(el) el.checked=d[k]; });
+  setAaPos('podcast',d.podcastPosition); setAaPos('related',d.relatedPosition); setAaPos('ads',d.adsPosition); setAaPos('promos',d.promosPosition); setAaPos('affiliate',d.affiliatePosition);
+  var fsf=document.getElementById('fs-factcheck'); if(fsf) fsf.checked=d.factCheck;
+  updatePromoCount();
+  var sv=document.getElementById('aa-save-default');
+  if(sv) sv.style.display=(window.IMSAuth&&IMSAuth.isPublisher())?'':'none';
+}
+// A newsroom that only publishes free or only paywalled stories hides the
+// Tier pull-down and every article uses that tier (Jeff, 2026-10-06: "give an
+// option to remove the tier pull-down ... for those who only publish
+// paywalled or free content"). Set on Permissions & preferences.
+function singleTier(){ var m=(window._editorDefaults||{}).tierMode; return m==='free'||m==='vip'?m:null; }
+function applyTierMode(){
+  var m=singleTier(), wrap=document.getElementById('ed-tier-wrap'), sel=document.getElementById('ed-tier');
+  if(wrap) wrap.style.display=m?'none':'';
+  if(m&&sel&&sel.value!==m){ sel.value=m; if(typeof preTab!=='undefined'&&preTab==='promos') renderPrePanel(); updatePromoCount(); }
+}
+function updatePromoCount(){
+  var n=adsForTier().length, row=document.getElementById('aa-ads-row'), lab=document.getElementById('aa-ads-label');
+  if(row) row.style.display=n?'':'none';
+  if(lab) lab.textContent='Ad slots for this tier ('+n+')';
+  var tierEl=document.getElementById('ed-tier'), lab=document.getElementById('aa-promos-label');
+  if(tierEl && lab){
+    var n=getPromos().filter(function(p){ return (p.tier===tierEl.value||p.tier==='both') && (p.html||'').trim(); }).length;
+    lab.textContent='Promos for this tier ('+n+')';
+  }
+}
+async function saveAutoAddDefault(link){
+  var c=getAutoAdd();
+  var next=Object.assign({}, window._editorDefaults||{}, {podcast:c.podcast, related:c.related, promos:c.promos, factCheck:c.factCheck, ads:c.ads, affiliate:c.affiliate, podcastPosition:c.podcastPosition, relatedPosition:c.relatedPosition, adsPosition:c.adsPosition, promosPosition:c.promosPosition, affiliatePosition:c.affiliatePosition});
+  var note=document.getElementById('aa-default-note');
+  try{
+    var r=await fetch('/api/site-profile',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({profile:{editorDefaults:next}})});
+    var d=await r.json().catch(function(){return {};});
+    if(!r.ok||d.error) throw new Error(d.error||('HTTP '+r.status));
+    window._editorDefaults=next;
+    if(note){ note.textContent='✓ Saved as the newsroom default.'; note.style.color='var(--green)'; }
+  }catch(e){ if(note){ note.textContent='Couldn’t save: '+e.message; note.style.color='var(--hot)'; } }
 }
 
 // ── Transcribe (/transcribe) ────────────────────────────────────────────────
@@ -1355,17 +2084,22 @@ function trStatus(html,isErr){
   st.innerHTML=isErr?'<span style="color:var(--hot)">'+html+'</span>':html;
 }
 function trRecent(){ try{return JSON.parse(localStorage.getItem(LS_TR)||'[]');}catch(e){return [];} }
-function trRemember(id,name){
+function trRemember(id,name,source,url){
   var list=trRecent().filter(function(x){return x.id!==id;});
-  list.unshift({id:id,name:name,at:Date.now()});
+  list.unshift({id:id,name:name,at:Date.now(),source:source||'file',url:url||''});
   try{localStorage.setItem(LS_TR,JSON.stringify(list.slice(0,15)));}catch(e){}
 }
 function trSaveNames(){
+  if(trState.libId) trFetch('/api/transcript-library',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'update',id:trState.libId,names:trState.names})}).catch(function(){});
   var list=trRecent(); list.forEach(function(x){ if(x.id===trState.id) x.names=trState.names; });
   try{localStorage.setItem(LS_TR,JSON.stringify(list));}catch(e){}
 }
-function renderRecentTranscripts(){
-  var list=trRecent(), card=document.getElementById('tr-recent-card');
+function renderRecentTranscripts(){ renderStillTranscribing(); loadTrLibrary().then(renderStillTranscribing); }
+function renderStillTranscribing(){
+  // Finished transcripts live in the library; this list only keeps file and
+  // link jobs that were still transcribing, from the last day.
+  var inLib={}; (trLib||[]).forEach(function(x){ inLib[x.id]=1; });
+  var list=trRecent().filter(function(x){ return !inLib[trLibId(x.id)] && !/^yt-/.test(x.id) && Date.now()-x.at<86400000; }), card=document.getElementById('tr-recent-card');
   if(!card) return;
   card.style.display=list.length?'block':'none';
   document.getElementById('tr-recent').innerHTML=list.map(function(x){
@@ -1374,12 +2108,84 @@ function renderRecentTranscripts(){
       '<span style="font-size:12px;color:var(--muted)">'+new Date(x.at).toLocaleString([], {month:'short',day:'numeric',hour:'numeric',minute:'2-digit'})+'</span></div>';
   }).join('');
 }
+// ── Transcript library (/api/transcript-library) ─────────────────────────
+// Every finished transcript is saved for the newsroom with a Claude-written
+// title and the date; the list is searchable and opens without re-running.
+var trLib=null;
+function trLibId(id){ return /^(yt-|live-|aai-)/.test(id)?id:'aai-'+id; }
+async function loadTrLibrary(){
+  try{
+    var r=await trFetch('/api/transcript-library'); var d=await r.json();
+    if(!r.ok) throw new Error(d.error||('HTTP '+r.status));
+    trLib=d.items||[];
+  }catch(e){ trLib=trLib||[]; document.getElementById('tr-lib').innerHTML='<div class="hint" style="color:var(--hot)">Couldn’t load the library: '+esc(e.message)+'</div>'; return; }
+  renderTrLibrary();
+}
+var TR_SRC={youtube:'▶️ YouTube','live-tab':'🔴 Live tab','live-mic':'🎤 Live mic',link:'🔗 Link',podcast:'🎙️ Podcast',file:'📁 File'};
+function renderTrLibrary(){
+  var box=document.getElementById('tr-lib'); if(!box||!trLib) return;
+  var q=(document.getElementById('tr-lib-q').value||'').toLowerCase().trim();
+  var items=trLib.filter(function(x){ return !q||(x.title+' '+(x.snippet||'')+' '+(x.sourceName||'')).toLowerCase().indexOf(q)>=0; });
+  if(!items.length){ box.innerHTML='<div class="hint">'+(q?'Nothing matches.':'No transcripts yet. Everything you transcribe is saved here.')+'</div>'; return; }
+  box.innerHTML=items.map(function(x){
+    var when=new Date(x.createdAt);
+    return '<div style="display:flex;gap:10px;align-items:flex-start;padding:9px 0;border-top:1px solid var(--border)">'+
+      '<div style="flex:1;min-width:0"><a href="#" style="font-weight:600" onclick="openLibraryTranscript(\''+esc(x.id)+'\');return false">'+esc(x.title||'Transcript')+'</a>'+
+      '<div style="font-size:12px;color:var(--muted);margin-top:2px">'+when.toLocaleDateString([], {weekday:'short',month:'short',day:'numeric',year:'numeric'})+' · '+when.toLocaleTimeString([], {hour:'numeric',minute:'2-digit'})+
+        ' · '+(TR_SRC[x.source]||esc(x.source||''))+(x.duration?' · '+trTime(x.duration*1000):'')+(x.by?' · '+esc(String(x.by).replace(/@.*/,'')):'')+'</div>'+
+      (x.snippet?'<div style="font-size:12.5px;color:var(--muted);margin-top:3px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+esc(x.snippet)+'</div>':'')+'</div>'+
+      '<button class="btn ghost" style="margin:0;padding:3px 9px;font-size:11.5px" title="Delete" onclick="deleteLibraryTranscript(\''+esc(x.id)+'\',this)">🗑</button></div>';
+  }).join('');
+}
+async function openLibraryTranscript(id){
+  clearTimeout(trState.timer);
+  trStatus('<span class="spin" style="border-color:var(--border);border-top-color:var(--muted)"></span> Opening…');
+  try{
+    var r=await trFetch('/api/transcript-library?id='+encodeURIComponent(id)); var d=await r.json();
+    if(!r.ok) throw new Error(d.error||('HTTP '+r.status));
+    trState={id:null,libId:d.id,data:{utterances:d.utterances||[],text:d.text||'',duration:d.duration,source:d.source==='youtube'?'youtube':d.source,auto:d.auto,unsure:d.unsure||[]},names:d.names||{},name:d.title,timer:null,saved:true,breaks:d.breaks||null};
+    document.getElementById('tr-status').style.display='none';
+    renderTranscript();
+    if(!d.breaks) trTidy();
+    document.getElementById('tr-result').scrollIntoView({behavior:'smooth',block:'start'});
+  }catch(e){ trStatus(esc(e.message),true); }
+}
+async function deleteLibraryTranscript(id,btn){
+  if(!confirm('Delete this transcript from the newsroom library?')) return;
+  btn.disabled=true;
+  try{
+    var r=await trFetch('/api/transcript-library',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'delete',id:id})}); var d=await r.json();
+    if(!r.ok) throw new Error(d.error||('HTTP '+r.status));
+    trLib=trLib.filter(function(x){ return x.id!==id; }); renderTrLibrary();
+  }catch(e){ btn.disabled=false; alert(e.message); }
+}
+// Called once a transcript is finished (file, link, YouTube, live).
+async function trAutoSave(libId,source,sourceUrl){
+  if(trState.saved||!trState.data) return;
+  var mine=trState; mine.saved=true;
+  await trTidy();
+  try{
+    var r=await trFetch('/api/transcript-library',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'save',id:libId,source:source,sourceName:trState.name,sourceUrl:sourceUrl||'',
+      data:{utterances:mine.data.utterances||[],text:mine.data.text||'',duration:mine.data.duration||null,auto:mine.data.auto,unsure:mine.data.unsure||[]},names:mine.names,breaks:mine.breaks||undefined})});
+    var d=await r.json();
+    if(!r.ok) throw new Error(d.error||('HTTP '+r.status));
+    mine.libId=d.id; mine.name=d.title;
+    if(trState===mine) renderTranscript();
+    loadTrLibrary();
+  }catch(e){ mine.saved=false; if(trState===mine) renderTranscript(); console.warn('Transcript not saved to the library:',e.message); }
+}
+function trRename(){
+  if(!trState.libId) return;
+  var t=prompt('Title for this transcript',trState.name||''); if(!t||!t.trim()) return;
+  trState.name=t.trim(); renderTranscript();
+  trFetch('/api/transcript-library',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'update',id:trState.libId,title:trState.name})}).then(loadTrLibrary).catch(function(){});
+}
 async function trStart(payload,name){
   trStatus('<span class="spin" style="border-color:var(--border);border-top-color:var(--muted)"></span> Sending to the transcriber…');
   var r=await trFetch('/api/transcribe',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(Object.assign({action:'start'},payload))});
   var d=await r.json().catch(function(){return {};});
   if(!r.ok||!d.id) throw new Error(d.error||('Could not start (HTTP '+r.status+')'));
-  trRemember(d.id,name); renderRecentTranscripts();
+  trRemember(d.id,name,payload.pathname?'file':(/^🎙️/.test(name)?'podcast':'link'),payload.url||''); renderRecentTranscripts();
   openTranscript(d.id);
 }
 async function transcribeFile(file){
@@ -1401,8 +2207,25 @@ async function transcribeFile(file){
 async function transcribeUrl(){
   var u=document.getElementById('tr-url').value.trim();
   if(!u) return trStatus('Paste a link first.',true);
-  if(/youtube\.com|youtu\.be|twitch\.tv|(^|\/\/)(www\.)?(x|twitter)\.com\//i.test(u)) return trStatus('That\u2019s a video page, not a media file. Open it in another tab, then click <b>Live from a browser tab</b> below, pick that tab, keep <b>Share tab audio</b> on, and press play.',true);
+  if(/youtube\.com|youtu\.be|youtube-nocookie\.com/i.test(u)) return transcribeYouTube(u);
+  if(/twitch\.tv|(^|\/\/)(www\.)?(x|twitter)\.com\//i.test(u)) return trStatus('That\u2019s a video page, not a media file. Open it in another tab, then click <b>Live from a browser tab</b> below, pick that tab, keep <b>Share tab audio</b> on, and press play.',true);
   try{ await trStart({url:u},u.split('/').pop().split('?')[0]||u); }catch(e){ trStatus(esc(e.message),true); }
+}
+// YouTube link -> the video's own captions, right away (Jeff, 2026-10-06).
+async function transcribeYouTube(u){
+  trStatus('<span class="spin" style="border-color:var(--border);border-top-color:var(--muted)"></span> Getting the transcript from YouTube…');
+  try{
+    var r=await trFetch('/api/transcribe',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'youtube',url:u})});
+    var d=await r.json().catch(function(){return {};});
+    if(!r.ok||d.error) throw new Error(d.error||('HTTP '+r.status));
+    var name='▶️ '+(d.title||'YouTube video');
+    trRemember(d.id,name); renderRecentTranscripts();
+    clearTimeout(trState.timer);
+    trState={id:d.id,data:d,names:{},name:name,timer:null,t0:Date.now()};
+    document.getElementById('tr-status').style.display='none';
+    renderTranscript();
+    trAutoSave(d.id,'youtube',u);
+  }catch(e){ trStatus(esc(e.message),true); }
 }
 async function transcribeLatestEpisode(btn){
   btn.disabled=true;
@@ -1436,6 +2259,8 @@ async function trPoll(){
     }
     document.getElementById('tr-status').style.display='none';
     trState.data=d; renderTranscript();
+    var rec=trRecent().filter(function(x){return x.id===id;})[0]||{};
+    trAutoSave(trLibId(id),rec.source||'file',rec.url||'');
   }catch(e){ trStatus(esc(e.message),true); }
 }
 function trTime(ms){
@@ -1445,7 +2270,104 @@ function trTime(ms){
 function trName(sp){ return sp==null?'':(trState.names[sp]||('Speaker '+sp)); }
 function trUtterances(){
   var d=trState.data||{};
-  return d.utterances&&d.utterances.length?d.utterances:[{speaker:'A',start:0,text:d.text||''}];
+  var us=d.utterances&&d.utterances.length?d.utterances:[{speaker:'A',start:0,text:d.text||''}];
+  return trState.breaks&&trState.breaks.length?trByBreaks(trSentences(us),trState.breaks):trParagraphs(us);
+}
+// Every sentence with its speaker and the time of the turn it came from.
+function trSentences(turns){
+  var out=[];
+  (turns||[]).forEach(function(t){
+    var text=String(t.text||'').trim(); if(!text) return;
+    (text.match(/[^.!?]+(?:[.!?]+["\u201d\u2019)]*|$)/g)||[text]).forEach(function(x){ x=x.trim(); if(x) out.push({speaker:t.speaker==null?null:t.speaker,start:t.start,text:x}); });
+  });
+  return out;
+}
+// Paragraphs where the AI said they start (/api/transcript-tidy): it reads
+// the sentences and breaks at a new question, topic or speaker, the way an
+// editor would; it never changes a word.
+function trByBreaks(sents,breaks){
+  var starts={}; breaks.forEach(function(n){ starts[n]=1; });
+  var out=[], cur=null;
+  sents.forEach(function(x,n){
+    if(!cur||starts[n]||cur.speaker!==x.speaker){ cur={speaker:x.speaker,start:x.start,text:''}; out.push(cur); }
+    cur.text+=(cur.text?' ':'')+x.text;
+  });
+  return out;
+}
+async function trTidy(){
+  var mine=trState, d=mine.data||{};
+  var sents=trSentences(d.utterances&&d.utterances.length?d.utterances:[{speaker:'A',start:0,text:d.text||''}]);
+  if(sents.length<5) return;
+  mine.tidying=true; if(trState===mine) renderTranscript();
+  try{
+    var r=await trFetch('/api/transcript-tidy',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({sentences:sents.map(function(x){return {s:x.speaker,t:x.text};})})});
+    var out=await r.json();
+    if(r.ok&&out.breaks&&out.breaks.length) mine.breaks=out.breaks;
+  }catch(e){}
+  mine.tidying=false;
+  if(trState===mine) renderTranscript();
+  if(mine.libId&&mine.breaks) trFetch('/api/transcript-library',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'update',id:mine.libId,breaks:mine.breaks})}).catch(function(){});
+}
+// Flowing text, not a row per sentence (Jeff, 2026-10-06: "it shouldn't
+// separate every sentence like this. Needs to be flowing text with paragraphs
+// in between every 3-4 sentence chunk"). Back-to-back turns from the same
+// speaker are joined, then split into paragraphs of 3-4 sentences; each keeps
+// the time of its first sentence. Used by the live view and every finished
+// transcript, so Copy / + Draft work on a paragraph.
+function trParagraphs(turns){
+  var out=[], cur=null;
+  (turns||[]).forEach(function(t){
+    var text=String(t.text||'').trim(); if(!text) return;
+    var sents=text.match(/[^.!?]+(?:[.!?]+["”’)]*|$)/g)||[text];
+    sents.forEach(function(x){
+      x=x.trim(); if(!x) return;
+      // New paragraph on a new speaker, after 4 sentences, or after 3 long ones.
+      if(!cur||cur.speaker!==(t.speaker==null?null:t.speaker)||cur.n>=4||(cur.n>=3&&cur.text.length>320)){
+        cur={speaker:t.speaker==null?null:t.speaker,start:t.start,text:'',n:0}; out.push(cur);
+      }
+      cur.text+=(cur.text?' ':'')+x; cur.n++;
+    });
+  });
+  // A lone short sentence left at the end of a speaker's run joins the paragraph before it.
+  for(var i=out.length-1;i>0;i--){ if(out[i].n===1&&out[i-1].speaker===out[i].speaker&&out[i-1].n<=4){ out[i-1].text+=' '+out[i].text; out[i-1].n++; out.splice(i,1); } }
+  return out.map(function(p){ return {speaker:p.speaker,start:p.start,text:p.text}; });
+}
+// Spots the transcriber wasn't sure it heard right (api/transcribe.js; Jeff,
+// 2026-10-07: "a tool that tells you if there's a portion it's not sure is
+// accurate"): a list at the top, each with its time and context, and the same
+// words highlighted in the transcript. Tap one to jump to it.
+function trUnsure(){ return (trState.data&&trState.data.unsure)||[]; }
+function trUnsurePanel(){
+  var list=trUnsure();
+  if(trState.data&&trState.data.source==='youtube') return '';
+  if(!list.length) return (trState.data&&trState.data.utterances&&trState.data.utterances.length&&!trState.live)?'<div class="hint" style="margin:0 0 8px;color:var(--green,#16a34a)">✓ No spots the transcriber was unsure of.</div>':'';
+  return '<div style="border:1px solid #f5c27a;background:#fff8ec;border-radius:10px;padding:10px 12px;margin:0 0 10px">'+
+    '<div style="font-weight:700;font-size:14px">⚠️ '+list.length+' spot'+(list.length===1?'':'s')+' the transcriber wasn\u2019t sure of</div>'+
+    '<div class="hint" style="margin:2px 0 6px">Highlighted in the transcript. Replay these before you quote them: names and numbers are the usual misses.</div>'+
+    list.slice(0,25).map(function(x,k){
+      return '<a href="#" onclick="trJumpUnsure('+k+');return false" style="display:block;text-decoration:none;color:inherit;padding:5px 0;border-top:1px solid #f3e2c4;font-size:13.5px">'+
+        '<span style="color:var(--muted);font-size:12px;margin-right:6px">'+trTime(x.start)+'</span>'+
+        '<span style="color:var(--muted)">\u2026'+esc(x.before)+' </span><mark style="background:#fde68a;padding:0 2px;border-radius:3px">'+esc(x.text)+'</mark><span style="color:var(--muted)"> '+esc(x.after)+'\u2026</span></a>';
+    }).join('')+(list.length>25?'<div class="hint" style="margin:4px 0 0">+ '+(list.length-25)+' more, highlighted below.</div>':'')+'</div>';
+}
+function trMarkUnsure(u,next){
+  var html=esc(u.text), list=trUnsure(); if(!list.length) return html;
+  var from=u.start||0, to=next?next.start:Infinity;
+  list.forEach(function(x){
+    if(x.start<from-1500||x.start>=to) return;
+    var needle=esc(x.text); if(!needle) return;
+    var at=html.indexOf(needle); if(at<0) return;
+    html=html.slice(0,at)+'<mark title="The transcriber wasn\u2019t sure of this" style="background:#fde68a;padding:0 2px;border-radius:3px">'+needle+'</mark>'+html.slice(at+needle.length);
+  });
+  return html;
+}
+function trJumpUnsure(k){
+  var x=trUnsure()[k]; if(!x) return;
+  var us=trUtterances(), idx=0;
+  us.forEach(function(u,i){ if((u.start||0)<=x.start) idx=i; });
+  var el=document.getElementById('trp-'+idx); if(!el) return;
+  el.scrollIntoView({behavior:'smooth',block:'center'});
+  el.style.transition='background .3s'; el.style.background='#fff3c4'; setTimeout(function(){ el.style.background=''; },1600);
 }
 function renderTranscript(){
   var us=trUtterances(), speakers=[];
@@ -1453,19 +2375,26 @@ function renderTranscript(){
   var L=trState.live&&window._lastLive;
   var dur=trState.data.duration?' · '+trTime(trState.data.duration*1000):'';
   var h='<div class="card"><div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap">'+
-    '<h2 style="margin:0">'+esc(trState.name||'Transcript')+'<span style="font-weight:400;font-size:13px;color:var(--muted)">'+dur+'</span></h2>'+
+    '<h2 style="margin:0">'+esc(trState.name||'Transcript')+'<span style="font-weight:400;font-size:13px;color:var(--muted)">'+dur+'</span>'+
+      (trState.libId?' <a href="#" style="font-size:12px;font-weight:400" onclick="trRename();return false">Rename</a> <span style="font-size:12px;font-weight:400;color:var(--green,#16a34a)">✓ Saved to library</span>':(trState.saved?' <span style="font-size:12px;font-weight:400;color:var(--muted)">Saving…</span>':''))+'</h2>'+
     '<div><button class="btn ghost" style="margin:0 6px 0 0" onclick="trCopyAll(this)">Copy all</button>'+
-    '<button class="btn ghost" style="margin:0" onclick="trAllToDraft()">Send to Copydesk</button></div></div>'+
+    '<button class="btn ghost" style="margin:0 6px 0 0" onclick="trAllToDraft()">Send to Content Editor</button>'+
+    '<button class="btn" style="margin:0" onclick="trWriteStory()">✍️ Write a story from this</button></div></div>'+
     '<div style="display:flex;gap:10px;flex-wrap:wrap;margin:12px 0 4px">'+speakers.map(function(sp){
       return '<label style="margin:0;display:flex;align-items:center;gap:6px;font-weight:400">Speaker '+esc(sp)+' is '+
         '<input value="'+esc(trState.names[sp]||'').replace(/"/g,'&quot;')+'" placeholder="name" style="width:150px;padding:5px 7px" onchange="trState.names[\''+esc(sp)+'\']=this.value.trim();trSaveNames();renderTranscript()"></label>';
     }).join('')+'</div>'+
     (L&&L.recording?'<div style="'+TIP_STYLE+'">'+(speakers.length?'Live speaker labels are a first pass.':'This live transcript has no speaker labels.')+' <button class="btn" style="margin:0 0 0 6px;padding:4px 10px;font-size:12.5px" onclick="labelLiveRecording()">Get the full speaker-labeled version</button> <a style="margin-left:6px;font-size:12.5px" download="'+esc(L.name.replace(/[^A-Za-z0-9]+/g,'-'))+'.'+(/mp4/.test(L.recType)?'m4a':'webm')+'" href="'+URL.createObjectURL(L.recording)+'">Save the recording</a></div>':'')+
+    (trState.data.source==='youtube'?'<div style="'+TIP_STYLE+'">From the video\u2019s '+(trState.data.auto?'<b>auto-generated</b> YouTube captions, so names and numbers are often wrong. Check every quote against the video.':'own captions.')+' No speaker labels: captions don\u2019t have them.'+(trState.data.author?' Channel: '+esc(trState.data.author)+'.':'')+'</div>':'')+
+    (trState.tidying?'<div class="hint" style="margin:0 0 6px"><span class="spin" style="border-color:var(--border);border-top-color:var(--muted)"></span> Organizing the paragraphs…</div>':'')+
+    trUnsurePanel()+
     '<div class="hint" style="margin:0 0 6px">Click <b>Copy</b> to grab a quote, or <b>+ Draft</b> to drop it at the end of your Copydesk draft.</div>'+
     us.map(function(u,i){
-      return '<div style="display:flex;gap:10px;padding:8px 0;border-top:1px solid var(--border)">'+
-        '<div style="width:120px;flex-shrink:0;font-size:12px"><div style="font-weight:600;color:var(--text)">'+esc(trName(u.speaker))+'</div><div style="color:var(--muted)">'+trTime(u.start)+'</div></div>'+
-        '<div style="flex:1;font-size:14px">'+esc(u.text)+'</div>'+
+      var newSpeaker=i===0||us[i-1].speaker!==u.speaker;
+      return (newSpeaker&&u.speaker!=null?'<div style="font-weight:700;font-size:13px;margin:14px 0 2px">'+esc(trName(u.speaker))+'</div>':'')+
+        '<div style="display:flex;gap:10px;padding:4px 0 10px;align-items:flex-start">'+
+        '<div style="width:44px;flex-shrink:0;font-size:11.5px;color:var(--muted);padding-top:3px">'+trTime(u.start)+'</div>'+
+        '<div style="flex:1;font-size:15px;line-height:1.6" id="trp-'+i+'">'+trMarkUnsure(u,us[i+1])+'</div>'+
         '<div style="flex-shrink:0;display:flex;flex-direction:column;gap:4px">'+
           '<button class="btn ghost" style="margin:0;padding:3px 9px;font-size:11.5px" onclick="trCopyOne('+i+',this)">Copy</button>'+
           '<button class="btn ghost" style="margin:0;padding:3px 9px;font-size:11.5px" onclick="trToDraft('+i+',this)">+ Draft</button></div></div>';
@@ -1574,6 +2503,7 @@ function stopLive(){
     document.getElementById('tr-status').style.display='none';
     trState={id:null,data:{utterances:L.turns,duration:Math.round((Date.now()-L.t0)/1000)},names:{},name:L.name,live:true};
     renderTranscript();
+    if(L.turns.length) trAutoSave('live-'+L.t0,L.kind==='tab'?'live-tab':'live-mic','');
   };
   if(L.rec&&L.rec.state!=='inactive'){ L.rec.onstop=finish; try{L.rec.stop();}catch(e){finish();} } else finish();
 }
@@ -1585,10 +2515,19 @@ function renderLive(){
     '<button class="btn" style="margin:0 0 0 auto" onclick="stopLive()">■ Stop</button></div>');
   var h='<div class="card"><h2 style="margin:0 0 8px">Live transcript</h2>'+
     (live.turns.length||live.partial?'':'<div class="hint" style="margin:0">Listening… text shows up here as people talk.</div>')+
-    live.turns.map(function(u){ return '<div style="display:flex;gap:10px;padding:6px 0;border-top:1px solid var(--border)"><div style="width:90px;flex-shrink:0;font-size:12px;color:var(--muted)">'+(u.speaker!=null?'<b style="color:var(--text)">Speaker '+esc(u.speaker)+'</b><br>':'')+trTime(u.start)+'</div><div style="flex:1;font-size:14px">'+esc(u.text)+'</div></div>'; }).join('')+
-    (live.partial?'<div style="display:flex;gap:10px;padding:6px 0;border-top:1px solid var(--border);color:var(--muted)"><div style="width:52px;flex-shrink:0;font-size:12px">…</div><div style="flex:1;font-size:14px">'+esc(live.partial)+'</div></div>':'')+
+    (function(){
+      var ps=trParagraphs(live.turns);
+      return ps.map(function(u,i){
+        var last=i===ps.length-1;
+        return (u.speaker!=null&&(i===0||ps[i-1].speaker!==u.speaker)?'<div style="font-weight:700;font-size:13px;margin:12px 0 2px">Speaker '+esc(u.speaker)+'</div>':'')+
+          '<p style="margin:0 0 12px;font-size:15px;line-height:1.6">'+esc(u.text)+(last&&live.partial?' <span style="color:var(--muted)">'+esc(live.partial)+'</span>':'')+'</p>';
+      }).join('')+(!ps.length&&live.partial?'<p style="margin:0;font-size:15px;line-height:1.6;color:var(--muted)">'+esc(live.partial)+'</p>':'');
+    })()+
     '</div>';
+  // Follow the newest text, unless the reader has scrolled up to look back.
+  var nearBottom=window.innerHeight+window.scrollY>=document.documentElement.scrollHeight-120;
   var out=document.getElementById('tr-result'); out.innerHTML=h;
+  if(nearBottom&&(live.turns.length||live.partial)) window.scrollTo(0,document.documentElement.scrollHeight);
   clearTimeout(live.tick); live.tick=setTimeout(renderLive,1000);
 }
 function labelLiveRecording(){
@@ -1610,6 +2549,20 @@ function trAppend(text){
   ta.value=base.replace(/\s+$/,'')+(base.trim()?'\n\n':'')+text+(pod?'\n\n'+pod[0].trim()+'\n':'');
 }
 function trToDraft(i,btn){ var u=trUtterances()[i]; trAppend('“'+u.text+'”'+(u.speaker!=null?' '+trName(u.speaker)+' said.':'')); trFlash(btn,'Added ✓'); }
+// One tap from a transcript to a written story: the whole transcript goes into
+// the Content Editor draft and its "Give directions" box is asked to write the
+// story, with the same grounding and story rules as Write it (copyedit.js).
+function trWriteStory(){
+  var unnamed=trUtterances().some(function(u){ return u.speaker!=null&&!trState.names[u.speaker]; });
+  if(unnamed&&!confirm('Some speakers don\u2019t have names yet, so quotes may be attributed to "Speaker A". Name them first for a better story?\n\nOK = write it anyway, Cancel = go back and name them.')) return;
+  var ta=document.getElementById('ed-draft');
+  if(ta.value.trim()&&!confirm('Replace what\u2019s in the Content Editor draft with this transcript?')) return;
+  ta.value='TRANSCRIPT \u2014 '+(trState.name||'')+'\n\n'+trPlain();
+  show(0);
+  var inp=document.getElementById('pre-ed-ask');
+  inp.value='Write a news story from this transcript.';
+  askEditorPre();
+}
 function trAllToDraft(){ trAppend('TRANSCRIPT — '+(trState.name||'')+'\n\n'+trPlain()); show(0); }
 (function(){
   var dz=document.getElementById('tr-drop'); if(!dz) return;
@@ -1620,11 +2573,17 @@ function trAllToDraft(){ trAppend('TRANSCRIPT — '+(trState.name||'')+'\n\n'+tr
 
 document.getElementById('sg').value=getGuide();
 loadGuideFromServer();
+if(window._listsPending){ window._listsPending=false; loadEditorLists(); }
 renderWriters();
 renderPromos();
+renderAds();
 loadPodcastSettingsForm();
 updateModeHint();
 renderPreTabs();
+loadAutoAdd();
+// Once the writer changes a tick or a spot, the newsroom defaults arriving
+// late from the server don't overwrite it.
+document.getElementById('ed-autoadd').addEventListener('change',function(){ window._aaTouched=true; });
 document.getElementById('ed-draft').addEventListener('input',function(){ if(!POD_BLOCK_RE.test(this.value)) window._podQueuedInfo=null; renderPreTabs(); });
 // ---- From social (api/write-from-post.js) ----
 // The screenshot is shrunk in the browser (max 1600px, JPEG) so it stays well
@@ -1675,7 +2634,13 @@ async function fsWrite(){
       '<div style="margin-bottom:8px">'+esc(d.angle)+'</div>'+
       (people?'<div style="font-size:13px;font-weight:700;margin-top:6px">Connections found</div><ul style="margin:4px 0 8px 18px;padding:0;font-size:13.5px">'+people+'</ul>':'')+
       (d.id?'<div style="margin-top:6px"><b>'+esc(d.headline)+'</b></div><button class="btn" onclick="show(3);loadDrafts().then(function(){openDraft(\''+d.id+'\');})">Open the draft</button>':'')+
-      '</div>';
+      '</div><div id="fc-social"></div>';
+    var fcBox=document.getElementById('fs-factcheck');
+    if(d.id && fcBox && fcBox.checked && canUse('act_fact_check')){
+      var fs=document.getElementById('fc-social');
+      fs.innerHTML='<div class="card"><span class="spin" style="border-color:var(--border);border-top-color:var(--muted)"></span> Fact-checking the draft…</div>';
+      runFactCheck({draftId:d.id},fs,null);
+    }
   }catch(e){ st.textContent='Couldn’t write it: '+e.message; }
   finally{ btn.disabled=false; }
 }

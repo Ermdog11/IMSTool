@@ -69,7 +69,7 @@ module.exports = async function handler(req, res) {
             return '<p style="margin:10px 0"><a href="' + pageUrl(p.path, conn.host) + '"><b>' + (p.title || p.path) + '</b></a><br>' +
               '<span style="color:#666">' + p.visits + ' reading right now</span></p>';
           }).join('') + '</div>';
-        await Mailer.sendMail({ to: recipients, subject: '🔥 Story running hot on ' + conn.host, html: html });
+        await Mailer.sendMail({ to: recipients, alertType: 'hot_story', subject: '🔥 Story running hot on ' + conn.host, html: html });
       }
 
       try {
@@ -94,3 +94,6 @@ module.exports = async function handler(req, res) {
   if (stateChanged) await HotState.saveState(state);
   return res.status(200).json({ report: report });
 };
+
+// Per-newsroom: this request runs as the signed-in person's newsroom (_site.js).
+module.exports = require('./_site').wrap(module.exports);

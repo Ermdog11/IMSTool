@@ -1,0 +1,663 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<link rel="manifest" href="/manifest.json">
+<meta name="theme-color" content="#0f1b2d">
+<link rel="icon" type="image/png" sizes="32x32" href="/icons/favicon-32.png">
+<link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="CoPublisher">
+<meta name="apple-mobile-web-app-status-bar-style" content="black">
+<title>CoPublisher AI — Permissions &amp; preferences</title>
+<style>
+:root{--red:#2563eb;--red-dark:#1d4ed8;--dark:#0f1b2d;--border:#e2e7ef;--bg:#f5f7fb;--bg2:#fff;--text:#1a1a1a;--text2:#555;--muted:#888;--green:#3B6D11;--green-bg:#eaf3de;--blue:#0c447c;--amber-bg:#fff8e1;--amber:#8a6d00;--hot:#dc2626;--red-light:#eaf1ff}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:var(--bg);color:var(--text);font-size:14px;line-height:1.5}
+a{color:var(--blue)}
+.topbar{background:var(--dark);padding:0 20px;display:flex;align-items:center;justify-content:space-between;gap:10px;height:52px}
+.brand{color:#fff;font-size:15px;font-weight:600;text-decoration:none;display:flex;align-items:center;gap:10px}
+.brand .mark{width:30px;height:30px;background:var(--red);border-radius:6px;display:grid;place-items:center;font-size:11px;font-weight:800}
+.toplinks{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.toplinks a{color:#ccc;font-size:12px;text-decoration:none;border:.5px solid #555;padding:4px 12px;border-radius:20px;white-space:nowrap}
+.wrap{max-width:860px;margin:0 auto;padding:24px 16px 60px}
+h1{font-size:22px;margin-bottom:4px}
+.lead{color:var(--text2);margin-bottom:16px;max-width:68ch}
+.lead.how{background:#fff;border:1px solid var(--border);border-radius:12px;padding:14px 16px;line-height:1.55}
+.lead.how p{margin:0 0 8px}
+.lead.how ol{margin:0;padding-left:20px}
+.sub.how{line-height:1.55}
+.sub.how p{margin:0 0 8px}
+.sub.how ol{margin:0 0 8px;padding-left:20px}
+.sub.how li{margin:0 0 4px}
+.lead.how li{margin:5px 0}
+.tz-row{margin:0 0 12px;padding:10px 12px;border:1px solid var(--border);border-radius:10px;background:var(--bg,#f7f6f2)}
+.chan{display:inline-flex;margin-top:6px;border:1px solid var(--border);border-radius:8px;overflow:hidden}
+.chan button{font:inherit;font-size:12.5px;font-weight:600;border:0;border-left:1px solid var(--border);background:#fff;color:var(--text2);padding:6px 12px;cursor:pointer;min-height:32px}
+.chan button:first-child{border-left:0}
+.chan button.on{background:#2563eb;color:#fff}
+.tz-row select{width:auto;display:inline-block;margin-left:6px}
+.tz-row .msg{display:block;margin:4px 0 0}
+.times{margin:6px 0 2px;font-size:13px}
+.times select,.sched-ed .sz{width:auto;max-width:100%;display:inline-block;margin:2px 4px 2px 0;padding:4px 6px;font-size:13px}
+.row .name .about{display:block;font-size:13px;color:var(--text2);line-height:1.45;margin:2px 0 4px;font-weight:400}
+.jump{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:18px}
+.jump a{font-size:12px;font-weight:600;padding:5px 11px;border-radius:20px;border:1px solid var(--border);background:#fff;color:var(--text2);text-decoration:none}
+.card{background:var(--bg2);border:1px solid var(--border);border-radius:12px;padding:20px;margin-bottom:16px;scroll-margin-top:12px}
+.card h2{font-size:16px;margin-bottom:4px}
+.card .sub{font-size:12.5px;color:var(--muted);margin-bottom:12px;max-width:70ch}
+.row{display:flex;align-items:center;gap:8px 16px;flex-wrap:wrap;padding:9px 0;border-top:1px solid var(--border)}
+.row:first-of-type{border-top:0}
+.row .name{flex:1 1 220px;min-width:0}
+.row .name b{font-size:13.5px;font-weight:600}
+.row .name span{display:block;font-size:12px;color:var(--muted)}
+.sched-link{display:inline-block;margin-top:3px;font-size:12px;color:var(--muted);text-decoration:none;cursor:pointer}
+.sched-link:hover{color:var(--text);text-decoration:underline}
+.sched-link.set{color:#2563eb;font-weight:600}
+.sched-ed{flex-basis:100%;display:none;padding:8px 10px;margin:2px 0 4px;background:var(--bg,#f7f7f8);border:1px solid var(--border);border-radius:8px;font-size:12.5px}
+.sched-ed.open{display:block}
+.sched-days{display:flex;gap:4px;flex-wrap:wrap;margin:4px 0 8px}
+.sched-days label{margin:0;cursor:pointer}
+.sched-days input{display:none}
+.sched-days span{display:inline-block;min-width:38px;text-align:center;padding:4px 6px;border:1px solid var(--border);border-radius:6px;font-weight:600;font-size:12px;color:var(--muted)}
+.sched-days input:checked+span{background:#2563eb;border-color:#2563eb;color:#fff}
+.sched-ed select{width:auto;margin:0 4px;padding:3px 6px;font-size:12.5px}
+.switch{position:relative;display:inline-block;width:40px;height:22px;flex-shrink:0}
+.switch input{opacity:0;width:0;height:0}
+.switch i{position:absolute;inset:0;background:#cfd6e2;border-radius:22px;cursor:pointer;transition:.15s}
+.switch i:before{content:"";position:absolute;width:16px;height:16px;left:3px;top:3px;background:#fff;border-radius:50%;transition:.15s}
+.switch input:checked+i{background:var(--red)}
+.switch input:checked+i:before{transform:translateX(18px)}
+.switch input:disabled+i{opacity:.5;cursor:default}
+.pos{display:flex;align-items:center;gap:6px;font-size:12px;color:var(--muted)}
+.pos input{width:140px}
+.pos b{color:var(--text);min-width:16px}
+.seg{display:inline-flex;border:1px solid var(--border);border-radius:8px;overflow:hidden}
+.seg button{font:inherit;font-size:12px;font-weight:600;padding:5px 10px;border:0;border-left:1px solid var(--border);background:#fff;color:var(--text2);cursor:pointer}
+.seg button:first-child{border-left:0}
+.seg button.on{background:var(--red);color:#fff}
+.seg button:disabled{cursor:default}
+.btn{font:inherit;background:var(--red);color:#fff;border:none;border-radius:8px;padding:9px 18px;font-size:13.5px;font-weight:600;cursor:pointer}
+.btn:hover{background:var(--red-dark)}
+.btn:disabled{opacity:.6;cursor:default}
+.msg{font-size:12.5px;margin-left:10px}
+.msg.err{color:var(--hot)}.msg.ok{color:var(--green)}
+.notice{background:var(--amber-bg);border:1px solid #f0e2a8;border-radius:8px;padding:9px 12px;font-size:12.5px;margin-bottom:12px}
+table{width:100%;border-collapse:collapse;font-size:13px}
+th,td{text-align:left;padding:7px 8px;border-top:1px solid var(--border);vertical-align:top}
+th{font-size:11.5px;text-transform:uppercase;letter-spacing:.03em;color:var(--text2);border-top:0}
+td.c,th.c{text-align:center;width:84px}
+.yes{color:var(--green);font-weight:700}
+.no{color:#c2c7d0}
+.part{color:var(--amber);font-size:11.5px;font-weight:600}
+tr.you td{background:var(--red-light)}
+.dir h3{font-size:13px;margin:14px 0 2px;color:var(--text2);text-transform:uppercase;letter-spacing:.03em}
+.dir h3:first-child{margin-top:0}
+.tag{display:inline-block;font-size:10.5px;font-weight:700;padding:1px 7px;border-radius:4px;background:#f1f0ec;color:var(--text2);white-space:nowrap}
+.tag.pub{background:#fde8e8;color:#9b1c1c}
+.tag.ed{background:#e8f0fe;color:#1e40af}
+.tag.all{background:var(--green-bg);color:var(--green)}
+.tag.local{background:var(--amber-bg);color:var(--amber)}
+.table-scroll{overflow-x:auto}
+/* Role permissions: each section repeats the role names, and the feature
+   column stays put while you scroll the switches sideways (Jeff, 2026-10-07:
+   "so as you scroll down you don't get lost, and as you scroll left to right
+   you can still see them"). */
+#access-table td:first-child,#access-table th:first-child{position:sticky;left:0;z-index:1;background:var(--bg2);min-width:150px;box-shadow:1px 0 0 var(--border)}
+#access-table tr.sec th{padding-top:16px;border-top:1px solid var(--border);color:var(--text2);white-space:nowrap}
+#access-table tr.sec th:first-child{font-size:12px;text-transform:none;letter-spacing:0;color:var(--text);white-space:normal}
+@media (max-width:600px){.topbar{height:auto;padding:10px 16px;flex-wrap:wrap}.card{padding:16px}.pos input{width:110px}td.c,th.c{width:64px}}
+
+/* Phones: 16px text boxes so iPhone doesn't zoom in on tap (2026-10-06). */
+@media (max-width:700px){input,select,textarea{font-size:16px!important}}
+</style>
+</head>
+<body>
+<div class="topbar">
+  <a class="brand" href="/"><span class="mark">CP</span>CoPublisher AI</a>
+  <div class="toplinks" id="toplinks"><a href="/">News Monitor</a><a href="/editor">Content Editor</a></div>
+</div>
+<div class="wrap">
+  <h1>Permissions &amp; preferences</h1>
+  <div class="lead how">
+    <p><b>How this page works.</b> Everything here saves the moment you change it, unless a section has its own Save button. Jump to a section with the buttons below.</p>
+    <ol>
+      <li><b>Your alerts:</b> turn each email or text on or off for yourself. Pick your time zone and when the digest and updates come, then tap ⏰ under an alert to choose the days and hours you want it; outside those, it's saved and comes in a "While you were off" box at the top of your next update instead. These only change what <i>you</i> get.</li>
+      <li><b>Content Editor defaults</b> (publisher): choose what gets added to every article, like your podcast, related links, promos and ads, and where in the story it goes. Writers can still change it for a single article.</li>
+      <li><b>What each role can do</b>: switch features on or off for editors, writers, contributors and viewers. <b>Your current permissions settings</b> shows where things stand. Set each person's role in <a href="/settings">Settings › Team &amp; alerts</a>.</li>
+      <li><b>All settings:</b> a map of every setting in the app and where to change it.</li>
+      <li><b>Your account:</b> privacy, terms, support, and deleting your account.</li>
+    </ol>
+  </div>
+  <div class="jump">
+    <a href="#alerts">Your alerts</a><a href="#editor">Content Editor defaults</a><a href="#access">What each role can do</a><a href="#permissions">Current permissions</a><a href="#everything">All settings</a><a href="#account">Your account</a>
+  </div>
+  <div id="notice"></div>
+
+  <section class="card" id="alerts">
+    <h2>Your alerts</h2>
+    <div class="sub"><b>On</b> (blue) means the alert comes to you; tap the switch to turn it off. Changes save right away. The publisher can also change these for anyone in <a href="/settings">Settings › Team &amp; alerts</a>.</div>
+    <div id="alert-list"><div class="sub">Loading…</div></div>
+  </section>
+
+  <section class="card" id="editor">
+    <h2>Content Editor defaults</h2>
+    <div class="sub how">
+      <p>When a writer runs a draft through the Content Editor, it can also drop extras into the story for them, like your latest podcast episode or a box of related links. Choose which ones get added and where they go. These are the starting settings for everyone in the newsroom.</p>
+      <ol>
+        <li><b>Switch</b> (blue = on): turn an extra on to add it to every article, or off to leave it out.</li>
+        <li><b>Slider:</b> how far down the story it goes. Top (0%) puts it above the first paragraph, 50% in the middle, Bottom (100%) after the last paragraph.</li>
+        <li><b>Save defaults</b> at the bottom when you're done.</li>
+      </ol>
+      <p>A writer can still switch one off or move it for a single article, right under their draft.</p>
+    </div>
+    <div id="ed-defaults"></div>
+    <div style="margin-top:12px"><button class="btn" id="ed-save" onclick="saveEditorDefaults()">Save defaults</button><span class="msg" id="ed-msg"></span></div>
+  </section>
+
+  <section class="card" id="access">
+    <h2>What each role sees and can do</h2>
+    <div class="sub">Turn something off and it disappears from that role's News Monitor or Content Editor screen. Anything that spends AI credits, shows your traffic numbers or changes things for the whole newsroom is also refused by the app if they try anyway. Alerts and Settings always show. You, the publisher, always have everything.</div>
+    <div class="table-scroll"><table id="access-table"></table></div>
+    <div style="margin-top:12px"><button class="btn" id="acc-save" onclick="saveAccess()">Save</button><span class="msg" id="acc-msg"></span></div>
+  </section>
+
+  <section class="card" id="permissions">
+    <h2>Your current permissions settings</h2>
+    <div class="sub">The publisher sets each person's role in <a href="/settings">Settings › Team &amp; alerts</a>.</div>
+    <div class="table-scroll"><table id="perm-table"></table></div>
+    <div class="sub" style="margin-top:10px">Two more roles: <b>Contributor</b> (freelancers and stringers) can access the Content Editor only, sees only their own drafts and gets no alerts by default. <b>Viewer</b> can read the News Monitor but can't change anything or access the Content Editor. Fine-tune any role with the switches above.</div>
+  </section>
+
+  <section class="card dir" id="everything">
+    <h2>All settings, and where to change them</h2>
+    <div class="sub"><span class="tag local">This browser</span> marks a setting saved only in the browser you set it in; it doesn't follow you to another computer or browser. Everything else is shared by the whole newsroom.</div>
+    <div id="dir"></div>
+  </section>
+
+  <!-- Your account (2026-10-06, for the App Store and Google Play: account
+       deletion in the app, and links to the privacy policy and terms). -->
+  <section class="card" id="account">
+    <h2>Your account</h2>
+    <div class="sub"><a href="/privacy">Privacy policy</a> · <a href="/terms">Terms of use</a> · <a href="/support">Support</a></div>
+    <div class="row"><div class="name"><b>Delete my account</b><span>Removes your sign-in, profile, alert settings and chat photo. Work you saved to the newsroom (drafts, articles, transcripts, chat messages) stays with the newsroom. This can't be undone.</span></div>
+      <button class="btn" style="background:#b91c1c" onclick="deleteMyAccount(this)">Delete my account</button></div>
+    <div class="sub" id="acct-msg" style="margin:6px 0 0"></div>
+    <div id="remove-people" style="display:none;margin-top:14px">
+      <div class="row"><div class="name"><b>Remove someone from your newsroom</b><span>For when someone leaves or you let them go. They can't sign in to your newsroom anymore, starting right away, and any invite still waiting for them is cancelled. Their drafts, articles and chat messages stay with the newsroom.</span></div></div>
+      <div id="remove-list"><div class="sub">Loading…</div></div>
+      <div class="sub" id="remove-msg" style="margin:6px 0 0"></div>
+    </div>
+  </section>
+</div>
+
+<script src="/supabase-config.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="/_auth.js"></script>
+<script>
+function $(id){return document.getElementById(id);}
+function esc(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
+var ROLE='publisher', CONFIGURED=false, profile={};
+
+// ---- What writers and editors see (site profile editorAccess) ---------------
+// Keep in sync with FEATURES in api/_access.js.
+var ACCESS_FEATURES=[
+  ['Apps and drafts',[['use_monitor','Access the News Monitor'],['use_editor','Access the Content Editor'],['drafts_all','See and edit everyone\u2019s drafts (off: only their own)']]],
+  ['Copydesk modes',[['mode_edit','Full edit: rewrite in house style'],['mode_keep','Keep my words: review only'],['mode_links','Hotlinks only']]],
+  ['Copydesk tools',[['add_with_edit','Add podcast, related links and promos'],['ask_editor','Ask the editor (chat)'],['act_fact_check','Extra fact-check (uses more AI credits)']]],
+  ['Content Editor tabs',[['tab_transcribe','Transcribe'],['tab_social','From social'],['tab_house_style','House style'],['tab_writers','Writers'],['tab_inserts','Inserts'],['tab_drafts','Drafts']]],
+  ['News Monitor actions',[['act_write_story','Write it: draft an article from an alert or story idea'],['act_flag_block','Flag junk and block sources for the whole newsroom'],['act_x_follow','Change which X accounts are followed'],['act_opps_edit','Change who Opp Watch follows, and its email/text alerts']]],
+  ['News Monitor sections',[['mon_analytics','Analytics (traffic and audience numbers)'],['mon_chat','Team chat'],['mon_digest','Nightly digest'],['mon_social','Hot social'],['mon_backlog','Story backlog'],['mon_recruiting','Recruiting tracker'],['mon_roster','Roster watch'],['mon_opps','Opp Watch'],['mon_calendar','Calendar'],['mon_trending','Trending'],['mon_podcasts','Podcasts'],['mon_youtube','YouTube'],['mon_bluesky','Bluesky']]]
+];
+var access={};
+// Each role starts from its defaults (api/_access.js ROLE_DEFAULTS, sent by
+// /api/site-profile); a switch you change is saved, one left alone follows
+// the default.
+var ACC_ROLES=['editor','writer','contributor','viewer'];
+var accessDefaults={};
+function accOn(r,k){ var a=access[r]||{}; if(a[k]===false) return false; if(a[k]===true) return true; return (accessDefaults[r]||{})[k]!==false; }
+function renderAccess(){
+  var can=ROLE==='publisher', dis=can?'':' disabled';
+  var roles='<th class="c">Publisher</th><th class="c">Editor</th><th class="c">Writer</th><th class="c">Contributor</th><th class="c">Viewer</th>';
+  var h='';
+  // The writer leaderboard is listed only for the publisher: staff don't see it exists unless it's turned on for them.
+  var groups=ACCESS_FEATURES.concat(can?[['Publisher only unless you share it',[['mon_leaderboard','🏆 Writer leaderboard (off for everyone until you turn it on; while off, staff don\u2019t see it exists)']]]]:[]);
+  groups.forEach(function(g){
+    h+='<tr class="sec"><th>'+esc(g[0])+'</th>'+roles+'</tr>';
+    g[1].forEach(function(f){
+      h+='<tr><td>'+esc(f[1])+'</td><td class="c"><span class="yes">✓</span></td>'+ACC_ROLES.map(function(r){
+        var on=accOn(r,f[0]);
+        return '<td class="c"><label class="switch"><input type="checkbox"'+dis+(on?' checked':'')+' onchange="setAccess(\''+r+'\',\''+f[0]+'\',this.checked)"><i></i></label></td>';
+      }).join('')+'</tr>';
+    });
+  });
+  $('access-table').innerHTML=h;
+  $('acc-save').style.display=can?'':'none';
+}
+function setAccess(role,key,on){
+  access[role]=access[role]||{};
+  var def=(accessDefaults[role]||{})[key]!==false;
+  if(on===def) delete access[role][key]; else access[role][key]=on;
+  if(role==='contributor') renderPerms();
+}
+async function saveAccess(){
+  var b=$('acc-save'), m=$('acc-msg');
+  var noMode=['editor','writer','contributor'].filter(function(r){ return accOn(r,'use_editor') && ['mode_edit','mode_keep','mode_links'].every(function(k){ return !accOn(r,k); }); });
+  if(noMode.length){ m.className='msg err'; m.textContent='Leave at least one Copydesk mode on for '+noMode.join(' and ')+'s.'; return; }
+  b.disabled=true; m.className='msg'; m.textContent='Saving…';
+  try{
+    var r=await fetch('/api/site-profile',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({profile:{editorAccess:access}})});
+    var d=await r.json().catch(function(){return {};});
+    if(!r.ok||d.error) throw new Error(d.error||('HTTP '+r.status));
+    m.className='msg ok'; m.textContent='Saved. It takes effect the next time they open or reload the News Monitor or Content Editor.';
+  }catch(e){ m.className='msg err'; m.textContent='Couldn\u2019t save: '+e.message; }
+  b.disabled=false;
+}
+
+// ---- Your current permissions settings ------------------------------------------------------
+// Mirrors the role checks in api/ (requireRole / membership.role). Keep in
+// sync when a route's check changes.
+var PERMS=[
+  ['Access the News Monitor and Content Editor (scans, digests, alerts, editing, writing)','all'],
+  ['Choose your own alerts','all'],
+  ['Open and edit everyone\u2019s drafts (writers: only their own, unless you switch it on above)','editor'],
+  ['Hide junk sources and exclude sites from the feed (unless you switch it off below)','all'],
+  ['Change which X accounts are followed (unless you switch it off below)','all'],
+  ['Send a public-records request from the app','editor','Writers can open it in their own email'],
+  ['Edit the house style guide','editor'],
+  ['Connect search keys (web search, Google search, X)','editor'],
+  ['Change the newsroom setup (beat, people to watch, what’s breaking, podcast)','publisher'],
+  ['Change the Content Editor defaults','publisher'],
+  ['Choose what writers and editors see and can do','publisher'],
+  ['Invite people, set roles, and set other people’s alerts','publisher'],
+  ['Connect analytics and social accounts','publisher'],
+  ['Connect the 247Sports login and the Bluesky promo bot','publisher']
+];
+// Contributors (freelancers) by the switches above: what they get here
+// depends on what the publisher turned on for them (Jeff, 2026-10-07: "add
+// contributor ... it only shows others").
+function contribPerm(i){
+  var on=function(k){ return accOn('contributor',k); }, mon=on('use_monitor'), ed=on('use_editor');
+  switch(i){
+    case 0: return mon&&ed?'yes':ed?'part:The Content Editor only':mon?'part:The News Monitor only':'no';
+    case 1: return 'yes';
+    case 2: return ed?(on('drafts_all')?'yes':'part:Only their own drafts'):'no';
+    case 3: return mon&&on('act_flag_block')?'yes':'no';
+    case 4: return mon&&on('act_x_follow')?'yes':'no';
+    case 5: return mon?'part:Can open it in their own email':'no';
+    default: return 'no';
+  }
+}
+function renderPerms(){
+  var roles=['publisher','editor','writer','contributor'];
+  var rank={publisher:3,editor:2,writer:1,all:1};
+  var h='<tr><th>What</th>'+roles.map(function(r){return '<th class="c">'+r.charAt(0).toUpperCase()+r.slice(1)+(r===ROLE?' (you)':'')+'</th>';}).join('')+'</tr>';
+  PERMS.forEach(function(p,i){
+    h+='<tr><td>'+esc(p[0])+'</td>'+roles.map(function(r){
+      if(r==='contributor'){
+        var c=contribPerm(i);
+        if(c.indexOf('part:')===0) return '<td class="c"><span class="part" title="'+esc(c.slice(5))+'">Partly</span></td>';
+        return '<td class="c">'+(c==='yes'?'<span class="yes">✓</span>':'<span class="no">—</span>')+'</td>';
+      }
+      var ok=rank[r]>=rank[p[1]];
+      if(!ok && p[2]) return '<td class="c"><span class="part" title="'+esc(p[2])+'">Partly</span></td>';
+      return '<td class="c">'+(ok?'<span class="yes">✓</span>':'<span class="no">—</span>')+'</td>';
+    }).join('')+'</tr>';
+  });
+  $('perm-table').innerHTML=h;
+}
+
+// ---- Every other setting ----------------------------------------------------
+var WHO={publisher:['pub','Publisher'],editor:['ed','Editors'],all:['all','Everyone'],local:['local','This browser']};
+var DIR=[
+  ['Newsroom setup (the setup wizard)',[
+    ['Outlet, website and the sports you cover','/setup?step=outlet','publisher'],
+    ['Your beat: sources, competitors and Opps Spy email/text alerts','/setup?step=beat','publisher'],
+    ['People to watch','/setup?step=people','publisher'],
+    ['Roster watch','/setup?step=roster','publisher'],
+    ['What counts as breaking news','/setup?step=rules','publisher'],
+    ['Podcast feed and player','/setup?step=podcast','publisher'],
+    ['X accounts to follow','/setup?step=x','all'],
+    ['Invite your team','/setup?step=team','publisher']
+  ]],
+  ['News Monitor settings',[
+    ['Team roles and everyone’s alerts','/settings','publisher'],
+    ['Excluded sources and your own site','/settings','all'],
+    ['Web search, Google search and X search keys','/settings','editor'],
+    ['Bluesky promo bot','/settings','publisher'],
+    ['247Sports login (style drift matching)','/settings','publisher'],
+    ['Desktop alerts','/settings','local'],
+    ['Analytics and social connections','/analytics','publisher']
+  ]],
+  ['Content Editor',[
+    ['House style guide','/house-style','editor'],
+    ['Writers and their voice profiles','/editor#1','all'],
+    ['Promos for free and VIP articles','/editor#2','all'],
+    ['Ad slots (ad code placed in every article)','/editor#2','publisher'],
+    ['Affiliate programs, clicks and payouts (CoPublisher AI)','/affiliates','publisher'],
+    ['Podcast tab: this browser’s player settings (override the newsroom’s)','/editor','local'],
+    ['Related tab: how many links and where they link to','/editor','local']
+  ]]
+];
+function renderDir(){
+  $('dir').innerHTML=DIR.map(function(g){
+    return '<h3>'+esc(g[0])+'</h3>'+g[1].map(function(it){
+      var w=WHO[it[2]];
+      return '<div class="row"><div class="name"><b>'+esc(it[0])+'</b></div><span class="tag '+w[0]+'">'+w[1]+'</span><a href="'+esc(it[1])+'">Open</a></div>';
+    }).join('');
+  }).join('');
+}
+
+// ---- Your alerts -----------------------------------------------------------
+async function loadAlerts(){
+  if(!CONFIGURED){ $('alert-list').innerHTML='<div class="sub">Sign-in isn’t switched on, so alerts go to the digest list for now.</div>'; return; }
+  try{
+    var r=await fetch('/api/alert-prefs'); var d=await r.json();
+    if(!r.ok) throw new Error(d.error||('HTTP '+r.status));
+    SCHED=d.schedules||{}; TIMES=d.times||{}; MYTZ=d.timeZone||'America/New_York'; CHAN=d.channels||{}; MYPHONE=d.phone||''; TEXTING=!!d.textingOn;
+    $('alert-list').innerHTML=tzPicker()+phoneBox()+'<div class="sub" style="margin:0 0 6px">Tap <b>⏰</b> under any alert to pick the days and hours you want it (in your time zone above), for example weekdays 8am to 10pm. Anything that comes outside them is saved for you and shows up at the top of your next update, under \u201cWhile you were off\u201d.</div>'+(d.types||[]).map(function(t){
+      return '<div class="row"><div class="name"><b>'+esc(t.label)+'</b>'+(t.about?'<span class="about">'+esc(t.about)+'</span>':'<br>')+(t.times?timesPicker(t.key,t.times):'')+schedLink(t.key)+chanPicker(t.key)+'</div><label class="switch"><input type="checkbox" data-t="'+esc(t.key)+'" '+(d.me[t.key]?'checked':'')+' onchange="setAlert(this)"><i></i></label>'+schedEditor(t.key)+'</div>';
+    }).join('')+'<div id="hot12-row"></div><div class="sub" id="alert-msg" style="margin:6px 0 0"></div>';
+    loadHot12();
+  }catch(e){ $('alert-list').innerHTML='<div class="msg err" style="margin:0">Couldn’t load your alerts: '+esc(e.message)+'</div>'; }
+}
+// Days and hours per alert (Jeff, 2026-10-06: "something next to them where
+// you can denote what days of the week you want these actions, and specific
+// time of day preferences"). Saved per person via /api/alert-prefs
+// { type, schedule } (api/_alert-schedule.js), in your own time zone (MYTZ).
+var SCHED={}, DAYN=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+// Your time zone (Jeff, 2026-10-07: "add choice of time zone to preferences"):
+// your alert days and hours are read in it. Saved per person (/api/alert-prefs
+// { timeZone }); Eastern until you pick another.
+var MYTZ='America/New_York';
+var TZS=[['America/New_York','Eastern'],['America/Chicago','Central'],['America/Denver','Mountain'],['America/Phoenix','Arizona (no daylight saving)'],['America/Los_Angeles','Pacific'],['America/Anchorage','Alaska'],['Pacific/Honolulu','Hawaii']];
+function tzNow(tz){ try{ return new Date().toLocaleTimeString('en-US',{timeZone:tz,hour:'numeric',minute:'2-digit'}); }catch(e){ return ''; } }
+// Every time zone (Jeff, 2026-10-07: "all time zones"): the US ones first,
+// then the rest of the world by region.
+var ALLTZ=null;
+function allZones(){
+  if(ALLTZ) return ALLTZ;
+  var z=[]; try{ z=Intl.supportedValuesOf('timeZone'); }catch(e){}
+  [MYTZ].concat(Object.keys(SCHED).map(function(k){return SCHED[k]&&SCHED[k].tz;})).forEach(function(x){ if(x&&z.indexOf(x)===-1) z.push(x); });
+  return (ALLTZ=z.filter(function(x){ return !TZS.some(function(t){return t[0]===x;}); }).sort());
+}
+function tzName(z){ var t=TZS.filter(function(x){return x[0]===z;})[0]; return t?t[1]:String(z).replace(/_/g,' ').replace(/\//g,' / '); }
+function tzOptions(sel,first){
+  var groups={}; allZones().forEach(function(z){ var r=z.indexOf('/')>0?z.split('/')[0]:'Other'; (groups[r]=groups[r]||[]).push(z); });
+  var opt=function(z,label){ return '<option value="'+esc(z)+'"'+(z===sel?' selected':'')+'>'+esc(label||tzName(z))+'</option>'; };
+  return (first||'')+'<optgroup label="United States">'+TZS.map(function(t){ return opt(t[0],t[1]+' \u00b7 '+tzNow(t[0])); }).join('')+'</optgroup>'+
+    Object.keys(groups).sort().map(function(r){ return '<optgroup label="'+esc(r)+'">'+groups[r].map(function(z){ return opt(z,z.replace(/^[^/]+\//,'').replace(/_/g,' ').replace(/\//g,' / ')); }).join('')+'</optgroup>'; }).join('');
+}
+function tzPicker(){
+  var here='';
+  try{ here=Intl.DateTimeFormat().resolvedOptions().timeZone||''; }catch(e){}
+  return '<div class="tz-row"><label for="my-tz"><b>Your time zone</b></label> <select id="my-tz" onchange="saveTz(this)">'+tzOptions(MYTZ)+
+    '</select><span class="msg" id="tz-msg"></span><div class="sub" style="margin:4px 0 0">It\u2019s '+esc(tzNow(MYTZ))+' there now.'+(here && here!==MYTZ?' This device is set to '+esc(tzName(here))+'.':'')+'</div></div>';
+}
+// When the digests come (Jeff, 2026-10-07: nightly digest "let them set
+// time"; updates: "three different time slots ... option to only receive 1
+// or 2 daily"). Whole hours in your zone (or the alert's own ⏰ zone);
+// saved per person via /api/alert-prefs { timesFor, times }.
+var TIMES={};
+function timeOpts(sel,none){ var o=none?'<option value="">'+none+'</option>':''; for(var h=0;h<24;h++){ var v=String(h).padStart(2,'0')+':00'; o+='<option value="'+v+'"'+(sel===v?' selected':'')+'>'+hmLabel(v)+'</option>'; } return o; }
+function timesPicker(type,n){
+  var t=TIMES[type]||[];
+  var sels=[]; for(var i=0;i<n;i++) sels.push('<select aria-label="'+(n>1?'Update '+(i+1):'Time')+'" onchange="saveTimes(\''+type+'\')">'+timeOpts(t[i]||'',i===0?'':'None')+'</select>');
+  return '<div class="times" id="tm-'+type+'"><b>Send at</b> '+sels.join(' ')+(n>1?'<span class="sub" style="display:block;margin:2px 0 0">Set the 2nd or 3rd to None to get just 1 or 2 a day.</span>':'')+'</div>';
+}
+async function saveTimes(type){
+  var box=$('tm-'+type), m=$('alert-msg'), n=box.querySelectorAll('select').length;
+  var t=Array.from(box.querySelectorAll('select')).map(function(x){return x.value;}).filter(Boolean);
+  try{
+    var r=await fetch('/api/alert-prefs',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({timesFor:type,times:t})});
+    var d=await r.json().catch(function(){return {};}); if(!r.ok||d.error) throw new Error(d.error||('HTTP '+r.status));
+    TIMES[type]=d.times; m.className='sub msg ok'; m.textContent='Saved: '+d.times.map(hmLabel).join(', ')+' ('+tzName(MYTZ)+' time).';
+  }catch(e){ m.className='sub msg err'; m.textContent='Couldn\u2019t save: '+e.message; }
+  box.outerHTML=timesPicker(type,n);
+}
+// Email, text or both, per alert (Jeff, 2026-10-07: "add option for email,
+// text or both under each alert category"). Texts go to the mobile number
+// below once texting is connected (api/_sms.js); until then it's email.
+var CHAN={}, MYPHONE='', TEXTING=false;
+function phoneBox(){
+  return '<div class="tz-row"><label for="my-phone"><b>Mobile number for text alerts</b></label> '+
+    '<input id="my-phone" type="tel" inputmode="tel" autocomplete="tel" placeholder="(301) 555-0123" value="'+esc(MYPHONE)+'" style="width:auto;display:inline-block;margin-left:6px;max-width:200px" onchange="savePhone(this)">'+
+    '<span class="msg" id="phone-msg"></span>'+
+    '<div class="sub" style="margin:4px 0 0">'+(TEXTING?'Choose <b>Text</b> or <b>Both</b> under any alert to get it by text.':'Texting isn\u2019t switched on for the newsroom yet. Choose <b>Text</b> or <b>Both</b> now and you\u2019ll get email until it is.')+'</div></div>';
+}
+function chanPicker(type){
+  var c=CHAN[type]||'email';
+  return '<div class="chan" role="radiogroup" aria-label="How you get this alert">'+[['email','Email'],['text','Text'],['both','Both']].map(function(o){
+    return '<button type="button" class="'+(c===o[0]?'on':'')+'" onclick="saveChan(\''+type+'\',\''+o[0]+'\',this)">'+o[1]+'</button>';
+  }).join('')+'</div>';
+}
+async function saveChan(type,ch,btn){
+  var box=btn.parentNode, prev=CHAN[type]||'email';
+  box.querySelectorAll('button').forEach(function(b){ b.classList.toggle('on',b===btn); });
+  try{
+    var r=await fetch('/api/alert-prefs',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({channelFor:type,channel:ch})});
+    var d=await r.json(); if(!r.ok||d.error) throw new Error(d.error||('HTTP '+r.status));
+    CHAN[type]=ch;
+    if(ch!=='email'&&!MYPHONE){ $('phone-msg').textContent='Add your mobile number so texts can reach you.'; $('my-phone').focus(); }
+  }catch(e){ box.querySelectorAll('button').forEach(function(b){ b.classList.toggle('on',b.textContent.toLowerCase()===prev); }); alert('Couldn\u2019t save: '+e.message); }
+}
+async function savePhone(inp){
+  var m=$('phone-msg'); m.textContent='Saving…';
+  try{
+    var r=await fetch('/api/alert-prefs',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({phone:inp.value})});
+    var d=await r.json(); if(!r.ok||d.error) throw new Error(d.error||('HTTP '+r.status));
+    MYPHONE=d.phone||''; inp.value=MYPHONE; m.textContent=MYPHONE?'Saved.':'Removed.';
+  }catch(e){ m.textContent=e.message; }
+}
+async function saveTz(sel){
+  var m=$('tz-msg'); m.textContent='Saving…';
+  try{
+    var r=await fetch('/api/alert-prefs',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({timeZone:sel.value})});
+    var d=await r.json(); if(!r.ok||d.error) throw new Error(d.error||('HTTP '+r.status));
+    MYTZ=d.timeZone; m.textContent='Saved. Your alert days and hours now use this time zone.';
+  }catch(e){ m.textContent='Couldn\u2019t save: '+e.message; }
+}
+function hmLabel(hm){ var h=+hm.slice(0,2); return (h%12||12)+(hm.slice(3)!=='00'?':'+hm.slice(3):'')+(h<12?' AM':' PM'); }
+function schedText(s){
+  if(!s||(!s.from&&(s.days||[]).length===7)) return 'Any day, any time';
+  var d=s.days||[0,1,2,3,4,5,6], ds=d.length===7?'Every day':(d.join()==='1,2,3,4,5'?'Weekdays':(d.join()==='0,6'?'Weekends':d.map(function(i){return DAYN[i];}).join(', ')));
+  return ds+(s.from?', '+hmLabel(s.from)+'\u2013'+hmLabel(s.to):', any time');
+}
+function schedLink(type){ var s=SCHED[type]; return '<a class="sched-link'+(s?' set':'')+'" id="sl-'+type+'" onclick="toggleSched(\''+type+'\')">⏰ '+esc(schedText(s))+'</a>'; }
+function hourOpts(sel){ var o='<option value="">any time</option>'; for(var h=0;h<24;h++){ var v=String(h).padStart(2,'0')+':00'; o+='<option value="'+v+'"'+(sel===v?' selected':'')+'>'+hmLabel(v)+'</option>'; } return o; }
+function schedEditor(type){
+  var s=SCHED[type]||{days:[0,1,2,3,4,5,6]};
+  return '<div class="sched-ed" id="se-'+type+'"><b>Days</b><div class="sched-days">'+DAYN.map(function(n,i){ return '<label><input type="checkbox" value="'+i+'"'+(s.days.indexOf(i)!==-1?' checked':'')+'><span>'+n+'</span></label>'; }).join('')+'</div>'+
+    '<b>Hours</b> from <select class="sf">'+hourOpts(s.from||'')+'</select> to <select class="st">'+hourOpts(s.to||'')+'</select>'+
+    '<div style="margin-top:8px"><button class="btn" style="padding:4px 12px;font-size:12px" onclick="saveSched(\''+type+'\',this)">Save</button> <a href="#" style="margin-left:8px;font-size:12px" onclick="saveSched(\''+type+'\',this,true);return false">Reset to any day, any time</a></div></div>';
+}
+function toggleSched(type){ var el=$('se-'+type); if(el) el.classList.toggle('open'); }
+async function saveSched(type,btn,reset){
+  var el=$('se-'+type), m=$('alert-msg');
+  var days=Array.from(el.querySelectorAll('.sched-days input:checked')).map(function(x){return +x.value;});
+  var from=el.querySelector('.sf').value, to=el.querySelector('.st').value;
+  if(!reset&&!days.length){ m.className='sub msg err'; m.textContent='Pick at least one day (or switch the alert off).'; return; }
+  if(!reset&&(!!from!==!!to)){ m.className='sub msg err'; m.textContent='Pick both a start and an end hour, or leave both as any time.'; return; }
+  btn.disabled=true;
+  try{
+    var r=await fetch('/api/alert-prefs',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({type:type,schedule:reset?null:{days:days,from:from,to:to}})});
+    var d=await r.json().catch(function(){return {};});
+    if(!r.ok) throw new Error(d.error||('HTTP '+r.status));
+    if(d.schedule) SCHED[type]=d.schedule; else delete SCHED[type];
+    var link=$('sl-'+type); link.outerHTML=schedLink(type);
+    if(reset){ el.outerHTML=schedEditor(type); } else el.classList.remove('open');
+    m.className='sub msg ok'; m.textContent='Saved: '+schedText(SCHED[type])+'.';
+  }catch(e){ m.className='sub msg err'; m.textContent='Couldn\u2019t save: '+e.message; }
+  btn.disabled=false;
+}
+
+// "A hot spot is within 12 hours" (Jeff, 2026-10-06): yours, email or text,
+// saved with the calendar (api/calendar.js action 'hot12').
+async function loadHot12(){
+  var box=$('hot12-row'); if(!box) return;
+  try{
+    var r=await fetch('/api/calendar'); var d=await r.json();
+    if(!r.ok) return; // no calendar access: leave the row out
+    var mine=d.heat&&d.heat.hot12, off=d.heat&&!d.heat.on, q=d.heat&&d.heat.quiet;
+    box.innerHTML='<div class="row"><div class="name"><b>🔥 A hot spot is within 12 hours</b>'+
+      '<div class="sub" style="margin:2px 0 0">A heads-up before the best times to publish, so a story is ready. Several at once come in one message. Nothing comes in your quiet hours; early-morning spots come the evening before.'+(off?' Hot spots are switched off for the newsroom right now.':'')+'</div>'+
+      '<div class="times" id="quiet-row"><b>Quiet hours</b> from <select id="q-from" onchange="saveQuiet()">'+timeOpts(q?q.from:'','None')+'</select> to <select id="q-to" onchange="saveQuiet()">'+timeOpts(q?q.to:'','None')+'</select><span class="sub" style="display:block;margin:2px 0 0">In your time zone. Set both to None for no quiet hours.</span></div>'+
+      schedLink('hot_spot')+'</div>'+
+      '<select id="hot12-ch" onchange="setHot12()" style="width:auto;margin:0 10px 0 0"><option value="email">Email</option><option value="text">Text</option><option value="both">Both</option></select>'+
+      '<label class="switch"><input type="checkbox" id="hot12-on" '+(mine?'checked':'')+' onchange="setHot12()"><i></i></label>'+schedEditor('hot_spot')+'</div>';
+    $('hot12-ch').value=(mine&&mine.channel)||'email';
+  }catch(e){}
+}
+// Your quiet hours for hot-spot alerts (Jeff, 2026-10-07: "they should be
+// able to set their own hours"); 10 PM to 7 AM until you change them.
+async function saveQuiet(){
+  var f=$('q-from').value, t=$('q-to').value, m=$('alert-msg');
+  if(!!f!==!!t){ m.className='sub msg err'; m.textContent='Pick both a start and an end, or set both to None.'; return; }
+  if(f&&f===t){ m.className='sub msg err'; m.textContent='Start and end can\u2019t be the same hour.'; return; }
+  try{
+    var r=await fetch('/api/calendar',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'quiet',from:f,to:t,off:!f})});
+    var d=await r.json().catch(function(){return {};}); if(!r.ok||d.error) throw new Error(d.error||('HTTP '+r.status));
+    m.className='sub msg ok'; m.textContent=d.quiet?'Saved: quiet from '+hmLabel(d.quiet.from)+' to '+hmLabel(d.quiet.to)+'.':'Saved: no quiet hours.';
+  }catch(e){ m.className='sub msg err'; m.textContent='Couldn\u2019t save: '+e.message; }
+}
+async function setHot12(){
+  var on=$('hot12-on'), ch=$('hot12-ch'), m=$('alert-msg');
+  on.disabled=true;
+  try{
+    var r=await fetch('/api/calendar',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'hot12',on:on.checked,channel:ch.value})});
+    var d=await r.json().catch(function(){return {};});
+    if(!r.ok) throw new Error(d.error||('HTTP '+r.status));
+    m.className='sub msg ok'; m.textContent=on.checked?('Saved. '+(ch.value==='text'?'Texting isn\u2019t connected yet, so these come by email for now.':'')):'Saved.';
+  }catch(e){ on.checked=!on.checked; m.className='sub msg err'; m.textContent='Couldn\u2019t save: '+e.message; }
+  on.disabled=false;
+}
+// Publisher only: take someone off the newsroom (api/team.js action 'remove').
+async function loadRemovePeople(){
+  var box=$('remove-people'); if(!box||!CONFIGURED||ROLE!=='publisher') return;
+  box.style.display='';
+  try{
+    var r=await fetch('/api/team'); var d=await r.json(); if(!r.ok) throw new Error(d.error||('HTTP '+r.status));
+    var people=(d.members||[]).filter(function(m){ return !m.isSelf; });
+    $('remove-list').innerHTML=people.length?people.map(function(m){
+      var who=m.name||m.email||'Someone';
+      return '<div class="row"><div class="name"><b>'+esc(who)+'</b><span>'+esc((m.name&&m.email?m.email+' \u00b7 ':'')+m.role.charAt(0).toUpperCase()+m.role.slice(1))+'</span></div>'+
+        '<button class="btn" style="background:#b91c1c;padding:6px 12px;font-size:13px" data-id="'+esc(m.userId)+'" data-who="'+esc(who)+'" onclick="removePerson(this)">Remove</button></div>';
+    }).join(''):'<div class="sub">No one else is in your newsroom yet.</div>';
+  }catch(e){ $('remove-list').innerHTML='<div class="msg err" style="margin:0">Couldn\u2019t load your team: '+esc(e.message)+'</div>'; }
+}
+async function removePerson(btn){
+  var who=btn.dataset.who, m=$('remove-msg');
+  if(!confirm('Remove '+who+' from your newsroom?\n\nThey lose access right away. Their drafts, articles and chat messages stay.')) return;
+  btn.disabled=true;
+  try{
+    var r=await fetch('/api/team',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'remove',userId:btn.dataset.id})});
+    var d=await r.json().catch(function(){return {};});
+    if(!r.ok||d.error) throw new Error(d.error||('HTTP '+r.status));
+    m.className='sub msg ok'; m.textContent=who+' was removed and no longer has access.';
+    loadRemovePeople();
+  }catch(e){ m.className='sub msg err'; m.textContent='Couldn\u2019t remove '+who+': '+e.message; btn.disabled=false; }
+}
+async function deleteMyAccount(btn){
+  var m=$('acct-msg');
+  var typed=prompt('This permanently deletes your CoPublisher account. Type DELETE to confirm.');
+  if(typed!=='DELETE'){ if(typed!==null){ m.className='sub msg err'; m.textContent='Not deleted: type DELETE exactly to confirm.'; } return; }
+  btn.disabled=true;
+  try{
+    var r=await fetch('/api/account-delete',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({confirm:'DELETE'})});
+    var d=await r.json().catch(function(){return {};});
+    if(!r.ok) throw new Error(d.error||('HTTP '+r.status));
+    m.className='sub msg ok'; m.textContent='Your account was deleted. Signing you out…';
+    try{ if(window.IMSAuth&&IMSAuth.signOut) await IMSAuth.signOut(); }catch(e){}
+    setTimeout(function(){ location.href='/login'; },1500);
+  }catch(e){ m.className='sub msg err'; m.textContent=e.message; btn.disabled=false; }
+}
+async function setAlert(el){
+  el.disabled=true;
+  var m=$('alert-msg');
+  try{
+    var r=await fetch('/api/alert-prefs',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({type:el.dataset.t,enabled:el.checked})});
+    var d=await r.json().catch(function(){return {};});
+    if(!r.ok) throw new Error(d.error||('HTTP '+r.status));
+    m.className='sub msg ok'; m.textContent='Saved.';
+  }catch(e){ el.checked=!el.checked; m.className='sub msg err'; m.textContent='Couldn’t save: '+e.message; }
+  el.disabled=false;
+}
+
+// ---- Content Editor defaults (site profile editorDefaults) -------------------
+// Same shape and fallbacks as editorDefaults() in editor.html.
+var ed={};
+// Placement is a percentage in 20% steps: how far down the article, counted in
+// paragraphs (0% above the first, 100% after the last). Older 1-10 values
+// convert to the nearest step. Same as pct() in editor.html.
+function pct(v){ v=(v===undefined||v===null||v==='')?100:+v; if(isNaN(v)) v=100; if(v>=1&&v<=10) v=(v-1)/9*100; return Math.max(0,Math.min(100,Math.round(v/20)*20)); }
+function loadEditorDefaults(){
+  var d=profile.editorDefaults||{}, pod=profile.podcast||{};
+  ed={
+    podcast:d.podcast!==false, related:d.related!==false, promos:!!d.promos, factCheck:!!d.factCheck, ads:d.ads!==false, affiliate:d.affiliate!==false,
+    podcastPosition:pct(d.podcastPosition!=null?d.podcastPosition:pod.position),
+    relatedPosition:pct(d.relatedPosition),
+    adsPosition:pct(d.adsPosition!=null?d.adsPosition:40),
+    promosPosition:pct(d.promosPosition!=null?d.promosPosition:40),
+    affiliatePosition:pct(d.affiliatePosition!=null?d.affiliatePosition:60),
+    relatedCount:+(d.relatedCount||3), relatedScope:d.relatedScope==='web'?'web':'site',
+    tierMode:d.tierMode==='free'||d.tierMode==='vip'?d.tierMode:'both',
+    linkColor:d.linkColor==='site'||/^#[0-9a-f]{6}$/i.test(d.linkColor||'')?d.linkColor:'#3b82f6'
+  };
+  renderEditorDefaults();
+}
+function linkPreview(){ return (ed.linkColor==='site'?'':'color:'+ed.linkColor+';')+'text-decoration:underline;text-underline-offset:2px;font-weight:600'; }
+function renderEditorDefaults(){
+  var can=ROLE==='publisher';
+  var dis=can?'':' disabled';
+  function sw(k){ return '<label class="switch"><input type="checkbox"'+dis+(ed[k]?' checked':'')+' onchange="ed.'+k+'=this.checked"><i></i></label>'; }
+  function pos(k){ return '<span class="pos" title="How far down the article: 0% is above the first paragraph, 100% after the last">Top <input type="range" min="0" max="100" step="20" value="'+ed[k]+'"'+dis+' oninput="ed.'+k+'=+this.value;this.nextElementSibling.textContent=this.value+\'%\'"> <b>'+ed[k]+'%</b> Bottom</span>'; }
+  function seg(k,opts){ return '<span class="seg">'+opts.map(function(o){ return '<button type="button"'+dis+' class="'+(ed[k]===o[0]?'on':'')+'" onclick="ed.'+k+'='+JSON.stringify(o[0]).replace(/"/g,'&quot;')+';renderEditorDefaults()">'+o[1]+'</button>'; }).join('')+'</span>'; }
+  $('ed-defaults').innerHTML=
+    '<div class="row"><div class="name"><b>🎙️ Your latest podcast episode</b><span>The newest episode’s player, from your podcast feed.</span></div>'+pos('podcastPosition')+sw('podcast')+'</div>'+
+    '<div class="row"><div class="name"><b>🔗 Related links box</b><span>Links to related stories, picked from the finished article.</span></div>'+pos('relatedPosition')+sw('related')+'</div>'+
+    '<div class="row"><div class="name"><span><b>Placement %</b> is how far down the article the box goes, counted in paragraphs: 0% is above the first paragraph, 50% the middle, 100% after the last. In a 10-paragraph story, 40% goes after paragraph 4.</span></div></div>'+
+    '<div class="row"><div class="name"><b>How many related links</b></div>'+seg('relatedCount',[[1,'1'],[2,'2'],[3,'3'],[4,'4']])+'</div>'+
+    '<div class="row"><div class="name"><b>Related links point to</b></div>'+seg('relatedScope',[['site','Our site only'],['web','Anywhere on the web']])+'</div>'+
+    '<div class="row"><div class="name"><b>🔗 How links look in your stories</b><span>Hotlinks and the Related links box come out bold and underlined in this color, so readers can see they\u2019re links on any site, light or dark, like <em style="font-style:normal;'+linkPreview()+'">this link</em>. Pick \u201cSite\u2019s own\u201d to keep your site\u2019s link color (bold and underlined).</span></div>'+
+      '<span class="seg">'+[['#3b82f6','Blue'],['#e11d48','Red'],['#16a34a','Green'],['site','Site\u2019s own']].map(function(o){ return '<button type="button"'+dis+' class="'+(ed.linkColor===o[0]?'on':'')+'" onclick="ed.linkColor=\''+o[0]+'\';renderEditorDefaults()">'+o[1]+'</button>'; }).join('')+'</span>'+
+      ' <input type="color" title="Any color"'+dis+' value="'+(ed.linkColor==='site'?'#3b82f6':ed.linkColor)+'" style="width:44px;height:32px;padding:2px;vertical-align:middle;display:inline-block" onchange="ed.linkColor=this.value;renderEditorDefaults()"></div>'+
+    '<div class="row"><div class="name"><b>What you publish</b><span>Do your stories go out free, behind your paywall (VIP), or both? If both, writers pick Free or VIP for each story in the Content Editor, and that decides which promos and ads it gets. If you only do one, pick it here and that choice goes away: every story is treated as free or as VIP automatically.</span></div>'+seg('tierMode',[['both','Free and paywalled'],['free','Only free'],['vip','Only paywalled']])+'</div>'+
+    '<div class="row"><div class="name"><b>📣 Promos for the article’s tier</b><span>Your house blocks, like newsletter sign-ups, \u201cjoin VIP\u201d pitches and ticket deals. Free stories get your free promos; VIP stories get your VIP ones, so members aren\u2019t asked to join. The slider sets where the first one goes. Write them in the <a href="/editor#2">Content Editor under 📣 Promos</a>.</span></div>'+pos('promosPosition')+sw('promos')+'</div>'+
+    '<div class="row"><div class="name"><b>💰 Ad slots</b><span>Your ad code (set it up on the <a href="/editor#2">Content Editor’s Inserts tab</a>). The slider is where the first ad goes; if you run more than one, the rest keep their spacing after it. A writer can move it for one article under the draft.</span></div>'+pos('adsPosition')+sw('ads')+'</div>'+
+    '<div class="row"><div class="name"><b>💸 Affiliate links</b><span>Links to gear, ticket and other partner sites earn your newsroom a share through CoPublisher AI\u2019s affiliate programs. Links already in the story stay where they are; the slider is where a partner\u2019s box (if it has one) goes.</span></div>'+pos('affiliatePosition')+sw('affiliate')+'</div>'+
+    '<div class="row"><div class="name"><b>🔎 Extra fact-check</b><span>Checks every name, number and date in the finished article against live sources and your past coverage. Takes a minute longer and uses more AI credits.</span></div>'+sw('factCheck')+'</div>';
+  $('ed-save').style.display=can?'':'none';
+  if(!can) $('ed-msg').textContent='';
+}
+async function saveEditorDefaults(){
+  var b=$('ed-save'), m=$('ed-msg'); b.disabled=true; m.className='msg'; m.textContent='Saving…';
+  try{
+    var next=Object.assign({}, profile.editorDefaults||{}, ed);
+    var r=await fetch('/api/site-profile',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({profile:{editorDefaults:next}})});
+    var d=await r.json().catch(function(){return {};});
+    if(!r.ok||d.error) throw new Error(d.error||('HTTP '+r.status));
+    profile.editorDefaults=next;
+    m.className='msg ok'; m.textContent='Saved. New edits start from these.';
+  }catch(e){ m.className='msg err'; m.textContent='Couldn’t save: '+e.message; }
+  b.disabled=false;
+}
+
+(async function init(){
+  if(window.IMSAuth){
+    var s=await IMSAuth.guard();
+    CONFIGURED=!!(s&&s.configured);
+    if(s&&s.user){ ROLE=s.role||'writer'; IMSAuth.mountMenu($('toplinks')); }
+  }
+  if(CONFIGURED && ROLE!=='publisher') $('notice').innerHTML='<div class="notice">You’re signed in as '+(ROLE==='editor'?'an editor':'a '+esc(ROLE))+'. You can change your own alerts here; the newsroom’s defaults are set by the publisher.</div>';
+  renderPerms(); renderDir();
+  try{ var r=await fetch('/api/site-profile'); var d=await r.json(); profile=(d&&d.profile)||{}; accessDefaults=(d&&d.accessDefaults)||{}; }catch(e){ profile={}; }
+  loadEditorDefaults();
+  access=JSON.parse(JSON.stringify(profile.editorAccess||{})); renderAccess(); renderPerms();
+  loadAlerts(); loadRemovePeople();
+  if(location.hash){ var t=document.querySelector(location.hash); if(t) t.scrollIntoView(); }
+})();
+</script>
+</body>
+</html>

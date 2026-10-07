@@ -29,7 +29,10 @@ var SOURCES = {
   x: { required: ['handle'] },
   // Google Search Console: the app's one service account (GOOGLE_SERVICE_ACCOUNT_JSON)
   // must have been added as a user on the property; nothing secret is stored here.
-  gsc: { required: ['siteUrl'] }
+  gsc: { required: ['siteUrl'] },
+  // The newsroom's YouTube channel: public stats through the app's own
+  // YouTube key (api/_youtube-stats.js); nothing secret is stored.
+  youtube: { required: ['channel'] }
 };
 
 module.exports = async function handler(req, res) {
@@ -101,6 +104,16 @@ module.exports = async function handler(req, res) {
     }
   }
 
+  if (source === 'youtube') {
+    try {
+      var ch = await require('./_youtube-stats').resolveChannel(body.channel);
+      await Store.saveConnection(sb, siteId, 'youtube', { channelId: ch.channelId, handle: ch.handle || ch.title, title: ch.title }, ctx.user.id);
+      return res.status(200).json({ ok: true, title: ch.title });
+    } catch (e) {
+      return res.status(e.status || 400).json({ error: e.message });
+    }
+  }
+
   if (!Crypto.isConfigured()) {
     return res.status(503).json({ error: 'Analytics encryption key not set up yet (ANALYTICS_ENCRYPTION_KEY) — tell Claude to walk through generating one.' });
   }
@@ -130,3 +143,6 @@ module.exports = async function handler(req, res) {
     return res.status(500).json({ error: e.message });
   }
 };
+
+// Per-newsroom: this request runs as the signed-in person's newsroom (_site.js).
+module.exports = require('./_site').wrap(module.exports);

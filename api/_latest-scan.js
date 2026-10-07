@@ -6,7 +6,7 @@
 // scan while a short lock tells the others to keep showing the stored one.
 // The 3x/day digest scans save here too. Blob, best-effort like the other
 // small state: a failed read just means that request runs its own scan.
-var { get, put } = require('@vercel/blob');
+var { get, put } = require('./_site-blob');
 
 var LATEST_PATH = 'scans/latest.json';
 var LOCK_PATH = 'scans/lock.json';

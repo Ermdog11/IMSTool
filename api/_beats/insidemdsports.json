@@ -435,6 +435,12 @@
    "url": "https://www.bing.com/news/search?q=site%3Ainsidetheblackandgold.net&format=rss",
    "name": "Bing/ITBG",
    "src": "Inside The Black And Gold"
+  },
+  {
+   "url": "https://www.insidetheblackandgold.net/",
+   "name": "ITBG/site",
+   "src": "Inside The Black And Gold",
+   "site": true
   }
  ],
  "reddit": [

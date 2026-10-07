@@ -13,7 +13,7 @@
 // quotes, bookmarks). Link clicks and profile visits need the account owner
 // to sign in to X (OAuth user context) and aren't available this way.
 
-var { get, put } = require('@vercel/blob');
+var { get, put } = require('./_site-blob');
 var Store = require('./_analytics-store');
 var Settings = require('./_settings-store');
 

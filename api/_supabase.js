@@ -47,7 +47,7 @@ function bearerToken(req) {
 // wrap this and return 401.
 async function requireUser(req, opts) {
   opts = opts || {};
-  var siteSlug = opts.siteSlug || 'insidemdsports';
+  var Site = require('./_site');
   var token = bearerToken(req);
   if (!token) { var e = new Error('Not signed in'); e.status = 401; throw e; }
 
@@ -58,22 +58,37 @@ async function requireUser(req, opts) {
   }
   var user = got.data.user;
 
-  var siteRes = await sb.from('sites').select('id, slug, name').eq('slug', siteSlug).single();
-  if (siteRes.error || !siteRes.data) { var e3 = new Error('Unknown site'); e3.status = 400; throw e3; }
-  var site = siteRes.data;
-
-  var memRes = await sb.from('memberships')
-    .select('id, role, byline')
-    .eq('site_id', site.id).eq('user_id', user.id).single();
-  if (memRes.error || !memRes.data) {
-    var e4 = new Error('No access to this newsroom'); e4.status = 403; throw e4;
+  // Which newsroom (2026-10-06, multi-newsroom): the one asked for (opts, or
+  // the page's X-Site header when someone belongs to several), else the
+  // person's own newsroom, preferring InsideMDSports for its members so
+  // nothing changes for them.
+  var wanted = opts.siteSlug || (req.headers && (req.headers['x-site'] || req.headers['X-Site'])) || null;
+  var mems = await sb.from('memberships')
+    .select('id, role, byline, sites(id, slug, name)').eq('user_id', user.id);
+  var list = (mems.data || []).filter(function (m) { return m.sites; });
+  var pick = (wanted && list.filter(function (m) { return m.sites.slug === wanted; })[0]) ||
+    list.filter(function (m) { return m.sites.slug === Site.DEFAULT; })[0] || list[0];
+  if (!pick) {
+    if (wanted || mems.error) { var e4 = new Error('No access to this newsroom'); e4.status = 403; throw e4; }
+    var e5 = new Error('No access to this newsroom'); e5.status = 403; throw e5;
   }
+  var site = pick.sites;
+  Site.set(site);
+  return { user: user, membership: { id: pick.id, role: pick.role, byline: pick.byline }, site: site, supabase: sb, sites: list.map(function (m) { return { slug: m.sites.slug, name: m.sites.name, role: m.role }; }) };
+}
 
-  return { user: user, membership: memRes.data, site: site, supabase: sb };
+// For the few open routes (Bluesky, podcasts): if a signed-in member is
+// calling, run as their newsroom; anyone else gets InsideMDSports' public
+// view, as before. Never throws.
+async function optionalUser(req) {
+  try {
+    if (!isConfigured() || !bearerToken(req)) return null;
+    return await requireUser(req);
+  } catch (e) { return null; }
 }
 
 // Convenience: require a specific role (or higher). publisher > editor > writer.
-var RANK = { writer: 1, editor: 2, publisher: 3 };
+var RANK = { viewer: 0, contributor: 1, writer: 1, editor: 2, publisher: 3 };
 async function requireRole(req, minRole, opts) {
   var ctx = await requireUser(req, opts);
   if ((RANK[ctx.membership.role] || 0) < (RANK[minRole] || 99)) {
@@ -91,7 +106,9 @@ async function requireRole(req, minRole, opts) {
 // so adding someone there is enough to get them every email, without
 // inviting them to the team first (Jeff, 2026-10-02).
 function withDigestList(alertType, emails) {
-  if (alertType !== 'breaking') return emails;
+  // The digest list (ALERT_EMAIL) is InsideMDSports' own; other newsrooms
+  // only email their team.
+  if (alertType !== 'breaking' || !require('./_site').isDefault()) return emails;
   var extra = require('./_mailer').digestList();
   var seen = {};
   return emails.concat(extra).filter(function (e) {
@@ -111,7 +128,7 @@ async function teamRecipientsFor(alertType, siteSlug) {
   try {
     var prefsMod = require('./alert-prefs');
     var sb = admin();
-    var site = await sb.from('sites').select('id').eq('slug', siteSlug || 'insidemdsports').single();
+    var site = await sb.from('sites').select('id').eq('slug', siteSlug || require('./_site').slug()).single();
     if (site.error || !site.data) return [];
     var mem = await sb.from('memberships').select('user_id, role, profiles(email)').eq('site_id', site.data.id);
     var prefs = await sb.from('alert_prefs').select('user_id, enabled').eq('site_id', site.data.id).eq('alert_type', alertType);
@@ -149,7 +166,9 @@ module.exports = {
   admin: admin,
   isConfigured: isConfigured,
   bearerToken: bearerToken,
+  optionalUser: optionalUser,
   requireUser: requireUser,
   requireRole: requireRole,
-  recipientsFor: recipientsFor
+  recipientsFor: recipientsFor,
+  teamRecipientsFor: teamRecipientsFor
 };

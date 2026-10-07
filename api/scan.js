@@ -29,22 +29,30 @@ function rateChunks(stories, topicStop) {
 }
 
 module.exports = async function handler(req, res) {
-  try { await require('./_supabase').requireUserOrCron(req, res); }
+  var scanWho;
+  try { scanWho = await require('./_supabase').requireUserOrCron(req, res); }
   catch (authErr) { return res.status(authErr.status || 401).json({ error: authErr.message || 'Not signed in' }); }
+  // Contributors (freelancers) work in the Content Editor only.
+  if (!(await require('./_access').allowed(scanWho, 'use_monitor'))) return require('./_access').deny(res);
   var key = process.env.ANTHROPIC_API_KEY;
   if (!key) return res.status(500).json({ error: 'no key set' });
 
   // If body has messages but no tools, act as a simple Claude proxy (card actions)
   var body = req.body || {};
+  // Grounded like every writing tool (api/_writer.js; Jeff, 2026-10-06: "any
+  // tool that is creating written content" needs the knowledge base): our
+  // coverage, current roster, roster changes and calendar go in front, and it
+  // can search our archive before answering. Same response shape as before.
   if (body.messages && !body.tools) {
     try {
-      var pr = await fetch('https://api.anthropic.com/v1/messages', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'x-api-key': key, 'anthropic-version': '2023-06-01' },
-        body: JSON.stringify(body)
-      });
-      var pd = await pr.json();
-      return res.status(pr.status).json(pd);
+      var W = require('./_writer');
+      var lastMsg = body.messages[body.messages.length - 1] || {};
+      var askText = typeof lastMsg.content === 'string' ? lastMsg.content : (lastMsg.content || []).map(function (b) { return b.text || ''; }).join(' ');
+      var ctx = await W.context(askText.slice(0, 1500));
+      var system = W.rules() + '\n\nCONTEXT (from our knowledge base and records; trust it over your memory):\n' + ctx + (body.system ? '\n\n' + body.system : '');
+      var got = await W.runAgenticLoop(key, system, body.messages.length === 1 ? lastMsg.content : askText, [W.KB_SEARCH_TOOL], null, 3, Math.max(Number(body.max_tokens) || 0, 1500));
+      if (got.error) return res.status(502).json({ error: got.error });
+      return res.status(200).json({ content: (got.content || []).filter(function (b) { return b.type === 'text'; }) });
     } catch(e) {
       return res.status(500).json({ error: e.message });
     }
@@ -60,6 +68,9 @@ module.exports = async function handler(req, res) {
     var maxAge = (body.force ? 5 : 30) * 60 * 1000;
     var sharedCopy = latest && Object.assign({}, latest.response, { scannedAt: latest.at, shared: true });
     if (latest && Date.now() - latest.at < maxAge) return res.status(200).json(sharedCopy);
+    // Opening the page (savedOnly) shows the latest saved scan whatever its
+    // age; only "Scan now" or the scheduled scans spend on a new one.
+    if (latest && body.savedOnly) return res.status(200).json(sharedCopy);
     if (!(await Latest.claim())) {
       if (sharedCopy) return res.status(200).json(Object.assign(sharedCopy, { refreshing: true }));
       return res.status(200).json({ refreshing: true });
@@ -130,35 +141,18 @@ module.exports = async function handler(req, res) {
 
     var BROWSER_UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0 Safari/537.36';
 
-    // Resolve a news.google.com/rss/articles/<id> redirect to the real publisher URL.
-    // Google no longer embeds the URL in the id; it takes a page fetch (for the signature
-    // + timestamp) then a batchexecute POST. Best-effort — returns null on any failure.
-    async function resolveGoogleNewsUrl(gurl) {
-      try {
-        var m = String(gurl).match(/\/articles\/([^?/]+)/);
-        if (!m) return null;
-        var id = m[1];
-        var page = await fetchWithTimeout('https://news.google.com/rss/articles/' + id, { headers: { 'User-Agent': BROWSER_UA } }, 8000).then(function(r) { return r.text(); });
-        var ts = (page.match(/data-n-a-ts="([^"]+)"/) || [])[1];
-        var sg = (page.match(/data-n-a-sg="([^"]+)"/) || [])[1];
-        if (!ts || !sg) return null;
-        var inner = '["garturlreq",[["X","X",["X","X"],null,null,1,1,"US:en",null,1,null,null,null,null,null,0,1],"en-US","US",1,[2,3,4,8],1,0,"655000234",0,0,null,0],"' + id + '",' + ts + ',"' + sg + '"]';
-        var freq = JSON.stringify([[['Fbv4je', inner, null, 'generic']]]);
-        var resp = await fetchWithTimeout('https://news.google.com/_/DotsSplashUi/data/batchexecute', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8', 'User-Agent': BROWSER_UA },
-          body: 'f.req=' + encodeURIComponent(freq)
-        }, 8000).then(function(r) { return r.text(); });
-        var um = resp.match(/https?:\/\/[^\\"]+/);
-        return (um && !/news\.google\.com/.test(um[0])) ? um[0] : null;
-      } catch (e) { return null; }
-    }
+    // Resolve a news.google.com/rss/articles/<id> redirect to the real publisher
+    // URL (shared with the draft writer: api/_gnews.js). Null on any failure.
+    function resolveGoogleNewsUrl(gurl) { return require('./_gnews.js').resolve(gurl); }
 
     var fetches = redditFetches.map(function(f) {
       return fetchWithTimeout(f.url, { headers: { 'User-Agent': 'IMSTool/1.0' } }, 8000);
     }).concat(feedConfigs.map(function(f) {
       // Scraped HTML pages 403 without a browser UA; RSS endpoints don't care either way.
       var opts = f.scrapeSlugs ? { headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0 Safari/537.36' } } : {};
+      // An outlet read straight from its own site (feed discovery or home
+      // page links), for sites search engines don't index: see _site-feed.js.
+      if (f.site) return require('./_site-feed.js').fetchSite(f.url);
       return fetchWithTimeout(f.url, opts, 8000);
     }));
 
@@ -254,7 +248,7 @@ module.exports = async function handler(req, res) {
           var freshCount = Object.keys(freshSlugWords).length;
           var scrapeOk = results[gi].value.status === 200 && freshCount >= 10;
           try {
-            var blobMod = require('@vercel/blob');
+            var blobMod = require('./_site-blob');
             if (scrapeOk) {
               Object.keys(freshSlugWords).forEach(function(k) { ownTitleWordSets.push(new Set(freshSlugWords[k])); });
               ownHeadlines = ownSlugTexts.slice(0, 40);
@@ -316,6 +310,9 @@ module.exports = async function handler(req, res) {
           // Bing wraps the real publisher URL in an apiclick redirect: ...&url=<encoded>&...
           var bingUrl = (link + ' ' + realUrl).replace(/&amp;/g, '&').match(/[?&]url=(https?%3[Aa][^&"\s<]+)/);
           if (bingUrl) { try { realUrl = decodeURIComponent(bingUrl[1]); } catch (e) {} }
+          // A site's own feed: the item's link is the article (its description
+          // may link elsewhere).
+          if (cfg.site && link) realUrl = link.trim();
           // Plain-text snippet from the feed (Bing + direct site feeds carry a real one;
           // Google News descriptions are just "<a>Title</a> Publisher" and get skipped)
           snippet = '';
@@ -511,13 +508,38 @@ module.exports = async function handler(req, res) {
       });
     } catch (e) { /* YouTube is optional */ }
 
+    // Podcast episodes from the last scan window (Jeff, 2026-10-06: "in the
+    // event a podcast or YouTube video seems highly relevant it should surface
+    // in the main search results"). Same idea as videos: rated in the same
+    // pass, 4-5 join the main feed and digest; the rest stay in the Podcasts tab.
+    var podcastCount = 0;
+    if (!body.xOnly) try {
+      var podHandler = require('./podcasts.js');
+      var podQuery = {};
+      if (userBlocked.length) podQuery.blocked = userBlocked.join(',');
+      var podData = await Promise.race([
+        new Promise(function(resolve) {
+          podHandler({ query: podQuery }, { status: function() { return this; }, json: function(d) { resolve(d); return this; } }).catch(function() { resolve({}); });
+        }),
+        new Promise(function(resolve) { setTimeout(function() { resolve({}); }, 20000); })
+      ]);
+      (podData.episodes || []).filter(function(ep) { return ep.title && ep.url && (ep.age || 0) <= windowHours; }).slice(0, 20).forEach(function(ep) {
+        stories.push({
+          title: ep.title, source: ep.podcast || 'Podcast', url: ep.url,
+          age: ep.age || 0, snippet: (ep.description || '').slice(0, 320),
+          kind: 'podcast', show: ep.podcast || ''
+        });
+        podcastCount++;
+      });
+    } catch (e) { /* podcasts are optional */ }
+
     var redditCount = stories.filter(function(s){return s.source.includes('Reddit');}).length;
     var googleCount = stories.filter(function(s){return !s.source.includes('Reddit') && s.kind !== 'video';}).length;
     var allNames = redditFetches.map(function(f) { return f.name; }).concat(feedConfigs.map(function(f) { return f.name; }));
     var fetchStatuses = results.map(function(r, i) {
       return allNames[i] + ':' + (r.status === 'fulfilled' ? r.value.status : 'FAILED');
     });
-    console.log('Stories:', stories.length, '| Reddit:', redditCount, '| Google:', googleCount, '| YouTube:', videoCount, '| WebSearch:', webSearchCount, (webSearchWarnings.length ? '(' + webSearchWarnings.join('; ') + ')' : ''), '| XSearch:', xSearchCount, (xSearchWarnings.length ? '(' + xSearchWarnings.join('; ') + ')' : ''), '| GoogleSiteSearch:', googleSearchCount, (googleSearchWarnings.length ? '(' + googleSearchWarnings.join('; ') + ')' : ''), '| Own-outlet filtered:', ownFiltered, '| Static pages filtered:', staticFiltered, '| Blocklist size:', ownTitleWordSets.length, '| Blocklist source:', blocklistSource, '| Fetches:', fetchStatuses.join(', '));
+    console.log('Stories:', stories.length, '| Reddit:', redditCount, '| Google:', googleCount, '| YouTube:', videoCount, '| Podcasts:', podcastCount, '| WebSearch:', webSearchCount, (webSearchWarnings.length ? '(' + webSearchWarnings.join('; ') + ')' : ''), '| XSearch:', xSearchCount, (xSearchWarnings.length ? '(' + xSearchWarnings.join('; ') + ')' : ''), '| GoogleSiteSearch:', googleSearchCount, (googleSearchWarnings.length ? '(' + googleSearchWarnings.join('; ') + ')' : ''), '| Own-outlet filtered:', ownFiltered, '| Static pages filtered:', staticFiltered, '| Blocklist size:', ownTitleWordSets.length, '| Blocklist source:', blocklistSource, '| Fetches:', fetchStatuses.join(', '));
 
     if (!stories.length) {
       var diagMsg = 'No stories found. Fetch results: ' + fetchStatuses.join(', ');
@@ -526,7 +548,7 @@ module.exports = async function handler(req, res) {
 
     // Build numbered list for Claude — include the feed snippet where we have one
     var storyLines = stories.map(function(s, i) {
-      var line = (i + 1) + '. ' + (s.kind === 'video' ? '[VIDEO] ' : '') + '[' + s.source + '] ' + s.title + ' (' + (s.age == null ? 'publish date unknown' : s.age + 'h ago') + ')';
+      var line = (i + 1) + '. ' + (s.kind === 'video' ? '[VIDEO] ' : s.kind === 'podcast' ? '[PODCAST] ' : '') + '[' + s.source + '] ' + s.title + ' (' + (s.age == null ? 'publish date unknown' : s.age + 'h ago') + ')';
       if (s.followUp) line += '\n   [DEVELOPING STORY WE ARE ACTIVELY COVERING: ' + s.followUp + ' — do NOT let this tag alone push the rating up. Only treat it as newsworthy despite low engagement if it is a genuine NEW development (a status actually changed, a real update). Reaction, analysis, jokes, or commentary about something that already fully happened rates exactly like any other social post — usually 1-2 — the tag is not a rating boost.]';
       if (s.watchedAccount) line += '\n   [WATCHED ACCOUNT: the publisher has specifically curated this X account as a credible ' + beat.team.short + ' beat source — do not downrate for low/no engagement or unfamiliarity, judge purely on newsworthiness]';
       if (s.snippet) line += '\n   snippet: ' + s.snippet;
@@ -580,7 +602,19 @@ module.exports = async function handler(req, res) {
     var undatedNote = stories.some(function(s) { return s.age == null; })
       ? '\n\nPUBLISH DATE UNKNOWN: stories marked "(publish date unknown)" came from a web search or feed that could not say when they were published, so they may be old articles that were re-indexed. Never assume they are new. Use the snippet and your own knowledge: if the event they report happened more than about 2 weeks ago, set republished:true. If you would rate one 4 or 5, also set needsContext:true so the full article is checked first.'
       : '';
-    var sharedNotes = flaggedNote + ownCoverageNote + profileNote + B.weightNote(beat) + editorNote + undatedNote;
+    // What we've written about most in the last two weeks (Jeff, 2026-10-06:
+    // "give higher breaking news ratings to stories involving topics we have
+    // written about a lot recently"). See _our-topics.js.
+    var ourTopicsNote = '';
+    try {
+      var ourTopics = await require('./_our-topics.js').ourHotTopics(beat, ownHeadlines, SB.isConfigured() ? SB.admin() : null, 8);
+      if (ourTopics.length) {
+        ourTopicsNote = '\n\nWHAT WE HAVE WRITTEN ABOUT MOST LATELY (number of our articles in about the last two weeks): ' +
+          ourTopics.map(function(t) { return t.name + ' (' + t.count + ')'; }).join(', ') + '.\n' +
+          'These are our readers\' hottest topics right now. A story with a genuinely NEW development about one of them (a decision, a status change, a commitment, a hire or firing, an injury, a new report that moves it forward) rates ONE POINT HIGHER than you otherwise would, and a major new development about one of the top three can be 5. This does not apply to a story that only repeats what is already known, to reaction or analysis, or to anything the NOT BREAKING, FOLLOW-UP COVERAGE or ALREADY COVERED rules cap; those rules still win.';
+      }
+    } catch (e) { console.error('Our topics failed (non-fatal):', e.message); }
+    var sharedNotes = flaggedNote + ownCoverageNote + ourTopicsNote + profileNote + B.weightNote(beat) + editorNote + undatedNote;
 
     // Rate in parallel chunks (Jeff, 2026-09-10: scans took ~3 min, almost all
     // of it one Claude call writing ratings for ~110 stories). Each call gets
@@ -656,7 +690,7 @@ module.exports = async function handler(req, res) {
               // The page's own publish date, when it has one, replaces an
               // unknown or crawl-based age and is shown to the deep rater.
               var pub = ArticleDate.fromHtml(html.slice(0, 400000));
-              if (!isNaN(pub)) { p.publishedAt = pub; p.orig.age = Math.max(0, Math.round((Date.now() - pub) / 3600000)); }
+              if (!isNaN(pub)) { p.publishedAt = pub; p.orig.pageDated = pub; p.orig.age = Math.max(0, Math.round((Date.now() - pub) / 3600000)); }
               return html.replace(/<script[\s\S]*?<\/script>/gi, ' ').replace(/<style[\s\S]*?<\/style>/gi, ' ')
                 .replace(/<[^>]+>/g, ' ').replace(/&nbsp;/g, ' ').replace(/&amp;/g, '&')
                 .replace(/&#?[a-z0-9]+;/gi, ' ').replace(/\s+/g, ' ').trim().slice(0, 2800);
@@ -701,6 +735,56 @@ module.exports = async function handler(req, res) {
       }
     }
 
+    // FRESHNESS CHECK (every scan, no AI cost). A feed's "8h ago" can be the
+    // time Google News re-indexed a months-old article (2026-10-06, Jeff: a
+    // Stefon Diggs story from 2025 was rated 4 and shown under Today; "making
+    // sure old content doesn't appear" matters more than the rating, since it
+    // hurts credibility). For every story, whatever its rating, read its real
+    // publish date: from the address (/2025/12/18/) when it has one, else from
+    // the article page itself. Older than STALE_DAYS -> dropped from the scan
+    // entirely. Highest-rated first; pages fetched 10 at a time.
+    var STALE_DAYS = 14;
+    var staleCut = Date.now() - STALE_DAYS * 86400000;
+    var freshCands = parsed.map(function(item) { return { item: item, orig: stories[item.idx - 1] }; })
+      // Videos and podcast episodes carry real dates from their own feeds; a
+      // show page's date is the show's, not the episode's.
+      .filter(function(p) { return p.item && !p.item.irrelevant && p.orig && p.orig.url && p.orig.kind !== 'video' && p.orig.kind !== 'podcast'; })
+      .sort(function(x, y) { return (y.item.rating || 0) - (x.item.rating || 0); })
+      .slice(0, 60);
+    async function realDate(p) {
+      var pub = p.orig.pageDated || ArticleDate.fromUrl(p.orig.url);
+      if (pub && !isNaN(pub)) return pub;
+      var url = p.orig.url;
+      if (/news\.google\.com/i.test(url)) { try { url = (await resolveGoogleNewsUrl(url)) || url; } catch (e) {} }
+      if (/news\.google\.com/i.test(url)) return NaN;
+      pub = ArticleDate.fromUrl(url);
+      if (!isNaN(pub)) return pub;
+      // Social posts and videos carry their own dates already.
+      if (/(^|\.)(x|twitter|reddit|youtube|bsky|instagram|facebook|tiktok)\.com\//i.test(url) || /youtu\.be\//i.test(url)) return NaN;
+      try {
+        var r = await fetchWithTimeout(url, { headers: { 'User-Agent': BROWSER_UA } }, 7000);
+        return ArticleDate.fromHtml((await r.text()).slice(0, 400000));
+      } catch (e) { return NaN; }
+    }
+    // Ten at a time from a shared queue, and no new page started after 45s, so
+    // a slow batch of sites can't push the scan toward Vercel's time limit.
+    var staleCount = 0, freshNext = 0, freshStop = Date.now() + 45000;
+    async function freshWorker() {
+      while (freshNext < freshCands.length && Date.now() < freshStop) {
+        var p = freshCands[freshNext++];
+        var pub = NaN;
+        try { pub = await realDate(p); } catch (e) {}
+        if (!pub || isNaN(pub)) continue;
+        p.orig.age = Math.max(0, Math.round((Date.now() - pub) / 3600000));
+        if (pub < staleCut) {
+          p.item.irrelevant = true; p.item.stale = true; staleCount++;
+          console.log('Freshness: dropped "' + String(p.item.headline || '').slice(0, 80) + '" (rated ' + p.item.rating + '), published ' + new Date(pub).toISOString().slice(0, 10));
+        }
+      }
+    }
+    await Promise.all([0, 1, 2, 3, 4, 5, 6, 7, 8, 9].map(freshWorker));
+    if (staleCount) console.log('Freshness: ' + staleCount + ' old stor' + (staleCount === 1 ? 'y' : 'ies') + ' dropped');
+
     // Drop stories Claude marked as having no connection to our beat
     parsed = parsed.filter(function(item) { return !item.irrelevant; });
 
@@ -731,11 +815,19 @@ module.exports = async function handler(req, res) {
       if (LOW_PRIORITY_SPORTS.test(t)) { item.rating = 1; item.lowPriority = true; }
     });
 
+    // Previews, listicles and job-status speculation are never 4-5 (see
+    // _rating-rules.js capFormats), whatever the rater said.
+    parsed.forEach(function(item) {
+      var why = require('./_rating-rules.js').capFormats(item);
+      if (why) console.log('Rating capped (' + why + '): ' + item.ratedBefore + ' -> 3: ' + String(item.headline || '').slice(0, 100));
+    });
+
     // Re-attach URLs (and video metadata) by idx
     var withUrls = parsed.map(function(item) {
       var orig = stories[item.idx - 1];
       var extra = { url: orig ? orig.url : '', ageHours: orig ? orig.age : null };
       if (orig && orig.kind === 'video') { extra.kind = 'video'; extra.thumbnail = orig.thumbnail || ''; extra.channel = orig.channel || ''; }
+      if (orig && orig.kind === 'podcast') { extra.kind = 'podcast'; extra.show = orig.show || ''; extra.category = 'podcast'; }
       if (orig && orig.followUp) extra.followUp = orig.followUp;
       if (orig && orig.watchedAccount) extra.watchedAccount = true;
       return Object.assign({}, item, extra);
@@ -748,9 +840,11 @@ module.exports = async function handler(req, res) {
     // Check original titles (not Claude's rewrites) for reliable name detection.
     var alumniWatch = B.alumniNames(beat)
       .map(function(name) { return { display: name, lc: name.toLowerCase() }; });
-    // Videos are rated in the same pass but don't go through the article topic caps.
+    // Videos and podcast episodes are rated in the same pass but don't go
+    // through the article topic caps.
     var videoItems = withUrls.filter(function(it) { return it.kind === 'video' && !it.irrelevant; });
-    var articleItems = withUrls.filter(function(it) { return it.kind !== 'video'; });
+    var podcastItems = withUrls.filter(function(it) { return it.kind === 'podcast' && !it.irrelevant && !it.republished; });
+    var articleItems = withUrls.filter(function(it) { return it.kind !== 'video' && it.kind !== 'podcast'; });
 
     var topicStop = B.topicStopRegex(beat);
     var topicRatingCount = {};
@@ -811,6 +905,7 @@ module.exports = async function handler(req, res) {
     var ratedVideos = videoItems.filter(function(v) { return !v.republished; })
       .sort(function(a, b) { return (b.rating || 0) - (a.rating || 0) || (a.time || '').localeCompare(b.time || ''); });
     ratedVideos.forEach(function(v) { if ((v.rating || 0) >= 4) final.push(v); });
+    podcastItems.forEach(function(p) { if ((p.rating || 0) >= 4) final.push(p); });
 
     // Tag the main-feed item that holds each overflowing topic's slot with a "+N more" count.
     var overflowCountByTopic = {};
@@ -842,3 +937,6 @@ module.exports = async function handler(req, res) {
     return res.status(500).json({ error: e.message });
   }
 };
+
+// Per-newsroom: this request runs as the signed-in person's newsroom (_site.js).
+module.exports = require('./_site').wrap(module.exports);

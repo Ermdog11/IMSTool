@@ -18,7 +18,7 @@
 //   log / suggested state in Blob records-requests.json.
 //
 // Nothing here sends a request: a person always reviews and clicks Send.
-var { get, put } = require('@vercel/blob');
+var { get, put } = require('./_site-blob');
 
 var LOG_PATH = 'records-requests.json';
 var OFFICE_PATH = 'records-offices.json';
@@ -67,13 +67,29 @@ var OFFICE_TOOL = {
   }
 };
 
+// Is this email really on the agency's own page? (Jeff, 2026-10-06: auto-fill
+// the address only "if it can reliably".) Fetches the cited page and looks
+// for the address, also in the "name [at] domain [dot] edu" form. A miss
+// leaves the address as a suggestion to check rather than filling it in.
+async function emailOnPage(email, url) {
+  if (!email || !url) return false;
+  try {
+    var r = await fetch(url, { headers: { 'User-Agent': 'Mozilla/5.0 (compatible; CoPublisherAI/1.0)' }, signal: AbortSignal.timeout(8000) });
+    if (!r.ok) return false;
+    var t = (await r.text()).toLowerCase()
+      .replace(/&#64;|&commat;|\s*\[\s*at\s*\]\s*|\s*\(\s*at\s*\)\s*/g, '@')
+      .replace(/\s*\[\s*dot\s*\]\s*|\s*\(\s*dot\s*\)\s*|&#46;/g, '.');
+    return t.indexOf(email.toLowerCase()) !== -1;
+  } catch (e) { return false; }
+}
+
 async function lookupOffice(agency) {
   agency = String(agency || '').trim();
   if (!agency) return null;
   var key = agency.toLowerCase();
   var cache = await readJson(OFFICE_PATH);
   var hit = cache[key];
-  if (hit && Date.now() - hit.at < OFFICE_TTL_MS) return hit.office;
+  if (hit && Date.now() - hit.at < OFFICE_TTL_MS && hit.office && typeof hit.office.verified === 'boolean') return hit.office;
 
   var apiKey = process.env.ANTHROPIC_API_KEY;
   if (!apiKey) return null;
@@ -108,6 +124,7 @@ async function lookupOffice(agency) {
     sourceUrl: /^https?:\/\//i.test(office.source_url || '') ? String(office.source_url).slice(0, 500) : ''
   };
   if (!out.sourceUrl) out.email = ''; // an address we can't point to a source for isn't trusted
+  out.verified = out.email ? await emailOnPage(out.email, out.sourceUrl) : false;
   try { cache[key] = { at: Date.now(), office: out }; await writeJson(OFFICE_PATH, cache); } catch (e) { /* cache is best-effort */ }
   return out;
 }
@@ -184,11 +201,17 @@ async function draft(story, beat, who) {
   // Address: the beat's own records office when the request goes there,
   // otherwise look the agency's office up on the web.
   if (rec.email && (!out.agency || !rec.agency || sameAgency(out.agency, rec.agency))) {
-    out.to = rec.email; out.toSource = 'beat profile'; out.portal = rec.portal || '';
+    out.to = rec.email; out.toSource = 'beat profile'; out.portal = rec.portal || ''; out.toVerified = true;
   } else if (out.agency) {
     try {
       var found = await lookupOffice(out.agency);
-      if (found) { out.to = found.email; out.toSource = found.sourceUrl; out.portal = found.portal; if (!out.law && found.law) out.law = found.law; }
+      if (found) {
+        out.toSource = found.sourceUrl; out.portal = found.portal; if (!out.law && found.law) out.law = found.law;
+        // Fill the address in only when it's printed on that page; otherwise
+        // offer it as a possible address to check.
+        if (found.verified) { out.to = found.email; out.toVerified = true; }
+        else if (found.email) out.toUnconfirmed = found.email;
+      }
     } catch (e) { out.lookupError = e.message; }
   }
   return out;
@@ -219,7 +242,50 @@ async function markSuggested(site, keys) {
   await writeJson(LOG_PATH, all);
 }
 
+// Suggested requests found by the records-suggest cron, kept for the News
+// Monitor ("📄 N new suggested records requests") and for the next update
+// email (each one goes in one digest: inDigest).
+async function addSuggestion(site, s) {
+  var all = await loadState();
+  var list = (all._suggestions && all._suggestions[site]) || [];
+  s.id = s.id || (Date.now().toString(36) + Math.random().toString(36).slice(2, 6));
+  s.at = s.at || new Date().toISOString();
+  s.status = s.status || 'new';
+  list.unshift(s);
+  all._suggestions = all._suggestions || {};
+  all._suggestions[site] = list.slice(0, 100);
+  await writeJson(LOG_PATH, all);
+  return s;
+}
+async function listSuggestions(site) {
+  var all = await loadState();
+  return (all._suggestions && all._suggestions[site]) || [];
+}
+async function setSuggestionStatus(site, id, status) {
+  var all = await loadState();
+  var list = (all._suggestions && all._suggestions[site]) || [];
+  var s = list.filter(function (x) { return x.id === id; })[0];
+  if (!s) return null;
+  s.status = status; s.statusAt = new Date().toISOString();
+  await writeJson(LOG_PATH, all);
+  return s;
+}
+// New suggestions not yet in an update email, and marking them once the
+// email has gone out (so each goes in exactly one).
+async function pendingForDigest(site) {
+  var list = await listSuggestions(site);
+  return list.filter(function (x) { return x.status === 'new' && !x.inDigest; });
+}
+async function markInDigest(site, ids) {
+  if (!ids || !ids.length) return;
+  var all = await loadState();
+  var list = (all._suggestions && all._suggestions[site]) || [];
+  list.forEach(function (x) { if (ids.indexOf(x.id) !== -1) x.inDigest = new Date().toISOString(); });
+  await writeJson(LOG_PATH, all);
+}
+
 module.exports = {
+  addSuggestion: addSuggestion, listSuggestions: listSuggestions, setSuggestionStatus: setSuggestionStatus, pendingForDigest: pendingForDigest, markInDigest: markInDigest, emailOnPage: emailOnPage,
   classify: classify, draft: draft, lookupOffice: lookupOffice,
   loadState: loadState, appendLog: appendLog, storyKey: storyKey,
   suggestedKeys: suggestedKeys, markSuggested: markSuggested, EMAIL_RE: EMAIL_RE
