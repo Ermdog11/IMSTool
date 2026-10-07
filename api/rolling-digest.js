@@ -159,7 +159,7 @@ async function earlyHotSpotsHtml() {
   } catch (e) { return ''; }
 }
 
-function buildEmailHTML(alerts, date, slot, overflowByTopic, recordsList, ideas, hotSpotsHtml) {
+function buildEmailHTML(alerts, date, slot, overflowByTopic, recordsList, ideas, hotSpotsHtml, heldHtml) {
   // Group by calendar day
   var days = {};
   alerts.forEach(function(a) {
@@ -193,7 +193,7 @@ function buildEmailHTML(alerts, date, slot, overflowByTopic, recordsList, ideas,
     body += '</div>';
   });
 
-  body = (hotSpotsHtml || '') + recordsHTML(recordsList) + body + require('./_ombudsman.js').emailHtml(ideas);
+  body = (heldHtml || '') + (hotSpotsHtml || '') + recordsHTML(recordsList) + body + require('./_ombudsman.js').emailHtml(ideas);
   var bodyMsg = alerts.length
     ? '<p style="font-size:13px;color:#555;margin-bottom:20px;">' + alerts.length + ' new ' + (alerts.length === 1 ? 'story' : 'stories') + ' since your last update.</p>' + body
     : '<p style="font-size:13px;color:#555;margin-bottom:20px;">Nothing new on the beat since your last update.</p>' + body;
@@ -255,6 +255,23 @@ module.exports = async function handler(req, res) {
       g.to.push(e);
     });
     groups = Object.keys(byKey).map(function(k) { return byKey[k]; });
+    // Alerts that came in someone's off hours ride in their own copy of the
+    // update, at the top ("While you were off"; _held-alerts.js).
+    var Held = require('./_held-alerts');
+    var held = {};
+    try { held = await Held.peek([].concat.apply([], groups.map(function(g) { return g.to; }))); } catch (e) { held = {}; }
+    if (Object.keys(held).length) {
+      var solo = [];
+      groups.forEach(function(g) {
+        g.to = g.to.filter(function(e) {
+          var k = String(e).toLowerCase();
+          if (!held[k]) return true;
+          solo.push({ to: [e], windowHours: g.windowHours, slot: g.slot, held: held[k], tz: Sched.tzOf(schedAll[k]) });
+          return false;
+        });
+      });
+      groups = groups.filter(function(g) { return g.to.length; }).concat(solo);
+    }
     if (!groups.length && !deskSlot) return res.status(200).json({ skipped: 'no one\'s update is due this hour' });
   }
   // Vercel Cron can deliver a run twice; only the first sends (see _cron-once.js).
@@ -324,8 +341,11 @@ module.exports = async function handler(req, res) {
           subject: list.length
             ? 'InsideMDSports ' + SLOT_LABEL[grp.slot] + ' update — ' + list.length + ' new ' + (list.length === 1 ? 'story' : 'stories')
             : 'InsideMDSports ' + SLOT_LABEL[grp.slot] + ' update — nothing new',
-          html: buildEmailHTML(list, date, grp.slot, overflowFor(grp.windowHours), recordsList, ideas, grp.slot === 'evening' ? hotSpots : '')
+          html: buildEmailHTML(list, date, grp.slot, overflowFor(grp.windowHours), recordsList, ideas, grp.slot === 'evening' ? hotSpots : '', grp.held ? require('./_held-alerts').html(grp.held, grp.tz) : '')
         });
+        if (grp.held && sent && !sent.error && !sent.skipped) {
+          await require('./_held-alerts').clear(grp.to[0], grp.held[grp.held.length - 1].at);
+        }
         mailResult.push({ slot: grp.slot, windowHours: grp.windowHours, count: list.length, mail: sent });
         if (sent && !sent.error && !sent.skipped) anySent = true;
       } catch (e) { mailResult.push({ slot: grp.slot, error: e.message }); }
