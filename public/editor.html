@@ -394,6 +394,7 @@ function applyNewsroomEditor(s) {
     DEFAULT_PROMOS.length = 0;
     var sg = document.getElementById('sg'); if (sg) sg.value = getGuide();
     if (typeof loadGuideFromServer === 'function') loadGuideFromServer();
+    if (typeof loadEditorLists === 'function') loadEditorLists(); else window._listsPending = true;
     if (typeof renderPromos === 'function') renderPromos();
     if (typeof renderWriters === 'function') renderWriters();
   } catch (e) { console.warn('newsroom editor setup', e && e.message); }
@@ -406,7 +407,9 @@ function applyNewsroomEditor(s) {
 (function () {
   if (!window.IMSAuth) return;
   IMSAuth.guard().then(function (s) {
-    if (s && s.site && s.site.slug !== 'insidemdsports') applyNewsroomEditor(s);
+    // Shared promos and writers load once the newsroom is known (another
+    // newsroom's copy is loaded by applyNewsroomEditor, under its own keys).
+    if (s && s.site && s.site.slug !== 'insidemdsports') applyNewsroomEditor(s); else if (typeof loadEditorLists === 'function') loadEditorLists(); else window._listsPending = true;
     var sv = document.getElementById('aa-save-default');
     if (sv) sv.style.display = IMSAuth.isPublisher() ? '' : 'none';
     // Viewers don't use the Content Editor (Permissions & preferences).
@@ -446,7 +449,7 @@ var DEFAULT_PROMOS = [
 ];
 
 function getPromos(){try{var v=JSON.parse(localStorage.getItem(LS_PROMOS)||'null');return Array.isArray(v)?v:DEFAULT_PROMOS.slice();}catch(e){return DEFAULT_PROMOS.slice();}}
-function setPromos(list){localStorage.setItem(LS_PROMOS,JSON.stringify(list));}
+function setPromos(list){localStorage.setItem(LS_PROMOS,JSON.stringify(list)); pushEditorList('promos',list);}
 
 var PLACEMENT_LABELS={top:'Top of article',early:'Early (paragraph 3-5)',middle:'Middle of article',end:'End of article'};
 
@@ -546,7 +549,34 @@ function md(t){
 }
 
 function getWriters(){try{return JSON.parse(localStorage.getItem(LS_WRITERS)||'[]');}catch(e){return [];}}
-function setWriters(w){localStorage.setItem(LS_WRITERS,JSON.stringify(w));}
+function setWriters(w){localStorage.setItem(LS_WRITERS,JSON.stringify(w)); pushEditorList('writers',w);}
+// Promos and writers are the newsroom's, not this browser's (Jeff,
+// 2026-10-07): saved through /api/editor-lists so they follow everyone to any
+// computer or phone. This browser keeps a copy for speed; the first time a
+// newsroom has none saved, this browser's list is shared (an older setup).
+var _listTimers={};
+function pushEditorList(kind,list){
+  clearTimeout(_listTimers[kind]);
+  _listTimers[kind]=setTimeout(function(){
+    var body={}; body[kind]=list;
+    fetch('/api/editor-lists',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)})
+      .then(function(r){ return r.json().then(function(d){ if(!r.ok||d.error) throw new Error(d.error||('HTTP '+r.status)); }); })
+      .catch(function(e){ alert('Saved on this device only, not for the newsroom: '+e.message); });
+  },600);
+}
+async function loadEditorLists(){
+  try{
+    var r=await fetch('/api/editor-lists'); if(!r.ok) return;
+    var d=await r.json(); if(!d||d.local) return;
+    [['promos',LS_PROMOS],['writers',LS_WRITERS]].forEach(function(k){
+      if(Array.isArray(d[k[0]])) localStorage.setItem(k[1],JSON.stringify(d[k[0]]));
+      else{ var mine=null; try{ mine=JSON.parse(localStorage.getItem(k[1])||'null'); }catch(e){} if(Array.isArray(mine)&&mine.length){ var b={}; b[k[0]]=mine; fetch('/api/editor-lists',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(b)}).catch(function(){}); } }
+    });
+    if(typeof renderPromos==='function') renderPromos();
+    if(typeof renderWriters==='function') renderWriters();
+    if(typeof updatePromoCount==='function') updatePromoCount();
+  }catch(e){ /* keep this browser's copy */ }
+}
 function getGuide(){return localStorage.getItem(LS_GUIDE)||DEFAULT_GUIDE;}
 
 // The house style guide used to live ONLY in localStorage — per-browser, and
@@ -2543,6 +2573,7 @@ function trAllToDraft(){ trAppend('TRANSCRIPT — '+(trState.name||'')+'\n\n'+tr
 
 document.getElementById('sg').value=getGuide();
 loadGuideFromServer();
+if(window._listsPending){ window._listsPending=false; loadEditorLists(); }
 renderWriters();
 renderPromos();
 renderAds();

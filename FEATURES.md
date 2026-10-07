@@ -131,7 +131,7 @@ Last updated: 2026-09-13
 - **Writer analytics** — per-writer views and engaged time on page, broken out by the kind of story (recruiting, recap, feature…), with loose nudges like *"your last two commitment pieces averaged 38% more views than your baseline."* A fair, data-backed read for the publisher; their own dashboard for the writer.
 - **Multi-tenant onboarding** — a new publisher self-configures their beat (watch list, feeds, house style) via a guided, AI-assisted wizard in minutes — no code changes.
 - **Scheduled agents** — proactive assistants that run on a cadence and push results: competitive-coverage scan, coverage-gap audit, evergreen-refresh finder, recruiting-board watch.
-- **Shared newsroom settings** — style guide, writer profiles, and block lists shared across the team instead of per-browser.
+- **Shared newsroom settings** — style guide, writer profiles, and block lists shared across the team instead of per-browser. (Writer profiles and promos: done 2026-10-07.)
 
 ### Longer term
 - White-label (customer logo / colors / name).
