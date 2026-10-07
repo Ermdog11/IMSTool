@@ -124,7 +124,7 @@ tr.you td{background:var(--red-light)}
   <div class="lead how">
     <p><b>How this page works.</b> Everything here saves the moment you change it, unless a section has its own Save button. Jump to a section with the buttons below.</p>
     <ol>
-      <li><b>Your alerts:</b> turn each email or text on or off for yourself. Pick your time zone and when the digest and updates come, then tap ⏰ under an alert to choose the days, hours and time zone you want it in; outside those, it's saved and comes in a "While you were off" box at the top of your next update instead. These only change what <i>you</i> get.</li>
+      <li><b>Your alerts:</b> turn each email or text on or off for yourself. Pick your time zone and when the digest and updates come, then tap ⏰ under an alert to choose the days and hours you want it; outside those, it's saved and comes in a "While you were off" box at the top of your next update instead. These only change what <i>you</i> get.</li>
       <li><b>Content Editor defaults</b> (publisher): choose what gets added to every article, like your podcast, related links, promos and ads, and where in the story it goes. Writers can still change it for a single article.</li>
       <li><b>What each role can do</b>: switch features on or off for editors, writers, contributors and viewers. <b>Your current permissions settings</b> shows where things stand. Set each person's role in <a href="/settings">Settings › Team &amp; alerts</a>.</li>
       <li><b>All settings:</b> a map of every setting in the app and where to change it.</li>
@@ -331,7 +331,7 @@ async function loadAlerts(){
     var r=await fetch('/api/alert-prefs'); var d=await r.json();
     if(!r.ok) throw new Error(d.error||('HTTP '+r.status));
     SCHED=d.schedules||{}; TIMES=d.times||{}; MYTZ=d.timeZone||'America/New_York'; CHAN=d.channels||{}; MYPHONE=d.phone||''; TEXTING=!!d.textingOn;
-    $('alert-list').innerHTML=tzPicker()+phoneBox()+'<div class="sub" style="margin:0 0 6px">Tap <b>⏰</b> under any alert to pick the days and hours you want it (in your time zone above, or pick another there), for example weekdays 8am to 10pm. Anything that comes outside them is saved for you and shows up at the top of your next update, under \u201cWhile you were off\u201d.</div>'+(d.types||[]).map(function(t){
+    $('alert-list').innerHTML=tzPicker()+phoneBox()+'<div class="sub" style="margin:0 0 6px">Tap <b>⏰</b> under any alert to pick the days and hours you want it (in your time zone above), for example weekdays 8am to 10pm. Anything that comes outside them is saved for you and shows up at the top of your next update, under \u201cWhile you were off\u201d.</div>'+(d.types||[]).map(function(t){
       return '<div class="row"><div class="name"><b>'+esc(t.label)+'</b>'+(t.about?'<span class="about">'+esc(t.about)+'</span>':'<br>')+(t.times?timesPicker(t.key,t.times):'')+schedLink(t.key)+chanPicker(t.key)+'</div><label class="switch"><input type="checkbox" data-t="'+esc(t.key)+'" '+(d.me[t.key]?'checked':'')+' onchange="setAlert(this)"><i></i></label>'+schedEditor(t.key)+'</div>';
     }).join('')+'<div id="hot12-row"></div><div class="sub" id="alert-msg" style="margin:6px 0 0"></div>';
     loadHot12();
@@ -387,7 +387,7 @@ async function saveTimes(type){
   try{
     var r=await fetch('/api/alert-prefs',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({timesFor:type,times:t})});
     var d=await r.json().catch(function(){return {};}); if(!r.ok||d.error) throw new Error(d.error||('HTTP '+r.status));
-    TIMES[type]=d.times; m.className='sub msg ok'; m.textContent='Saved: '+d.times.map(hmLabel).join(', ')+' ('+tzName((SCHED[type]&&SCHED[type].tz)||MYTZ)+' time).';
+    TIMES[type]=d.times; m.className='sub msg ok'; m.textContent='Saved: '+d.times.map(hmLabel).join(', ')+' ('+tzName(MYTZ)+' time).';
   }catch(e){ m.className='sub msg err'; m.textContent='Couldn\u2019t save: '+e.message; }
   box.outerHTML=timesPicker(type,n);
 }
@@ -435,9 +435,9 @@ async function saveTz(sel){
 }
 function hmLabel(hm){ var h=+hm.slice(0,2); return (h%12||12)+(hm.slice(3)!=='00'?':'+hm.slice(3):'')+(h<12?' AM':' PM'); }
 function schedText(s){
-  if(!s||(!s.from&&!s.tz&&(s.days||[]).length===7)) return 'Any day, any time';
+  if(!s||(!s.from&&(s.days||[]).length===7)) return 'Any day, any time';
   var d=s.days||[0,1,2,3,4,5,6], ds=d.length===7?'Every day':(d.join()==='1,2,3,4,5'?'Weekdays':(d.join()==='0,6'?'Weekends':d.map(function(i){return DAYN[i];}).join(', ')));
-  return ds+(s.from?', '+hmLabel(s.from)+'\u2013'+hmLabel(s.to):', any time')+(s.tz&&s.tz!==MYTZ?' ('+tzName(s.tz)+' time)':'');
+  return ds+(s.from?', '+hmLabel(s.from)+'\u2013'+hmLabel(s.to):', any time');
 }
 function schedLink(type){ var s=SCHED[type]; return '<a class="sched-link'+(s?' set':'')+'" id="sl-'+type+'" onclick="toggleSched(\''+type+'\')">⏰ '+esc(schedText(s))+'</a>'; }
 function hourOpts(sel){ var o='<option value="">any time</option>'; for(var h=0;h<24;h++){ var v=String(h).padStart(2,'0')+':00'; o+='<option value="'+v+'"'+(sel===v?' selected':'')+'>'+hmLabel(v)+'</option>'; } return o; }
@@ -445,19 +445,18 @@ function schedEditor(type){
   var s=SCHED[type]||{days:[0,1,2,3,4,5,6]};
   return '<div class="sched-ed" id="se-'+type+'"><b>Days</b><div class="sched-days">'+DAYN.map(function(n,i){ return '<label><input type="checkbox" value="'+i+'"'+(s.days.indexOf(i)!==-1?' checked':'')+'><span>'+n+'</span></label>'; }).join('')+'</div>'+
     '<b>Hours</b> from <select class="sf">'+hourOpts(s.from||'')+'</select> to <select class="st">'+hourOpts(s.to||'')+'</select>'+
-    '<div style="margin-top:8px"><b>Time zone</b> <select class="sz">'+tzOptions(s.tz||'','<option value="">Same as mine ('+esc(tzName(MYTZ))+')</option>')+'</select></div>'+
     '<div style="margin-top:8px"><button class="btn" style="padding:4px 12px;font-size:12px" onclick="saveSched(\''+type+'\',this)">Save</button> <a href="#" style="margin-left:8px;font-size:12px" onclick="saveSched(\''+type+'\',this,true);return false">Reset to any day, any time</a></div></div>';
 }
 function toggleSched(type){ var el=$('se-'+type); if(el) el.classList.toggle('open'); }
 async function saveSched(type,btn,reset){
   var el=$('se-'+type), m=$('alert-msg');
   var days=Array.from(el.querySelectorAll('.sched-days input:checked')).map(function(x){return +x.value;});
-  var from=el.querySelector('.sf').value, to=el.querySelector('.st').value, tz=el.querySelector('.sz').value;
+  var from=el.querySelector('.sf').value, to=el.querySelector('.st').value;
   if(!reset&&!days.length){ m.className='sub msg err'; m.textContent='Pick at least one day (or switch the alert off).'; return; }
   if(!reset&&(!!from!==!!to)){ m.className='sub msg err'; m.textContent='Pick both a start and an end hour, or leave both as any time.'; return; }
   btn.disabled=true;
   try{
-    var r=await fetch('/api/alert-prefs',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({type:type,schedule:reset?null:{days:days,from:from,to:to,tz:tz||undefined}})});
+    var r=await fetch('/api/alert-prefs',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({type:type,schedule:reset?null:{days:days,from:from,to:to}})});
     var d=await r.json().catch(function(){return {};});
     if(!r.ok) throw new Error(d.error||('HTTP '+r.status));
     if(d.schedule) SCHED[type]=d.schedule; else delete SCHED[type];
