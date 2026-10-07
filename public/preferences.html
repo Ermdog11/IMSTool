@@ -126,13 +126,13 @@ tr.you td{background:var(--red-light)}
     <ol>
       <li><b>Your alerts:</b> turn each email or text on or off for yourself. Pick your time zone and when the digest and updates come, then tap ⏰ under an alert to choose the days, hours and time zone you want it in; outside those, it's saved and comes in a "While you were off" box at the top of your next update instead. These only change what <i>you</i> get.</li>
       <li><b>Content Editor defaults</b> (publisher): choose what gets added to every article, like your podcast, related links, promos and ads, and where in the story it goes. Writers can still change it for a single article.</li>
-      <li><b>What each role can do</b> and <b>Who can do what</b>: switch features on or off for editors, writers, contributors and viewers. Set each person's role in <a href="/settings">Settings › Team &amp; alerts</a>.</li>
+      <li><b>What each role can do</b>: switch features on or off for editors, writers, contributors and viewers. <b>Your current permissions settings</b> shows where things stand. Set each person's role in <a href="/settings">Settings › Team &amp; alerts</a>.</li>
       <li><b>All settings:</b> a map of every setting in the app and where to change it.</li>
       <li><b>Your account:</b> privacy, terms, support, and deleting your account.</li>
     </ol>
   </div>
   <div class="jump">
-    <a href="#alerts">Your alerts</a><a href="#editor">Content Editor defaults</a><a href="#access">What each role can do</a><a href="#permissions">Who can do what</a><a href="#everything">All settings</a><a href="#account">Your account</a>
+    <a href="#alerts">Your alerts</a><a href="#editor">Content Editor defaults</a><a href="#access">What each role can do</a><a href="#permissions">Current permissions</a><a href="#everything">All settings</a><a href="#account">Your account</a>
   </div>
   <div id="notice"></div>
 
@@ -165,8 +165,8 @@ tr.you td{background:var(--red-light)}
   </section>
 
   <section class="card" id="permissions">
-    <h2>Who can do what</h2>
-    <div class="sub">What each role can do today. The publisher sets each person's role in <a href="/settings">Settings › Team &amp; alerts</a>.</div>
+    <h2>Your current permissions settings</h2>
+    <div class="sub">The publisher sets each person's role in <a href="/settings">Settings › Team &amp; alerts</a>.</div>
     <div class="table-scroll"><table id="perm-table"></table></div>
     <div class="sub" style="margin-top:10px">Two more roles: <b>Contributor</b> (freelancers and stringers) can access the Content Editor only, sees only their own drafts and gets no alerts by default. <b>Viewer</b> can read the News Monitor but can't change anything or access the Content Editor. Fine-tune any role with the switches above.</div>
   </section>
@@ -250,7 +250,7 @@ async function saveAccess(){
   b.disabled=false;
 }
 
-// ---- Who can do what ------------------------------------------------------
+// ---- Your current permissions settings ------------------------------------------------------
 // Mirrors the role checks in api/ (requireRole / membership.role). Keep in
 // sync when a route's check changes.
 var PERMS=[
