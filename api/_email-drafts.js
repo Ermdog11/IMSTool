@@ -158,7 +158,7 @@ function htmlText(h) { return String(h || '').replace(/<\/(p|h\d|li|div)>/gi, '\
 
 function mdToHtml(t) {
   return String(t || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
-    .replace(/\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)/g, '<a href="$2">$1</a>').replace(/\*\*([^*]+)\*\*/g, '<b>$1</b>')
+    .replace(/\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)/g, '<a href="$2" style="text-decoration:underline;text-underline-offset:2px">$1</a>').replace(/\*\*([^*]+)\*\*/g, '<b>$1</b>')
     .split(/\n\s*\n/).map(function (p) { p = p.trim(); if (!p) return ''; var h = /^##+\s+(.*)$/.exec(p); return h ? '<h2>' + h[1] + '</h2>' : '<p>' + p.replace(/\n/g, '<br>') + '</p>'; }).filter(Boolean).join('\n');
 }
 

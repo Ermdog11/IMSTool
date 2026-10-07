@@ -22,7 +22,7 @@ function esc(s) {
 function mdToParagraphs(t) {
   var esc_ = esc(t || '');
   esc_ = esc_.replace(/^\s*#{1,3}\s*(.+)$/gm, '<h2>$1</h2>');
-  esc_ = esc_.replace(/\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)/g, '<a href="$2">$1</a>');
+  esc_ = esc_.replace(/\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)/g, '<a href="$2" style="text-decoration:underline;text-underline-offset:2px">$1</a>');
   esc_ = esc_.replace(/\*\*([^*]+)\*\*/g, '<b>$1</b>');
   return esc_.split(/\n\s*\n/).map(function(p) {
     return /^<h2>/.test(p) ? p : '<p>' + p.replace(/\n/g, '<br>') + '</p>';
