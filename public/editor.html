@@ -164,7 +164,7 @@ body.no-factcheck .acc-factcheck,body.no-add #ed-autoadd,body.no-add #pre-tabs-w
           <select id="ed-mode" onchange="updateModeHint()">
             <option value="edit">Full edit — rewrite in house style</option>
             <option value="keep">Keep my words — review only</option>
-            <option value="links">Hotlinks only — insert links, don't edit</option>
+            <option value="links">Hotlinks only — keep every word, add links</option>
           </select>
         </div>
         <div style="flex:1;min-width:160px">
@@ -651,7 +651,7 @@ function updateModeHint(){
     el.innerHTML='The writer’s words are returned <b>unchanged</b> (only obvious typos fixed). You still get headline options, questions to resolve, suggested context, and related links to add — as suggestions, nothing is inserted.';
     if(btn) btn.textContent='Review draft';
   } else if(m==='links'){
-    el.innerHTML='The writer’s words are returned <b>unchanged</b> — no rewriting, no added context. The only change made is inserting hotlinks to related '+((window.IMSAuth&&IMSAuth.state&&IMSAuth.state.site&&IMSAuth.state.site.name)||'InsideMDSports').replace(/[<>&"]/g,'')+' coverage directly into the text.';
+    el.innerHTML='<b>Every word stays exactly as written</b>: nothing is added, cut or reworded. CoPublisher finds past '+((window.IMSAuth&&IMSAuth.state&&IMSAuth.state.site&&IMSAuth.state.site.name)||'InsideMDSports').replace(/[<>&"]/g,'')+' articles that match phrases already in the story (a player, a game, a coaching change) and turns those exact phrases into links to them, so each link points to the right article.';
     if(btn) btn.textContent='Add hotlinks';
   } else {
     el.innerHTML='The draft comes back rewritten in house style and the selected writer’s voice, with context added ([VERIFY]-flagged) and related links inserted.';
