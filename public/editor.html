@@ -198,10 +198,12 @@ body.no-factcheck .acc-factcheck,body.no-add #ed-autoadd,body.no-add #pre-tabs-w
           <span class="aa-pos" title="How far down the article it goes: 0% is above the first paragraph, 100% after the last. In a 10-paragraph story, 40% goes after paragraph 4.">Top <input type="range" id="aa-podcast-pos" min="0" max="100" step="20" value="100" oninput="this.nextElementSibling.textContent=this.value+'%'"> <b>100%</b> Bottom</span></div>
         <div class="aa-row"><label class="aa-lab"><input type="checkbox" id="aa-related" style="width:auto"> 🔗 Related links box</label>
           <span class="aa-pos" title="How far down the article it goes: 0% is above the first paragraph, 100% after the last. In a 10-paragraph story, 40% goes after paragraph 4.">Top <input type="range" id="aa-related-pos" min="0" max="100" step="20" value="100" oninput="this.nextElementSibling.textContent=this.value+'%'"> <b>100%</b> Bottom</span></div>
-        <div class="aa-row"><label class="aa-lab"><input type="checkbox" id="aa-promos" style="width:auto"> 📣 <span id="aa-promos-label">Promos for this tier</span></label></div>
+        <div class="aa-row"><label class="aa-lab"><input type="checkbox" id="aa-promos" style="width:auto"> 📣 <span id="aa-promos-label">Promos for this tier</span></label>
+          <span class="aa-pos" title="Where the first promo goes: 0% is above the first paragraph, 100% after the last. More promos keep their spacing after it.">Top <input type="range" id="aa-promos-pos" min="0" max="100" step="20" value="40" oninput="this.nextElementSibling.textContent=this.value+'%'"> <b>40%</b> Bottom</span></div>
         <div class="aa-row" id="aa-ads-row" style="display:none"><label class="aa-lab"><input type="checkbox" id="aa-ads" style="width:auto"> 💰 <span id="aa-ads-label">Ad slots</span></label>
           <span class="aa-pos" title="Where the first ad goes: 0% is above the first paragraph, 100% after the last. More ads keep their spacing after it.">Top <input type="range" id="aa-ads-pos" min="0" max="100" step="20" value="40" oninput="this.nextElementSibling.textContent=this.value+'%'"> <b>40%</b> Bottom</span></div>
-        <div class="aa-row" id="aa-aff-row" style="display:none"><label class="aa-lab"><input type="checkbox" id="aa-affiliate" style="width:auto"> 💸 Affiliate links</label><span class="aa-pos" id="aa-aff-note"></span></div>
+        <div class="aa-row" id="aa-aff-row" style="display:none"><label class="aa-lab"><input type="checkbox" id="aa-affiliate" style="width:auto"> 💸 Affiliate links <span id="aa-aff-note" style="font-weight:400;color:var(--muted);font-size:12px"></span></label>
+          <span class="aa-pos" title="Where the first partner box goes (links inside the story stay where they are): 0% is above the first paragraph, 100% after the last.">Top <input type="range" id="aa-affiliate-pos" min="0" max="100" step="20" value="60" oninput="this.nextElementSibling.textContent=this.value+'%'"> <b>60%</b> Bottom</span></div>
         <div class="aa-pos" style="margin:0 0 4px 22px">The % is how far down the article it goes, counted in paragraphs: 0% is above the first paragraph, 50% the middle, 100% after the last. (In a 10-paragraph story, 40% goes after paragraph 4.)</div>
         <div class="aa-row acc-factcheck"><label class="aa-lab"><input type="checkbox" id="aa-factcheck" style="width:auto"> 🔎 Extra fact-check</label><span class="aa-pos">Checks every name, number and date against live sources. About a minute more.</span></div>
         <div style="font-size:12px;color:var(--muted);margin-top:4px;display:flex;gap:4px 12px;flex-wrap:wrap;align-items:center">
@@ -672,7 +674,8 @@ async function runEdit(){
   // the draft is fetched alongside the edit and placed in the finished article.
   var aa=getAutoAdd();
   window._adsQueued=!!aa.ads; window._adsPos=aa.adsPosition;
-  window._affQueued=!!aa.affiliate;
+  window._affQueued=!!aa.affiliate; window._affPos=aa.affiliatePosition;
+  window._promoPos=aa.promos?aa.promosPosition:null;
   window._relPos=null;
   if(aa.related){ window._relQueued=true; window._relPos=aa.relatedPosition; }
   if(aa.promos){
@@ -851,7 +854,9 @@ function renderEdit(d){
   initHotlinkPreviews();
   if(window._queuedEpisode){ embedPodcast(window._queuedEpisode.name, window._queuedEpisode.html, window._podPos); }
   if(window._relQueued){ openRelatedBox(); addRelatedLinks(document.querySelector('#related-box .btn')); }
-  (window._availableInserts||[]).forEach(function(p,i){ if(window._promoQueued[p.name] && !p.podcast && !p.related && !p.ad) toggleInsert(i); });
+  var promoIdx=[];
+  (window._availableInserts||[]).forEach(function(p,i){ if(window._promoQueued[p.name] && !p.podcast && !p.related && !p.ad){ toggleInsert(i); promoIdx.push(i); } });
+  if(promoIdx.length && window._promoPos!=null) placePromosAt(promoIdx, window._promoPos);
   if(window._adsQueued) placeAds();
   if(window._affQueued) placeAffiliateBoxes();
 }
@@ -1415,6 +1420,20 @@ async function adsSave(btn){
   }catch(e){ m.style.color='var(--hot)'; m.textContent='Couldn’t save: '+e.message; }
   btn.disabled=false;
 }
+// Moves this tier's promos (just added from the newsroom's list) so the first
+// sits where the Promos slider says; the rest keep their spacing after it,
+// in the order their own placements gave them (Jeff, 2026-10-07).
+function placePromosAt(idxs, pos){
+  var tmp=document.createElement('div'); tmp.innerHTML=window._articleBaseHtml||'';
+  var n=tmp.children.length;
+  var own=function(pl){ var a=/^after(\d{1,3})$/.exec(pl||''); if(a) return Math.min(+a[1],n); var q=pctOfPlacement(pl); if(q!==null) return Math.round(q/100*n); return pl==='top'?0 : pl==='early'?Math.min(3,n) : pl==='middle'?Math.floor(n/2) : n; };
+  var entries=addedInserts.filter(function(e){ return idxs.indexOf(e.idx)!==-1; });
+  if(!entries.length) return;
+  var at=entries.map(function(e){ return own(e.placement); });
+  var minAt=Math.min.apply(null,at), start=Math.round(pct(pos)/100*n);
+  entries.forEach(function(e,j){ var k=Math.min(n,start+(at[j]-minAt)); e.placement=k?'after'+k:'top'; });
+  renderInsertControls(); renderInsertPreview();
+}
 // Drops this tier's ad units into the finished article. The Ad slots slider
 // (under the draft; default on Permissions & preferences) is where the first
 // ad goes, as a share of the article like the podcast and related links
@@ -1453,7 +1472,7 @@ function affPrograms(){ return (window._aff&&window._aff.programs)||[]; }
     if(!d||!d.programs) return;
     window._aff=d;
     var row=document.getElementById('aa-aff-row'); if(row) row.style.display=d.programs.length?'':'none';
-    var note=document.getElementById('aa-aff-note'); if(note) note.textContent=d.programs.map(function(p){return p.name;}).join(', ');
+    var note=document.getElementById('aa-aff-note'); if(note) note.textContent='('+d.programs.map(function(p){return p.name;}).join(', ')+')';
   }).catch(function(){});
 })();
 function affHost(u){ try{ return new URL(u).hostname.replace(/^www\./,'').toLowerCase(); }catch(e){ return ''; } }
@@ -1478,16 +1497,23 @@ function applyAffiliateLinks(d){
   var mdb=document.getElementById('ed-md'); if(mdb) mdb.value=d.edited;
   var st=document.getElementById('ed-status'); if(st) st.textContent=n+' affiliate link'+(n>1?'s':'')+' tagged.';
 }
+// The Affiliate links slider (under the draft; default on Permissions &
+// preferences) is where the first partner box goes, like the ad slots
+// (Jeff, 2026-10-07: promos, ad slots and affiliate links "need to be set up
+// like the podcast and related links sliders"); others keep their spacing.
 function placeAffiliateBoxes(){
   var tmp=document.createElement('div'); tmp.innerHTML=window._articleBaseHtml||'';
   var n=tmp.children.length;
   window._availableInserts=window._availableInserts||[];
-  affPrograms().forEach(function(p){
-    if(!String(p.boxHtml||'').trim()) return;
+  var progs=affPrograms().filter(function(p){ return String(p.boxHtml||'').trim(); });
+  var start=window._affPos==null?null:Math.round(pct(window._affPos)/100*n);
+  var minFirst=Math.min.apply(null,progs.map(function(p){ return Math.max(1,+p.first||4); }).concat([Infinity]));
+  progs.forEach(function(p){
     var html=p.boxHtml.replace(/\{link\}/g,affLink(p,p.home||''));
     var first=Math.max(1,+p.first||4), every=+p.every||0, max=Math.max(1,+p.max||1), count=0;
-    for(var at=first; at<n && count<max; at+=every||Infinity){
-      window._availableInserts.push({name:'💸 '+p.name+' (after ¶'+at+')',tier:'both',placement:'after'+at,html:html,ad:true});
+    if(start!=null) first=start+(first-minFirst);
+    for(var at=first; count<max && (at<n || (count===0 && at<=n)); at+=every||Infinity){
+      window._availableInserts.push({name:'💸 '+p.name+(at?' (after ¶'+at+')':' (top)'),tier:'both',placement:at?'after'+at:'top',html:html,ad:true});
       toggleInsert(window._availableInserts.length-1); count++;
       if(!every) break;
     }
@@ -1934,6 +1960,8 @@ function editorDefaults(){
     podcastPosition:pct(pick(d.podcastPosition,pod.position)),
     relatedPosition:pct(d.relatedPosition),
     adsPosition:pct(pick(d.adsPosition,40)),
+    promosPosition:pct(pick(d.promosPosition,40)),
+    affiliatePosition:pct(pick(d.affiliatePosition,60)),
     relatedCount:+(d.relatedCount||3), relatedScope:d.relatedScope==='web'?'web':'site'
   };
 }
@@ -1944,7 +1972,7 @@ function getAutoAdd(){
   var fc=document.getElementById('aa-factcheck'); c.factCheck=canUse('act_fact_check')&&!!(fc&&fc.checked);
   var ad=document.getElementById('aa-ads'); c.ads=addOk&&adsForTier().length>0&&!!(ad&&ad.checked);
   var af=document.getElementById('aa-affiliate'); c.affiliate=addOk&&affPrograms().length>0&&!!(af&&af.checked);
-  ['podcast','related','ads'].forEach(function(k){ var el=document.getElementById('aa-'+k+'-pos'); c[k+'Position']=el?pct(el.value):100; });
+  ['podcast','related','ads','promos','affiliate'].forEach(function(k){ var el=document.getElementById('aa-'+k+'-pos'); c[k+'Position']=el?pct(el.value):100; });
   return c;
 }
 function setAaPos(k,v){
@@ -1954,7 +1982,7 @@ function setAaPos(k,v){
 function loadAutoAdd(){
   var d=editorDefaults();
   ['podcast','related','promos','factCheck','ads','affiliate'].forEach(function(k){ var el=document.getElementById('aa-'+k.toLowerCase()); if(el) el.checked=d[k]; });
-  setAaPos('podcast',d.podcastPosition); setAaPos('related',d.relatedPosition); setAaPos('ads',d.adsPosition);
+  setAaPos('podcast',d.podcastPosition); setAaPos('related',d.relatedPosition); setAaPos('ads',d.adsPosition); setAaPos('promos',d.promosPosition); setAaPos('affiliate',d.affiliatePosition);
   var fsf=document.getElementById('fs-factcheck'); if(fsf) fsf.checked=d.factCheck;
   updatePromoCount();
   var sv=document.getElementById('aa-save-default');
@@ -1982,7 +2010,7 @@ function updatePromoCount(){
 }
 async function saveAutoAddDefault(link){
   var c=getAutoAdd();
-  var next=Object.assign({}, window._editorDefaults||{}, {podcast:c.podcast, related:c.related, promos:c.promos, factCheck:c.factCheck, ads:c.ads, affiliate:c.affiliate, podcastPosition:c.podcastPosition, relatedPosition:c.relatedPosition, adsPosition:c.adsPosition});
+  var next=Object.assign({}, window._editorDefaults||{}, {podcast:c.podcast, related:c.related, promos:c.promos, factCheck:c.factCheck, ads:c.ads, affiliate:c.affiliate, podcastPosition:c.podcastPosition, relatedPosition:c.relatedPosition, adsPosition:c.adsPosition, promosPosition:c.promosPosition, affiliatePosition:c.affiliatePosition});
   var note=document.getElementById('aa-default-note');
   try{
     var r=await fetch('/api/site-profile',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({profile:{editorDefaults:next}})});

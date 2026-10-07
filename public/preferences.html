@@ -540,6 +540,8 @@ function loadEditorDefaults(){
     podcastPosition:pct(d.podcastPosition!=null?d.podcastPosition:pod.position),
     relatedPosition:pct(d.relatedPosition),
     adsPosition:pct(d.adsPosition!=null?d.adsPosition:40),
+    promosPosition:pct(d.promosPosition!=null?d.promosPosition:40),
+    affiliatePosition:pct(d.affiliatePosition!=null?d.affiliatePosition:60),
     relatedCount:+(d.relatedCount||3), relatedScope:d.relatedScope==='web'?'web':'site',
     tierMode:d.tierMode==='free'||d.tierMode==='vip'?d.tierMode:'both'
   };
@@ -558,9 +560,9 @@ function renderEditorDefaults(){
     '<div class="row"><div class="name"><b>How many related links</b></div>'+seg('relatedCount',[[1,'1'],[2,'2'],[3,'3'],[4,'4']])+'</div>'+
     '<div class="row"><div class="name"><b>Related links point to</b></div>'+seg('relatedScope',[['site','Our site only'],['web','Anywhere on the web']])+'</div>'+
     '<div class="row"><div class="name"><b>What you publish</b><span>If you only publish free or only paywalled stories, the Tier pull-down comes off the Content Editor and every article uses that tier (its promos and ad slots).</span></div>'+seg('tierMode',[['both','Free and paywalled'],['free','Only free'],['vip','Only paywalled']])+'</div>'+
-    '<div class="row"><div class="name"><b>📣 Promos for the article’s tier</b><span>Promos are the blocks you add to stories to grow the business: newsletter sign-ups, \u201cjoin VIP\u201d pitches, ticket deals, follow-us links. You can have one set for free stories and another for VIP (paywalled) stories, since a VIP reader is already a member and shouldn\u2019t be asked to join. With this on, each article gets the promos for its tier (Free or VIP, picked in the Content Editor), each in the spot it\u2019s set to. Write and edit them in the Content Editor under 📣 Promos.</span></div>'+sw('promos')+'</div>'+
+    '<div class="row"><div class="name"><b>📣 Promos for the article’s tier</b><span>Promos are the blocks you add to stories to grow the business: newsletter sign-ups, \u201cjoin VIP\u201d pitches, ticket deals, follow-us links. You can have one set for free stories and another for VIP (paywalled) stories, since a VIP reader is already a member and shouldn\u2019t be asked to join. With this on, each article gets the promos for its tier (Free or VIP, picked in the Content Editor), each in the spot it\u2019s set to. Write and edit them in the Content Editor under 📣 Promos. The slider is where the first promo goes; if there are more, they keep their spacing after it.</span></div>'+pos('promosPosition')+sw('promos')+'</div>'+
     '<div class="row"><div class="name"><b>💰 Ad slots</b><span>Your ad code (set it up on the Content Editor’s Inserts tab). The slider is where the first ad goes; if you run more than one, the rest keep their spacing after it. A writer can move it for one article under the draft.</span></div>'+pos('adsPosition')+sw('ads')+'</div>'+
-    '<div class="row"><div class="name"><b>💸 Affiliate links</b><span>Links to gear, ticket and other partner sites earn your newsroom a share through CoPublisher AI\u2019s affiliate programs.</span></div>'+sw('affiliate')+'</div>'+
+    '<div class="row"><div class="name"><b>💸 Affiliate links</b><span>Links to gear, ticket and other partner sites earn your newsroom a share through CoPublisher AI\u2019s affiliate programs. Links already in the story stay where they are; the slider is where a partner\u2019s box (if it has one) goes.</span></div>'+pos('affiliatePosition')+sw('affiliate')+'</div>'+
     '<div class="row"><div class="name"><b>🔎 Extra fact-check</b><span>Checks every name, number and date in the finished article against live sources and your past coverage. Takes a minute longer and uses more AI credits.</span></div>'+sw('factCheck')+'</div>';
   $('ed-save').style.display=can?'':'none';
   if(!can) $('ed-msg').textContent='';
