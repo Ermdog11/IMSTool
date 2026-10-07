@@ -39,9 +39,13 @@ async function sendMail(opts) {
   if (!recipients.length) throw new Error(opts.to ? 'No valid recipients in opts.to' : 'ALERT_EMAIL not set');
   // An alert email (opts.alertType) goes only to people who have that alert
   // on and whose days/hours for it include now (_alert-schedule.js).
+  // Anyone outside their days/hours gets it saved for their next update
+  // email instead (_held-alerts.js, "While you were off").
   if (opts.alertType) {
-    recipients = await require('./_alert-schedule').filter(recipients, opts.alertType);
-    if (!recipients.length) return { skipped: 'nobody has this alert on right now', alertType: opts.alertType };
+    var parts = await require('./_alert-schedule').split(recipients, opts.alertType);
+    if (parts.closed.length) await require('./_held-alerts').add(parts.closed, opts.alertType, opts);
+    recipients = parts.open;
+    if (!recipients.length) return { skipped: 'nobody has this alert on right now', alertType: opts.alertType, held: parts.closed.length };
   }
 
   // Email, text or both, per person and alert (_alert-schedule.js, _sms.js).

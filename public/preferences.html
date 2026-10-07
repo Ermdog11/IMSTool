@@ -117,7 +117,7 @@ tr.you td{background:var(--red-light)}
   <div class="lead how">
     <p><b>How this page works.</b> Everything here saves the moment you change it, unless a section has its own Save button. Jump to a section with the buttons below.</p>
     <ol>
-      <li><b>Your alerts:</b> turn each email or text on or off for yourself. Pick your time zone and when the digest and updates come, then tap ⏰ under an alert to choose the days, hours and time zone you want it in; outside those, it's skipped for you. These only change what <i>you</i> get.</li>
+      <li><b>Your alerts:</b> turn each email or text on or off for yourself. Pick your time zone and when the digest and updates come, then tap ⏰ under an alert to choose the days, hours and time zone you want it in; outside those, it's saved and comes in a "While you were off" box at the top of your next update instead. These only change what <i>you</i> get.</li>
       <li><b>Content Editor defaults</b> (publisher): choose what gets added to every article, like your podcast, related links, promos and ads, and where in the story it goes. Writers can still change it for a single article.</li>
       <li><b>What each role can do</b> and <b>Who can do what</b>: switch features on or off for editors, writers, contributors and viewers. Set each person's role in <a href="/settings">Settings › Team &amp; alerts</a>.</li>
       <li><b>All settings:</b> a map of every setting in the app and where to change it.</li>
@@ -323,7 +323,7 @@ async function loadAlerts(){
     var r=await fetch('/api/alert-prefs'); var d=await r.json();
     if(!r.ok) throw new Error(d.error||('HTTP '+r.status));
     SCHED=d.schedules||{}; TIMES=d.times||{}; MYTZ=d.timeZone||'America/New_York'; CHAN=d.channels||{}; MYPHONE=d.phone||''; TEXTING=!!d.textingOn;
-    $('alert-list').innerHTML=tzPicker()+phoneBox()+'<div class="sub" style="margin:0 0 6px">Tap <b>⏰</b> under any alert to pick the days and hours you want it (in your time zone above, or pick another there), for example weekdays 8am to 10pm. Outside them it\u2019s skipped for you, not saved for later.</div>'+(d.types||[]).map(function(t){
+    $('alert-list').innerHTML=tzPicker()+phoneBox()+'<div class="sub" style="margin:0 0 6px">Tap <b>⏰</b> under any alert to pick the days and hours you want it (in your time zone above, or pick another there), for example weekdays 8am to 10pm. Anything that comes outside them is saved for you and shows up at the top of your next update, under \u201cWhile you were off\u201d.</div>'+(d.types||[]).map(function(t){
       return '<div class="row"><div class="name"><b>'+esc(t.label)+'</b>'+(t.about?'<span class="about">'+esc(t.about)+'</span>':'<br>')+(t.times?timesPicker(t.key,t.times):'')+schedLink(t.key)+chanPicker(t.key)+'</div><label class="switch"><input type="checkbox" data-t="'+esc(t.key)+'" '+(d.me[t.key]?'checked':'')+' onchange="setAlert(this)"><i></i></label>'+schedEditor(t.key)+'</div>';
     }).join('')+'<div id="hot12-row"></div><div class="sub" id="alert-msg" style="margin:6px 0 0"></div>';
     loadHot12();
