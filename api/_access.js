@@ -17,8 +17,8 @@
 // Keep FEATURES in sync with ACCESS_FEATURES in public/preferences.html.
 
 var FEATURES = [
-  { key: 'use_monitor',    label: 'Use the News Monitor' },
-  { key: 'use_editor',     label: 'Use the Content Editor' },
+  { key: 'use_monitor',    label: 'Access the News Monitor' },
+  { key: 'use_editor',     label: 'Access the Content Editor' },
   { key: 'drafts_all',     label: 'See and edit everyone\'s drafts (off: only their own)' },
   { key: 'mode_edit',      label: 'Full edit: rewrite in house style' },
   { key: 'mode_keep',      label: 'Keep my words: review only' },

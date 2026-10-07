@@ -1,4 +1,5 @@
 {
+  "git": { "deploymentEnabled": { "claude/*": false } },
   "version": 2,
   "cleanUrls": true,
   "functions": {

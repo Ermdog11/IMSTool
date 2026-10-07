@@ -1141,16 +1141,19 @@ body.other-newsroom .other-only { display: block !important; }
     <section class="home-card">
       <div class="hc-head"><h3>Ad slots in every story</h3><a href="/editor#2" class="adv-edit">Manage ›</a></div>
       <div class="hc-stats">Your ad network's code, placed automatically when an article goes through the Content Editor with <b>Ad slots</b> ticked.</div>
+      <div class="adv-pos" id="advPos-ads"></div>
       <div id="advSlots" class="hc-list"><div class="hc-empty">Loading…</div></div>
     </section>
     <section class="home-card">
       <div class="hc-head"><h3>Affiliate links</h3></div>
       <div class="hc-stats">Programs that can drop a link box into a story (tick <b>💸 Affiliate links</b> under a draft).</div>
+      <div class="adv-pos" id="advPos-affiliate"></div>
       <div id="advAff" class="hc-list"><div class="hc-empty">Loading…</div></div>
     </section>
     <section class="home-card">
       <div class="hc-head"><h3>Promos &amp; house ads</h3><a href="/editor#2">Edit ›</a></div>
-      <div class="hc-stats">Newsletter sign-ups, VIP offers and other inserts, added to free or VIP stories by placement.</div>
+      <div class="hc-stats">Newsletter sign-ups, VIP offers and other inserts, added to free or VIP stories.</div>
+      <div class="adv-pos" id="advPos-promos"></div>
     </section>
     <section class="home-card">
       <div class="hc-head"><h3>When readers show up</h3><a href="/calendar" onclick="switchTab(14);return false">Calendar ›</a></div>
@@ -1543,14 +1546,43 @@ function xosAsk(q) {
   const ans = document.getElementById('analyticsQuestionAnswer'); if (ans) ans.scrollIntoView({ behavior: 'smooth', block: 'center' });
 }
 
+// Where promos, ad slots and affiliate boxes go by default (Jeff, 2026-10-07:
+// "need to be set up like the podcast and related links sliders"): the same
+// Top-to-Bottom sliders as Permissions & preferences › Content Editor
+// defaults (site profile editorDefaults; the publisher changes them).
+let advDefaults = {};
+const ADV_POS = { promos: ['promosPosition', 40, 'first promo'], ads: ['adsPosition', 40, 'first ad'], affiliate: ['affiliatePosition', 60, 'first partner box'] };
+function advPct(v, def) { v = (v === undefined || v === null || v === '') ? def : +v; if (isNaN(v)) v = def; return Math.max(0, Math.min(100, Math.round(v / 20) * 20)); }
+function renderAdvPos() {
+  const can = !(window.IMSAuth && IMSAuth.state.configured) || IMSAuth.isPublisher();
+  Object.keys(ADV_POS).forEach(k => {
+    const el = document.getElementById('advPos-' + k); if (!el) return;
+    const [key, def, what] = ADV_POS[k], v = advPct(advDefaults[key], def);
+    el.innerHTML = '<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;font-size:12.5px;margin:4px 0 8px;">Where the ' + what + ' goes: Top <input type="range" min="0" max="100" step="20" value="' + v + '"' + (can ? '' : ' disabled') + ' style="width:130px;padding:0" oninput="this.nextElementSibling.textContent=this.value+\'%\'" onchange="advSavePos(\'' + k + '\',this.value)"> <b>' + v + '%</b> Bottom <span class="adv-pos-msg" style="color:var(--text3)"></span></div>';
+  });
+}
+async function advSavePos(k, v) {
+  const el = document.getElementById('advPos-' + k), msg = el && el.querySelector('.adv-pos-msg');
+  const next = Object.assign({}, advDefaults, { [ADV_POS[k][0]]: +v });
+  try {
+    const f = window.IMSAuth ? IMSAuth.authFetch : fetch;
+    const r = await f('/api/site-profile', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ profile: { editorDefaults: next } }) });
+    const d = await r.json().catch(() => ({}));
+    if (!r.ok || d.error) throw new Error(d.error || ('HTTP ' + r.status));
+    advDefaults = next; if (msg) { msg.style.color = 'var(--green)'; msg.textContent = 'Saved as the default'; }
+  } catch (e) { if (msg) { msg.style.color = '#b42318'; msg.textContent = 'Couldn\'t save: ' + e.message; } }
+}
+
 // Advertising (page-17): ad slots, affiliate programs, this week's hot spots.
 async function loadAdvertising() {
   const f = window.IMSAuth ? IMSAuth.authFetch : fetch, esc = escapeHtml;
   document.querySelectorAll('#page-17 .adv-edit').forEach(a => { a.style.display = !(window.IMSAuth && IMSAuth.state.configured) || IMSAuth.isPublisher() ? '' : 'none'; });
   f('/api/site-profile').then(r => r.json()).then(d => {
+    advDefaults = (d.profile && d.profile.editorDefaults) || {};
+    renderAdvPos();
     const units = (d.profile && d.profile.ads && d.profile.ads.units) || [];
     document.getElementById('advSlots').innerHTML = units.length ? units.map(u => '<div class="hc-item"><b>' + esc(u.name || 'Ad slot') + '</b><small>' +
-      esc((u.tier === 'vip' ? 'VIP stories' : u.tier === 'free' ? 'Free stories' : 'All stories') + ' · after paragraph ' + (u.first || 3) + (u.every ? ', then every ' + u.every : '') + (u.max ? ' · up to ' + u.max : '') + (u.code ? '' : ' · no ad code yet')) + '</small></div>').join('')
+      esc((u.tier === 'vip' ? 'VIP stories' : u.tier === 'free' ? 'Free stories' : 'All stories') + (u.every ? ' · repeats every ' + u.every + ' paragraphs' : ' · once per story') + (u.max ? ' · up to ' + u.max : '') + (u.code ? '' : ' · no ad code yet')) + '</small></div>').join('')
       : '<div class="hc-empty">No ad slots yet. Paste your ad network\'s code in the Content Editor (Inserts › Ad slots) and every story can carry it.</div>';
   }).catch(() => { document.getElementById('advSlots').innerHTML = '<div class="hc-empty">Couldn\'t load ad slots.</div>'; });
   f('/api/affiliate?for=editor').then(r => r.json()).then(d => {
