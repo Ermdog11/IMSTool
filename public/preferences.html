@@ -29,6 +29,9 @@ h1{font-size:22px;margin-bottom:4px}
 .lead.how p{margin:0 0 8px}
 .lead.how ol{margin:0;padding-left:20px}
 .lead.how li{margin:5px 0}
+.tz-row{margin:0 0 12px;padding:10px 12px;border:1px solid var(--border);border-radius:10px;background:var(--bg,#f7f6f2)}
+.tz-row select{width:auto;display:inline-block;margin-left:6px}
+.tz-row .msg{display:block;margin:4px 0 0}
 .row .name .about{display:block;font-size:13px;color:var(--text2);line-height:1.45;margin:2px 0 4px;font-weight:400}
 .jump{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:18px}
 .jump a{font-size:12px;font-weight:600;padding:5px 11px;border-radius:20px;border:1px solid var(--border);background:#fff;color:var(--text2);text-decoration:none}
@@ -104,7 +107,7 @@ tr.you td{background:var(--red-light)}
   <div class="lead how">
     <p><b>How this page works.</b> Everything here saves the moment you change it, unless a section has its own Save button. Jump to a section with the buttons below.</p>
     <ol>
-      <li><b>Your alerts:</b> turn each email or text on or off for yourself. Tap ⏰ under an alert to choose the days and hours you want it (Eastern time); outside those, it's skipped for you. These only change what <i>you</i> get.</li>
+      <li><b>Your alerts:</b> turn each email or text on or off for yourself. Pick your time zone, then tap ⏰ under an alert to choose the days and hours you want it; outside those, it's skipped for you. These only change what <i>you</i> get.</li>
       <li><b>Content Editor defaults</b> (publisher): what gets added to every article, like your podcast, related links, promos and ads, and where in the story it goes. Writers can still change it for a single article.</li>
       <li><b>What each role can do</b> and <b>Who can do what</b>: switch features on or off for editors, writers, contributors and viewers. Set each person's role in <a href="/settings">Settings › Team &amp; alerts</a>.</li>
       <li><b>All settings:</b> a map of every setting in the app and where to change it.</li>
@@ -301,8 +304,8 @@ async function loadAlerts(){
   try{
     var r=await fetch('/api/alert-prefs'); var d=await r.json();
     if(!r.ok) throw new Error(d.error||('HTTP '+r.status));
-    SCHED=d.schedules||{};
-    $('alert-list').innerHTML='<div class="sub" style="margin:0 0 6px">Tap <b>⏰</b> under any alert to pick the days and hours you want it (Eastern time), for example weekdays 8am to 10pm. Outside them it\u2019s skipped for you, not saved for later.</div>'+(d.types||[]).map(function(t){
+    SCHED=d.schedules||{}; MYTZ=d.timeZone||'America/New_York';
+    $('alert-list').innerHTML=tzPicker()+'<div class="sub" style="margin:0 0 6px">Tap <b>⏰</b> under any alert to pick the days and hours you want it (in your time zone above), for example weekdays 8am to 10pm. Outside them it\u2019s skipped for you, not saved for later.</div>'+(d.types||[]).map(function(t){
       return '<div class="row"><div class="name"><b>'+esc(t.label)+'</b>'+(t.about?'<span class="about">'+esc(t.about)+'</span>':'<br>')+schedLink(t.key)+'</div><label class="switch"><input type="checkbox" data-t="'+esc(t.key)+'" '+(d.me[t.key]?'checked':'')+' onchange="setAlert(this)"><i></i></label>'+schedEditor(t.key)+'</div>';
     }).join('')+'<div id="hot12-row"></div><div class="sub" id="alert-msg" style="margin:6px 0 0"></div>';
     loadHot12();
@@ -311,8 +314,30 @@ async function loadAlerts(){
 // Days and hours per alert (Jeff, 2026-10-06: "something next to them where
 // you can denote what days of the week you want these actions, and specific
 // time of day preferences"). Saved per person via /api/alert-prefs
-// { type, schedule } (api/_alert-schedule.js); Eastern time.
+// { type, schedule } (api/_alert-schedule.js), in your own time zone (MYTZ).
 var SCHED={}, DAYN=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+// Your time zone (Jeff, 2026-10-07: "add choice of time zone to preferences"):
+// your alert days and hours are read in it. Saved per person (/api/alert-prefs
+// { timeZone }); Eastern until you pick another.
+var MYTZ='America/New_York';
+var TZS=[['America/New_York','Eastern'],['America/Chicago','Central'],['America/Denver','Mountain'],['America/Phoenix','Arizona (no daylight saving)'],['America/Los_Angeles','Pacific'],['America/Anchorage','Alaska'],['Pacific/Honolulu','Hawaii']];
+function tzNow(tz){ try{ return new Date().toLocaleTimeString('en-US',{timeZone:tz,hour:'numeric',minute:'2-digit'}); }catch(e){ return ''; } }
+function tzPicker(){
+  var list=TZS.slice(), here='';
+  try{ here=Intl.DateTimeFormat().resolvedOptions().timeZone||''; }catch(e){}
+  [here,MYTZ].forEach(function(z){ if(z && !list.some(function(x){return x[0]===z;})) list.push([z,z.replace(/_/g,' ').replace(/^.*\//,'')]); });
+  return '<div class="tz-row"><label for="my-tz"><b>Your time zone</b></label> <select id="my-tz" onchange="saveTz(this)">'+
+    list.map(function(x){ return '<option value="'+esc(x[0])+'"'+(x[0]===MYTZ?' selected':'')+'>'+esc(x[1])+' \u00b7 '+esc(tzNow(x[0]))+'</option>'; }).join('')+
+    '</select><span class="msg" id="tz-msg"></span>'+(here && here!==MYTZ?'<div class="sub" style="margin:4px 0 0">This device is set to '+esc(here.replace(/_/g,' '))+'.</div>':'')+'</div>';
+}
+async function saveTz(sel){
+  var m=$('tz-msg'); m.textContent='Saving…';
+  try{
+    var r=await fetch('/api/alert-prefs',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({timeZone:sel.value})});
+    var d=await r.json(); if(!r.ok||d.error) throw new Error(d.error||('HTTP '+r.status));
+    MYTZ=d.timeZone; m.textContent='Saved. Your alert days and hours now use this time zone.';
+  }catch(e){ m.textContent='Couldn\u2019t save: '+e.message; }
+}
 function hmLabel(hm){ var h=+hm.slice(0,2); return (h%12||12)+(hm.slice(3)!=='00'?':'+hm.slice(3):'')+(h<12?' AM':' PM'); }
 function schedText(s){
   if(!s) return 'Any day, any time';

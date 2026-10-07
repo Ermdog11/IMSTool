@@ -11,7 +11,9 @@
 // when it goes to the newsroom email list (digests, roster changes, the
 // Coverage Desk memo), which used to ignore personal switches.
 //
-// Blob alert-schedules.json: { email: { type: { days:[0-6], from:'HH:MM', to:'HH:MM' } } }
+// Blob alert-schedules.json: { email: { _tz: 'America/Chicago', type: { days:[0-6], from:'HH:MM', to:'HH:MM' } } }
+// _tz is the person's own time zone (Jeff, 2026-10-07: "add choice of time
+// zone to preferences"); their days and hours are read in it. No _tz = Eastern.
 // (no entry, or every day with no hours, = any time). Best-effort: a failed
 // read sends to everyone, as before.
 var { get, put } = require('./_site-blob');
@@ -49,17 +51,37 @@ async function set(email, type, schedule) {
   return c;
 }
 
-function etParts(ms) {
-  var p = new Intl.DateTimeFormat('en-US', { timeZone: TZ, weekday: 'short', hour: '2-digit', minute: '2-digit', hourCycle: 'h23' })
+function validTz(tz) {
+  try { if (tz) { new Intl.DateTimeFormat('en-US', { timeZone: tz }); return true; } } catch (e) {}
+  return false;
+}
+
+// One person's time zone ('America/New_York' unless they chose another).
+function tzOf(mine) { return mine && validTz(mine._tz) ? mine._tz : TZ; }
+
+async function setTz(email, tz) {
+  email = String(email || '').toLowerCase();
+  if (!email) throw new Error('email required');
+  if (tz && !validTz(tz)) throw new Error('Unknown time zone.');
+  var all = await load();
+  var mine = all[email] || {};
+  if (tz && tz !== TZ) mine._tz = tz; else delete mine._tz;
+  if (Object.keys(mine).length) all[email] = mine; else delete all[email];
+  await put(PATH, JSON.stringify(all), { access: 'private', addRandomSuffix: false, allowOverwrite: true, contentType: 'application/json' });
+  return mine._tz || TZ;
+}
+
+function etParts(ms, tz) {
+  var p = new Intl.DateTimeFormat('en-US', { timeZone: tz || TZ, weekday: 'short', hour: '2-digit', minute: '2-digit', hourCycle: 'h23' })
     .formatToParts(new Date(ms)).reduce(function (o, x) { o[x.type] = x.value; return o; }, {});
   return { dow: ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].indexOf(p.weekday), hm: String(+p.hour % 24).padStart(2, '0') + ':' + p.minute };
 }
 
 // Is this schedule open at nowMs? A window past midnight (from > to) counts
 // its after-midnight hours toward the day it started.
-function openAt(s, nowMs) {
+function openAt(s, nowMs, tz) {
   if (!s) return true;
-  var t = etParts(nowMs);
+  var t = etParts(nowMs, tz);
   if (!s.from) return s.days.indexOf(t.dow) !== -1;
   if (s.from < s.to) return s.days.indexOf(t.dow) !== -1 && t.hm >= s.from && t.hm < s.to;
   if (t.hm >= s.from) return s.days.indexOf(t.dow) !== -1;
@@ -70,7 +92,7 @@ function openAt(s, nowMs) {
 async function allows(email, type, nowMs, all) {
   all = all || await load();
   var mine = all[String(email || '').toLowerCase()];
-  return openAt(mine && mine[type], nowMs || Date.now());
+  return openAt(mine && mine[type], nowMs || Date.now(), tzOf(mine));
 }
 
 // Recipients for an alert email right now: drops anyone whose schedule for
@@ -99,7 +121,7 @@ async function filter(emails, type, nowMs) {
   } catch (e) { /* switches unknown: keep everyone */ }
   return emails.filter(function (e) {
     var k = String(e).toLowerCase();
-    return !off[k] && openAt(all[k] && all[k][type], nowMs || Date.now());
+    return !off[k] && openAt(all[k] && all[k][type], nowMs || Date.now(), tzOf(all[k]));
   });
 }
 
@@ -111,4 +133,4 @@ async function clearAll(email) {
   await put(PATH, JSON.stringify(all), { access: 'private', addRandomSuffix: false, allowOverwrite: true, contentType: 'application/json' });
 }
 
-module.exports = { clearAll: clearAll, load: load, set: set, allows: allows, filter: filter, openAt: openAt, clean: clean };
+module.exports = { clearAll: clearAll, load: load, set: set, setTz: setTz, tzOf: tzOf, DEFAULT_TZ: TZ, allows: allows, filter: filter, openAt: openAt, clean: clean };
