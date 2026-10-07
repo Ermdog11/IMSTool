@@ -235,6 +235,7 @@ function setAccess(role,key,on){
   access[role]=access[role]||{};
   var def=(accessDefaults[role]||{})[key]!==false;
   if(on===def) delete access[role][key]; else access[role][key]=on;
+  if(role==='contributor') renderPerms();
 }
 async function saveAccess(){
   var b=$('acc-save'), m=$('acc-msg');
@@ -269,12 +270,32 @@ var PERMS=[
   ['Connect analytics and social accounts','publisher'],
   ['Connect the 247Sports login and the Bluesky promo bot','publisher']
 ];
+// Contributors (freelancers) by the switches above: what they get here
+// depends on what the publisher turned on for them (Jeff, 2026-10-07: "add
+// contributor ... it only shows others").
+function contribPerm(i){
+  var on=function(k){ return accOn('contributor',k); }, mon=on('use_monitor'), ed=on('use_editor');
+  switch(i){
+    case 0: return mon&&ed?'yes':ed?'part:The Content Editor only':mon?'part:The News Monitor only':'no';
+    case 1: return 'yes';
+    case 2: return ed?(on('drafts_all')?'yes':'part:Only their own drafts'):'no';
+    case 3: return mon&&on('act_flag_block')?'yes':'no';
+    case 4: return mon&&on('act_x_follow')?'yes':'no';
+    case 5: return mon?'part:Can open it in their own email':'no';
+    default: return 'no';
+  }
+}
 function renderPerms(){
-  var roles=['publisher','editor','writer'];
+  var roles=['publisher','editor','writer','contributor'];
   var rank={publisher:3,editor:2,writer:1,all:1};
   var h='<tr><th>What</th>'+roles.map(function(r){return '<th class="c">'+r.charAt(0).toUpperCase()+r.slice(1)+(r===ROLE?' (you)':'')+'</th>';}).join('')+'</tr>';
-  PERMS.forEach(function(p){
+  PERMS.forEach(function(p,i){
     h+='<tr><td>'+esc(p[0])+'</td>'+roles.map(function(r){
+      if(r==='contributor'){
+        var c=contribPerm(i);
+        if(c.indexOf('part:')===0) return '<td class="c"><span class="part" title="'+esc(c.slice(5))+'">Partly</span></td>';
+        return '<td class="c">'+(c==='yes'?'<span class="yes">✓</span>':'<span class="no">—</span>')+'</td>';
+      }
       var ok=rank[r]>=rank[p[1]];
       if(!ok && p[2]) return '<td class="c"><span class="part" title="'+esc(p[2])+'">Partly</span></td>';
       return '<td class="c">'+(ok?'<span class="yes">✓</span>':'<span class="no">—</span>')+'</td>';
@@ -602,7 +623,7 @@ async function saveEditorDefaults(){
   renderPerms(); renderDir();
   try{ var r=await fetch('/api/site-profile'); var d=await r.json(); profile=(d&&d.profile)||{}; accessDefaults=(d&&d.accessDefaults)||{}; }catch(e){ profile={}; }
   loadEditorDefaults();
-  access=JSON.parse(JSON.stringify(profile.editorAccess||{})); renderAccess();
+  access=JSON.parse(JSON.stringify(profile.editorAccess||{})); renderAccess(); renderPerms();
   loadAlerts();
   if(location.hash){ var t=document.querySelector(location.hash); if(t) t.scrollIntoView(); }
 })();
