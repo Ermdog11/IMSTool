@@ -68,6 +68,12 @@
 
 ## Done
 
+- **2026-10-09 — Roster watch: spelling fixes aren't title changes** (Jeff, screenshot of a Department Change alert: "How does this constitute a title change?" It showed "Assistant Coach/Recruitng Coordinator → Assistant Coach/Recruiting Coordinator", a typo fixed on the athletics site). `api/_roster.js` `sameTitle()` now decides title changes, ignoring:
+  - case, punctuation and spacing;
+  - the same words in another order ("and", "of" and "the" aside);
+  - small spelling fixes inside long words: at most 2 letters different in a word of 6+ letters, and the word keeps its first two letters.
+
+  Any added, dropped or different word still alerts: Assistant → Associate, Interim, Co-, Offensive → Defensive, Men's → Women's. Checked on 12 examples. The corrected spelling is saved, so the next check compares against it.
 - **2026-10-09 — Records requests know student privacy law and the standard denial rules** (Jeff: "The public records tool should understand student privacy law and standard rules so it doesn't suggest requests that will automatically be denied"). `api/_records.js` `DENIAL_RULES` is now part of every draft's instructions:
   - **FERPA** (20 U.S.C. 1232g; 34 CFR Part 99): grades, eligibility, transcripts, an athlete's aid, discipline and Title IX files, training and injury records. Redacting the name doesn't help when the story already identifies the student. What can be asked for instead: aggregate data, directory information, final results under 99.31(a)(14), NCAA correspondence with student information redacted.
   - **Recruits and minors.**
