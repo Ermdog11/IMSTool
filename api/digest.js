@@ -21,9 +21,14 @@ const buildDigestEmailHTML = (alerts, date, beat, planHTML) => {
     sectionsHTML += '<div style="font-size:12px;font-weight:700;color:#888;text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px;border-bottom:2px solid #2563eb;padding-bottom:5px;">' + title + '</div>';
     items.forEach(function(item) {
       sectionsHTML += '<div style="padding:10px 0;border-bottom:1px solid #e8e6e1;">';
-      sectionsHTML += '<div style="font-size:14px;font-weight:600;color:#1a1a1a;margin-bottom:4px;">' + item.headline + '</div>';
+      // Headlines open the story (Jeff, 2026-10-09: "these headlines should be
+      // clickable in nightly digest"), plus a "Read it" link by the source.
+      var link = /^https?:\/\//i.test(item.url || '') ? item.url : '';
+      sectionsHTML += '<div style="font-size:14px;font-weight:600;color:#1a1a1a;margin-bottom:4px;">' +
+        (link ? '<a href="' + esc(link) + '" style="color:#1a1a1a;text-decoration:none;">' + esc(item.headline) + '</a>' : esc(item.headline)) + '</div>';
       if (item.summary) sectionsHTML += '<div style="font-size:12px;color:#555;line-height:1.5;">' + item.summary + '</div>';
-      sectionsHTML += '<div style="font-size:11px;color:#888;margin-top:4px;">' + item.source + ' &middot; ' + item.time + '</div>';
+      sectionsHTML += '<div style="font-size:11px;color:#888;margin-top:4px;">' + esc(item.source) + ' &middot; ' + esc(item.time) +
+        (link ? ' &middot; <a href="' + esc(link) + '" style="color:#2563eb;font-weight:600;text-decoration:none;">Read it &rsaquo;</a>' : '') + '</div>';
       sectionsHTML += require('./_story-ratings').emailLinks(item);
       sectionsHTML += '</div>';
     });
