@@ -307,6 +307,9 @@ body.no-opps .acc-opps,body.no-write .acc-write,body.no-flag .acc-flag,body.no-f
   .chip { min-height: 36px; }
 }
 
+/* Gameplan icon: a thin X and O, like a coach's play diagram (Jeff, 2026-10-09: "make them cooler looking, more sleek"). */
+.gp-ico{width:1.15em;height:1.15em;vertical-align:-0.2em;display:inline-block}
+.mi .gp-ico{width:1.35em;height:1.35em}
 /* Customizable card layouts (Home, Gameplan) */
 .home-hello { display: flex; justify-content: space-between; align-items: flex-start; gap: 10px; }
 .lay-btn { font: inherit; font-size: 13px; font-weight: 600; border: 1px solid var(--border); background: #fff; color: var(--fg); border-radius: 16px; padding: 6px 12px; cursor: pointer; white-space: nowrap; }
@@ -365,6 +368,12 @@ body.no-opps .acc-opps,body.no-write .acc-write,body.no-flag .acc-flag,body.no-f
 .hc-quick { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
 .hc-quick a { display: flex; flex-direction: column; align-items: center; gap: 4px; text-align: center; font-size: 12px; font-weight: 600; color: var(--fg); text-decoration: none; background: var(--bg2, #f7f6f2); border-radius: 10px; padding: 10px 4px; min-height: 64px; justify-content: center; }
 .hc-quick a span { font-size: 22px; line-height: 1; }
+.hc-searchcard { grid-column: 1 / -1; }
+.hc-searchcard .home-search { margin: 0; }
+.sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
+.hc-quick a { position: relative; }
+.tile-x { position: absolute; top: 3px; right: 3px; width: 20px; height: 20px; border-radius: 50%; border: 0; background: #b91c1c; color: #fff; font-size: 11px; line-height: 20px; padding: 0; cursor: pointer; }
+.tile-add { grid-column: 1 / -1; font: inherit; font-size: 13px; padding: 7px 9px; border: 1px dashed var(--border); border-radius: 10px; background: transparent; color: var(--fg); }
 .hc-quick a em { font-style: normal; font-weight: 500; color: var(--text3); font-size: 11px; }
 .hc-list { margin-top: 10px; }
 .hc-item { display: block; padding: 8px 0; border-top: 1px solid var(--border); font-size: 13.5px; color: inherit; text-decoration: none; }
@@ -415,7 +424,7 @@ body.no-sh #sourceHealthCard{display:none}
   <button class="nav-tab" id="tab-btn-10" onclick="switchTab(10)">Settings</button>
   <button class="nav-tab" id="tab-btn-11" onclick="switchTab(11)">📈 Analytics</button>
   <button class="nav-tab" id="tab-btn-17" onclick="switchTab(17)">💰 Advertising</button>
-  <button class="nav-tab" id="tab-btn-18" onclick="switchTab(18)">📋 Gameplan</button>
+  <button class="nav-tab" id="tab-btn-18" onclick="switchTab(18)"><svg class="gp-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M2.5 8.5l6.5 6.5M9 8.5l-6.5 6.5"/><circle cx="17.5" cy="11.75" r="3.75"/></svg> Gameplan</button>
   <button class="nav-tab" id="tab-btn-12" onclick="switchTab(12)">🏈 Roster watch</button>
   <button class="nav-tab" id="tab-btn-13" onclick="switchTab(13)">👀 Opp Watch</button>
   <button class="nav-tab" id="tab-btn-14" onclick="switchTab(14)">📅 Calendar</button>
@@ -424,7 +433,7 @@ body.no-sh #sourceHealthCard{display:none}
 <!-- Phone top row (Jeff, 2026-10-06: "another row of tabs like the bottom ones at the top") -->
 <nav class="mtop" id="mtop" aria-label="More sections">
   <button data-tab="17" onclick="switchTab(17)"><span class="mi">💰</span>Advertising</button>
-  <button data-tab="18" onclick="switchTab(18)"><span class="mi">📋</span>Gameplan</button>
+  <button data-tab="18" onclick="switchTab(18)"><span class="mi"><svg class="gp-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M2.5 8.5l6.5 6.5M9 8.5l-6.5 6.5"/><circle cx="17.5" cy="11.75" r="3.75"/></svg></span>Gameplan</button>
   <button data-tab="11" onclick="switchTab(11)"><span class="mi">📈</span>Analytics</button>
   <button data-tab="14" onclick="switchTab(14)"><span class="mi">📅</span>Calendar</button>
 </nav>
@@ -768,7 +777,7 @@ body.no-sh #sourceHealthCard{display:none}
     <p style="color:var(--muted);font-size:.85rem;margin:4px 0 0;max-width:60ch;">Connect where your traffic and engagement data lives. Once a source is linked, this page shows what's working — best day and time to publish, which topics and headline styles land, per-writer performance — and answers questions like "what's been working best for us this month?"</p>
   </div>
 
-  <div class="notice" style="margin-bottom:14px;">📋 Questions about your audience and the cross-channel strategy read moved to <a href="/gameplan" onclick="switchTab(18);return false"><b>Gameplan</b></a>.</div>
+  <div class="notice" style="margin-bottom:14px;"><svg class="gp-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M2.5 8.5l6.5 6.5M9 8.5l-6.5 6.5"/><circle cx="17.5" cy="11.75" r="3.75"/></svg> Questions about your audience and the cross-channel strategy read moved to <a href="/gameplan" onclick="switchTab(18);return false"><b>Gameplan</b></a>.</div>
 
   <div class="settings-card">
     <h3><i class="ti ti-chart-line"></i> Insights</h3>
@@ -946,12 +955,14 @@ body.no-sh #sourceHealthCard{display:none}
      search. It needs to display the key elements") -->
 <div class="page" id="page-16">
   <div class="home-hello"><div><h2 id="homeHello">Welcome</h2><div class="home-date" id="homeDate"></div></div><button class="lay-btn" onclick="toggleLayoutEdit('home',this)">✏️ Customize</button></div>
-  <form class="home-search" onsubmit="homeSearch(event)">
-    <i class="ti ti-search"></i>
-    <input id="homeSearchInput" type="search" placeholder="Search the latest news…" autocomplete="off" enterkeyhint="search">
-    <button type="submit">Search</button>
-  </form>
   <div class="home-grid lay-cards" id="homeCards" data-layout="home">
+    <section class="hc-searchcard" data-card="search"><h3 class="sr-only">🔎 Search</h3>
+      <form class="home-search" onsubmit="homeSearch(event)">
+        <i class="ti ti-search"></i>
+        <input id="homeSearchInput" type="search" placeholder="Search the latest news…" autocomplete="off" enterkeyhint="search">
+        <button type="submit">Search</button>
+      </form>
+    </section>
     <section class="home-card hc-ask" data-card="ask">
       <div class="hc-head"><h3>💬 Ask CoPublisher</h3></div>
       <form class="home-ask" onsubmit="homeAsk(event)">
@@ -969,12 +980,7 @@ body.no-sh #sourceHealthCard{display:none}
     </section>
     <section class="home-card hc-write" data-card="write" data-editor="1">
       <div class="hc-head"><h3>✍️ Content Editor</h3><a href="/editor">Open ›</a></div>
-      <div class="hc-quick">
-        <a href="/editor"><span>📝</span>Edit a story</a>
-        <a href="/transcribe"><span>🎙️</span>Transcribe</a>
-        <a href="/editor#6"><span>📲</span>From social</a>
-        <a href="/editor#3"><span>🗂️</span>Drafts</a>
-      </div>
+      <div class="hc-quick" data-tiles="write"></div>
       <div id="homeDrafts" class="hc-list"></div>
     </section>
     <section class="home-card hc-chat" data-card="chat" data-tab="3">
@@ -987,25 +993,11 @@ body.no-sh #sourceHealthCard{display:none}
     </section>
     <section class="home-card hc-money" data-card="money">
       <div class="hc-head"><h3>💰 Advertising &amp; audience</h3></div>
-      <div class="hc-quick">
-        <a href="/advertising" data-tab="17" onclick="switchTab(17);return false"><span>💵</span>Advertising<em id="homeAdsCount"></em></a>
-        <a href="/analytics" data-tab="11" onclick="switchTab(11);return false"><span>📈</span>Analytics</a>
-        <a href="/gameplan" data-tab="18" onclick="switchTab(18);return false"><span>📋</span>Gameplan</a>
-        <a href="/leaderboard" data-tab="15" onclick="switchTab(15);return false"><span>🏆</span>Leaderboard</a>
-      </div>
+      <div class="hc-quick" data-tiles="money"></div>
     </section>
     <section class="home-card hc-more" data-card="more">
       <div class="hc-head"><h3>🧭 Your beat</h3></div>
-      <div class="hc-quick">
-        <a href="/backlog" data-tab="4" onclick="switchTab(4);return false"><span>💡</span>Story ideas</a>
-        <a href="/roster" data-tab="12" onclick="switchTab(12);return false"><span>🏈</span>Roster watch</a>
-        <a href="/opps" data-tab="13" onclick="switchTab(13);return false"><span>👀</span>Opp Watch</a>
-        <a href="/digest" data-tab="1" onclick="switchTab(1);return false"><span>🗞️</span>Digest</a>
-        <a href="/podcasts" data-tab="7" onclick="switchTab(7);return false"><span>🎧</span>Podcasts</a>
-        <a href="/youtube" data-tab="8" onclick="switchTab(8);return false"><span>📺</span>YouTube</a>
-        <a href="/settings" data-tab="10" onclick="switchTab(10);return false"><span>⚙️</span>Settings</a>
-        <a href="/preferences"><span>🔔</span>My alerts</a>
-      </div>
+      <div class="hc-quick" data-tiles="more"></div>
     </section>
   </div>
 </div>
@@ -1042,7 +1034,7 @@ body.no-sh #sourceHealthCard{display:none}
 <!-- GAMEPLAN (page-18, formerly "Xs and Os"; renamed 2026-10-09; Jeff, 2026-10-06: "where the ombudsman and the social
      media and analytics feedback and questions will live") -->
 <div class="page" id="page-18">
-  <div class="hc-head" style="margin-bottom:10px;"><h2 style="margin:0;font-size:20px;">📋 Gameplan</h2><button class="lay-btn" onclick="toggleLayoutEdit('xos',this)">✏️ Customize</button></div>
+  <div class="hc-head" style="margin-bottom:10px;"><h2 style="margin:0;font-size:20px;"><svg class="gp-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M2.5 8.5l6.5 6.5M9 8.5l-6.5 6.5"/><circle cx="17.5" cy="11.75" r="3.75"/></svg> Gameplan</h2><button class="lay-btn" onclick="toggleLayoutEdit('xos',this)">✏️ Customize</button></div>
   <div style="font-size:13px;color:var(--text2);margin:-4px 0 14px;max-width:80ch;">The film room: how our coverage, social posts and audience numbers are doing, and what to change.</div>
   <div id="xosCards" class="lay-cards" data-layout="xos">
   <div class="settings-card" data-card="social">
@@ -1371,7 +1363,8 @@ async function loadHome() {
     }).catch(() => { document.getElementById('homeDrafts').innerHTML = ''; });
     f('/api/site-profile').then(r => r.json()).then(d => {
       const n = ((d.profile && d.profile.ads && d.profile.ads.units) || []).length;
-      document.getElementById('homeAdsCount').textContent = n ? n + ' ad slot' + (n === 1 ? '' : 's') : 'Set up ads';
+      homeAdsText = n ? n + ' ad slot' + (n === 1 ? '' : 's') : 'Set up ads';
+      const el = document.getElementById('homeAdsCount'); if (el) el.textContent = homeAdsText;
     }).catch(() => {});
   }
   if (monitorCanUse(3)) {
@@ -1485,7 +1478,49 @@ async function loadAdvertising() {
 // so they can move them up or down or remove" them). Each person's order and
 // hidden cards per page, saved to their account (api/layout.js) with a local
 // copy so the page arranges itself instantly.
+const GP_ICON = '<svg class="gp-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M2.5 8.5l6.5 6.5M9 8.5l-6.5 6.5"/><circle cx="17.5" cy="11.75" r="3.75"/></svg>';
 const LAYOUTS = {};
+// Home shortcut tiles: every tool, and the ones each card starts with. Each
+// person adds or removes them in Customize (Jeff, 2026-10-09: "add or remove
+// tools if they don't want to use them"); saved with their layout as tiles.
+const HOME_TOOLS = {
+  news: ['📰', 'Latest news', '/alerts', 0], edit: ['📝', 'Edit a story', '/editor', 'ed'], transcribe: ['🎙️', 'Transcribe', '/transcribe', 'ed'],
+  fromsocial: ['📲', 'From social', '/editor#6', 'ed'], drafts: ['🗂️', 'Drafts', '/editor#3', 'ed'], housestyle: ['📘', 'House style', '/house-style', 'ed'],
+  advertising: ['💵', 'Advertising', '/advertising', 17], analytics: ['📈', 'Analytics', '/analytics', 11], gameplan: [GP_ICON, 'Gameplan', '/gameplan', 18],
+  leaderboard: ['🏆', 'Leaderboard', '/leaderboard', 15], ideas: ['💡', 'Story ideas', '/backlog', 4], roster: ['🏈', 'Roster watch', '/roster', 12],
+  opps: ['👀', 'Opp Watch', '/opps', 13], digest: ['🗞️', 'Digest', '/digest', 1], social: ['🔥', 'Hot social', '/social', 2], chat: ['💬', 'Team chat', '/chat', 3],
+  trending: ['📊', 'Trending', '/trending', 6], podcasts: ['🎧', 'Podcasts', '/podcasts', 7], youtube: ['📺', 'YouTube', '/youtube', 8], bluesky: ['🦋', 'Bluesky', '/bluesky', 9],
+  calendar: ['📅', 'Calendar', '/calendar', 14], settings: ['⚙️', 'Settings', '/settings', 10], myalerts: ['🔔', 'My alerts', '/preferences', null], setup: ['🧙', 'Newsroom setup', '/setup', null]
+};
+const HOME_TILE_DEFAULTS = { write: ['edit', 'transcribe', 'fromsocial', 'drafts'], money: ['advertising', 'analytics', 'gameplan', 'leaderboard'], more: ['ideas', 'roster', 'opps', 'digest', 'podcasts', 'youtube', 'settings', 'myalerts'] };
+let homeAdsText = '';
+function homeToolAllowed(id) {
+  const t = HOME_TOOLS[id]; if (!t) return false;
+  if (t[3] === 'ed') { const s = (window.IMSAuth && IMSAuth.state) || {}; return !(s.access && s.access.use_editor === false); }
+  return t[3] === null || monitorCanUse(t[3]);
+}
+function homeTiles(card) { const L = layoutGet('home'); return ((L.tiles && L.tiles[card]) || HOME_TILE_DEFAULTS[card] || []).filter(id => HOME_TOOLS[id]); }
+function renderHomeTiles() {
+  const editing = (layoutBox('home') || { classList: { contains: () => false } }).classList.contains('lay-editing');
+  document.querySelectorAll('#homeCards [data-tiles]').forEach(box => {
+    const card = box.dataset.tiles, list = homeTiles(card).filter(homeToolAllowed);
+    box.innerHTML = list.map(id => {
+      const t = HOME_TOOLS[id];
+      return '<a href="' + t[2] + '"' + (typeof t[3] === 'number' ? ' onclick="switchTab(' + t[3] + ');return false"' : '') + '><span>' + t[0] + '</span>' + escapeHtml(t[1]) +
+        (id === 'advertising' ? '<em id="homeAdsCount">' + escapeHtml(homeAdsText) + '</em>' : '') +
+        (editing ? '<button type="button" class="tile-x" title="Remove" onclick="event.preventDefault();event.stopPropagation();homeTileRemove(\'' + card + '\',\'' + id + '\')">✕</button>' : '') + '</a>';
+    }).join('') + (editing ? '<select class="tile-add" onchange="homeTileAdd(\'' + card + '\',this.value)"><option value="">＋ Add a shortcut…</option>' +
+      Object.keys(HOME_TOOLS).filter(id => homeToolAllowed(id) && list.indexOf(id) === -1).map(id => '<option value="' + id + '">' + escapeHtml(HOME_TOOLS[id][1]) + '</option>').join('') + '</select>' : '') +
+      (!list.length && !editing ? '<div class="hc-empty" style="grid-column:1/-1">No shortcuts here. Tap ✏️ Customize to add some.</div>' : '');
+  });
+}
+function homeSetTiles(card, list) {
+  const L = Object.assign({ order: [], hidden: [] }, layoutGet('home'));
+  L.tiles = Object.assign({}, L.tiles || {}); L.tiles[card] = list;
+  LAYOUTS.home = L; layoutSave('home'); renderHomeTiles();
+}
+function homeTileRemove(card, id) { homeSetTiles(card, homeTiles(card).filter(x => x !== id)); }
+function homeTileAdd(card, id) { if (id) homeSetTiles(card, homeTiles(card).concat([id])); }
 function layoutGet(page) {
   if (LAYOUTS[page]) return LAYOUTS[page];
   try { const l = JSON.parse(localStorage.getItem('cp-layout-' + page) || 'null'); if (l) return l; } catch (e) {}
@@ -1503,11 +1538,13 @@ function applyLayout(page) {
     c.classList.toggle('lay-hidden', (L.hidden || []).indexOf(c.dataset.card) !== -1);
   });
   if (box.classList.contains('lay-editing')) layoutControls(page);
+  if (page === 'home') renderHomeTiles();
 }
 function layoutSave(page) {
   const box = layoutBox(page); if (!box) return;
   const cards = layoutCards(box);
-  const L = { order: cards.map(c => c.dataset.card), hidden: cards.filter(c => c.classList.contains('lay-hidden')).map(c => c.dataset.card) };
+  const prev = layoutGet(page);
+  const L = { order: cards.map(c => c.dataset.card), hidden: cards.filter(c => c.classList.contains('lay-hidden')).map(c => c.dataset.card), tiles: prev.tiles || {} };
   LAYOUTS[page] = L;
   try { localStorage.setItem('cp-layout-' + page, JSON.stringify(L)); } catch (e) {}
   const f = window.IMSAuth ? IMSAuth.authFetch : fetch;
@@ -1549,21 +1586,23 @@ function toggleLayoutEdit(page, btn) {
   let bar = document.getElementById('layBar-' + page);
   if (!bar) {
     bar = document.createElement('div'); bar.id = 'layBar-' + page; bar.className = 'lay-bar';
-    bar.innerHTML = '<span style="flex:1;min-width:180px">Move cards with ↑ ↓, or remove the ones you don\'t use (they stay listed here, faded, so you can bring them back). Only you see your layout.</span><button type="button" onclick="layoutReset(\'' + page + '\')">Reset to default</button>';
+    bar.innerHTML = '<span style="flex:1;min-width:180px">Move cards with ↑ ↓, or remove the ones you don\'t use (they stay listed here, faded, so you can bring them back). In the shortcut cards, tap ✕ to drop a tool or pick one from ＋ Add a shortcut. Only you see your layout.</span><button type="button" onclick="layoutReset(\'' + page + '\')">Reset to default</button>';
     box.parentNode.insertBefore(bar, box);
   }
   bar.classList.toggle('on', on);
   if (on) layoutControls(page);
+  if (page === 'home') renderHomeTiles();
 }
 function layoutReset(page) {
   if (!confirm('Put every card back in its original place?')) return;
   const box = layoutBox(page);
   layoutCards(box).sort((a, b) => (+a.dataset.defIdx) - (+b.dataset.defIdx)).forEach(c => { box.appendChild(c); c.classList.remove('lay-hidden'); });
-  LAYOUTS[page] = { order: [], hidden: [] };
+  LAYOUTS[page] = { order: [], hidden: [], tiles: {} };
   try { localStorage.removeItem('cp-layout-' + page); } catch (e) {}
   const f = window.IMSAuth ? IMSAuth.authFetch : fetch;
   f('/api/layout', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ page: page, reset: true }) }).catch(() => {});
   layoutControls(page);
+  if (page === 'home') renderHomeTiles();
 }
 function loadLayouts() {
   const f = window.IMSAuth ? IMSAuth.authFetch : fetch;
