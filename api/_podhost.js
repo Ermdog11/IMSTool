@@ -15,9 +15,17 @@
 // status=draft. The audio streams from Vercel Blob straight to the host's
 // upload URL (no 4.5MB request limit, nothing held in memory).
 //
-// Hosts with no public upload API (Amperwave, Megaphone without an enterprise
-// key, Libsyn, Spreaker, Simplecast...) aren't here: Pod-slap still writes the
-// title and description for them and the person uploads by hand.
+// Megaphone and Spreaker were added the same day (Jeff: "Yes. And uploads for
+// any other platform that will allow us to have the app post drafts
+// autonomously"). Megaphone downloads the audio itself, from a signed Blob
+// link good for 24 hours (keepFile: the file stays until the 2-day sweep).
+//
+// Hosts with no public upload API, or none that can save a draft (Amperwave,
+// Libsyn, Simplecast, Acast, Spotify for Creators...), aren't here: Pod-slap
+// still writes the title and description for them and the person uploads by
+// hand. Captivate, RSS.com, Blubrry and Omny have APIs but no confirmed way to
+// save an unpublished draft (or need keys issued by their support team); add
+// them here once confirmed.
 var https = require('https');
 var { Readable } = require('stream');
 var UA = 'CoPublisherAI Pod-slap (https://ims-tool.vercel.app)';
@@ -167,5 +175,111 @@ var podbean = {
   }
 };
 
-var HOSTS = { buzzsprout: buzzsprout, transistor: transistor, podbean: podbean };
+// The same, as a multipart form upload (field `field`), streamed.
+async function postMultipart(url, headers, fields, field, file) {
+  var blob = require('@vercel/blob');
+  var got = await blob.get(file.pathname, { access: 'private', useCache: false });
+  if (!got || got.statusCode !== 200 || !got.stream) throw new Error('The uploaded file is gone. Slap it in again.');
+  var b = '----podslap' + Date.now().toString(36);
+  var pre = Object.keys(fields || {}).map(function (k) { return '--' + b + '\r\nContent-Disposition: form-data; name="' + k + '"\r\n\r\n' + fields[k] + '\r\n'; }).join('') +
+    '--' + b + '\r\nContent-Disposition: form-data; name="' + field + '"; filename="' + file.filename.replace(/"/g, '') + '"\r\nContent-Type: ' + file.contentType + '\r\n\r\n';
+  var post = '\r\n--' + b + '--\r\n';
+  return new Promise(function (resolve, reject) {
+    var u = new URL(url);
+    var req = https.request({ method: 'POST', hostname: u.hostname, path: u.pathname + u.search, port: u.port || 443,
+      headers: Object.assign({}, headers, { 'Content-Type': 'multipart/form-data; boundary=' + b, 'Content-Length': Buffer.byteLength(pre) + file.size + Buffer.byteLength(post) }) }, function (res) {
+      var body = '';
+      res.on('data', function (c) { if (body.length < 200000) body += c; });
+      res.on('end', function () {
+        var d = null; try { d = JSON.parse(body); } catch (e) { d = { message: body.slice(0, 200) }; }
+        res.statusCode >= 200 && res.statusCode < 300 ? resolve(d) : reject(fail('Upload', { status: res.statusCode }, d));
+      });
+    });
+    req.on('error', reject);
+    req.setTimeout(280000, function () { req.destroy(new Error('Upload to the host timed out.')); });
+    req.write(pre);
+    var src = Readable.fromWeb(got.stream);
+    src.on('error', reject);
+    src.on('end', function () { req.end(post); });
+    src.pipe(req, { end: false });
+  });
+}
+
+// A link the host can download the file from for the next 24 hours (private
+// Blob, signed; nobody else can guess it).
+async function signedLink(pathname) {
+  var blob = require('@vercel/blob');
+  var until = Date.now() + 24 * 3600000;
+  var tok = await blob.issueSignedToken({ pathname: pathname, operations: ['get'], validUntil: until });
+  var out = await blob.presignUrl(tok, { operation: 'get', pathname: pathname, validUntil: until });
+  return out.presignedUrl;
+}
+
+// ── Megaphone: API token (Settings › API token) + network and podcast ─────
+// cms.megaphone.fm/api. The episode is created with draft:true (drafts stay
+// out of the feed) and backgroundAudioFileUrl, which Megaphone downloads and
+// processes. showId is "networkId/podcastId".
+var megaphone = {
+  name: 'Megaphone',
+  keepFile: true,
+  keyHelp: 'In Megaphone: your name (top right) › Settings › API Token. Copy the token.',
+  dashboard: function (cred) { var p = String(cred.showId || '').split('/'); return 'https://cms.megaphone.fm/networks/' + p[0] + '/podcasts/' + p[1] + '/episodes'; },
+  h: function (cred) { return { Authorization: 'Token token="' + cred.secret + '"', 'User-Agent': UA, Accept: 'application/json', 'Content-Type': 'application/json' }; },
+  shows: async function (cred) {
+    var nets = await json('Megaphone', 'https://cms.megaphone.fm/api/networks', { headers: this.h(cred) });
+    var out = [], self = this;
+    for (var i = 0; i < (nets || []).length && i < 10; i++) {
+      var pods = await json('Megaphone', 'https://cms.megaphone.fm/api/networks/' + nets[i].id + '/podcasts?per_page=100', { headers: self.h(cred) });
+      (pods || []).forEach(function (p) { out.push({ id: nets[i].id + '/' + p.id, title: (p.title || p.id) + (nets.length > 1 ? ' (' + (nets[i].title || 'network') + ')' : '') }); });
+    }
+    return out;
+  },
+  base: function (cred) { var p = String(cred.showId || '').split('/'); return 'https://cms.megaphone.fm/api/networks/' + encodeURIComponent(p[0]) + '/podcasts/' + encodeURIComponent(p[1]) + '/episodes'; },
+  create: async function (cred, file, ep) {
+    var link = await signedLink(file.pathname);
+    var e = await json('Megaphone', this.base(cred), { method: 'POST', headers: this.h(cred),
+      body: JSON.stringify({ title: ep.title, summary: ep.description.replace(/\n/g, '<br>'), draft: true, backgroundAudioFileUrl: link }) });
+    return { id: String(e.id || ''), url: this.dashboard(cred) };
+  },
+  update: async function (cred, id, ep) {
+    await json('Megaphone', this.base(cred) + '/' + encodeURIComponent(id), { method: 'PUT', headers: this.h(cred),
+      body: JSON.stringify({ title: ep.title, summary: ep.description.replace(/\n/g, '<br>'), draft: true }) });
+    return {};
+  }
+};
+
+// ── Spreaker: access token (Spreaker app) ──────────────────────────────────
+// POST /v2/episodes/drafts {title, show_id} -> upload media_file to the draft
+// -> description/tags. A draft isn't published until someone publishes it.
+var spreaker = {
+  name: 'Spreaker',
+  keyHelp: 'In Spreaker: developers.spreaker.com › create an app, then copy its access token (OAuth).',
+  dashboard: function () { return 'https://www.spreaker.com/cms/episodes'; },
+  h: function (cred) { return { Authorization: 'Bearer ' + cred.secret, 'User-Agent': UA, Accept: 'application/json' }; },
+  shows: async function (cred) {
+    var me = await json('Spreaker', 'https://api.spreaker.com/v2/me', { headers: this.h(cred) });
+    var uid = me.response && me.response.user && me.response.user.user_id;
+    if (!uid) throw new Error('Spreaker didn\'t accept that token.');
+    var d = await json('Spreaker', 'https://api.spreaker.com/v2/users/' + uid + '/shows?limit=100', { headers: this.h(cred) });
+    return ((d.response && d.response.items) || []).map(function (x) { return { id: String(x.show_id), title: x.title || ('Show ' + x.show_id) }; });
+  },
+  meta: function (ep) { return new URLSearchParams({ title: ep.title, description: ep.description, tags: (ep.tags || []).join(',') }); },
+  create: async function (cred, file, ep) {
+    var d = await json('Spreaker', 'https://api.spreaker.com/v2/episodes/drafts', { method: 'POST',
+      headers: Object.assign(this.h(cred), { 'Content-Type': 'application/x-www-form-urlencoded' }),
+      body: new URLSearchParams({ title: ep.title, show_id: cred.showId }).toString() });
+    var id = d.response && d.response.episode && d.response.episode.episode_id;
+    if (!id) throw new Error('Spreaker didn\'t create the draft.');
+    await postMultipart('https://api.spreaker.com/v2/episodes/' + id, this.h(cred), {}, 'media_file', file);
+    await this.update(cred, id, ep);
+    return { id: String(id), url: this.dashboard() };
+  },
+  update: async function (cred, id, ep) {
+    await json('Spreaker', 'https://api.spreaker.com/v2/episodes/' + encodeURIComponent(id), { method: 'POST',
+      headers: Object.assign(this.h(cred), { 'Content-Type': 'application/x-www-form-urlencoded' }), body: this.meta(ep).toString() });
+    return {};
+  }
+};
+
+var HOSTS = { buzzsprout: buzzsprout, transistor: transistor, podbean: podbean, megaphone: megaphone, spreaker: spreaker };
 module.exports = { HOSTS: HOSTS, get: function (k) { return HOSTS[k] || null; } };

@@ -2746,6 +2746,7 @@ async function fsWrite(){
 // on the connected podcast host as an unpublished draft. Hosts without an
 // upload API get everything ready to paste instead.
 var ps={info:null,busy:false,path:'',name:'',out:null,draft:null};
+var PS_HOSTS=['buzzsprout','transistor','podbean','megaphone','spreaker'];
 function psFetch(url,opts){ return (window.IMSAuth?IMSAuth.authFetch:fetch)(url,opts); }
 async function psPost(body){
   var r=await psFetch('/api/podslap',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
@@ -2762,10 +2763,10 @@ function psHostName(){ var c=ps.info&&ps.info.connection; return c?c.name:''; }
 function psRenderConn(open){
   var i=ps.info||{}, c=i.connection, el=document.getElementById('ps-conn'), h='';
   if(c) h='<div style="padding:10px 12px;border-radius:8px;background:#ecfdf5;font-size:13.5px">✅ Connected to <b>'+esc(c.name)+'</b>'+(c.showName?' · '+esc(c.showName):'')+'. Episodes go there as unpublished drafts.'+(i.canConnect?' <a href="#" onclick="psRenderConn(true);return false">Change</a>':'')+'</div>';
-  else if(i.platform&&i.platformName&&['buzzsprout','transistor','podbean'].indexOf(i.platform)<0) h='<div style="padding:10px 12px;border-radius:8px;background:#fff8e1;font-size:13.5px">Your podcast is on <b>'+esc(i.platformName)+'</b>, which doesn’t let apps upload episodes. Pod-slap will still listen to it and write the title, description and chapters, ready to paste when you upload it in '+esc(i.platformName)+'.'+(i.canConnect?' <a href="#" onclick="psRenderConn(true);return false">Also on Buzzsprout, Transistor or Podbean?</a>':'')+'</div>';
-  else h='<div style="padding:10px 12px;border-radius:8px;background:#f3f4f6;font-size:13.5px">'+(i.canConnect?'Connect your podcast host below and Pod-slap will save each episode there as a draft. Without one, it still writes the title and description for you to paste.':'No podcast host is connected yet, so Pod-slap will write the title and description for you to paste. The publisher can connect Buzzsprout, Transistor or Podbean.')+'</div>';
-  if(i.canConnect&&(open||!c&&!(i.platform&&['buzzsprout','transistor','podbean'].indexOf(i.platform)<0))){
-    var hs=i.hosts||[], cur=(c&&c.platform)||(['buzzsprout','transistor','podbean'].indexOf(i.platform)>=0?i.platform:'buzzsprout');
+  else if(i.platform&&i.platformName&&PS_HOSTS.indexOf(i.platform)<0) h='<div style="padding:10px 12px;border-radius:8px;background:#fff8e1;font-size:13.5px">Your podcast is on <b>'+esc(i.platformName)+'</b>, which doesn’t let apps upload episodes. Pod-slap will still listen to it and write the title, description and chapters, ready to paste when you upload it in '+esc(i.platformName)+'.'+(i.canConnect?' <a href="#" onclick="psRenderConn(true);return false">Also on Buzzsprout, Transistor, Podbean, Megaphone or Spreaker?</a>':'')+'</div>';
+  else h='<div style="padding:10px 12px;border-radius:8px;background:#f3f4f6;font-size:13.5px">'+(i.canConnect?'Connect your podcast host below and Pod-slap will save each episode there as a draft. Without one, it still writes the title and description for you to paste.':'No podcast host is connected yet, so Pod-slap will write the title and description for you to paste. The publisher can connect Buzzsprout, Transistor, Podbean, Megaphone or Spreaker.')+'</div>';
+  if(i.canConnect&&(open||!c&&!(i.platform&&PS_HOSTS.indexOf(i.platform)<0))){
+    var hs=i.hosts||[], cur=(c&&c.platform)||(PS_HOSTS.indexOf(i.platform)>=0?i.platform:'buzzsprout');
     h+='<div style="border:1px solid var(--border);border-radius:8px;padding:12px;margin-top:8px"><b style="font-size:13.5px">Connect your podcast host</b>'+
       '<div class="row" style="margin-top:6px;align-items:flex-end"><div><label style="margin-top:0">Host</label><select id="ps-host" onchange="psHostHelp()">'+hs.map(function(x){return '<option value="'+x.key+'"'+(x.key===cur?' selected':'')+'>'+esc(x.name)+'</option>';}).join('')+'</select></div>'+
       '<div id="ps-cid-w" style="flex:1;min-width:180px"><label style="margin-top:0">Client ID</label><input id="ps-cid" autocomplete="off"></div>'+

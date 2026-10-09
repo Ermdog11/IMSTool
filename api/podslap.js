@@ -172,7 +172,8 @@ module.exports = async function handler(req, res) {
       if (!head) return res.status(404).json({ error: 'The uploaded file is gone. Slap it in again.' });
       var filename = String(body.filename || path.split('/').pop()).replace(/[^A-Za-z0-9._-]+/g, '-').slice(-100) || 'episode.mp3';
       var made = await host.create(cred(conn), { pathname: path, size: head.size, contentType: head.contentType || 'audio/mpeg', filename: filename }, ep);
-      blob.del(path).catch(function () {});
+      // Megaphone downloads the file itself later; the 2-day sweep removes it.
+      if (!host.keepFile) blob.del(path).catch(function () {});
       return res.status(200).json({ ok: true, id: made.id, url: made.url, host: host.name });
     }
 
@@ -186,7 +187,7 @@ module.exports = async function handler(req, res) {
       if (!isPublisher(ctx)) return res.status(403).json({ error: 'Only the publisher connects the podcast host.' });
       if (body.action === 'disconnect') { await siteBlob.del(CONN).catch(function () {}); return res.status(200).json({ ok: true }); }
       var h = Host.get(body.platform);
-      if (!h) return res.status(400).json({ error: 'Pod-slap can upload to Buzzsprout, Transistor or Podbean.' });
+      if (!h) return res.status(400).json({ error: 'Pod-slap can upload to ' + Object.keys(Host.HOSTS).map(function (k) { return Host.HOSTS[k].name; }).join(', ') + '.' });
       var secret = String(body.secret || '').trim(), clientId = String(body.clientId || '').trim();
       if (!secret || (h.needsClientId && !clientId)) return res.status(400).json({ error: 'Paste the ' + (h.needsClientId ? 'Client ID and Client Secret' : 'API key') + ' first.' });
       if (!require('./_crypto').isConfigured()) return res.status(500).json({ error: 'Secure key storage isn\'t set up on the server (ANALYTICS_ENCRYPTION_KEY).' });

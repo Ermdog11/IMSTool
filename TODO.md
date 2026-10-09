@@ -82,6 +82,10 @@
   - **Buzzsprout:** API token. Creates a private episode, then start upload → PUT → complete.
   - **Transistor:** API key. authorize_upload → PUT → create; new episodes are drafts.
   - **Podbean:** client ID and secret. OAuth → uploadAuthorize → PUT → episode with status=draft.
+  - **Megaphone** (added the same day, Jeff: "Yes. And uploads for any other platform that will allow us to have the app post drafts autonomously"): API token. The episode is created with `draft:true`, and Megaphone downloads the audio itself from a signed private-Blob link good for 24 hours (`issueSignedToken` + `presignUrl`), so the file is kept until the 2-day sweep.
+  - **Spreaker** (also added then): access token. Create the draft → multipart `media_file` upload (streamed, exact length) → description and tags.
+
+  **Checked but not added:** Captivate, RSS.com (network plans, beta), Blubrry (keys issued by their support team) and Omny Studio have APIs but no confirmed way to save an unpublished draft. Simplecast, Acast, Libsyn, Amperwave and Spotify for Creators have no public upload API for this.
 
   Audio streams from Blob to the host's upload URL with an exact Content-Length. The publisher connects the host in the tab: the key is checked by listing its podcasts (pick one if there are several), encrypted (`_crypto.js`) and stored per newsroom (`podslap/connection.json`); the browser never sees it.
 
@@ -94,7 +98,7 @@
 
   **Checked:** the whole flow in a browser with mocked APIs (connected-to-Buzzsprout and Amperwave cases, including Save changes), and all three host adapters against stubbed APIs (call order, `private`/`status=draft`, exact bytes uploaded).
 
-  **Not yet tried against a real host account.** The Transistor and Podbean field names come from their API docs as quoted by third parties, so do the first real upload on a test episode.
+  **Not yet tried against a real host account.** The Transistor, Podbean and Spreaker field names come from their API docs as quoted by third parties. For Megaphone, drafts are confirmed but the field names `draft` and `backgroundAudioFileUrl` aren't. Do the first real upload on each host with a test episode.
 
 - **2026-10-09 — Records requests know student privacy law and the standard denial rules** (Jeff: "The public records tool should understand student privacy law and standard rules so it doesn't suggest requests that will automatically be denied"). `api/_records.js` `DENIAL_RULES` is now part of every draft's instructions:
   - **FERPA** (20 U.S.C. 1232g; 34 CFR Part 99): grades, eligibility, transcripts, an athlete's aid, discipline and Title IX files, training and injury records. Redacting the name doesn't help when the story already identifies the student. What can be asked for instead: aggregate data, directory information, final results under 99.31(a)(14), NCAA correspondence with student information redacted.
