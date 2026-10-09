@@ -1,6 +1,6 @@
 // /api/layout — each person's own arrangement of the cards on a page (Jeff,
 // 2026-10-06: "make the tools on here customizable, so they can move them up
-// or down or remove" them, for Xs and Os and Home). Per person, per newsroom,
+// or down or remove" them, for Gameplan and Home). Per person, per newsroom,
 // in Blob (layouts/<user id>.json through _site-blob, so other newsrooms'
 // files stay separate).
 //
