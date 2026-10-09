@@ -106,7 +106,7 @@ async function run(sb, siteId) {
   var prompt = 'You are the audience and social strategy lead for ' + beat.outletName + ', which covers ' + beat.coverage + '. ' +
     'Study ALL of the analytics below together, not one source at a time: compare channels, find where the same topics and stories win across channels (overlap) and where they don\'t, and find the missed connections between channels (gaps). ' +
     'Then give the strategy: what each channel is for, what wins where, and the most valuable moves for this week. ' +
-    'This read lives on Xs and Os, next to the Analytics tab, which already shows every source\'s raw numbers, top posts, best day and hour, and trends (Jeff, 2026-10-06: Xs and Os must not repeat Analytics). So interpret, don\'t recap: say what the numbers mean and what to do about them, citing only the one or two numbers that make each point, and leave best posting times to Analytics (leave bestTime empty). ' +
+    'This read lives on Gameplan, next to the Analytics tab, which already shows every source\'s raw numbers, top posts, best day and hour, and trends (Jeff, 2026-10-06: Gameplan must not repeat Analytics). So interpret, don\'t recap: say what the numbers mean and what to do about them, citing only the one or two numbers that make each point, and leave best posting times to Analytics (leave bestTime empty). ' +
     'Every claim must rest on the data. Never invent numbers. If a source is missing or thin, work with what is there and say so briefly in the overview.\n\n' +
     'OUR STORIES, LAST 30 DAYS (date, headline):\n' + (heads.join('\n') || '(none in the knowledge base)') + '\n\n' +
     'ANALYTICS (JSON):\n' + data + '\n\nCall submit_strategy.';
