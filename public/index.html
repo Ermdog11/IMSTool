@@ -307,7 +307,7 @@ body.no-opps .acc-opps,body.no-write .acc-write,body.no-flag .acc-flag,body.no-f
   .chip { min-height: 36px; }
 }
 
-/* Customizable card layouts (Home, Xs and Os) */
+/* Customizable card layouts (Home, Gameplan) */
 .home-hello { display: flex; justify-content: space-between; align-items: flex-start; gap: 10px; }
 .lay-btn { font: inherit; font-size: 13px; font-weight: 600; border: 1px solid var(--border); background: #fff; color: var(--fg); border-radius: 16px; padding: 6px 12px; cursor: pointer; white-space: nowrap; }
 .lay-btn.on { background: #4338ca; color: #fff; border-color: #4338ca; }
@@ -415,7 +415,7 @@ body.no-sh #sourceHealthCard{display:none}
   <button class="nav-tab" id="tab-btn-10" onclick="switchTab(10)">Settings</button>
   <button class="nav-tab" id="tab-btn-11" onclick="switchTab(11)">📈 Analytics</button>
   <button class="nav-tab" id="tab-btn-17" onclick="switchTab(17)">💰 Advertising</button>
-  <button class="nav-tab" id="tab-btn-18" onclick="switchTab(18)">❌⭕ Xs and Os</button>
+  <button class="nav-tab" id="tab-btn-18" onclick="switchTab(18)">📋 Gameplan</button>
   <button class="nav-tab" id="tab-btn-12" onclick="switchTab(12)">🏈 Roster watch</button>
   <button class="nav-tab" id="tab-btn-13" onclick="switchTab(13)">👀 Opp Watch</button>
   <button class="nav-tab" id="tab-btn-14" onclick="switchTab(14)">📅 Calendar</button>
@@ -424,7 +424,7 @@ body.no-sh #sourceHealthCard{display:none}
 <!-- Phone top row (Jeff, 2026-10-06: "another row of tabs like the bottom ones at the top") -->
 <nav class="mtop" id="mtop" aria-label="More sections">
   <button data-tab="17" onclick="switchTab(17)"><span class="mi">💰</span>Advertising</button>
-  <button data-tab="18" onclick="switchTab(18)"><span class="mi">❌⭕</span>Xs and Os</button>
+  <button data-tab="18" onclick="switchTab(18)"><span class="mi">📋</span>Gameplan</button>
   <button data-tab="11" onclick="switchTab(11)"><span class="mi">📈</span>Analytics</button>
   <button data-tab="14" onclick="switchTab(14)"><span class="mi">📅</span>Calendar</button>
 </nav>
@@ -533,7 +533,7 @@ body.no-sh #sourceHealthCard{display:none}
     <span><i class="ti ti-robot"></i> <strong>Coverage Desk</strong> — an assistant editor's memo (priorities, gaps, follow-ups) emails you every morning at 7&nbsp;AM.</span>
     <button class="chip" onclick="runCoverageDesk(this)">Email me one now</button>
   </div>
-  <div class="notice" style="margin-bottom:14px;">⚖️ The Ombudsman (coverage review and its story ideas) moved to <a href="/xos" onclick="switchTab(18);return false"><b>Xs and Os</b></a>.</div>
+  <div class="notice" style="margin-bottom:14px;">⚖️ The Ombudsman (coverage review and its story ideas) moved to <a href="/gameplan" onclick="switchTab(18);return false"><b>Gameplan</b></a>.</div>
   <div id="backlogContainer">
     <div class="empty"><i class="ti ti-notebook"></i>Run a scan first, then generate story ideas from the latest alerts</div>
   </div>
@@ -768,7 +768,7 @@ body.no-sh #sourceHealthCard{display:none}
     <p style="color:var(--muted);font-size:.85rem;margin:4px 0 0;max-width:60ch;">Connect where your traffic and engagement data lives. Once a source is linked, this page shows what's working — best day and time to publish, which topics and headline styles land, per-writer performance — and answers questions like "what's been working best for us this month?"</p>
   </div>
 
-  <div class="notice" style="margin-bottom:14px;">❌⭕ Questions about your audience and the cross-channel strategy read moved to <a href="/xos" onclick="switchTab(18);return false"><b>Xs and Os</b></a>.</div>
+  <div class="notice" style="margin-bottom:14px;">📋 Questions about your audience and the cross-channel strategy read moved to <a href="/gameplan" onclick="switchTab(18);return false"><b>Gameplan</b></a>.</div>
 
   <div class="settings-card">
     <h3><i class="ti ti-chart-line"></i> Insights</h3>
@@ -990,7 +990,7 @@ body.no-sh #sourceHealthCard{display:none}
       <div class="hc-quick">
         <a href="/advertising" data-tab="17" onclick="switchTab(17);return false"><span>💵</span>Advertising<em id="homeAdsCount"></em></a>
         <a href="/analytics" data-tab="11" onclick="switchTab(11);return false"><span>📈</span>Analytics</a>
-        <a href="/xos" data-tab="18" onclick="switchTab(18);return false"><span>❌⭕</span>Xs and Os</a>
+        <a href="/gameplan" data-tab="18" onclick="switchTab(18);return false"><span>📋</span>Gameplan</a>
         <a href="/leaderboard" data-tab="15" onclick="switchTab(15);return false"><span>🏆</span>Leaderboard</a>
       </div>
     </section>
@@ -1039,10 +1039,10 @@ body.no-sh #sourceHealthCard{display:none}
   </div>
 </div>
 
-<!-- XS AND OS (page-18; Jeff, 2026-10-06: "where the ombudsman and the social
+<!-- GAMEPLAN (page-18, formerly "Xs and Os"; renamed 2026-10-09; Jeff, 2026-10-06: "where the ombudsman and the social
      media and analytics feedback and questions will live") -->
 <div class="page" id="page-18">
-  <div class="hc-head" style="margin-bottom:10px;"><h2 style="margin:0;font-size:20px;">❌⭕ Xs and Os</h2><button class="lay-btn" onclick="toggleLayoutEdit('xos',this)">✏️ Customize</button></div>
+  <div class="hc-head" style="margin-bottom:10px;"><h2 style="margin:0;font-size:20px;">📋 Gameplan</h2><button class="lay-btn" onclick="toggleLayoutEdit('xos',this)">✏️ Customize</button></div>
   <div style="font-size:13px;color:var(--text2);margin:-4px 0 14px;max-width:80ch;">The film room: how our coverage, social posts and audience numbers are doing, and what to change.</div>
   <div id="xosCards" class="lay-cards" data-layout="xos">
   <div class="settings-card" data-card="social">
@@ -1230,10 +1230,11 @@ function nextScheduledScan() {
 // scan run on /alerts still feeds /digest, /podcasts, etc. without
 // re-fetching. vercel.json rewrites every path below back to this file.
 // ============================================================
-var TAB_PATHS = ['/alerts','/digest','/social','/chat','/backlog','/recruiting','/trending','/podcasts','/youtube','/bluesky','/settings','/analytics','/roster','/opps','/calendar','/leaderboard','/home','/advertising','/xos'];
+var TAB_PATHS = ['/alerts','/digest','/social','/chat','/backlog','/recruiting','/trending','/podcasts','/youtube','/bluesky','/settings','/analytics','/roster','/opps','/calendar','/leaderboard','/home','/advertising','/gameplan'];
 function pathToTab(p) {
   p = String(p || '/').replace(/\/+$/, '') || '/';
   if (p === '/' || p === '/index.html' || p === '/index') return 16;  // Home
+  if (p === '/xos') return 18;  // old name of Gameplan (renamed 2026-10-09)
   var i = TAB_PATHS.indexOf(p);
   return i === -1 ? 0 : i;
 }
@@ -1422,7 +1423,7 @@ function loadHomeAskChips() {
   }).catch(() => { homeAskChipsLoaded = false; });
 }
 
-// Xs and Os: the social chips ask the audience-question box.
+// Gameplan: the social chips ask the audience-question box.
 function xosAsk(q) {
   const inp = document.getElementById('analyticsQuestionInput'); if (!inp) return;
   inp.value = q;

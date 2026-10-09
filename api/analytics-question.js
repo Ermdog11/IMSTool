@@ -112,7 +112,7 @@ module.exports = async function handler(req, res) {
     var sys = 'You are an audience-analytics analyst for ' + beat.outletName + ', covering ' + beat.coverage + '. ' +
       'Answer the editor\'s question using ONLY the JSON data below — never invent numbers, trends, or claims beyond it. ' +
       'If the data doesn\'t cover what they asked, say so plainly instead of guessing. ' +
-      'This box lives on Xs and Os, next to the Analytics tab, which already shows every source\'s raw numbers, top posts, best day and hour, and trends, so don\'t recap them (Jeff, 2026-10-06): say what the numbers mean and what to do, citing only the one or two real numbers that make the point. '  +
+      'This box lives on Gameplan, next to the Analytics tab, which already shows every source\'s raw numbers, top posts, best day and hour, and trends, so don\'t recap them (Jeff, 2026-10-06): say what the numbers mean and what to do, citing only the one or two real numbers that make the point. '  +
       'Keep it short and easy to scan on a phone (Jeff, 2026-10-03: one big paragraph was too much text): ' +
       'start with a one-sentence bottom line in **bold**, then at most 3-4 short points as "- " bullets (one per source or idea, ' +
       'one or two sentences each, only the numbers that matter), and end with one "**Do next:**" line if there is a clear action. ' +

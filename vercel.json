@@ -149,7 +149,7 @@
     }
   },
   "rewrites": [
-    { "source": "/:section(alerts|digest|social|chat|backlog|recruiting|trending|podcasts|youtube|bluesky|settings|analytics|roster|opps|calendar|leaderboard|home|advertising|xos)", "destination": "/" },
+    { "source": "/:section(alerts|digest|social|chat|backlog|recruiting|trending|podcasts|youtube|bluesky|settings|analytics|roster|opps|calendar|leaderboard|home|advertising|xos|gameplan)", "destination": "/" },
     { "source": "/house-style", "destination": "/editor" },
     { "source": "/transcribe", "destination": "/editor" }
   ],
@@ -163,7 +163,7 @@
       "headers": [{ "key": "Cache-Control", "value": "no-cache, no-store, must-revalidate" }]
     },
     {
-      "source": "/:section(alerts|digest|social|chat|backlog|recruiting|trending|podcasts|youtube|bluesky|settings|analytics|roster|opps|calendar|leaderboard|home|advertising|xos|editor|login|house-style|setup|transcribe|preferences|affiliates|privacy|terms|support)",
+      "source": "/:section(alerts|digest|social|chat|backlog|recruiting|trending|podcasts|youtube|bluesky|settings|analytics|roster|opps|calendar|leaderboard|home|advertising|xos|gameplan|editor|login|house-style|setup|transcribe|preferences|affiliates|privacy|terms|support)",
       "headers": [{ "key": "Cache-Control", "value": "no-cache, no-store, must-revalidate" }]
     }
   ],
