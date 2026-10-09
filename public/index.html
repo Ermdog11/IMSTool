@@ -1640,7 +1640,7 @@ function openMoreSheet() {
   var html = Array.from(document.querySelectorAll('.nav .nav-tab')).filter(function (b) { return b.style.display !== 'none'; }).map(function (b) {
     var n = b.id.replace('tab-btn-', '');
     return '<button class="' + (b.id === cur ? 'on' : '') + '" onclick="closeMoreSheet();switchTab(' + n + ')">' + b.innerHTML + '</button>';
-  }).join('') + '<a href="/editor">✍️ Content Editor</a><a href="/preferences">⚙️ Preferences</a>';
+  }).join('') + '<a href="/editor">✍️ Content Editor</a><a href="/preferences">⚙️ Preferences</a><button onclick="closeMoreSheet();window.CPFeedback&&CPFeedback.open()">💬 Send feedback</button>';
   document.getElementById('msheetGrid').innerHTML = html;
   document.getElementById('msheet').classList.add('open');
 }

@@ -227,6 +227,120 @@
   };
 })();
 
+// 💬 Feedback (Jeff, 2026-10-09: "Need a feedback tool. Put wherever it makes
+// sense"). A small button in the bottom corner of every page that loads this
+// file (on phones in the News Monitor it's in the ⋯ More sheet instead, so it
+// doesn't sit on the bottom bar). Opens a popup: what kind (broken / idea /
+// other) and a message; the page they're on is sent with it. /api/feedback
+// saves it and emails CoPublisher AI. Operators also see an Inbox there.
+(function () {
+  var KINDS = [['bug', '🐞 Something\'s broken'], ['idea', '💡 Idea'], ['other', '💬 Other']];
+  var kind = 'bug', box = null;
+  function esc(x) { var d = document.createElement('div'); d.textContent = x == null ? '' : String(x); return d.innerHTML; }
+  function css() {
+    if (document.getElementById('cp-fb-css')) return;
+    var st = document.createElement('style'); st.id = 'cp-fb-css';
+    st.textContent = '#cp-fb-btn{position:fixed;right:16px;bottom:44px;z-index:250;border:1px solid rgba(0,0,0,.12);background:#111827;color:#fff;border-radius:99px;padding:8px 14px;font:600 13px -apple-system,Segoe UI,Arial,sans-serif;cursor:pointer;box-shadow:0 4px 14px rgba(0,0,0,.18);opacity:.88}' +
+      '#cp-fb-btn:hover{opacity:1}@media print{#cp-fb-btn{display:none}}@media (max-width:700px){#cp-fb-btn.cp-fb-mnav{display:none}#cp-fb-btn{bottom:calc(14px + env(safe-area-inset-bottom));padding:7px 12px}}' +
+      '#cp-fb{position:fixed;inset:0;z-index:400;background:rgba(0,0,0,.45);display:flex;align-items:flex-end;justify-content:center;font-family:-apple-system,Segoe UI,Arial,sans-serif;color:#1a1a1a}' +
+      '@media (min-width:701px){#cp-fb{align-items:center}}' +
+      '#cp-fb .bx{background:#fff;width:100%;max-width:520px;border-radius:16px 16px 0 0;padding:18px 18px calc(18px + env(safe-area-inset-bottom));max-height:88vh;overflow-y:auto;box-sizing:border-box}' +
+      '@media (min-width:701px){#cp-fb .bx{border-radius:14px}}' +
+      '#cp-fb h3{margin:0 0 4px;font-size:18px}#cp-fb p{margin:0 0 12px;color:#555;font-size:13.5px;line-height:1.45}' +
+      '#cp-fb .ks{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px}#cp-fb .ks button{border:1px solid #d1d5db;background:#fff;border-radius:99px;padding:7px 12px;font:600 13px inherit;cursor:pointer;color:#1a1a1a}' +
+      '#cp-fb .ks button.on{border-color:#2563eb;background:#eff6ff;color:#1d4ed8}' +
+      '#cp-fb textarea{width:100%;box-sizing:border-box;min-height:130px;border:1px solid #d1d5db;border-radius:10px;padding:10px;font:16px/1.45 inherit;resize:vertical}' +
+      '#cp-fb .row{display:flex;gap:8px;align-items:center;justify-content:flex-end;margin-top:10px;flex-wrap:wrap}' +
+      '#cp-fb .go{background:#2563eb;color:#fff;border:0;border-radius:9px;padding:9px 16px;font:600 14px inherit;cursor:pointer}#cp-fb .go:disabled{opacity:.6}' +
+      '#cp-fb .ln{background:none;border:0;color:#555;text-decoration:underline;cursor:pointer;font:13px inherit;padding:4px}' +
+      '#cp-fb .msg{font-size:13px;margin-right:auto}#cp-fb .it{border-top:1px solid #eee;padding:10px 0;font-size:13.5px}#cp-fb .it.dn{opacity:.55}' +
+      '#cp-fb .it small{color:#777;display:block;margin-top:4px;line-height:1.5}#cp-fb .it .tx{white-space:pre-wrap;margin-top:4px}';
+    document.head.appendChild(st);
+  }
+  function close() { if (box) { box.remove(); box = null; } }
+  // The Inbox link shows only for operators: the server decides who they are,
+  // so ask it once (publishers only; everyone else never could).
+  var inboxOk = null;
+  async function checkInbox() {
+    var A = window.IMSAuth;
+    if (inboxOk !== null || !A || (A.state.configured && !A.isPublisher())) return !!inboxOk;
+    try { inboxOk = (await fetch('/api/feedback')).ok; } catch (e) { inboxOk = false; }
+    return inboxOk;
+  }
+  function form() {
+    kind = 'bug';
+    box.querySelector('.bx').innerHTML = '<h3>Send feedback</h3><p>Something broken, confusing, or an idea for CoPublisher? Tell us. It goes straight to the people who build it, along with the page you\'re on, and we\'ll reply by email.</p>' +
+      '<div class="ks">' + KINDS.map(function (k) { return '<button type="button" data-k="' + k[0] + '" class="' + (k[0] === kind ? 'on' : '') + '">' + k[1] + '</button>'; }).join('') + '</div>' +
+      '<textarea id="cp-fb-t" placeholder="What happened, or what would make this better?"></textarea>' +
+      '<div class="row"><span class="msg" id="cp-fb-m"></span><button type="button" class="ln" id="cp-fb-in" style="display:none">Inbox</button>' +
+      '<button type="button" class="ln" id="cp-fb-x">Cancel</button><button type="button" class="go" id="cp-fb-go">Send</button></div>';
+    box.querySelectorAll('.ks button').forEach(function (b) { b.onclick = function () { kind = b.dataset.k; box.querySelectorAll('.ks button').forEach(function (x) { x.classList.toggle('on', x === b); }); }; });
+    box.querySelector('#cp-fb-x').onclick = close;
+    box.querySelector('#cp-fb-in').onclick = inbox;
+    checkInbox().then(function (ok) { var l = box && box.querySelector('#cp-fb-in'); if (l && ok) l.style.display = ''; });
+    box.querySelector('#cp-fb-go').onclick = send;
+    setTimeout(function () { var t = document.getElementById('cp-fb-t'); if (t) t.focus(); }, 30);
+  }
+  async function send() {
+    var t = document.getElementById('cp-fb-t'), m = document.getElementById('cp-fb-m'), go = document.getElementById('cp-fb-go');
+    if (t.value.trim().length < 3) { m.textContent = 'Write a little more first.'; m.style.color = '#b91c1c'; return; }
+    go.disabled = true; go.textContent = 'Sending…';
+    try {
+      var r = await fetch('/api/feedback', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ kind: kind, message: t.value, page: location.href }) });
+      var d = await r.json().catch(function () { return {}; });
+      if (!r.ok) throw new Error(d.error || 'HTTP ' + r.status);
+      box.querySelector('.bx').innerHTML = '<h3>Thank you 🙏</h3><p>Got it. We read every one, and we\'ll reply by email if we have a question or when it\'s fixed.</p><div class="row"><button type="button" class="go" id="cp-fb-ok">Done</button></div>';
+      box.querySelector('#cp-fb-ok').onclick = close;
+    } catch (e) { go.disabled = false; go.textContent = 'Send'; m.textContent = 'Couldn\'t send: ' + e.message; m.style.color = '#b91c1c'; }
+  }
+  async function inbox() {
+    var bx = box.querySelector('.bx');
+    bx.innerHTML = '<h3>Feedback inbox</h3><p>Loading…</p>';
+    try {
+      var r = await fetch('/api/feedback'), d = await r.json();
+      if (!r.ok) throw new Error(d.error || 'HTTP ' + r.status);
+      var lab = { bug: '🐞', idea: '💡', other: '💬' };
+      bx.innerHTML = '<h3>Feedback inbox</h3><p>' + d.open + ' open · newest first. Reply from the email each one came in.</p>' +
+        (d.items.length ? d.items.map(function (x) {
+          return '<div class="it' + (x.done ? ' dn' : '') + '">' + (lab[x.kind] || '💬') + ' <b>' + esc(x.name || x.email || 'Someone') + '</b>' + (x.siteName ? ' · ' + esc(x.siteName) : '') +
+            '<div class="tx">' + esc(x.message) + '</div><small>' + esc(new Date(x.at).toLocaleString()) + (x.email ? ' · <a href="mailto:' + esc(x.email) + '">' + esc(x.email) + '</a>' : '') +
+            (x.page ? ' · <a href="' + esc(x.page) + '" target="_blank" rel="noopener">page</a>' : '') +
+            ' · <button type="button" class="ln" data-id="' + esc(x.id) + '" data-d="' + (x.done ? '0' : '1') + '">' + (x.done ? 'Reopen' : 'Mark done') + '</button></small></div>';
+        }).join('') : '<p>Nothing yet.</p>') +
+        '<div class="row"><button type="button" class="ln" id="cp-fb-back">Back</button><button type="button" class="go" id="cp-fb-c">Close</button></div>';
+      bx.querySelectorAll('button[data-id]').forEach(function (b) {
+        b.onclick = async function () { await fetch('/api/feedback', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'done', id: b.dataset.id, done: b.dataset.d === '1' }) }); inbox(); };
+      });
+      bx.querySelector('#cp-fb-back').onclick = form; bx.querySelector('#cp-fb-c').onclick = close;
+    } catch (e) { bx.innerHTML = '<h3>Feedback inbox</h3><p>Couldn\'t load it: ' + esc(e.message) + '</p><div class="row"><button type="button" class="ln" id="cp-fb-back">Back</button></div>'; bx.querySelector('#cp-fb-back').onclick = form; }
+  }
+  function open() {
+    css(); close();
+    var A = window.IMSAuth;
+    box = document.createElement('div'); box.id = 'cp-fb';
+    box.innerHTML = '<div class="bx" role="dialog" aria-label="Send feedback"></div>';
+    box.onclick = function (e) { if (e.target === box) close(); };
+    document.body.appendChild(box);
+    if (A && A.state.configured && !A.state.user) {
+      box.querySelector('.bx').innerHTML = '<h3>Send feedback</h3><p>Sign in first so we know who to reply to.</p><div class="row"><button type="button" class="ln" id="cp-fb-x">Cancel</button><a class="go" href="/login" style="text-decoration:none">Sign in</a></div>';
+      box.querySelector('#cp-fb-x').onclick = close; return;
+    }
+    form();
+  }
+  function mount() {
+    if (/^\/login/.test(location.pathname) || document.getElementById('cp-fb-btn')) return;
+    css();
+    var b = document.createElement('button');
+    b.id = 'cp-fb-btn'; b.type = 'button'; b.textContent = '💬 Feedback'; b.title = 'Tell us what\'s broken or what would make CoPublisher better';
+    if (document.querySelector('.mnav')) b.className = 'cp-fb-mnav';
+    b.onclick = open;
+    document.body.appendChild(b);
+  }
+  document.addEventListener('keydown', function (e) { if (e.key === 'Escape' && box) close(); });
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', mount); else mount();
+  window.CPFeedback = { open: open };
+})();
+
 // Phone app (PWA): register the service worker on every page so Android and
 // iPhone can install CoPublisher to the home screen (public/manifest.json,
 // public/sw.js). Best-effort; does nothing in browsers without support.
