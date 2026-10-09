@@ -789,7 +789,7 @@ body.no-sh #sourceHealthCard{display:none}
       <div class="empty" style="padding:20px;">Connect at least one source under Connections at the bottom of this page to see insights here.</div>
     </div>
     <div style="font-size:11px;color:var(--text3);margin-top:8px;line-height:1.6;">
-      Real-time "story going hot" alerts are on — manage who gets them in Settings → Team &amp; alerts. Planned: per-writer views &amp; engaged time by story type · proactive nudges.
+      Real-time "story going hot" alerts are on — manage who gets them in Settings → Team &amp; alerts.
     </div>
   </div>
 
@@ -4446,28 +4446,23 @@ async function refreshChartbeatInsights() {
     if (d.error) { c.innerHTML = `<div class="empty" style="padding:14px;">Chartbeat — ${d.error}</div>`; return; }
     const allPages = d.pages || [];
     const topPages = allPages.slice(0, 3);
+    // Just the story and how many are reading it (Jeff, 2026-10-09: the raw
+    // Chartbeat counters were "an ugly bunch of numbers").
     const rows = topPages.map(p => {
-      const extraBits = Object.keys(p.extra || {}).map(k => `${k}: ${p.extra[k]}`).join(' · ');
-      return `<div style="padding:5px 0;border-bottom:1px solid var(--border);font-size:12px;">
-        <div style="display:flex;justify-content:space-between;gap:10px;">
-          <span style="flex:1;">${p.title || p.path}</span>
-          <span style="color:var(--text3);white-space:nowrap;">${p.visits} reading now</span>
-        </div>
-        ${extraBits ? `<div style="color:var(--text3);font-size:11px;margin-top:2px;">${extraBits}</div>` : ''}
+      const title = escapeHtml(p.title || p.path || '');
+      const href = !p.path ? '' : /^https?:/.test(p.path) ? p.path : String(p.path).charAt(0) === '/' ? (d.host ? 'https://' + d.host + p.path : '') : 'https://' + p.path;
+      return `<div style="padding:8px 0;border-bottom:1px solid var(--border);font-size:13px;display:flex;justify-content:space-between;gap:10px;">
+          <span style="flex:1;">${href ? `<a href="${escapeHtml(href)}" target="_blank" rel="noopener" style="color:inherit;">${title}</a>` : title}</span>
+          <span style="color:var(--text3);white-space:nowrap;">${p.visits} reading</span>
       </div>`;
     }).join('') || '<div style="font-size:12px;color:var(--text3);padding:6px 0;">No pages with live readers right now.</div>';
     const morePages = allPages.length > 3
       ? `<div style="font-size:11px;color:var(--text3);padding:4px 0;">+${allPages.length - 3} more page${allPages.length - 3 === 1 ? '' : 's'} with live readers right now.</div>` : '';
-    const otherMetrics = Object.keys(d.metrics || {}).filter(k => !['visits','host'].includes(k));
-    const metricsRow = otherMetrics.length
-      ? `<div style="display:flex;gap:16px;flex-wrap:wrap;margin:8px 0 10px;">${otherMetrics.map(k => `<div><div style="font-size:10px;color:var(--text3);">${k}</div><strong style="font-size:13px;">${d.metrics[k]}</strong></div>`).join('')}</div>`
-      : '';
     c.innerHTML = `<div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:2px;">
         <div><strong style="font-size:20px;">${d.visits}</strong> <span style="font-size:12px;color:var(--text3);">reading right now on ${d.host}</span></div>
         <button class="chip" onclick="refreshChartbeatInsights()">Refresh</button>
       </div>
-      ${metricsRow}
-      <div class="sdiv-label">Top 3 pages right now</div>
+      <div class="sdiv-label" style="margin-top:10px;">Most read right now</div>
       ${rows}
       ${morePages}
       ${(d.warnings && d.warnings.length) ? `<div style="font-size:11px;color:var(--text3);margin-top:8px;">${d.warnings.join(' · ')}</div>` : ''}`;
