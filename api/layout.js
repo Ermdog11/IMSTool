@@ -27,6 +27,13 @@ async function load(uid) {
   } catch (e) { return {}; }
 }
 
+// Shortcut tiles per card (Jeff, 2026-10-09: "add or remove tools if they
+// don't want to use them"): { cardId: [toolIds] }.
+function tiles(t) {
+  var out = {};
+  if (t && typeof t === 'object') Object.keys(t).slice(0, 12).forEach(function (k) { var key = String(k).replace(/[^a-z0-9_-]/gi, '').slice(0, 40); if (key) out[key] = ids(t[k]); });
+  return out;
+}
 function ids(a) { return (Array.isArray(a) ? a : []).map(function (x) { return String(x).replace(/[^a-z0-9_-]/gi, '').slice(0, 40); }).filter(Boolean).slice(0, 40); }
 
 module.exports = async function handler(req, res) {
@@ -45,7 +52,7 @@ module.exports = async function handler(req, res) {
   if (PAGES.indexOf(page) === -1) return res.status(400).json({ error: 'Unknown page' });
   var all = await load(uid);
   if (body.reset) delete all[page];
-  else all[page] = { order: ids(body.order), hidden: ids(body.hidden), at: new Date().toISOString() };
+  else all[page] = { order: ids(body.order), hidden: ids(body.hidden), tiles: tiles(body.tiles), at: new Date().toISOString() };
   await blob.put(pathFor(uid), JSON.stringify(all), { access: 'private', addRandomSuffix: false, allowOverwrite: true, contentType: 'application/json' });
   return res.status(200).json({ ok: true, layouts: all });
 };
