@@ -307,6 +307,9 @@ body.no-opps .acc-opps,body.no-write .acc-write,body.no-flag .acc-flag,body.no-f
   .chip { min-height: 36px; }
 }
 
+/* Gameplan icon: a thin X and O, like a coach's play diagram (Jeff, 2026-10-09: "make them cooler looking, more sleek"). */
+.gp-ico{width:1.15em;height:1.15em;vertical-align:-0.2em;display:inline-block}
+.mi .gp-ico{width:1.35em;height:1.35em}
 /* Customizable card layouts (Home, Gameplan) */
 .home-hello { display: flex; justify-content: space-between; align-items: flex-start; gap: 10px; }
 .lay-btn { font: inherit; font-size: 13px; font-weight: 600; border: 1px solid var(--border); background: #fff; color: var(--fg); border-radius: 16px; padding: 6px 12px; cursor: pointer; white-space: nowrap; }
@@ -421,7 +424,7 @@ body.no-sh #sourceHealthCard{display:none}
   <button class="nav-tab" id="tab-btn-10" onclick="switchTab(10)">Settings</button>
   <button class="nav-tab" id="tab-btn-11" onclick="switchTab(11)">📈 Analytics</button>
   <button class="nav-tab" id="tab-btn-17" onclick="switchTab(17)">💰 Advertising</button>
-  <button class="nav-tab" id="tab-btn-18" onclick="switchTab(18)">📋 Gameplan</button>
+  <button class="nav-tab" id="tab-btn-18" onclick="switchTab(18)"><svg class="gp-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M2.5 8.5l6.5 6.5M9 8.5l-6.5 6.5"/><circle cx="17.5" cy="11.75" r="3.75"/></svg> Gameplan</button>
   <button class="nav-tab" id="tab-btn-12" onclick="switchTab(12)">🏈 Roster watch</button>
   <button class="nav-tab" id="tab-btn-13" onclick="switchTab(13)">👀 Opp Watch</button>
   <button class="nav-tab" id="tab-btn-14" onclick="switchTab(14)">📅 Calendar</button>
@@ -430,7 +433,7 @@ body.no-sh #sourceHealthCard{display:none}
 <!-- Phone top row (Jeff, 2026-10-06: "another row of tabs like the bottom ones at the top") -->
 <nav class="mtop" id="mtop" aria-label="More sections">
   <button data-tab="17" onclick="switchTab(17)"><span class="mi">💰</span>Advertising</button>
-  <button data-tab="18" onclick="switchTab(18)"><span class="mi">📋</span>Gameplan</button>
+  <button data-tab="18" onclick="switchTab(18)"><span class="mi"><svg class="gp-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M2.5 8.5l6.5 6.5M9 8.5l-6.5 6.5"/><circle cx="17.5" cy="11.75" r="3.75"/></svg></span>Gameplan</button>
   <button data-tab="11" onclick="switchTab(11)"><span class="mi">📈</span>Analytics</button>
   <button data-tab="14" onclick="switchTab(14)"><span class="mi">📅</span>Calendar</button>
 </nav>
@@ -774,7 +777,7 @@ body.no-sh #sourceHealthCard{display:none}
     <p style="color:var(--muted);font-size:.85rem;margin:4px 0 0;max-width:60ch;">Connect where your traffic and engagement data lives. Once a source is linked, this page shows what's working — best day and time to publish, which topics and headline styles land, per-writer performance — and answers questions like "what's been working best for us this month?"</p>
   </div>
 
-  <div class="notice" style="margin-bottom:14px;">📋 Questions about your audience and the cross-channel strategy read moved to <a href="/gameplan" onclick="switchTab(18);return false"><b>Gameplan</b></a>.</div>
+  <div class="notice" style="margin-bottom:14px;"><svg class="gp-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M2.5 8.5l6.5 6.5M9 8.5l-6.5 6.5"/><circle cx="17.5" cy="11.75" r="3.75"/></svg> Questions about your audience and the cross-channel strategy read moved to <a href="/gameplan" onclick="switchTab(18);return false"><b>Gameplan</b></a>.</div>
 
   <div class="settings-card">
     <h3><i class="ti ti-chart-line"></i> Insights</h3>
@@ -1031,7 +1034,7 @@ body.no-sh #sourceHealthCard{display:none}
 <!-- GAMEPLAN (page-18, formerly "Xs and Os"; renamed 2026-10-09; Jeff, 2026-10-06: "where the ombudsman and the social
      media and analytics feedback and questions will live") -->
 <div class="page" id="page-18">
-  <div class="hc-head" style="margin-bottom:10px;"><h2 style="margin:0;font-size:20px;">📋 Gameplan</h2><button class="lay-btn" onclick="toggleLayoutEdit('xos',this)">✏️ Customize</button></div>
+  <div class="hc-head" style="margin-bottom:10px;"><h2 style="margin:0;font-size:20px;"><svg class="gp-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M2.5 8.5l6.5 6.5M9 8.5l-6.5 6.5"/><circle cx="17.5" cy="11.75" r="3.75"/></svg> Gameplan</h2><button class="lay-btn" onclick="toggleLayoutEdit('xos',this)">✏️ Customize</button></div>
   <div style="font-size:13px;color:var(--text2);margin:-4px 0 14px;max-width:80ch;">The film room: how our coverage, social posts and audience numbers are doing, and what to change.</div>
   <div id="xosCards" class="lay-cards" data-layout="xos">
   <div class="settings-card" data-card="social">
@@ -1475,7 +1478,7 @@ async function loadAdvertising() {
 // so they can move them up or down or remove" them). Each person's order and
 // hidden cards per page, saved to their account (api/layout.js) with a local
 // copy so the page arranges itself instantly.
-const GP_ICON = '📋';
+const GP_ICON = '<svg class="gp-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M2.5 8.5l6.5 6.5M9 8.5l-6.5 6.5"/><circle cx="17.5" cy="11.75" r="3.75"/></svg>';
 const LAYOUTS = {};
 // Home shortcut tiles: every tool, and the ones each card starts with. Each
 // person adds or removes them in Customize (Jeff, 2026-10-09: "add or remove
