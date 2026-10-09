@@ -212,6 +212,36 @@ function isKeyRole(title) {
   return /\bhead\b[\w' ]{0,25}\bcoach\b|general manager|\bowner\b|\b(offensive|defensive|special teams) coordinator\b|director of athletics|athletic director|\bpresident\b|chief executive/.test(t);
 }
 
+// Is `b` the same title as `a`, just tidied up? (Jeff, 2026-10-09: a typo
+// fix, "Recruitng" -> "Recruiting", was alerted as a title change.) Same
+// when, ignoring case, punctuation and spacing, the words are the same (in
+// any order, "and"/"of"/"the" aside), or the same words except for small spelling fixes inside long
+// words (at most 2 letters different in a word of 6+ letters, same first
+// two letters). Any added or
+// dropped word ("Interim", "Co-", "Associate"), or a different word, is a
+// real change.
+function editDistance(a, b) {
+  var d = [], i, j;
+  for (i = 0; i <= a.length; i++) d[i] = [i];
+  for (j = 0; j <= b.length; j++) d[0][j] = j;
+  for (i = 1; i <= a.length; i++) for (j = 1; j <= b.length; j++)
+    d[i][j] = Math.min(d[i - 1][j] + 1, d[i][j - 1] + 1, d[i - 1][j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1));
+  return d[a.length][b.length];
+}
+function titleWords(t) { return String(t || '').toLowerCase().replace(/&/g, ' and ').replace(/[^a-z0-9]+/g, ' ').trim().split(' ').filter(Boolean); }
+function sameTitle(a, b) {
+  var x = titleWords(a), y = titleWords(b);
+  if (x.join(' ') === y.join(' ')) return true;
+  var key = function (ws) { return ws.filter(function (w) { return ['and', 'of', 'the'].indexOf(w) === -1; }).sort().join(' '); };
+  if (key(x) === key(y)) return true;
+  if (x.length !== y.length) return false;
+  // A spelling fix keeps the start of the word ("Offensive" -> "Defensive" is not one).
+  return x.every(function (w, i) {
+    var v = y[i];
+    return w === v || (Math.min(w.length, v.length) >= 6 && w.slice(0, 2) === v.slice(0, 2) && editDistance(w, v) <= 2);
+  });
+}
+
 // prev/next: [{name, title?, group?, jersey?}]. `text` is the new page text;
 // when given, a previous person only counts as removed if their name is gone
 // from it, and anyone the new list missed but who is still on the page is
@@ -231,7 +261,7 @@ function diffPeople(prev, next, text, opts) {
       else removed.push(p);
       return;
     }
-    if (opts.titles && now.title && p.title && norm(now.title) !== norm(p.title)) {
+    if (opts.titles && now.title && p.title && !sameTitle(p.title, now.title)) {
       retitled.push({ name: now.name, from: p.title, to: now.title, group: now.group || '' });
     }
     if (!now.title && p.title) now.title = p.title;
