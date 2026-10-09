@@ -7,6 +7,8 @@
 //   POST { action:'delete', id }
 //   POST { action:'remind', id, minutes, channel }   (minutes 0 = no reminder)
 //   POST { action:'default', minutes, channel }      (your automatic reminder before every event)
+//   POST { action:'remind-for', id, for:[emails]|'team', minutes, channel }  (reminders for anyone; others: editors+)
+//   POST { action:'assign', id, email|'' , minutes?, channel? }  (put a writer on it, optional reminder; editors+)
 //   POST { action:'heat-remind', minutes, channel }  (your reminder before every hot spot)
 //   POST { action:'hot12', on, channel }             (alert me when a hot spot is within 12 hours)
 //   POST { action:'quiet', from, to, off? }          (your quiet hours for hot-spot alerts, your time zone)
@@ -26,6 +28,14 @@ async function siteRef(ctx) {
   var sb = S.admin();
   var site = await sb.from('sites').select('id').eq('slug', require('./_site').slug()).single();
   return site.data ? { sb: sb, id: site.data.id } : null;
+}
+// { email: name } for everyone in this newsroom (null when login is off).
+async function teamEmails(ctx) {
+  var ref = await siteRef(ctx); if (!ref) return null;
+  var mem = await ref.sb.from('memberships').select('profiles(email, full_name)').eq('site_id', ref.id);
+  var out = {};
+  (mem.data || []).forEach(function (m) { var p = m.profiles; if (p && p.email) out[p.email.toLowerCase()] = p.full_name || ''; });
+  return out;
 }
 function canManage(ctx) {
   var role = ctx && ctx.membership && ctx.membership.role;
@@ -51,6 +61,7 @@ module.exports = async function handler(req, res) {
       var info = require('./_email-drafts').inboxInfo();
       return res.status(200).json({
         events: data.events.filter(function (e) { return Date.parse(e.start) >= since; }),
+        team: canManage(ctx) ? await teamEmails(ctx).then(function (t) { return t ? Object.keys(t).map(function (e) { return { email: e, name: t[e] }; }) : null; }).catch(function () { return null; }) : null,
         address: info.calendarAddress, me: me, myDefault: data.prefs[me] || null, steps: Cal.STEPS, tz: Cal.TZ,
         mode: Cal.mode(data),
         heat: { on: Cal.heatOn(data), canManage: canManage(ctx), mine: (data.prefs[me] && data.prefs[me].heat) || null, hot12: (data.prefs[me] && data.prefs[me].hot12) || null, quiet: Cal.quietOf(data, me), week: data.heat ? data.heat.week : null, basis: data.heat ? data.heat.basis : null, note: data.heat ? data.heat.note : null }
@@ -99,6 +110,25 @@ module.exports = async function handler(req, res) {
         }
       }
       return res.status(200).json({ mode: b.mode, added: added.length });
+    }
+    // Reminders for anyone on the team (yourself always; others: editors and
+    // the publisher). b.for = [emails], or 'team' for everyone.
+    if (b.action === 'remind-for') {
+      var team = await teamEmails(ctx);
+      var want = b.for === 'team' ? Object.keys(team) : (Array.isArray(b.for) ? b.for : [b.for]).map(function (x) { return String(x || '').toLowerCase(); });
+      var others = want.filter(function (x) { return x && x !== me; });
+      if (others.length && !canManage(ctx)) return res.status(403).json({ error: 'Editors and the publisher can set reminders for other people. You can set your own.' });
+      var bad = want.filter(function (x) { return x !== me && team && !team[x]; });
+      if (bad.length) return res.status(400).json({ error: 'Not on your team: ' + bad.join(', ') });
+      return res.status(200).json({ event: await Cal.setRemindersFor(b.id, want, b.minutes, b.channel, me) });
+    }
+    if (b.action === 'assign') {
+      if (!canManage(ctx)) return res.status(403).json({ error: 'Editors and the publisher assign writers.' });
+      var team2 = await teamEmails(ctx), who = String(b.email || '').toLowerCase();
+      if (who && team2 && !team2[who]) return res.status(400).json({ error: 'Not on your team: ' + who });
+      var ev2 = await Cal.assign(b.id, who ? { email: who, name: team2 && team2[who] } : null, me);
+      if (who && Number(b.minutes)) ev2 = await Cal.setRemindersFor(b.id, [who], b.minutes, b.channel, me);
+      return res.status(200).json({ event: ev2 });
     }
     if (b.action === 'default') { await Cal.setDefault(me, b.minutes, b.channel); return res.status(200).json({ ok: true }); }
     return res.status(400).json({ error: 'Unknown action' });

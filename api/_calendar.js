@@ -22,7 +22,9 @@
 var { get, put } = require('./_site-blob');
 var PATH = 'calendar/events.json';
 var TZ = 'America/New_York';
-var STEPS = [30, 60, 90, 120, 150, 180, 210, 240, 270, 300, 330, 360];
+// Minutes before an event a reminder can go: 30 min to 6 hours in 30-minute
+// steps, then 12 hours, 1 day, 2 days and a week (Jeff, 2026-10-09: "how far in advance").
+var STEPS = [30, 60, 90, 120, 150, 180, 210, 240, 270, 300, 330, 360, 720, 1440, 2880, 10080];
 
 async function load() {
   try {
@@ -187,6 +189,58 @@ async function setReminder(id, email, minutes, channel) {
   if (!ev.noRemind.length) delete ev.noRemind;
   if (minutes) ev.reminders.push({ email: email, minutes: minutes, channel: (channel === 'text' || channel === 'both' ? channel : 'email'), sentAt: null });
   await save(data);
+  return ev;
+}
+
+// Reminders for other people on one event (Jeff, 2026-10-09: "set reminder
+// for each event and who the reminder goes to and how far in advance").
+// emails: newsroom members (checked by the route); minutes 0 removes theirs.
+async function setRemindersFor(id, emails, minutes, channel, by) {
+  minutes = Number(minutes) || 0;
+  if (minutes && STEPS.indexOf(minutes) === -1) throw new Error('Pick how far ahead from the list.');
+  var data = await load();
+  var ev = data.events.filter(function (e) { return e.id === id; })[0];
+  if (!ev) throw new Error('Event not found');
+  ev.reminders = ev.reminders || [];
+  (emails || []).forEach(function (em) {
+    em = String(em || '').toLowerCase(); if (!em) return;
+    ev.reminders = ev.reminders.filter(function (r) { return r.email !== em; });
+    ev.noRemind = (ev.noRemind || []).filter(function (x) { return x !== em; });
+    if (minutes) ev.reminders.push({ email: em, minutes: minutes, channel: (channel === 'text' || channel === 'both' ? channel : 'email'), sentAt: null, by: by || null });
+    else ev.noRemind.push(em);
+    if (!ev.noRemind.length) delete ev.noRemind;
+  });
+  await save(data);
+  return ev;
+}
+
+// Put a writer on an event (Jeff, 2026-10-09: "assign writer to an event and
+// option to set reminders"). assignee null takes them off. Emails them.
+async function assign(id, assignee, by) {
+  var data = await load();
+  var ev = data.events.filter(function (e) { return e.id === id; })[0];
+  if (!ev) throw new Error('Event not found');
+  var before = ev.assignee && ev.assignee.email;
+  if (assignee && assignee.email) ev.assignee = { email: String(assignee.email).toLowerCase(), name: String(assignee.name || '').slice(0, 80), by: by || null, at: new Date().toISOString() };
+  else delete ev.assignee;
+  await save(data);
+  if (ev.assignee && ev.assignee.email !== before) {
+    try {
+      await require('./_mailer').sendMail({
+        to: ev.assignee.email,
+        subject: 'You\'re on it: ' + ev.title + ' (' + fmtWhen(ev) + ')',
+        html: '<div style="font-family:-apple-system,Segoe UI,sans-serif;font-size:15px">' +
+          '<p>' + (by ? esc(by.split('@')[0]) + ' put you on this' : 'You\'re on this') + ':</p>' +
+          '<p><b>' + esc(ev.title) + '</b><br>' + esc(fmtWhen(ev)) + (ev.location ? ' · ' + esc(ev.location) : '') + '</p>' +
+          (ev.note ? '<p>' + esc(ev.note) + '</p>' : '') +
+          '<p style="font-size:13px"><a href="https://ims-tool.vercel.app/calendar">Open the calendar</a> to see it, set your reminder or start the story with Write it.</p></div>'
+      });
+    } catch (e) { console.error('Calendar assign email failed:', e.message); }
+    try {
+      var S = require('./_supabase');
+      if (S.isConfigured()) await require('./_chat-store').postSystemMessage(S.admin(), { senderName: 'CoPublisher AI', kind: 'calendar', tag: 'Calendar', text: (ev.assignee.name || ev.assignee.email.split('@')[0]) + ' is on ' + ev.title + ' (' + fmtWhen(ev) + ')', meta: { url: '/calendar', eventId: ev.id } });
+    } catch (e) { console.error('Calendar assign chat failed:', e.message); }
+  }
   return ev;
 }
 
@@ -576,4 +630,63 @@ async function fromEmail(text, meta) {
   return { summary: got.summary, events: saved };
 }
 
-module.exports = { HEAT_V: HEAT_V, mode: mode, setMode: setMode, addAiEvents: addAiEvents, sameItem: sameItem, ensureHeatSpots: ensureHeatSpots, setHeatOn: setHeatOn, setHeatReminder: setHeatReminder, heatOn: heatOn, weekKey: weekKey, eventsOn: eventsOn, timeOf: timeOf, load: load, extract: extract, addEvents: addEvents, setReminder: setReminder, setDefault: setDefault, updateEvent: updateEvent, deleteEvent: deleteEvent, sendDueReminders: sendDueReminders, reminderDueMs: reminderDueMs, setHot12: setHot12, hot12Due: hot12Due, setQuiet: setQuiet, quietOf: quietOf, QUIET_DEFAULT: QUIET_DEFAULT, forgetPerson: forgetPerson, fromEmail: fromEmail, zonedIso: zonedIso, STEPS: STEPS, TZ: TZ };
+// "Tomorrow's plan" for the nightly digest (Jeff, 2026-10-09: "have a
+// 'tomorrow's plan' listing what is coming and any events and who is
+// covering them", with the next day's reminders). Tomorrow in full: each
+// item's time, place, who's covering it (or that nobody is yet) and who has
+// a reminder set; hot spots; then the rest of the week in short. Names from
+// the newsroom's team (email -> name, best-effort). Returns '' on any error
+// so the digest still goes.
+function minLabel(m) { m = +m; if (m >= 1440) { var d = m / 1440; return d === 7 ? '1 week' : d + (d === 1 ? ' day' : ' days'); } return m < 60 ? m + ' min' : (m % 60 ? (m / 60).toFixed(1) : m / 60) + ' hr'; }
+async function teamNames() {
+  var out = {};
+  try {
+    var S = require('./_supabase'); if (!S.isConfigured()) return out;
+    var sb = S.admin();
+    var site = await sb.from('sites').select('id').eq('slug', require('./_site').slug()).single();
+    if (!site.data) return out;
+    var mem = await sb.from('memberships').select('byline, profiles(email, full_name)').eq('site_id', site.data.id);
+    (mem.data || []).forEach(function (m) { var p = m.profiles; if (p && p.email) out[p.email.toLowerCase()] = p.full_name || m.byline || ''; });
+  } catch (e) {}
+  return out;
+}
+async function tomorrowPlanHtml(nowMs) {
+  try {
+    nowMs = nowMs || Date.now();
+    var data = await load(), names = await teamNames();
+    var nm = function (em) { em = String(em || '').toLowerCase(); return names[em] || em.split('@')[0]; };
+    var tKey = nyDay(nowMs + 86400000);
+    var keys = [1, 2, 3, 4, 5, 6, 7].map(function (n) { return nyDay(nowMs + n * 86400000); });
+    var on = function (k) { return data.events.filter(function (e) { return e.start && nyDay(startMs(e)) === k; }).sort(function (a, b) { return startMs(a) - startMs(b); }); };
+    var tomorrow = on(tKey), real = tomorrow.filter(function (e) { return e.kind !== 'heat'; }), heat = tomorrow.filter(function (e) { return e.kind === 'heat'; });
+    var later = []; keys.slice(1).forEach(function (k) { later = later.concat(on(k).filter(function (e) { return e.kind !== 'heat'; })); });
+    var label = new Date(Date.parse(tKey + 'T12:00:00Z')).toLocaleDateString('en-US', { timeZone: 'UTC', weekday: 'long', month: 'long', day: 'numeric' });
+    var link = 'https://ims-tool.vercel.app/calendar';
+    var h = '<div style="margin-bottom:22px;border:1px solid #bfdbfe;background:#eff6ff;border-radius:8px;padding:14px 16px;">' +
+      '<div style="font-size:12px;font-weight:700;color:#1e3a8a;text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px;">🗓️ Tomorrow\'s plan &middot; ' + esc(label) + '</div>';
+    if (!real.length) h += '<div style="font-size:13px;color:#555;padding:2px 0 6px;">Nothing on the calendar for tomorrow. <a href="' + link + '" style="color:#1d4ed8;">Add something</a></div>';
+    var open = 0;
+    real.forEach(function (e) {
+      var rems = (e.reminders || []).filter(function (r) { return r.minutes; });
+      if (!e.assignee) open++;
+      h += '<div style="padding:8px 0;border-top:1px solid #dbeafe;font-size:13.5px;line-height:1.45;">' +
+        '<b>' + esc(timeOf(e)) + '</b> &middot; <b>' + esc(e.title) + '</b>' + (e.location ? ' <span style="color:#555;">&middot; 📍 ' + esc(e.location) + '</span>' : '') +
+        (e.note ? '<div style="color:#555;font-size:12.5px;">' + esc(e.note) + '</div>' : '') +
+        '<div style="font-size:12.5px;margin-top:2px;">' + (e.assignee ? '✍️ Covering: <b>' + esc(e.assignee.name || nm(e.assignee.email)) + '</b>' : '<span style="color:#b45309;">⚠️ Nobody is covering this yet. <a href="' + link + '" style="color:#b45309;">Assign someone</a></span>') + '</div>' +
+        (rems.length ? '<div style="font-size:12px;color:#555;">🔔 Reminders: ' + rems.map(function (r) { return esc(nm(r.email)) + ' (' + esc(minLabel(r.minutes)) + ' before' + (r.sentAt ? ', sent' : '') + ')'; }).join(', ') + '</div>' : '') +
+        '</div>';
+    });
+    if (heat.length) h += '<div style="padding:8px 0;border-top:1px solid #dbeafe;font-size:13px;">🔥 Best times to publish: ' + heat.map(function (e) { return '<b>' + esc(timeOf(e)) + '</b>'; }).join(', ') + '</div>';
+    if (later.length) {
+      h += '<div style="font-size:11.5px;font-weight:700;color:#1e3a8a;text-transform:uppercase;letter-spacing:.05em;margin:10px 0 4px;">Later this week</div>';
+      later.slice(0, 12).forEach(function (e) {
+        h += '<div style="font-size:12.5px;padding:2px 0;color:#333;">' + esc(fmtWhen(e)) + ' &middot; ' + esc(e.title) + ' &middot; ' + (e.assignee ? '✍️ ' + esc(e.assignee.name || nm(e.assignee.email)) : '<span style="color:#b45309;">nobody yet</span>') + '</div>';
+      });
+      if (later.length > 12) h += '<div style="font-size:12px;color:#555;">and ' + (later.length - 12) + ' more</div>';
+    }
+    h += '<div style="font-size:11.5px;color:#555;margin-top:8px;">' + (open ? open + ' of tomorrow\'s ' + real.length + ' still need' + (open === 1 ? 's' : '') + ' someone. ' : '') + '<a href="' + link + '" style="color:#1d4ed8;">Open the calendar</a> to assign writers and set reminders.</div></div>';
+    return h;
+  } catch (e) { console.error('tomorrowPlanHtml failed:', e.message); return ''; }
+}
+
+module.exports = { HEAT_V: HEAT_V, mode: mode, setMode: setMode, addAiEvents: addAiEvents, sameItem: sameItem, ensureHeatSpots: ensureHeatSpots, setHeatOn: setHeatOn, setHeatReminder: setHeatReminder, heatOn: heatOn, weekKey: weekKey, eventsOn: eventsOn, timeOf: timeOf, load: load, extract: extract, addEvents: addEvents, setReminder: setReminder, setDefault: setDefault, updateEvent: updateEvent, setRemindersFor: setRemindersFor, assign: assign, deleteEvent: deleteEvent, sendDueReminders: sendDueReminders, reminderDueMs: reminderDueMs, setHot12: setHot12, hot12Due: hot12Due, setQuiet: setQuiet, quietOf: quietOf, QUIET_DEFAULT: QUIET_DEFAULT, forgetPerson: forgetPerson, fromEmail: fromEmail, zonedIso: zonedIso, tomorrowPlanHtml: tomorrowPlanHtml, STEPS: STEPS, TZ: TZ };
