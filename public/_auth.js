@@ -113,6 +113,49 @@
   }
 
   // Call once on page load. Resolves when it's safe to render the page.
+  // The newsroom's logo and colors (api/brand.js; Jeff, 2026-10-09: "Make
+  // app customizable with users logo and/or colors"). The logo replaces the
+  // initials box in the top bar; the accent color replaces the blue (buttons,
+  // links, the active tab) and the header color the navy top bar. A color too
+  // light for white text on it is darkened until it reads. Remembered in this
+  // browser so the next page opens in the newsroom's colors without a flash.
+  var BRAND_VARS = ['--red', '--red-dark', '--red-light', '--nav-on', '--dark', '--dark2', '--dark3', '--nav'];
+  function rgb(h) { h = String(h).replace('#', ''); return [0, 2, 4].map(function (i) { return parseInt(h.substr(i, 2), 16); }); }
+  function toHex(c) { return '#' + c.map(function (v) { return ('0' + Math.round(Math.max(0, Math.min(255, v))).toString(16)).slice(-2); }).join(''); }
+  function mix(a, b, t) { var x = rgb(a), y = rgb(b); return toHex(x.map(function (v, i) { return v + (y[i] - v) * t; })); }
+  function lum(h) { var c = rgb(h).map(function (v) { v /= 255; return v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4); }); return 0.2126 * c[0] + 0.7152 * c[1] + 0.0722 * c[2]; }
+  function readable(h, ratio) { for (var i = 0; i < 30 && 1.05 / (lum(h) + 0.05) < ratio; i++) h = mix(h, '#000000', 0.08); return h; }
+  function applyBrand(b) {
+    var root = document.documentElement;
+    if (!document.getElementById('cp-brand-css')) {
+      var st = document.createElement('style'); st.id = 'cp-brand-css';
+      st.textContent = '.cp-logo-img{background:#fff!important;padding:2px!important;width:auto!important;min-width:34px;max-width:120px;overflow:hidden}.cp-logo-img img{display:block;height:100%;width:auto;max-width:116px;object-fit:contain}';
+      document.head.appendChild(st);
+    }
+    BRAND_VARS.forEach(function (v) { root.style.removeProperty(v); });
+    b = b || {};
+    if (b.accent) {
+      var a = readable(b.accent, 4.5);
+      root.style.setProperty('--red', a); root.style.setProperty('--red-dark', mix(a, '#000000', 0.15));
+      root.style.setProperty('--red-light', mix(a, '#ffffff', 0.88)); root.style.setProperty('--nav-on', mix(b.accent, '#ffffff', 0.45));
+    }
+    if (b.header) {
+      var h = readable(b.header, 7);
+      root.style.setProperty('--dark', h); root.style.setProperty('--nav', mix(h, '#ffffff', 0.05));
+      root.style.setProperty('--dark2', mix(h, '#ffffff', 0.06)); root.style.setProperty('--dark3', mix(h, '#ffffff', 0.12));
+    }
+    var tc = document.querySelector('meta[name="theme-color"]');
+    if (tc) { if (tc.dataset.orig == null) tc.dataset.orig = tc.content; tc.content = b.header ? readable(b.header, 7) : tc.dataset.orig; }
+    document.querySelectorAll('.ims-logo, .brand .mark').forEach(function (el) {
+      if (el.dataset.orig == null) el.dataset.orig = el.textContent;
+      if (b.logo) { el.innerHTML = '<img alt="">'; el.firstChild.src = b.logo; el.classList.add('cp-logo-img'); }
+      else if (el.classList.contains('cp-logo-img')) { el.classList.remove('cp-logo-img'); el.textContent = el.dataset.orig; }
+    });
+  }
+  function rememberBrand(slug, b) { try { if (b && (b.logo || b.accent || b.header)) localStorage.setItem('cp-brand', JSON.stringify({ slug: slug, brand: b })); else localStorage.removeItem('cp-brand'); } catch (e) {} }
+  // Before /api/me answers: the colors this browser saw last time.
+  try { var cachedBrand = JSON.parse(localStorage.getItem('cp-brand') || 'null'); if (cachedBrand && cachedBrand.brand && (!chosenSite() || chosenSite() === cachedBrand.slug)) applyBrand(cachedBrand.brand); } catch (e) {}
+
   async function guard(opts) {
     opts = opts || {};
     try {
@@ -140,6 +183,8 @@
       STATE.site = me.site || null;
       STATE.sites = me.sites || [];
       STATE.beat = me.beat || null;
+      STATE.brand = me.brand || null;
+      applyBrand(STATE.brand); rememberBrand(STATE.site && STATE.site.slug, STATE.brand);
       // A remembered newsroom this person no longer belongs to: forget it.
       if (chosenSite() && STATE.site && STATE.site.slug !== chosenSite()) { try { localStorage.removeItem('cp-site'); } catch (e) {} }
       if (me.pending && me.canCreate && !opts.allowPending && !/[?&]preview=1/.test(location.search)) {
@@ -221,6 +266,8 @@
     signOut: signOut,
     showHealthBanner: showHealthBanner,
     mountMenu: mountMenu,
+    applyBrand: applyBrand,
+    rememberBrand: rememberBrand,
     chooseSite: chooseSite,
     isPublisher: function () { return STATE.role === 'publisher'; },
     isEditor: function () { return STATE.role === 'publisher' || STATE.role === 'editor'; }

@@ -83,6 +83,18 @@ h1{font-size:22px;margin-bottom:4px}
 .btn:hover{background:var(--red-dark)}
 .btn:disabled{opacity:.6;cursor:default}
 .msg{font-size:12.5px;margin-left:10px}
+.br-prev{border:1px solid var(--border);border-radius:10px;overflow:hidden;margin-bottom:6px;max-width:460px}
+.br-bar{background:var(--dark);color:#fff;display:flex;align-items:center;gap:10px;padding:10px 12px;font-size:14px}
+.br-logo{height:30px;min-width:30px;border-radius:5px;background:var(--red);display:inline-flex;align-items:center;justify-content:center;font-size:10px;font-weight:800;overflow:hidden}
+.br-logo.img{background:#fff;padding:2px}.br-logo img{height:100%;width:auto;max-width:130px;object-fit:contain}
+.br-body{padding:12px;display:flex;align-items:center;gap:12px;flex-wrap:wrap;font-size:13px}.br-body a{color:var(--red)}
+.br-tab{border-bottom:2px solid var(--red);color:var(--red);font-weight:600;padding:2px 0}
+.sw{display:flex;gap:6px;flex-wrap:wrap;align-items:center}
+.sw button{width:28px;height:28px;border-radius:50%;border:2px solid #fff;box-shadow:0 0 0 1px var(--border);cursor:pointer;padding:0}
+.sw button.on{box-shadow:0 0 0 2px var(--text)}
+.sw input[type=color]{width:34px;height:30px;border:1px solid var(--border);border-radius:6px;padding:1px;background:#fff;cursor:pointer}
+.sw .lbl{font-size:12px;color:var(--muted)}
+.linkbtn{background:none;border:0;color:var(--text2);text-decoration:underline;cursor:pointer;font:inherit;font-size:12.5px}
 .msg.err{color:var(--hot)}.msg.ok{color:var(--green)}
 .notice{background:var(--amber-bg);border:1px solid #f0e2a8;border-radius:8px;padding:9px 12px;font-size:12.5px;margin-bottom:12px}
 table{width:100%;border-collapse:collapse;font-size:13px}
@@ -126,13 +138,14 @@ tr.you td{background:var(--red-light)}
     <ol>
       <li><b>Your alerts:</b> turn each email or text on or off for yourself. Pick your time zone and when the digest and updates come, then tap ⏰ under an alert to choose the days and hours you want it; outside those, it's saved and comes in a "While you were off" box at the top of your next update instead. These only change what <i>you</i> get.</li>
       <li><b>Content Editor defaults</b> (publisher): choose what gets added to every article, like your podcast, related links, promos and ads, and where in the story it goes. Writers can still change it for a single article.</li>
+      <li><b>Logo &amp; colors</b> (publisher): put your logo and colors on CoPublisher for everyone on your team.</li>
       <li><b>What each role can do</b>: switch features on or off for editors, writers, contributors and viewers. <b>Your current permissions settings</b> shows where things stand. Set each person's role in <a href="/settings">Settings › Team &amp; alerts</a>.</li>
       <li><b>All settings:</b> a map of every setting in the app and where to change it.</li>
       <li><b>Your account:</b> privacy, terms, support, and deleting your account.</li>
     </ol>
   </div>
   <div class="jump">
-    <a href="#alerts">Your alerts</a><a href="#editor">Content Editor defaults</a><a href="#access">What each role can do</a><a href="#permissions">Current permissions</a><a href="#everything">All settings</a><a href="#account">Your account</a>
+    <a href="#alerts">Your alerts</a><a href="#editor">Content Editor defaults</a><a href="#brand" id="jump-brand" style="display:none">Logo &amp; colors</a><a href="#access">What each role can do</a><a href="#permissions">Current permissions</a><a href="#everything">All settings</a><a href="#account">Your account</a>
   </div>
   <div id="notice"></div>
 
@@ -155,6 +168,18 @@ tr.you td{background:var(--red-light)}
     </div>
     <div id="ed-defaults"></div>
     <div style="margin-top:12px"><button class="btn" id="ed-save" onclick="saveEditorDefaults()">Save defaults</button><span class="msg" id="ed-msg"></span></div>
+  </section>
+
+  <section class="card" id="brand" style="display:none">
+    <h2>Logo &amp; colors</h2>
+    <div class="sub">Make CoPublisher look like your newsroom. Your logo goes in the top bar on every page, and your colors replace the blue and navy, for everyone on your team. Pick a color and the page changes as you go, so you can see it before you save.</div>
+    <div class="br-prev" id="br-prev"><div class="br-bar"><span class="br-logo" id="br-plogo"></span><b id="br-pname">Your newsroom</b></div><div class="br-body"><button class="btn" type="button" tabindex="-1">A button</button> <a href="#" onclick="return false">a link</a> <span class="br-tab">Active tab</span></div></div>
+    <div class="row"><div class="name"><b>Logo</b><span>PNG, JPG or WebP. A wide logo is fine; it's shrunk to fit the top bar. Logos with a see-through background look best.</span></div>
+      <label class="btn" style="background:var(--dark)">Upload logo<input type="file" id="br-file" accept="image/png,image/jpeg,image/webp" style="display:none" onchange="brandLogo(this)"></label>
+      <button type="button" class="linkbtn" id="br-nologo" onclick="brandSet('logo','')">Remove</button></div>
+    <div class="row"><div class="name"><b>Main color</b><span>Buttons, links and the tab you're on.</span></div><div class="sw" id="br-accent"></div></div>
+    <div class="row"><div class="name"><b>Top bar color</b><span>The bar across the top of every page. Pick a dark one; a light one is darkened so the white text still reads.</span></div><div class="sw" id="br-header"></div></div>
+    <div style="margin-top:12px"><button class="btn" id="br-save" onclick="saveBrand()">Save logo &amp; colors</button> <button type="button" class="linkbtn" onclick="brandReset()">Back to CoPublisher's colors</button><span class="msg" id="br-msg"></span></div>
   </section>
 
   <section class="card" id="access">
@@ -314,6 +339,7 @@ var WHO={publisher:['pub','Publisher'],editor:['ed','Editors'],all:['all','Every
 var DIR=[
   ['Newsroom setup (the setup wizard)',[
     ['Outlet, website and the sports you cover','/setup?step=outlet','publisher'],
+    ['Logo and colors','/preferences#brand','publisher'],
     ['Your beat: sources, competitors and Opps Spy email/text alerts','/setup?step=beat','publisher'],
     ['People to watch','/setup?step=people','publisher'],
     ['Roster watch','/setup?step=roster','publisher'],
@@ -644,6 +670,70 @@ async function saveEditorDefaults(){
   b.disabled=false;
 }
 
+// Logo & colors (api/brand.js; Jeff, 2026-10-09: "Make app customizable with
+// users logo and/or colors"). Publisher only. Changes preview live on this
+// page (IMSAuth.applyBrand) and save for the whole newsroom.
+var brand={logo:'',accent:'',header:''}, brandSaved=null;
+var ACCENTS=[['','CoPublisher blue','#2563eb'],['#c8102e','Red'],['#e03a3e','Scarlet'],['#7a0019','Maroon'],['#f56600','Orange'],['#d4a017','Gold'],['#1e7b34','Green'],['#00747a','Teal'],['#4b2e83','Purple'],['#002d72','Navy'],['#111111','Black']];
+var HEADERS=[['','CoPublisher navy','#0f1b2d'],['#111111','Black'],['#2b2b2b','Charcoal'],['#3d0010','Deep maroon'],['#5c0a14','Dark red'],['#0b2e1a','Forest'],['#24133f','Deep purple'],['#00203f','Midnight'],['#3a2a00','Bronze']];
+function swatches(id,list,key){
+  var cur=brand[key]||'';
+  var custom=cur&&!list.some(function(c){return c[0]===cur;});
+  $(id).innerHTML=list.map(function(c){return '<button type="button" title="'+esc(c[1])+'" class="'+(c[0]===cur?'on':'')+'" style="background:'+(c[2]||c[0])+'" onclick="brandSet(\''+key+'\',\''+c[0]+'\')"></button>';}).join('')+
+    '<span class="lbl">or your own</span><input type="color" value="'+(cur||(list[0][2]))+'" title="Pick any color" oninput="brandSet(\''+key+'\',this.value,true)"'+(custom?' style="outline:2px solid var(--text)"':'')+'>';
+}
+function brandPaint(){
+  if(window.IMSAuth&&IMSAuth.applyBrand) IMSAuth.applyBrand(brand);
+  var l=$('br-plogo'), name=(window.IMSAuth&&IMSAuth.state.site&&IMSAuth.state.site.name)||'Your newsroom';
+  $('br-pname').textContent=name;
+  if(brand.logo){ l.className='br-logo img'; l.innerHTML='<img alt="">'; l.firstChild.src=brand.logo; }
+  else { l.className='br-logo'; l.textContent=name.replace(/[^A-Za-z0-9]/g,'').slice(0,3).toUpperCase()||'CP'; }
+  $('br-nologo').style.display=brand.logo?'':'none';
+}
+function brandSet(key,val,fromPicker){ brand[key]=val; brandPaint(); if(!fromPicker) renderSwatches(); $('br-msg').className='msg'; $('br-msg').textContent='Not saved yet.'; }
+function renderSwatches(){ swatches('br-accent',ACCENTS,'accent'); swatches('br-header',HEADERS,'header'); }
+function brandReset(){ brand={logo:brand.logo,accent:'',header:''}; brandPaint(); renderSwatches(); $('br-msg').className='msg'; $('br-msg').textContent='Not saved yet.'; }
+// Shrink the logo in the browser (max 120px tall, 480px wide) before saving.
+function brandLogo(input){
+  var f=input.files&&input.files[0]; input.value='';
+  if(!f) return;
+  if(!/^image\/(png|jpeg|webp)$/.test(f.type)){ $('br-msg').className='msg err'; $('br-msg').textContent='Use a PNG, JPG or WebP image.'; return; }
+  var rd=new FileReader();
+  rd.onload=function(){
+    var img=new Image();
+    img.onload=function(){
+      var sc=Math.min(1,120/img.height,480/img.width), c=document.createElement('canvas');
+      c.width=Math.max(1,Math.round(img.width*sc)); c.height=Math.max(1,Math.round(img.height*sc));
+      c.getContext('2d').drawImage(img,0,0,c.width,c.height);
+      var url=c.toDataURL('image/png'); if(url.length>190000) url=c.toDataURL('image/webp',0.9);
+      if(url.length>270000){ $('br-msg').className='msg err'; $('br-msg').textContent='That logo is too detailed to save. Try a simpler or smaller image.'; return; }
+      brandSet('logo',url);
+    };
+    img.onerror=function(){ $('br-msg').className='msg err'; $('br-msg').textContent='Couldn’t read that image.'; };
+    img.src=rd.result;
+  };
+  rd.readAsDataURL(f);
+}
+async function saveBrand(){
+  var b=$('br-save'), m=$('br-msg'); b.disabled=true; m.className='msg'; m.textContent='Saving…';
+  try{
+    var r=await fetch('/api/brand',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(brand)});
+    var d=await r.json().catch(function(){return {};});
+    if(!r.ok||d.error) throw new Error(d.error||('HTTP '+r.status));
+    brandSaved=JSON.parse(JSON.stringify(d.brand)); brand=d.brand;
+    if(window.IMSAuth&&IMSAuth.rememberBrand) IMSAuth.rememberBrand(IMSAuth.state.site&&IMSAuth.state.site.slug,brand);
+    m.className='msg ok'; m.textContent='Saved. Everyone on your team sees it on their next page load.';
+  }catch(e){ m.className='msg err'; m.textContent='Couldn’t save: '+e.message; }
+  b.disabled=false;
+}
+function loadBrand(){
+  if(!CONFIGURED||ROLE!=='publisher') return;
+  var st=(window.IMSAuth&&IMSAuth.state.brand)||{};
+  brand={logo:st.logo||'',accent:st.accent||'',header:st.header||''}; brandSaved=JSON.parse(JSON.stringify(brand));
+  $('brand').style.display=''; $('jump-brand').style.display='';
+  renderSwatches(); brandPaint();
+}
+
 (async function init(){
   if(window.IMSAuth){
     var s=await IMSAuth.guard();
@@ -653,7 +743,7 @@ async function saveEditorDefaults(){
   if(CONFIGURED && ROLE!=='publisher') $('notice').innerHTML='<div class="notice">You’re signed in as '+(ROLE==='editor'?'an editor':'a '+esc(ROLE))+'. You can change your own alerts here; the newsroom’s defaults are set by the publisher.</div>';
   renderPerms(); renderDir();
   try{ var r=await fetch('/api/site-profile'); var d=await r.json(); profile=(d&&d.profile)||{}; accessDefaults=(d&&d.accessDefaults)||{}; }catch(e){ profile={}; }
-  loadEditorDefaults();
+  loadEditorDefaults(); loadBrand();
   access=JSON.parse(JSON.stringify(profile.editorAccess||{})); renderAccess(); renderPerms();
   loadAlerts(); loadRemovePeople();
   if(location.hash){ var t=document.querySelector(location.hash); if(t) t.scrollIntoView(); }
