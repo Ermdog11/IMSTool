@@ -113,7 +113,8 @@ async function startTranscript(audioUrl) {
   return aaiJson('/transcript', opts(body));
 }
 
-async function startFromBlob(pathname) {
+// keep: leave the file in Blob (Pod-slap still uploads it to the podcast host).
+async function startFromBlob(pathname, keep) {
   var blob = require('@vercel/blob');
   var got = await blob.get(pathname, { access: 'private', useCache: false });
   if (!got || got.statusCode !== 200 || !got.stream) { var e = new Error('Uploaded file not found. Try uploading again.'); e.status = 404; throw e; }
@@ -127,7 +128,7 @@ async function startFromBlob(pathname) {
     return await startTranscript(up.upload_url);
   } finally {
     // AssemblyAI has its own copy now; don't keep interview audio around.
-    blob.del(pathname).catch(function () {});
+    if (!keep) blob.del(pathname).catch(function () {});
   }
 }
 
@@ -213,3 +214,5 @@ module.exports = async function handler(req, res) {
 
 // Per-newsroom: this request runs as the signed-in person's newsroom (_site.js).
 module.exports = require('./_site').wrap(module.exports);
+// For Pod-slap (api/podslap.js), which transcribes the episode it uploads.
+module.exports.startFromBlob = startFromBlob;
