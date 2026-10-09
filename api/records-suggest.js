@@ -45,6 +45,7 @@ function emailHtml(story, d, tierLabel) {
     '<p style="margin:0 0 4px"><b>Send to:</b> ' + (d.to ? esc(d.to) + (/^https?:/.test(d.toSource || '') ? ' <span style="color:#888">(confirmed on <a href="' + esc(d.toSource) + '">' + esc(d.toSource.replace(/^https?:\/\//, '').slice(0, 60)) + '</a>)</span>' : '')
       : d.toUnconfirmed ? '<i>possibly ' + esc(d.toUnconfirmed) + '</i> <span style="color:#888">(not printed on the agency page' + (/^https?:/.test(d.toSource || '') ? ' <a href="' + esc(d.toSource) + '">' + esc(d.toSource.replace(/^https?:\/\//, '').slice(0, 60)) + '</a>' : '') + '; check it before sending)</span>' : '<i>no published email found</i>') +
     (d.portal ? ' · <a href="' + esc(d.portal) + '">online request portal</a>' : '') + '</p>' +
+    (d.left_out && d.left_out.length ? '<p style="margin:8px 0 4px;color:#555"><b>Left out on purpose</b> (would be denied):</p><ul style="margin:0 0 10px;color:#555">' + d.left_out.map(function (r) { return '<li>' + esc(r) + '</li>'; }).join('') + '</ul>' : '') +
     (d.response_note ? '<p style="color:#555;margin:0 0 10px">' + esc(d.response_note) + '</p>' : '') +
     '<pre style="white-space:pre-wrap;font-family:Arial,sans-serif;background:#f7f6f3;border-radius:6px;padding:12px;font-size:13px">' + esc(d.body) + '</pre>' +
     '<p style="margin:14px 0 6px"><b>Want CoPublisher to send it for you?</b> Open it in CoPublisher, check the letter and tap <b>Send request</b>. It goes out under your name, you\'re copied, and the records office replies straight to you.</p>' +
@@ -81,12 +82,14 @@ module.exports = async function handler(req, res) {
       try {
         var d = await Records.draft(story, beat, { name: '', email: '' });
         done.push(Records.storyKey(a));
-        if (!d.eligible) { results.push({ headline: story.headline, eligible: false, reason: d.reason }); continue; }
+        // Only requests likely to be granted are offered unprompted.
+        if (!d.eligible) { results.push({ headline: story.headline, eligible: false, reason: d.reason, risk: d.denial_risk }); continue; }
+        if (d.denial_risk !== 'low') { results.push({ headline: story.headline, eligible: false, skipped: 'denial risk ' + d.denial_risk }); continue; }
         var tierLabel = a._tier === 1 ? 'coaching hire, firing or contract' : 'sponsorship, game or event deal';
         // Kept for the News Monitor and the next update email (Jeff, 2026-10-06).
         try {
           await Records.addSuggestion(curSite(), { headline: story.headline, url: story.url, source: story.source, tier: a._tier, tierLabel: tierLabel,
-            draft: { to: d.to || '', toVerified: !!d.toVerified, toUnconfirmed: d.toUnconfirmed || '', toSource: d.toSource || '', portal: d.portal || '', agency: d.agency || '', law: d.law || '', subject: d.subject || '', body: d.body || '', records: d.records || [], reason: d.reason || '', response_note: d.response_note || '' } });
+            draft: { to: d.to || '', toVerified: !!d.toVerified, toUnconfirmed: d.toUnconfirmed || '', toSource: d.toSource || '', portal: d.portal || '', agency: d.agency || '', law: d.law || '', subject: d.subject || '', body: d.body || '', records: d.records || [], reason: d.reason || '', response_note: d.response_note || '', denial_risk: d.denial_risk || '', left_out: d.left_out || [] } });
         } catch (e) { console.error('records-suggest save failed', e.message); }
         var mail = null;
         if (recipients.length) {

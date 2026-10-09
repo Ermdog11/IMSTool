@@ -2498,6 +2498,8 @@ function renderRecordsDraft(idx) {
     <div style="margin-bottom:6px;">${escapeHtml(d.reason || '')}</div>
     ${d.law ? `<div style="margin-bottom:6px;"><b>Law:</b> ${escapeHtml(d.law)}${d.agency ? ' · <b>To:</b> ' + escapeHtml(d.agency) : ''}</div>` : ''}
     ${d.records.length ? `<div style="margin-bottom:8px;"><b>Asks for:</b><ul style="margin:4px 0 0 18px;padding:0;">${d.records.map(r => '<li>' + escapeHtml(r) + '</li>').join('')}</ul></div>` : ''}
+    ${d.denial_risk ? `<div style="margin-bottom:6px;"><b>Chance it's granted:</b> ${d.denial_risk === 'low' ? '<span style="color:var(--green);font-weight:600;">good</span>' : '<span style="color:#b45309;font-weight:600;">uncertain</span>: parts may be withheld under an exemption'}</div>` : ''}
+    ${d.left_out && d.left_out.length ? `<div style="margin-bottom:8px;color:var(--text2);"><b>Left out on purpose</b> (protected, so asking would get it denied):<ul style="margin:4px 0 0 18px;padding:0;">${d.left_out.map(r => '<li>' + escapeHtml(r) + '</li>').join('')}</ul></div>` : ''}
     <label style="font-size:11px;font-weight:700;">Records office email</label>
     <input id="rr-to-${idx}" type="email" value="${escapeHtml(d.to || '')}" placeholder="records office email address" style="${fld}">
     ${d.to && /^https?:/.test(d.toSource || '') ? `<div style="margin:-4px 0 8px;color:var(--text3);">✓ Confirmed on the agency's page: <a href="${escapeHtml(d.toSource)}" target="_blank" rel="noopener">${escapeHtml(d.toSource.replace(/^https?:\/\//, '').slice(0, 70))}</a>.</div>` : ''}

@@ -18,6 +18,15 @@
 //   log / suggested state in Blob records-requests.json.
 //
 // Nothing here sends a request: a person always reviews and clicks Send.
+//
+// Requests that would be denied on sight are never suggested (Jeff,
+// 2026-10-09: "should understand student privacy law and standard rules so it
+// doesn't suggest requests that will automatically be denied"): DENIAL_RULES
+// is the drafter's rulebook (FERPA and the other standard exemptions, plus
+// what makes any request fail), the model rates each draft's denial risk and
+// lists what it left out and why, and screenRecords() drops any requested
+// item that is plainly a protected student record. A draft judged high risk,
+// or left with nothing requestable, comes back not eligible.
 var { get, put } = require('./_site-blob');
 
 var LOG_PATH = 'records-requests.json';
@@ -129,6 +138,40 @@ async function lookupOffice(agency) {
   return out;
 }
 
+// ── Privacy law and standard denial rules ─────────────────────────────────
+var DENIAL_RULES =
+  'WHAT GETS DENIED (never ask for these; a request built on them is refused on sight):\n' +
+  '1. Student records (FERPA, 20 U.S.C. 1232g; 34 CFR Part 99). Every enrolled student, student-athletes included, has protected education records: grades, GPA, transcripts, class schedules, academic progress and eligibility certifications, APR/academic data about a named athlete, admissions files, financial aid and an individual athlete\'s scholarship amount or cancellation, disciplinary and Title IX case files about a student, student emails and records that identify a student, and athletic-training, injury, treatment and drug-test records. Redacting the name does not help when the story already identifies the student, because the record is still "personally identifiable". Allowed instead: aggregate or de-identified data (team GPA, total athletic aid spent, APR for the team, roster counts), directory information the school designates (name, sport, height/weight, hometown, dates of attendance), the final result of a disciplinary proceeding for a crime of violence or nonforcible sex offense (34 CFR 99.31(a)(14)), law-enforcement unit records, the institution\'s own policies, and its correspondence with the NCAA or conference with student information redacted.\n' +
+  '2. Recruits and minors: a prospect\'s file, evaluations, visit records, communications with a recruit and anything identifying a minor. Recruiting is not requestable except the program\'s aggregate recruiting budget and travel/expense reports.\n' +
+  '3. Individual athletes\' NIL and revenue-sharing deals: many state NIL laws make an athlete\'s NIL contracts and disclosures confidential, and revenue-sharing payments to a named athlete are protected student financial information. Ask only for aggregate totals, the policy, and the institution\'s own contracts with collectives or marketing partners where that state allows it.\n' +
+  '4. Medical and health information about anyone (injuries, concussions, mental health, physicals), even when a coach discussed it publicly.\n' +
+  '5. Personnel files: in most states, an employee\'s evaluations, discipline, complaints, applications of candidates who were not hired, and background checks are exempt. Still public almost everywhere: the contract, salary and bonuses, offer letter, separation/buyout agreement, job description, dates of employment, and often the finalists for a top job. Ask for those.\n' +
+  '6. Open investigations: police and agency investigative files are withheld while the case is open; ask for the incident report or arrest record (adults only) and charging documents. An NCAA infractions case in progress is often withheld until the Committee on Infractions decision; ask for the notice of allegations and response once public, or for correspondence with student information redacted.\n' +
+  '7. Attorney-client and legal advice, drafts and internal deliberations before a decision (in many states), security plans, trade secrets and some proprietary terms in sponsorship or media deals (in some states), and donors who asked to stay anonymous. Athletic foundations, booster clubs, collectives and private conferences are usually not public bodies, so they can\'t be asked at all; ask the public university for what it holds.\n' +
+  'STANDARD RULES ANY REQUEST MUST FOLLOW OR IT IS DENIED OR BURIED IN FEES:\n' +
+  '- Ask only for records that already exist. A public-records law does not make an agency answer questions, explain decisions, compile new lists or create a document (ask for "the records showing X", not "how much was X").\n' +
+  '- Describe the records so a clerk can find them: the document type, the people or offices, and a date range. No "all records relating to"; no open-ended email searches. Emails must name the senders/recipients, a range of weeks or months, and keywords.\n' +
+  '- No future records, no standing requests for anything created later.\n' +
+  '- Send it to the public body that holds the records, under that state\'s own law and its own exemptions (apply the specific state law, e.g. the Maryland Public Information Act, General Provisions Title 4, with its personnel and student-record exemptions).\n' +
+  '- When the documents behind a story are all protected, the honest answer is not eligible: say so plainly and, if there is one, name a narrower record that could be obtained instead.\n';
+
+// A requested item that is plainly a protected record about a student or
+// recruit (grades, eligibility, injuries, an athlete's NIL deal...). These are
+// dropped from the draft even if the model missed them; aggregate wording
+// ("team", "all athletes", "total", "aggregate", "policy") is let through.
+var STUDENT_SUBJECT = /\b(student|player|athlete|recruit|prospect|signee|commit|transfer|walk-on|quarterback|guard|forward|center|freshman|sophomore|junior|senior|his|her|their)\b/i;
+var PROTECTED_ITEM = /\b(grades?|gpa|transcripts?|academic (records?|progress|standing|eligibility|file)|eligibility (records?|file|certification|status)|class schedules?|admissions? (file|records?|application)|financial aid|scholarship (amount|agreement|offer|cancell?ation|records?)|medical|injur(y|ies)|concussion|treatment|athletic training records?|drug.test|disciplinary (file|records?)|conduct (file|records?)|title ix (file|case file|investigation file)|counseling|mental health|nil (contract|deal|agreement|disclosure)s?|revenue.sharing (agreement|contract|payment)s?|recruiting (file|evaluations?|notes|communications?)|official visit records?|national letter of intent)\b/i;
+var AGGREGATE = /\b(aggregate|total|totals|team-wide|all (student-)?athletes|de-?identified|redact\w*|polic(y|ies)|budget|summary|statistics|counts?)\b/i;
+function screenRecords(list) {
+  var keep = [], dropped = [];
+  (list || []).forEach(function (r) {
+    var t = String(r || '');
+    if (PROTECTED_ITEM.test(t) && !AGGREGATE.test(t) && (STUDENT_SUBJECT.test(t) || !/\b(coach|director|employee|staff|official|president|chancellor)\b/i.test(t))) dropped.push(t);
+    else keep.push(t);
+  });
+  return { keep: keep, dropped: dropped };
+}
+
 // ── Drafting ───────────────────────────────────────────────────────────────
 var TOOL = {
   name: 'submit_records_request',
@@ -143,9 +186,11 @@ var TOOL = {
       records: { type: 'array', items: { type: 'string' }, description: 'The specific documents to request, each one line.' },
       subject: { type: 'string', description: 'Email subject line.' },
       body: { type: 'string', description: 'The full request letter, plain text, ready to send.' },
-      response_note: { type: 'string', description: 'One sentence on the response deadline under that law, e.g. "The custodian must respond within 30 days."' }
+      response_note: { type: 'string', description: 'One sentence on the response deadline under that law, e.g. "The custodian must respond within 30 days."' },
+      denial_risk: { type: 'string', enum: ['low', 'medium', 'high'], description: 'How likely the request as drafted is to be refused under FERPA, the state law\'s exemptions or the standard rules. High means it would very likely be denied outright; then set eligible to false.' },
+      left_out: { type: 'array', items: { type: 'string' }, description: 'Records the story points to that were NOT requested because they are protected or not obtainable, each with the reason in a few words, e.g. "His academic eligibility file (FERPA student record)". Empty if none.' }
     },
-    required: ['eligible', 'reason']
+    required: ['eligible', 'reason', 'denial_risk']
   }
 };
 
@@ -170,7 +215,8 @@ async function draft(story, beat, who) {
 
   var sys = 'You help a sports newsroom file public-records requests (federal FOIA, or the state public-records law that covers a public university or other government body). ' +
     'You judge whether the documents behind a news story are likely held by a public body and obtainable, and when they are, you draft a precise, professional request letter.\n\n' +
-    'Eligibility: public universities and their athletic departments, state and local agencies, and public stadium/sports authorities are covered. Private universities, pro teams, conferences, the NCAA and NIL collectives generally are not, unless a public body holds a copy (a public school\'s game contract with a private opponent; a private school\'s contract with a public school; a pro team\'s lease with a public stadium authority). The story may be about any school, not only the beat team: address the request to whichever public body holds the documents. Stories with no plausible underlying document (game recaps, recruiting commitments, player quotes) are not eligible, and student education records (grades, eligibility files) and medical records are exempt, so never request those; ask instead for the releasable documents around them (e.g. the institution\'s correspondence with the NCAA, a police report, a policy, a contract). Look for any document a public body would hold that could carry news: contracts and amendments, payments, emails among named officials, meeting minutes, reports, complaints.\n\n' +
+    'Eligibility: public universities and their athletic departments, state and local agencies, and public stadium/sports authorities are covered. Private universities, pro teams, conferences, the NCAA and NIL collectives generally are not, unless a public body holds a copy (a public school\'s game contract with a private opponent; a private school\'s contract with a public school; a pro team\'s lease with a public stadium authority). The story may be about any school, not only the beat team: address the request to whichever public body holds the documents. Stories with no plausible underlying document (game recaps, recruiting commitments, visits and rankings, player quotes, injuries, transfers and eligibility rulings about a student) are not eligible unless a releasable institutional record sits behind them. Look for any document a public body would hold that could carry news: contracts and amendments, payments, emails among named officials, meeting minutes, reports, complaints.\n\n' +
+    DENIAL_RULES + '\n' +
     'Good requests ask for specific, identifiable documents with a date range: employment agreements, offer letters, amendments, term sheets and memoranda of understanding; separation, buyout and settlement agreements; incentive and bonus provisions; game contracts and guarantee payments; event, facility, apparel, sponsorship, media-rights and naming-rights agreements; budgets, expense and travel reports, bonus and incentive payouts, ticket and attendance revenue, search-firm and consultant contracts, board of regents/trustees minutes and votes, NCAA infractions correspondence and self-reports, police and incident reports (adult arrests), audit reports, Title IX outcomes as releasable, lawsuit and settlement records; and, when useful, email correspondence between named officials over a narrow date range containing named keywords. ' +
     'Ask for electronic copies, release of any non-exempt portions, the specific legal basis for anything withheld, and a fee waiver or reduction because the requester is news media and the records serve the public interest (ask for an estimate before fees over $50). Cite the statute. Courteous and businesslike, no legal threats. Never state facts beyond what the story says. ' +
     'Sign it with the requester\'s name, outlet and email exactly as given; leave a clear [placeholder] for anything not given.';
@@ -194,6 +240,21 @@ async function draft(story, beat, who) {
   var out = tu && tu.input;
   if (!out || typeof out.eligible !== 'boolean') throw new Error('No usable draft returned');
   out.records = Array.isArray(out.records) ? out.records : [];
+  out.left_out = Array.isArray(out.left_out) ? out.left_out : [];
+  if (['low', 'medium', 'high'].indexOf(out.denial_risk) === -1) out.denial_risk = 'medium';
+  var sc = screenRecords(out.records);
+  if (sc.dropped.length) {
+    out.records = sc.keep;
+    out.left_out = out.left_out.concat(sc.dropped.map(function (r) { return r + ' (protected student record, left out)'; }));
+    // Take the same lines out of the letter, so it never asks for them.
+    if (out.body) sc.dropped.forEach(function (r) { out.body = out.body.split('\n').filter(function (l) { return l.indexOf(r.slice(0, 60)) === -1; }).join('\n'); });
+  }
+  if (out.eligible && (out.denial_risk === 'high' || !out.records.length)) {
+    out.eligible = false;
+    out.reason = (out.reason ? out.reason + ' ' : '') + (out.records.length
+      ? 'As drafted it would very likely be denied, so CoPublisher isn\'t suggesting it.'
+      : 'Everything behind this story is a protected record (student privacy or another exemption), so a request would be denied.');
+  }
   out.tier = classify(story);
   out.to = ''; out.toSource = ''; out.portal = '';
   if (!out.eligible) return out;
@@ -288,5 +349,6 @@ module.exports = {
   addSuggestion: addSuggestion, listSuggestions: listSuggestions, setSuggestionStatus: setSuggestionStatus, pendingForDigest: pendingForDigest, markInDigest: markInDigest, emailOnPage: emailOnPage,
   classify: classify, draft: draft, lookupOffice: lookupOffice,
   loadState: loadState, appendLog: appendLog, storyKey: storyKey,
-  suggestedKeys: suggestedKeys, markSuggested: markSuggested, EMAIL_RE: EMAIL_RE
+  suggestedKeys: suggestedKeys, markSuggested: markSuggested, EMAIL_RE: EMAIL_RE,
+  screenRecords: screenRecords, DENIAL_RULES: DENIAL_RULES
 };
