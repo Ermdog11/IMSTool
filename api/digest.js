@@ -1,6 +1,6 @@
 var mailer = require('./_mailer.js');
 
-const buildDigestEmailHTML = (alerts, date, beat) => {
+const buildDigestEmailHTML = (alerts, date, beat, planHTML) => {
   beat = beat || {};
   var esc = function (x) { return String(x == null ? '' : x).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); };
   var team = (beat.team && ((beat.team.nicknames || [])[0] || beat.team.short || beat.team.name)) || '';
@@ -42,6 +42,7 @@ const buildDigestEmailHTML = (alerts, date, beat) => {
     '<div style="color:rgba(255,255,255,0.8);font-size:12px;">Nightly digest &mdash; ' + date + '</div>' +
     '</div>' +
     '<div style="padding:20px 24px;">' +
+    (planHTML || '') +
     '<p style="font-size:13px;color:#555;margin-bottom:20px;">' + (alerts.length ? 'Here\'s everything that happened on the ' + esc(team ? team + ' ' : '') + 'beat today: ' + alerts.length + ' stor' + (alerts.length === 1 ? 'y' : 'ies') + ' across all sources.' : 'Nothing new on the ' + esc(team ? team + ' ' : '') + 'beat today.') + '</p>' +
     sectionsHTML +
     '</div>' +
@@ -104,7 +105,8 @@ module.exports = async function handler(req, res) {
       to: to,
       alertType: 'digest_nightly',
       subject: (beat.outletName || 'CoPublisher') + ' nightly digest — ' + date,
-      html: buildDigestEmailHTML(alerts, date, beat)
+      // Tomorrow's plan (calendar, who's covering, reminders) at the top.
+      html: buildDigestEmailHTML(alerts, date, beat, await require('./_calendar').tomorrowPlanHtml())
     });
 
     return res.status(200).json({ success: true, count: alerts.length, date: date, mail: mail });
