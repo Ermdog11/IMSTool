@@ -264,6 +264,17 @@ body.no-opps .acc-opps,body.no-write .acc-write,body.no-flag .acc-flag,body.no-f
 .cal-mode-btn span{display:block;font-size:.8rem;color:var(--text2);margin-top:3px;line-height:1.4}
 .cal-rem{display:flex;gap:6px;align-items:center;flex-wrap:wrap;font-size:.78rem;color:var(--text2)}
 .cal-x{border:0;background:none;color:var(--text3);cursor:pointer;font-size:16px;line-height:1;padding:0 2px}
+.cal-views{display:inline-flex;border:1px solid var(--border);border-radius:9px;overflow:hidden;margin:4px 0 10px;flex-wrap:wrap}
+.cal-views button{border:0;background:var(--bg2);color:var(--text2);font:inherit;font-size:.82rem;font-weight:600;padding:7px 12px;cursor:pointer;border-right:1px solid var(--border)}
+.cal-views button:last-child{border-right:0}.cal-views button.on{background:#2563eb;color:#fff}
+.cal-acts{display:flex;gap:6px;flex-wrap:wrap;width:100%;margin-top:2px}
+.cal-acts button{border:1px solid var(--border);background:var(--bg);color:var(--fg);border-radius:7px;font:inherit;font-size:.78rem;font-weight:600;padding:5px 9px;cursor:pointer}
+.cal-acts button.on{border-color:#2563eb;color:#2563eb}
+.cal-panel{width:100%;border-top:1px dashed var(--border);margin-top:6px;padding-top:8px;font-size:.8rem;display:none}
+.cal-panel.open{display:block}
+.cal-panel .row{display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin:4px 0}
+.cal-rl{display:flex;gap:8px;align-items:center;padding:3px 0;color:var(--text2)}
+.cal-who{font-size:.75rem;font-weight:700;color:#7c3aed;background:#f3e8ff;border-radius:99px;padding:1px 8px;margin-left:6px}
 @media (max-width:600px){.cal-time{width:auto}.cal-rem{width:100%}}
 
 /* ===== PHONES (Android and iPhone; Jeff, 2026-10-06: "take inventory of what
@@ -936,6 +947,7 @@ body.no-sh #sourceHealthCard{display:none}
     </div>
     <div id="calHeatMsg" style="font-size:.78rem;color:var(--text3);margin-top:4px;"></div>
   </div>
+  <div class="cal-views" id="calViews" role="tablist"><button type="button" data-v="day" onclick="calSetView('day')">Today</button><button type="button" data-v="week" onclick="calSetView('week')">This week</button><button type="button" data-v="month" onclick="calSetView('month')">This month</button><button type="button" data-v="all" onclick="calSetView('all')">All upcoming</button></div>
   <div id="calList"><div class="empty"><i class="ti ti-calendar"></i>Loading…</div></div>
 </div>
 
@@ -4686,7 +4698,7 @@ async function oppsFollow() {
 // ---- Calendar (/api/calendar; see api/_calendar.js) -------------------------
 var calData = { events: [], steps: [] };
 function calEsc(s) { return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); }
-function calMinLabel(m) { return m < 60 ? m + ' min' : (m % 60 ? (m / 60).toFixed(1) : m / 60) + ' hr'; }
+function calMinLabel(m) { m = +m; if (m >= 1440) { var dd = m / 1440; return dd === 7 ? '1 week' : dd + (dd === 1 ? ' day' : ' days'); } return m < 60 ? m + ' min' : (m % 60 ? (m / 60).toFixed(1) : m / 60) + ' hr'; }
 function calOpts(sel, none) {
   return '<option value="0">' + none + '</option>' + (calData.steps || []).map(function (m) { return '<option value="' + m + '"' + (m === sel ? ' selected' : '') + '>' + calMinLabel(m) + ' before</option>'; }).join('');
 }
@@ -4700,7 +4712,7 @@ async function calFetch(body) {
 async function loadCalendar() {
   try {
     calData = await calFetch();
-    if (calData.address) document.getElementById('calIntro').innerHTML = 'Email anything with dates to <a href="mailto:' + calEsc(calData.address) + '"><b>' + calEsc(calData.address) + '</b></a> (forward it from your team email), or paste it below. Each date is summarized in a line, and you can get a reminder by email or text, 30 minutes to 6 hours before.';
+    if (calData.address) document.getElementById('calIntro').innerHTML = 'Email anything with dates to <a href="mailto:' + calEsc(calData.address) + '"><b>' + calEsc(calData.address) + '</b></a> (forward it from your team email), or paste it below. Each date is summarized in a line, and you can set reminders by email or text, for you or anyone on the team, from 30 minutes to a week ahead.';
     var def = calData.myDefault || {};
     document.getElementById('calDefMin').innerHTML = calOpts(def.minutes || 0, 'Off');
     document.getElementById('calDefCh').value = def.channel || 'email';
@@ -4710,11 +4722,33 @@ async function loadCalendar() {
     document.getElementById('calList').innerHTML = '<div class="empty" style="padding:12px;">Couldn\'t load the calendar: ' + calEsc(e.message) + '</div>';
   }
 }
+// Today / This week / This month / All upcoming (Jeff, 2026-10-09: "switch
+// view to this day, this week or this month"). This browser remembers it.
+var calView = (function () { try { return localStorage.getItem('cp-cal-view') || 'week'; } catch (e) { return 'week'; } })();
+function calSetView(v) { calView = v; try { localStorage.setItem('cp-cal-view', v); } catch (e) {} renderCalendar(); }
+function calInView(e, tz) {
+  if (calView === 'all') return Date.parse(e.start) >= Date.now() - 6 * 3600000;
+  var key = function (ms) { return new Date(ms).toLocaleDateString('en-CA', { timeZone: tz }); };
+  var today = key(Date.now()), d = key(Date.parse(e.start));
+  if (calView === 'day') return d === today;
+  if (calView === 'month') return d.slice(0, 7) === today.slice(0, 7);
+  // This week: Monday through Sunday of the current week.
+  var dow = (new Date(today + 'T12:00:00Z').getUTCDay() + 6) % 7;
+  var mon = new Date(Date.parse(today + 'T12:00:00Z') - dow * 86400000).toISOString().slice(0, 10);
+  var sun = new Date(Date.parse(mon + 'T12:00:00Z') + 6 * 86400000).toISOString().slice(0, 10);
+  return d >= mon && d <= sun;
+}
+var calOpen = {};
+function calName(email) { var t = (calData.team || []).filter(function (m) { return m.email === email; })[0]; return (t && t.name) || (email === calData.me ? 'You' : String(email || '').split('@')[0]); }
 function renderCalendar() {
   var el = document.getElementById('calList');
-  var evs = (calData.events || []).slice().sort(function (a, b) { return a.start.localeCompare(b.start); });
-  if (!evs.length) { el.innerHTML = '<div class="empty" style="padding:18px;"><i class="ti ti-calendar"></i>Nothing on the calendar yet. Email or paste something with dates.</div>'; return; }
-  var tz = calData.tz || 'America/New_York', me = calData.me || '', html = '', lastDay = '';
+  document.querySelectorAll('#calViews button').forEach(function (b) { b.classList.toggle('on', b.dataset.v === calView); });
+  var tz = calData.tz || 'America/New_York';
+  var all = (calData.events || []).slice().sort(function (a, b) { return a.start.localeCompare(b.start); });
+  var evs = all.filter(function (e) { return calInView(e, tz); });
+  if (!all.length) { el.innerHTML = '<div class="empty" style="padding:18px;"><i class="ti ti-calendar"></i>Nothing on the calendar yet. Email or paste something with dates.</div>'; return; }
+  if (!evs.length) { el.innerHTML = '<div class="empty" style="padding:18px;"><i class="ti ti-calendar"></i>Nothing ' + ({ day: 'today', week: 'this week', month: 'this month', all: 'coming up' })[calView] + '. ' + (calView !== 'all' ? '<a href="#" onclick="calSetView(\'all\');return false">See everything coming up</a>.' : '') + '</div>'; return; }
+  var me = calData.me || '', html = '', lastDay = '';
   var now = Date.now();
   evs.forEach(function (e) {
     var d = new Date(e.start);
@@ -4728,15 +4762,13 @@ function renderCalendar() {
     var time = e.allDay ? 'All day' : d.toLocaleTimeString('en-US', { timeZone: tz, hour: 'numeric', minute: '2-digit' });
     html += '<div class="cal-ev' + (e.kind === 'heat' ? ' heat' : '') + '" style="' + (past ? 'opacity:.55;' : '') + '">' +
       '<div class="cal-time">' + calEsc(time) + '</div>' +
-      '<div class="cal-main"><b>' + calEsc(e.title) + '</b><span class="cal-kind ' + calEsc(e.kind) + '">' + calEsc(e.kind === 'heat' ? 'best time to publish' : (e.kind || 'event')) + '</span>' +
+      '<div class="cal-main"><b>' + calEsc(e.title) + '</b>' + (e.assignee ? '<span class="cal-who">✍️ ' + calEsc(calName(e.assignee.email)) + '</span>' : '') + '<span class="cal-kind ' + calEsc(e.kind) + '">' + calEsc(e.kind === 'heat' ? 'best time to publish' : (e.kind || 'event')) + '</span>' +
         (e.location ? '<div style="font-size:.8rem;color:var(--text2);">📍 ' + calEsc(e.location) + '</div>' : '') +
         (e.note ? '<div style="font-size:.8rem;color:var(--text2);margin-top:2px;">' + calEsc(e.note) + '</div>' : '') +
         (e.sourceSubject ? '<div style="font-size:.72rem;color:var(--text3);margin-top:3px;" title="' + calEsc(e.groupSummary || '') + '">From: ' + calEsc(e.sourceSubject) + '</div>' : '') +
         (e.source === 'ai' ? '<div style="font-size:.72rem;color:var(--text3);margin-top:3px;">🤖 Added by CoPublisher' + (e.sourceUrl ? ' · <a href="' + calEsc(e.sourceUrl) + '" target="_blank" rel="noopener">source</a>' : '') + '</div>' : '') +
       '</div>' +
-      (past ? '' : '<div class="cal-rem">🔔 <select class="cal-sel" onchange="calRemind(\'' + e.id + '\',this.value,this.nextElementSibling.value)">' + calOpts(mine ? mine.minutes : 0, 'No reminder') + '</select>' +
-        '<select class="cal-sel" onchange="calRemind(\'' + e.id + '\',this.previousElementSibling.value,this.value)"><option value="email"' + (mine && (mine.channel === 'text' || mine.channel === 'both') ? '' : ' selected') + '>Email</option><option value="text"' + (mine && mine.channel === 'text' ? ' selected' : '') + '>Text</option><option value="both"' + (mine && mine.channel === 'both' ? ' selected' : '') + '>Both</option></select>' +
-        (mine && mine.sentAt ? '<span style="color:var(--green);">sent</span>' : '') + '</div>') +
+      (past ? '' : calActions(e, mine)) +
       '<button class="cal-x" title="Delete" onclick="calDelete(\'' + e.id + '\')">×</button>' +
     '</div>';
   });
@@ -4808,6 +4840,68 @@ async function calAddManual() {
     ['calTitle', 'calDate', 'calTime', 'calWhere'].forEach(function (id) { document.getElementById(id).value = ''; });
     calSay('Added.'); await loadCalendar();
   } catch (e) { calSay(calEsc(e.message), true); }
+}
+// Per event: 🔔 Reminders (who gets one and how far ahead), ✍️ Write it, and
+// 👤 Assign a writer with an optional reminder for them (Jeff, 2026-10-09).
+function calActions(e, mine) {
+  var mgr = !!(calData.heat && calData.heat.canManage), rems = e.reminders || [];
+  var canWrite = e.kind !== 'heat' && (typeof accessAllows !== 'function' || accessAllows('act_write_story'));
+  var who = mine ? 'You: ' + calMinLabel(mine.minutes) + ' before' : 'Set reminder';
+  var n = rems.filter(function (r) { return r.email !== calData.me; }).length;
+  var o = calOpen[e.id] || '';
+  var h = '<div class="cal-acts"><button type="button" class="' + (o === 'rem' ? 'on' : '') + '" onclick="calToggle(\'' + e.id + '\',\'rem\')">🔔 ' + calEsc(who) + (mgr && n ? ' · +' + n : '') + '</button>' +
+    (canWrite ? '<button type="button" onclick="calWriteIt(\'' + e.id + '\',this)">✍️ Write it</button>' : '') +
+    (mgr && e.kind !== 'heat' ? '<button type="button" class="' + (o === 'asg' ? 'on' : '') + '" onclick="calToggle(\'' + e.id + '\',\'asg\')">👤 ' + (e.assignee ? 'Reassign' : 'Assign a writer') + '</button>' : '') + '</div>';
+  h += '<div class="cal-panel' + (o === 'rem' ? ' open' : '') + '" id="calrem-' + e.id + '">' + calRemPanel(e, mgr) + '</div>';
+  if (mgr) h += '<div class="cal-panel' + (o === 'asg' ? ' open' : '') + '" id="calasg-' + e.id + '">' + calAsgPanel(e) + '</div>';
+  h += '<div class="aaction-output" id="calout-' + e.id + '" style="width:100%"></div>';
+  return h;
+}
+function calChOpts() { return '<option value="email">by email</option><option value="text">by text</option><option value="both">by email and text</option>'; }
+function calRemPanel(e, mgr) {
+  var rems = (e.reminders || []).filter(function (r) { return mgr || r.email === calData.me; });
+  var list = rems.length ? rems.map(function (r) {
+    return '<div class="cal-rl">🔔 <b>' + calEsc(calName(r.email)) + '</b> · ' + calEsc(calMinLabel(r.minutes)) + ' before · ' + calEsc(r.channel === 'both' ? 'email and text' : r.channel || 'email') +
+      (r.sentAt ? ' · <span style="color:var(--green)">sent</span>' : '') + ' <button type="button" class="cal-x" title="Remove" onclick="calRemFor(\'' + e.id + '\',\'' + calEsc(r.email) + '\',0)">×</button></div>';
+  }).join('') : '<div class="cal-rl" style="color:var(--text3)">No reminders on this one yet.</div>';
+  var whoOpts = '<option value="' + calEsc(calData.me) + '">Me</option>' + (mgr && calData.team ? '<option value="team">Everyone on the team</option>' +
+    (e.assignee ? '<option value="' + calEsc(e.assignee.email) + '">' + calEsc(calName(e.assignee.email)) + ' (assigned)</option>' : '') +
+    calData.team.filter(function (m) { return m.email !== calData.me; }).map(function (m) { return '<option value="' + calEsc(m.email) + '">' + calEsc(m.name || m.email) + '</option>'; }).join('') : '');
+  return list + '<div class="row"><b>Remind</b> <select class="cal-sel" id="crw-' + e.id + '">' + whoOpts + '</select>' +
+    '<select class="cal-sel" id="crm-' + e.id + '">' + calOpts(1440, '').replace('<option value="0"></option>', '') + '</select>' +
+    '<select class="cal-sel" id="crc-' + e.id + '">' + calChOpts() + '</select>' +
+    '<button type="button" class="pill" style="padding:5px 12px" onclick="calRemFor(\'' + e.id + '\',document.getElementById(\'crw-' + e.id + '\').value,+document.getElementById(\'crm-' + e.id + '\').value,document.getElementById(\'crc-' + e.id + '\').value)">Add reminder</button></div>';
+}
+function calAsgPanel(e) {
+  var opts = '<option value="">Pick a writer…</option>' + (calData.team || []).map(function (m) { return '<option value="' + calEsc(m.email) + '"' + (e.assignee && e.assignee.email === m.email ? ' selected' : '') + '>' + calEsc(m.name || m.email) + '</option>'; }).join('');
+  return '<div class="row"><b>Writer</b> <select class="cal-sel" id="caw-' + e.id + '">' + opts + '</select></div>' +
+    '<div class="row"><b>Remind them</b> <select class="cal-sel" id="cam-' + e.id + '">' + calOpts(1440, 'No reminder') + '</select><select class="cal-sel" id="cac-' + e.id + '">' + calChOpts() + '</select></div>' +
+    '<div class="row"><button type="button" class="pill" style="padding:5px 12px" onclick="calAssign(\'' + e.id + '\')">' + (e.assignee ? 'Save' : 'Assign') + '</button>' +
+    (e.assignee ? '<a href="#" onclick="calAssign(\'' + e.id + '\',true);return false">Take ' + calEsc(calName(e.assignee.email)) + ' off it</a>' : '') +
+    '<span style="color:var(--text3)">They get an email now, and the reminder before it.</span></div>';
+}
+function calToggle(id, which) { calOpen[id] = calOpen[id] === which ? '' : which; renderCalendar(); }
+async function calRemFor(id, who, minutes, channel) {
+  try {
+    await calFetch({ action: 'remind-for', id: id, for: who === 'team' ? 'team' : [who], minutes: +minutes, channel: channel || 'email' });
+    calSay(+minutes ? 'Reminder set for ' + (who === 'team' ? 'everyone on the team' : calName(who)) + ': ' + calMinLabel(+minutes) + ' before.' : 'Reminder removed.');
+    calOpen[id] = 'rem'; await loadCalendar();
+  } catch (err) { calSay('Couldn\'t set it: ' + calEsc(err.message), true); }
+}
+async function calAssign(id, off) {
+  var email = off ? '' : document.getElementById('caw-' + id).value;
+  if (!off && !email) { calSay('Pick a writer first.', true); return; }
+  try {
+    await calFetch({ action: 'assign', id: id, email: email, minutes: off ? 0 : +document.getElementById('cam-' + id).value, channel: off ? 'email' : document.getElementById('cac-' + id).value });
+    calSay(off ? 'Taken off.' : calName(email) + ' is on it. They\'ve been emailed.');
+    calOpen[id] = ''; await loadCalendar();
+  } catch (err) { calSay('Couldn\'t assign: ' + calEsc(err.message), true); }
+}
+function calWriteIt(id, btn) {
+  var e = (calData.events || []).filter(function (x) { return x.id === id; })[0]; if (!e) return;
+  var when = new Date(e.start).toLocaleString('en-US', { timeZone: calData.tz || 'America/New_York', weekday: 'long', month: 'long', day: 'numeric', hour: e.allDay ? undefined : 'numeric', minute: e.allDay ? undefined : '2-digit' });
+  writeDraft({ headline: e.title, summary: [e.note, 'When: ' + when + '.', e.location ? 'Where: ' + e.location + '.' : '', 'This is on our newsroom calendar. Write a preview for it, or the story about it if it has already happened.'].filter(Boolean).join(' '),
+    source: 'Newsroom calendar', time: when, category: 'event', url: '' }, document.getElementById('calout-' + id), btn);
 }
 async function calRemind(id, minutes, channel) {
   try {

@@ -22,7 +22,9 @@
 var { get, put } = require('./_site-blob');
 var PATH = 'calendar/events.json';
 var TZ = 'America/New_York';
-var STEPS = [30, 60, 90, 120, 150, 180, 210, 240, 270, 300, 330, 360];
+// Minutes before an event a reminder can go: 30 min to 6 hours in 30-minute
+// steps, then 12 hours, 1 day, 2 days and a week (Jeff, 2026-10-09: "how far in advance").
+var STEPS = [30, 60, 90, 120, 150, 180, 210, 240, 270, 300, 330, 360, 720, 1440, 2880, 10080];
 
 async function load() {
   try {
@@ -187,6 +189,58 @@ async function setReminder(id, email, minutes, channel) {
   if (!ev.noRemind.length) delete ev.noRemind;
   if (minutes) ev.reminders.push({ email: email, minutes: minutes, channel: (channel === 'text' || channel === 'both' ? channel : 'email'), sentAt: null });
   await save(data);
+  return ev;
+}
+
+// Reminders for other people on one event (Jeff, 2026-10-09: "set reminder
+// for each event and who the reminder goes to and how far in advance").
+// emails: newsroom members (checked by the route); minutes 0 removes theirs.
+async function setRemindersFor(id, emails, minutes, channel, by) {
+  minutes = Number(minutes) || 0;
+  if (minutes && STEPS.indexOf(minutes) === -1) throw new Error('Pick how far ahead from the list.');
+  var data = await load();
+  var ev = data.events.filter(function (e) { return e.id === id; })[0];
+  if (!ev) throw new Error('Event not found');
+  ev.reminders = ev.reminders || [];
+  (emails || []).forEach(function (em) {
+    em = String(em || '').toLowerCase(); if (!em) return;
+    ev.reminders = ev.reminders.filter(function (r) { return r.email !== em; });
+    ev.noRemind = (ev.noRemind || []).filter(function (x) { return x !== em; });
+    if (minutes) ev.reminders.push({ email: em, minutes: minutes, channel: (channel === 'text' || channel === 'both' ? channel : 'email'), sentAt: null, by: by || null });
+    else ev.noRemind.push(em);
+    if (!ev.noRemind.length) delete ev.noRemind;
+  });
+  await save(data);
+  return ev;
+}
+
+// Put a writer on an event (Jeff, 2026-10-09: "assign writer to an event and
+// option to set reminders"). assignee null takes them off. Emails them.
+async function assign(id, assignee, by) {
+  var data = await load();
+  var ev = data.events.filter(function (e) { return e.id === id; })[0];
+  if (!ev) throw new Error('Event not found');
+  var before = ev.assignee && ev.assignee.email;
+  if (assignee && assignee.email) ev.assignee = { email: String(assignee.email).toLowerCase(), name: String(assignee.name || '').slice(0, 80), by: by || null, at: new Date().toISOString() };
+  else delete ev.assignee;
+  await save(data);
+  if (ev.assignee && ev.assignee.email !== before) {
+    try {
+      await require('./_mailer').sendMail({
+        to: ev.assignee.email,
+        subject: 'You\'re on it: ' + ev.title + ' (' + fmtWhen(ev) + ')',
+        html: '<div style="font-family:-apple-system,Segoe UI,sans-serif;font-size:15px">' +
+          '<p>' + (by ? esc(by.split('@')[0]) + ' put you on this' : 'You\'re on this') + ':</p>' +
+          '<p><b>' + esc(ev.title) + '</b><br>' + esc(fmtWhen(ev)) + (ev.location ? ' · ' + esc(ev.location) : '') + '</p>' +
+          (ev.note ? '<p>' + esc(ev.note) + '</p>' : '') +
+          '<p style="font-size:13px"><a href="https://ims-tool.vercel.app/calendar">Open the calendar</a> to see it, set your reminder or start the story with Write it.</p></div>'
+      });
+    } catch (e) { console.error('Calendar assign email failed:', e.message); }
+    try {
+      var S = require('./_supabase');
+      if (S.isConfigured()) await require('./_chat-store').postSystemMessage(S.admin(), { senderName: 'CoPublisher AI', kind: 'calendar', tag: 'Calendar', text: (ev.assignee.name || ev.assignee.email.split('@')[0]) + ' is on ' + ev.title + ' (' + fmtWhen(ev) + ')', meta: { url: '/calendar', eventId: ev.id } });
+    } catch (e) { console.error('Calendar assign chat failed:', e.message); }
+  }
   return ev;
 }
 
@@ -576,4 +630,4 @@ async function fromEmail(text, meta) {
   return { summary: got.summary, events: saved };
 }
 
-module.exports = { HEAT_V: HEAT_V, mode: mode, setMode: setMode, addAiEvents: addAiEvents, sameItem: sameItem, ensureHeatSpots: ensureHeatSpots, setHeatOn: setHeatOn, setHeatReminder: setHeatReminder, heatOn: heatOn, weekKey: weekKey, eventsOn: eventsOn, timeOf: timeOf, load: load, extract: extract, addEvents: addEvents, setReminder: setReminder, setDefault: setDefault, updateEvent: updateEvent, deleteEvent: deleteEvent, sendDueReminders: sendDueReminders, reminderDueMs: reminderDueMs, setHot12: setHot12, hot12Due: hot12Due, setQuiet: setQuiet, quietOf: quietOf, QUIET_DEFAULT: QUIET_DEFAULT, forgetPerson: forgetPerson, fromEmail: fromEmail, zonedIso: zonedIso, STEPS: STEPS, TZ: TZ };
+module.exports = { HEAT_V: HEAT_V, mode: mode, setMode: setMode, addAiEvents: addAiEvents, sameItem: sameItem, ensureHeatSpots: ensureHeatSpots, setHeatOn: setHeatOn, setHeatReminder: setHeatReminder, heatOn: heatOn, weekKey: weekKey, eventsOn: eventsOn, timeOf: timeOf, load: load, extract: extract, addEvents: addEvents, setReminder: setReminder, setDefault: setDefault, updateEvent: updateEvent, setRemindersFor: setRemindersFor, assign: assign, deleteEvent: deleteEvent, sendDueReminders: sendDueReminders, reminderDueMs: reminderDueMs, setHot12: setHot12, hot12Due: hot12Due, setQuiet: setQuiet, quietOf: quietOf, QUIET_DEFAULT: QUIET_DEFAULT, forgetPerson: forgetPerson, fromEmail: fromEmail, zonedIso: zonedIso, STEPS: STEPS, TZ: TZ };
