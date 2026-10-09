@@ -8,7 +8,16 @@ module.exports = async function handler(req, res) {
   var key = process.env.YOUTUBE_API_KEY;
   if (!key) return res.status(200).json({ hits: [], error: 'YOUTUBE_API_KEY not set' });
 
-  var shows = [
+  // National shows whose YouTube captions are searched for the beat, and the
+  // words that count as a mention, from the newsroom's beat profile
+  // (_beat.searchPlan: its current people, not a list typed into code). A
+  // college beat with no shows of its own listed gets the national
+  // college-sports shows below.
+  var S0 = require('./_supabase');
+  var Beat = require('./_beat');
+  var b0 = await Beat.getBeat(S0.isConfigured() ? S0.admin() : null);
+  var plan = Beat.searchPlan(b0);
+  var shows = plan.transcriptShows.length ? plan.transcriptShows : (b0.team.level === 'college' ? [
     'The Solid Verbal',
     'Josh Pate College Football',
     'Andy & Ari On3',
@@ -16,16 +25,9 @@ module.exports = async function handler(req, res) {
     'The Field of 68',
     'Eye on College Basketball',
     'Locked On Big Ten'
-  ];
-
-  var keywords = ['maryland', 'terps', 'terrapins', 'locksley', 'buzz williams', 'oladotun', 'derik queen', 'malik washington'];
-  // Another newsroom: listen for its own team and people (multi-newsroom).
-  if (!require('./_site').isDefault()) {
-    var S0 = require('./_supabase');
-    var b0 = await require('./_beat').getBeat(S0.isConfigured() ? S0.admin() : null);
-    keywords = b0.relevanceWords.slice();
-    if (!keywords.length) return res.status(200).json({ hits: [], error: 'Set up your beat first (/setup).' });
-  }
+  ] : []);
+  var keywords = plan.transcriptKeywords;
+  if (!keywords.length || !shows.length) return res.status(200).json({ hits: [], error: 'Set up your beat first (/setup), with the shows to listen to.' });
   var cutoff = Date.now() - 7 * 24 * 60 * 60 * 1000;
   var debug = [];
 
