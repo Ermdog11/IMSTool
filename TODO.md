@@ -68,6 +68,34 @@
 
 ## Done
 
+- **2026-10-09 — 🎙️ Pod-slap: drop in an episode, get it on the podcast host as a draft with its title and description** (Jeff: "Can we build a tool called Pod-slap where they can just slap (upload) the file and the app uploads to their podcast platform and write a headline and description but doesn't publish").
+
+  New Content Editor tab **🎙️ Pod-slap** (`/pod-slap`). Drop the file and it runs four steps, with a progress list:
+  1. **Upload:** the browser uploads straight to private Blob under `podslap/` (up to 1 GB, same client upload as Transcribe).
+  2. **Transcribe:** AssemblyAI, via `transcribe.js` `startFromBlob(path, keep)`, which now can keep the file.
+  3. **Write:** `api/podslap.js` `write`, Claude with forced tool use, working only from the transcript plus an optional note ("Guest: …, the big topic"). It returns 3 title options, a description (an opening plus an "In this episode" list), chapter times from the transcript, and tags.
+  4. **Save as a draft** on the connected host. The episode is never published, and the file is deleted from Blob afterwards.
+
+  **Reviewing it:** pick a title or write your own, edit the description (chapters appended) and tags, and **Save changes to the draft**. Then publish on the host.
+
+  **Hosts** (new `api/_podhost.js`, one adapter per host for list shows, create a draft, update):
+  - **Buzzsprout:** API token. Creates a private episode, then start upload → PUT → complete.
+  - **Transistor:** API key. authorize_upload → PUT → create; new episodes are drafts.
+  - **Podbean:** client ID and secret. OAuth → uploadAuthorize → PUT → episode with status=draft.
+
+  Audio streams from Blob to the host's upload URL with an exact Content-Length. The publisher connects the host in the tab: the key is checked by listing its podcasts (pick one if there are several), encrypted (`_crypto.js`) and stored per newsroom (`podslap/connection.json`); the browser never sees it.
+
+  **Hosts with no upload API** (Amperwave, which is InsideMDSports', plus Megaphone, Libsyn, Spreaker, Simplecast) get the title, description and chapters ready to copy and paste. The tab says so plainly.
+
+  **Other details:**
+  - New permission `tab_podslap` (on for publisher, editor and writer; off for contributor and viewer).
+  - `vercel.json`: `/pod-slap` rewrite, 300 s timeout.
+  - Leftover uploads are swept after 2 days.
+
+  **Checked:** the whole flow in a browser with mocked APIs (connected-to-Buzzsprout and Amperwave cases, including Save changes), and all three host adapters against stubbed APIs (call order, `private`/`status=draft`, exact bytes uploaded).
+
+  **Not yet tried against a real host account.** The Transistor and Podbean field names come from their API docs as quoted by third parties, so do the first real upload on a test episode.
+
 - **2026-10-09 — Records requests know student privacy law and the standard denial rules** (Jeff: "The public records tool should understand student privacy law and standard rules so it doesn't suggest requests that will automatically be denied"). `api/_records.js` `DENIAL_RULES` is now part of every draft's instructions:
   - **FERPA** (20 U.S.C. 1232g; 34 CFR Part 99): grades, eligibility, transcripts, an athlete's aid, discipline and Title IX files, training and injury records. Redacting the name doesn't help when the story already identifies the student. What can be asked for instead: aggregate data, directory information, final results under 99.31(a)(14), NCAA correspondence with student information redacted.
   - **Recruits and minors.**

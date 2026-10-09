@@ -132,6 +132,7 @@ body.no-factcheck .acc-factcheck,body.no-add #ed-autoadd,body.no-add #pre-tabs-w
 <div class="nav">
   <button class="active" id="nav-0" onclick="show(0)">Copydesk</button>
   <button id="nav-5" onclick="show(5)">Transcribe</button>
+  <button id="nav-7" onclick="show(7)">🎙️ Pod-slap</button>
   <button id="nav-6" onclick="show(6)">From social</button>
   <button id="nav-4" onclick="show(4)">House style</button>
   <button id="nav-1" onclick="show(1)">Writers</button>
@@ -328,6 +329,25 @@ body.no-factcheck .acc-factcheck,body.no-add #ed-autoadd,body.no-add #pre-tabs-w
       <div class="hint" style="margin:6px 0 4px">Every transcript is saved here automatically for the whole newsroom, with a descriptive title and the date.</div>
       <div id="tr-lib"><div class="hint">Loading…</div></div>
     </div>
+  </div>
+
+  <!-- Pod-slap (api/podslap.js; Jeff, 2026-10-09) -->
+  <div class="page" id="page-7">
+    <div class="card">
+      <h2>🎙️ Pod-slap</h2>
+      <div class="hint">Slap your finished episode in here. CoPublisher listens to it, writes the title, description and chapter times, and puts it on your podcast host as an <b>unpublished draft</b>. Nothing goes live: you look it over and hit publish there when you're ready.</div>
+      <div id="ps-conn" style="margin:10px 0 4px"><div class="hint">Loading…</div></div>
+      <div class="drop" id="ps-drop" onclick="document.getElementById('ps-file').click()" style="border:2px dashed var(--border);border-radius:12px;padding:30px 16px;text-align:center;cursor:pointer;background:#fafaf8;margin-top:10px">
+        <div style="font-size:30px">🎙️</div>
+        <div style="font-size:16px;font-weight:700">Slap your episode here</div>
+        <div style="font-size:12.5px;color:var(--muted);margin-top:4px">or click to choose it: MP3, M4A, WAV and more, up to 1GB</div>
+        <input type="file" id="ps-file" accept="audio/*,.mp3,.m4a,.wav,.aac,.ogg,.flac" style="display:none" onchange="if(this.files[0])psGo(this.files[0]);this.value=''">
+      </div>
+      <label for="ps-note" style="margin-top:10px">Anything it should know? <span style="font-weight:400;color:var(--muted)">(optional: guests, the big topic, how to spell a name)</span></label>
+      <input id="ps-note" placeholder="e.g. Guest: Mike Locksley. Big topic: the QB battle.">
+      <div id="ps-steps" style="display:none;margin-top:12px"></div>
+    </div>
+    <div id="ps-result"></div>
   </div>
 
   <div class="page" id="page-6">
@@ -608,8 +628,8 @@ function setActive(i){
 }
 // House style has its own shareable URL (/house-style, rewritten to this page
 // in vercel.json); the other tabs keep their /editor#N hashes.
-function tabUrl(i){ return i===4 ? '/house-style' : i===5 ? '/transcribe' : '/editor'+(i?'#'+i:''); }
-function show(i){ setActive(i); if(i===2){renderPromos();loadPodcastSettingsForm();} if(i===3)loadDrafts(); if(i===5)renderRecentTranscripts(); try{history.pushState({t:i},'',tabUrl(i));}catch(e){} }
+function tabUrl(i){ return i===4 ? '/house-style' : i===5 ? '/transcribe' : i===7 ? '/pod-slap' : '/editor'+(i?'#'+i:''); }
+function show(i){ setActive(i); if(i===2){renderPromos();loadPodcastSettingsForm();} if(i===3)loadDrafts(); if(i===5)renderRecentTranscripts(); if(i===7&&!ps.info)psLoad(); try{history.pushState({t:i},'',tabUrl(i));}catch(e){} }
 window.addEventListener('popstate',function(e){ setActive((e.state&&e.state.t)||0); });
 
 async function saveGuide(){
@@ -1983,7 +2003,7 @@ function copyInsertCode(btn,i){
 // What this person's role may use, set by the publisher on /preferences
 // (profile.editorAccess; see api/_access.js, which also enforces it).
 // Unset = allowed; the publisher always has everything.
-var TAB_ACCESS={1:'tab_writers',2:'tab_inserts',3:'tab_drafts',4:'tab_house_style',5:'tab_transcribe',6:'tab_social'};
+var TAB_ACCESS={1:'tab_writers',2:'tab_inserts',3:'tab_drafts',4:'tab_house_style',5:'tab_transcribe',6:'tab_social',7:'tab_podslap'};
 function canUse(key){
   var role=window.IMSAuth&&IMSAuth.state&&IMSAuth.state.role;
   if(!role||role==='publisher') return true;
@@ -2720,11 +2740,160 @@ async function fsWrite(){
   finally{ btn.disabled=false; }
 }
 
+// ── Pod-slap (api/podslap.js) ────────────────────────────────────────────
+// Drop the episode -> it goes to private Blob storage -> transcribed ->
+// title, description, chapters and tags written from the transcript -> saved
+// on the connected podcast host as an unpublished draft. Hosts without an
+// upload API get everything ready to paste instead.
+var ps={info:null,busy:false,path:'',name:'',out:null,draft:null};
+function psFetch(url,opts){ return (window.IMSAuth?IMSAuth.authFetch:fetch)(url,opts); }
+async function psPost(body){
+  var r=await psFetch('/api/podslap',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
+  var d=await r.json().catch(function(){return {};});
+  if(!r.ok||d.error) throw new Error(d.error||('HTTP '+r.status));
+  return d;
+}
+async function psLoad(){
+  try{ var r=await psFetch('/api/podslap'); ps.info=await r.json(); if(!r.ok) throw new Error(ps.info.error||('HTTP '+r.status)); }
+  catch(e){ document.getElementById('ps-conn').innerHTML='<div class="hint" style="color:var(--hot)">'+esc(e.message)+'</div>'; return; }
+  psRenderConn();
+}
+function psHostName(){ var c=ps.info&&ps.info.connection; return c?c.name:''; }
+function psRenderConn(open){
+  var i=ps.info||{}, c=i.connection, el=document.getElementById('ps-conn'), h='';
+  if(c) h='<div style="padding:10px 12px;border-radius:8px;background:#ecfdf5;font-size:13.5px">✅ Connected to <b>'+esc(c.name)+'</b>'+(c.showName?' · '+esc(c.showName):'')+'. Episodes go there as unpublished drafts.'+(i.canConnect?' <a href="#" onclick="psRenderConn(true);return false">Change</a>':'')+'</div>';
+  else if(i.platform&&i.platformName&&['buzzsprout','transistor','podbean'].indexOf(i.platform)<0) h='<div style="padding:10px 12px;border-radius:8px;background:#fff8e1;font-size:13.5px">Your podcast is on <b>'+esc(i.platformName)+'</b>, which doesn’t let apps upload episodes. Pod-slap will still listen to it and write the title, description and chapters, ready to paste when you upload it in '+esc(i.platformName)+'.'+(i.canConnect?' <a href="#" onclick="psRenderConn(true);return false">Also on Buzzsprout, Transistor or Podbean?</a>':'')+'</div>';
+  else h='<div style="padding:10px 12px;border-radius:8px;background:#f3f4f6;font-size:13.5px">'+(i.canConnect?'Connect your podcast host below and Pod-slap will save each episode there as a draft. Without one, it still writes the title and description for you to paste.':'No podcast host is connected yet, so Pod-slap will write the title and description for you to paste. The publisher can connect Buzzsprout, Transistor or Podbean.')+'</div>';
+  if(i.canConnect&&(open||!c&&!(i.platform&&['buzzsprout','transistor','podbean'].indexOf(i.platform)<0))){
+    var hs=i.hosts||[], cur=(c&&c.platform)||(['buzzsprout','transistor','podbean'].indexOf(i.platform)>=0?i.platform:'buzzsprout');
+    h+='<div style="border:1px solid var(--border);border-radius:8px;padding:12px;margin-top:8px"><b style="font-size:13.5px">Connect your podcast host</b>'+
+      '<div class="row" style="margin-top:6px;align-items:flex-end"><div><label style="margin-top:0">Host</label><select id="ps-host" onchange="psHostHelp()">'+hs.map(function(x){return '<option value="'+x.key+'"'+(x.key===cur?' selected':'')+'>'+esc(x.name)+'</option>';}).join('')+'</select></div>'+
+      '<div id="ps-cid-w" style="flex:1;min-width:180px"><label style="margin-top:0">Client ID</label><input id="ps-cid" autocomplete="off"></div>'+
+      '<div style="flex:1;min-width:200px"><label style="margin-top:0" id="ps-key-l">API key</label><input id="ps-key" type="password" autocomplete="off"></div></div>'+
+      '<div class="hint" id="ps-key-help" style="margin:6px 0"></div><div id="ps-shows"></div>'+
+      '<button class="btn" style="margin:4px 8px 0 0" onclick="psConnect(this)">Connect</button>'+(c?'<button class="btn ghost" style="margin:4px 8px 0 0" onclick="psDisconnect()">Disconnect</button>':'')+'<span class="hint" id="ps-conn-msg"></span>'+
+      '<div class="hint" style="margin-top:6px">The key is stored encrypted and only used to save drafts. Pod-slap never publishes.</div></div>';
+  }
+  el.innerHTML=h;
+  if(document.getElementById('ps-host')) psHostHelp();
+}
+function psHostHelp(){
+  var k=document.getElementById('ps-host').value, x=((ps.info||{}).hosts||[]).filter(function(y){return y.key===k;})[0]||{};
+  document.getElementById('ps-cid-w').style.display=x.needsClientId?'':'none';
+  document.getElementById('ps-key-l').textContent=x.needsClientId?'Client Secret':'API key';
+  document.getElementById('ps-key-help').textContent=x.keyHelp||'';
+  document.getElementById('ps-shows').innerHTML='';
+}
+async function psConnect(btn){
+  var m=document.getElementById('ps-conn-msg'), sel=document.getElementById('ps-show');
+  btn.disabled=true; m.textContent='Checking the key…';
+  try{
+    var d=await psPost({action:'connect',platform:document.getElementById('ps-host').value,secret:document.getElementById('ps-key').value,clientId:(document.getElementById('ps-cid')||{}).value||'',showId:sel?sel.value:''});
+    if(d.shows){ document.getElementById('ps-shows').innerHTML='<label>Which podcast?</label><select id="ps-show">'+d.shows.map(function(x){return '<option value="'+esc(x.id)+'">'+esc(x.title)+'</option>';}).join('')+'</select>'; m.textContent='Pick the podcast, then Connect again.'; }
+    else { ps.info.connection=d.connection; psRenderConn(); }
+  }catch(e){ m.innerHTML='<span style="color:var(--hot)">'+esc(e.message)+'</span>'; }
+  btn.disabled=false;
+}
+async function psDisconnect(){
+  if(!confirm('Disconnect the podcast host? Pod-slap will go back to writing the title and description only.')) return;
+  try{ await psPost({action:'disconnect'}); ps.info.connection=null; psRenderConn(); }catch(e){ alert(e.message); }
+}
+function psStep(k,state,text){
+  var el=document.getElementById('ps-steps'); el.style.display='block';
+  var row=document.getElementById('ps-st-'+k);
+  if(!row){ row=document.createElement('div'); row.id='ps-st-'+k; row.style.cssText='display:flex;gap:8px;align-items:center;padding:5px 0;font-size:14px'; el.appendChild(row); }
+  var ic=state==='done'?'✅':state==='err'?'❌':state==='skip'?'➖':'<span class="spin" style="border-color:var(--border);border-top-color:var(--muted)"></span>';
+  row.innerHTML='<span style="width:20px;text-align:center">'+ic+'</span><span>'+text+'</span>';
+}
+async function psGo(file){
+  if(ps.busy) return;
+  if(file.size>1024*1024*1024) return alert('That file is over 1GB. Export the audio as an MP3 first.');
+  ps.busy=true; ps.out=null; ps.draft=null; ps.name=file.name;
+  document.getElementById('ps-steps').innerHTML=''; document.getElementById('ps-result').innerHTML='';
+  var hostName=psHostName(), step='up';
+  try{
+    psStep('up','run','Uploading <b>'+esc(file.name)+'</b>… 0%');
+    var mod=await import('/vendor/blob-client.js'), tok=window.IMSAuth?await IMSAuth.token():null;
+    var safe=file.name.replace(/[^A-Za-z0-9._-]+/g,'-').slice(-80)||'episode.mp3';
+    var b=await mod.upload('podslap/'+safe,file,{access:'private',handleUploadUrl:'/api/podslap',multipart:file.size>8*1024*1024,contentType:file.type||'audio/mpeg',
+      headers:tok?{Authorization:'Bearer '+tok}:undefined,
+      onUploadProgress:function(p){ psStep('up','run','Uploading <b>'+esc(file.name)+'</b>… '+Math.round(p.percentage)+'%'); }});
+    ps.path=b.pathname; psStep('up','done','Uploaded <b>'+esc(file.name)+'</b>');
+    step='tr'; psStep('tr','run','Listening to the episode…');
+    var t=await psPost({action:'transcribe',pathname:ps.path}), t0=Date.now(), d;
+    while(true){
+      await new Promise(function(r){ setTimeout(r,5000); });
+      var r=await psFetch('/api/transcribe?id='+encodeURIComponent(t.id)); d=await r.json();
+      if(!r.ok) throw new Error(d.error||('HTTP '+r.status));
+      if(d.status==='error') throw new Error('The transcriber couldn’t read it: '+(d.error||'unknown error'));
+      if(d.status==='completed') break;
+      psStep('tr','run','Listening to the episode… '+Math.round((Date.now()-t0)/1000)+'s (an hour of audio takes a few minutes; keep this tab open)');
+    }
+    psStep('tr','done','Listened to it ('+trTime((d.duration||0)*1000)+')');
+    var lines=(d.utterances&&d.utterances.length?d.utterances:[{start:0,text:d.text||''}]).map(function(u){ return '['+trTime(u.start)+'] '+(u.speaker?'Speaker '+u.speaker+': ':'')+u.text; }).join('\n');
+    step='wr'; psStep('wr','run','Writing the title and description…');
+    ps.out=await psPost({action:'write',transcript:lines,filename:file.name,note:document.getElementById('ps-note').value});
+    psStep('wr','done','Wrote the title, description and chapters');
+    if(hostName){
+      step='host'; psStep('host','run','Saving it to '+esc(hostName)+' as a draft…');
+      ps.draft=await psPost({action:'upload',pathname:ps.path,filename:safe,title:ps.out.titles[0]||file.name,description:psDescText(true),tags:ps.out.tags});
+      psStep('host','done','Saved to '+esc(hostName)+' as a draft. Not published.');
+    } else { psPost({action:'discard',pathname:ps.path}).catch(function(){}); }
+    psRender();
+  }catch(e){
+    psStep(step,'err',esc(e.message||String(e)));
+    if(ps.out) psRender();
+  }
+  ps.busy=false;
+}
+function psDescText(withChapters){
+  var o=ps.out||{}, el=document.getElementById('ps-desc');
+  var base=el?el.value:(o.description||'');
+  if(!el&&withChapters&&o.chapters&&o.chapters.length) base+='\n\nChapters:\n'+o.chapters.map(function(c){return c.time+' '+c.topic;}).join('\n');
+  return base;
+}
+function psRender(){
+  var o=ps.out, hn=psHostName(), i=ps.info||{};
+  var desc=o.description+(o.chapters&&o.chapters.length?'\n\nChapters:\n'+o.chapters.map(function(c){return c.time+' '+c.topic;}).join('\n'):'');
+  var h='<div class="card"><h2 style="margin-top:0">Your episode</h2>'+
+    (ps.draft?'<div style="padding:10px 12px;border-radius:8px;background:#ecfdf5;font-size:13.5px;margin-bottom:10px">✅ It’s on '+esc(hn)+' as a <b>draft</b>. Nothing is published. Change anything below and tap <b>Save changes to the draft</b>, then publish it in '+esc(hn)+' when you’re ready. '+(ps.draft.url?'<a href="'+esc(ps.draft.url)+'" target="_blank" rel="noopener">Open it in '+esc(hn)+' ›</a>':'')+'</div>':
+      '<div style="padding:10px 12px;border-radius:8px;background:#fff8e1;font-size:13.5px;margin-bottom:10px">Copy these into '+esc(i.platformName||'your podcast host')+' when you upload <b>'+esc(ps.name)+'</b>.</div>')+
+    '<label style="margin-top:0">Title <span style="font-weight:400;color:var(--muted)">(tap one, or write your own)</span></label>'+
+    '<div style="display:flex;flex-direction:column;gap:6px;margin-bottom:6px">'+o.titles.map(function(t,k){ return '<label style="margin:0;font-weight:400;display:flex;gap:8px;align-items:flex-start"><input type="radio" name="ps-t" style="width:auto;margin-top:4px"'+(k===0?' checked':'')+' onchange="document.getElementById(\'ps-title\').value=this.parentNode.textContent.trim()">'+esc(t)+'</label>'; }).join('')+'</div>'+
+    '<input id="ps-title" value="'+esc(o.titles[0]||'')+'">'+
+    '<label>Description</label><textarea id="ps-desc" rows="12" style="line-height:1.5">'+esc(desc)+'</textarea>'+
+    '<label>Tags</label><input id="ps-tags" value="'+esc((o.tags||[]).join(', '))+'">'+
+    '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px">'+
+      (ps.draft?'<button class="btn" style="margin:0" onclick="psSave(this)">Save changes to the draft</button>':'')+
+      '<button class="btn ghost" style="margin:0" onclick="psCopy(\'ps-title\',this)">Copy title</button>'+
+      '<button class="btn ghost" style="margin:0" onclick="psCopy(\'ps-desc\',this)">Copy description</button>'+
+      '<button class="btn ghost" style="margin:0" onclick="psReset()">Slap another</button></div>'+
+    '<div class="hint" id="ps-save-msg" style="margin-top:6px">Check names and facts before you publish: it’s written from an automatic transcript.</div></div>';
+  document.getElementById('ps-result').innerHTML=h;
+}
+function psCopy(id,btn){ navigator.clipboard.writeText(document.getElementById(id).value).then(function(){ var o=btn.textContent; btn.textContent='Copied ✓'; setTimeout(function(){btn.textContent=o;},1400); }); }
+async function psSave(btn){
+  var m=document.getElementById('ps-save-msg'); btn.disabled=true; m.textContent='Saving…';
+  try{
+    await psPost({action:'update',id:ps.draft.id,title:document.getElementById('ps-title').value,description:document.getElementById('ps-desc').value,tags:document.getElementById('ps-tags').value.split(',').map(function(x){return x.trim();}).filter(Boolean)});
+    m.innerHTML='<span style="color:var(--green,#16a34a)">Saved to the draft on '+esc(psHostName())+'. Still not published.</span>';
+  }catch(e){ m.innerHTML='<span style="color:var(--hot)">'+esc(e.message)+'</span>'; }
+  btn.disabled=false;
+}
+function psReset(){ ps.out=null; ps.draft=null; document.getElementById('ps-result').innerHTML=''; document.getElementById('ps-steps').innerHTML=''; document.getElementById('ps-steps').style.display='none'; document.getElementById('ps-note').value=''; window.scrollTo(0,0); }
+(function(){
+  var dz=document.getElementById('ps-drop'); if(!dz) return;
+  ['dragenter','dragover'].forEach(function(ev){ dz.addEventListener(ev,function(e){e.preventDefault();dz.style.borderColor='var(--red)';}); });
+  ['dragleave','drop'].forEach(function(ev){ dz.addEventListener(ev,function(e){e.preventDefault();dz.style.borderColor='';}); });
+  dz.addEventListener('drop',function(e){ var f=e.dataTransfer.files&&e.dataTransfer.files[0]; if(f) psGo(f); });
+})();
+
 (function(){
   var parts=(location.hash||'').replace('#','').split('/');
-  var i=/^\/house-style\/?$/.test(location.pathname) ? 4 : /^\/transcribe\/?$/.test(location.pathname) ? 5 : parseInt(parts[0],10);
-  if(i>=1&&i<=6){
+  var i=/^\/house-style\/?$/.test(location.pathname) ? 4 : /^\/transcribe\/?$/.test(location.pathname) ? 5 : /^\/pod-slap\/?$/.test(location.pathname) ? 7 : parseInt(parts[0],10);
+  if(i>=1&&i<=7){
     if(i===5) renderRecentTranscripts();
+    if(i===7) psLoad();
     setActive(i);
     if(i===3) loadDrafts().then(function(){ if(parts[1]) openDraft(parts[1]); });
   }

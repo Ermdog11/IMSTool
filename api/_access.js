@@ -27,6 +27,7 @@ var FEATURES = [
   { key: 'ask_editor',     label: 'Ask the editor (chat)' },
   { key: 'act_fact_check', label: 'Extra fact-check' },
   { key: 'tab_transcribe', label: 'Transcribe' },
+  { key: 'tab_podslap',    label: 'Pod-slap (upload a podcast episode as a draft, with its title and description)' },
   { key: 'tab_social',     label: 'From social' },
   { key: 'tab_house_style',label: 'House style' },
   { key: 'tab_writers',    label: 'Writers' },
@@ -66,7 +67,7 @@ function offs(keys) { var o = {}; keys.forEach(function (k) { o[k] = false; }); 
 var ROLE_DEFAULTS = {
   editor: { mon_leaderboard: false },
   writer: { drafts_all: false, mon_analytics: false, act_opps_edit: false, mon_leaderboard: false },
-  contributor: Object.assign(offs(['use_monitor', 'drafts_all', 'tab_writers', 'tab_inserts'].concat(MON, ACT)), { act_fact_check: true }),
+  contributor: Object.assign(offs(['use_monitor', 'drafts_all', 'tab_writers', 'tab_inserts', 'tab_podslap'].concat(MON, ACT)), { act_fact_check: true }),
   viewer: Object.assign(offs(['use_editor', 'drafts_all', 'mon_analytics'].concat(ACT, EDITOR_TOOLS)))
 };
 
