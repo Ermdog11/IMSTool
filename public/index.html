@@ -1118,7 +1118,8 @@ function applyNewsroom(s) {
   document.title = name + ' — News Monitor';
   document.querySelectorAll('.site-name').forEach(function (el) { el.textContent = name; });
   document.querySelectorAll('.bb-brand').forEach(function (el) { el.textContent = name.toUpperCase(); });
-  document.querySelectorAll('.ims-logo').forEach(function (el) { el.textContent = name.replace(/[^A-Za-z0-9]/g, '').slice(0, 3).toUpperCase() || 'CP'; });
+  // Initials in the logo box, unless the newsroom uploaded a logo (_auth.js applyBrand).
+  document.querySelectorAll('.ims-logo').forEach(function (el) { var ini = name.replace(/[^A-Za-z0-9]/g, '').slice(0, 3).toUpperCase() || 'CP'; el.dataset.orig = ini; if (!el.classList.contains('cp-logo-img')) el.textContent = ini; });
   var walk = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT, null);
   var n, hits = [];
   while ((n = walk.nextNode())) { if (/Maryland|Terps|Terrapins/.test(n.nodeValue) && !(n.parentNode && n.parentNode.closest && n.parentNode.closest('script,style,.ims-only'))) hits.push(n); }

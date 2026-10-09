@@ -97,6 +97,7 @@ module.exports = async function handler(req, res) {
   }
 
   var profRes = await sb.from('profiles').select('full_name, email').eq('id', authUser.id).single();
+  var siteProfile = await require('./_settings-store').getProfile(sb).catch(function () { return {}; });
 
   return res.status(200).json({
     configured: true,
@@ -108,7 +109,9 @@ module.exports = async function handler(req, res) {
     },
     role: membership.role,
     // What this role may use (api/_access.js), so the pages can hide the rest.
-    access: require('./_access').resolve(await require('./_settings-store').getProfile(sb).catch(function () { return {}; }), membership.role),
+    access: require('./_access').resolve(siteProfile, membership.role),
+    // The newsroom's logo and colors (api/brand.js), applied by _auth.js.
+    brand: siteProfile.brand || null,
     byline: membership.byline || null,
     site: { id: site.id, slug: site.slug, name: site.name },
     // The basics the pages show in place of InsideMDSports' own wording.
