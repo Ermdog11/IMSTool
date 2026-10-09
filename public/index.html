@@ -658,20 +658,6 @@ body.no-sh #sourceHealthCard{display:none}
   <div class="ims-only notice"><i class="ti ti-user-check"></i> You are Jeff Ermann, publisher of InsideMDSports. Your content and IMS Radio are excluded from all alerts.</div>
 
   <div class="settings-card">
-    <h3><i class="ti ti-clock"></i> Scan parameters</h3>
-    <div class="param-grid">
-      <div class="param-cell"><div class="param-label">Frequency</div><div class="param-value">Every 30 minutes</div></div>
-      <div class="param-cell"><div class="param-label">Hours active</div><div class="param-value">24/7</div></div>
-      <div class="param-cell"><div class="param-label">Lookback window</div><div class="param-value">Since last scan</div></div>
-      <div class="param-cell"><div class="param-label">Email alerts</div><div class="param-value">Every story</div></div>
-      <div class="param-cell"><div class="param-label">Immediate email</div><div class="param-value">Rating 5 only</div></div>
-      <div class="param-cell"><div class="param-label">Nightly digest</div><div class="param-value">8:00 PM daily</div></div>
-      <div class="param-cell"><div class="param-label">Morning brief</div><div class="param-value">8:00 AM daily</div></div>
-      <div class="param-cell"><div class="param-label">2-hr digest bundle</div><div class="param-value">Ratings 1-4</div></div>
-    </div>
-  </div>
-
-  <div class="settings-card">
     <h3><i class="ti ti-bell"></i> Phone &amp; desktop alerts</h3>
     <div style="font-size:12px;color:var(--text3);margin-bottom:10px;line-height:1.5;">Get a notification on this phone or computer for breaking (rating 5) news and roster changes, even when CoPublisher isn't open. Tapping it opens the story. Turn it on separately on each device.</div>
     <button class="pill" id="pushToggleBtn" onclick="togglePush()">Turn on alerts on this device</button>
@@ -773,120 +759,6 @@ body.no-sh #sourceHealthCard{display:none}
     <div style="font-size:11px;color:var(--text3);margin-top:8px;line-height:1.5;">Note: if another outlet cites or reacts to your reporting, that reaction IS included.</div>
   </div>
 
-  <div class="ims-only settings-card">
-    <h3><i class="ti ti-radar"></i> Direct-fetch URLs</h3>
-    <div class="src-row"><i class="ti ti-check" style="color:var(--green);"></i> testudotimes.com</div>
-    <div class="src-row"><i class="ti ti-check" style="color:var(--green);"></i> The Athletic — Maryland football &amp; basketball</div>
-    <div class="src-row"><i class="ti ti-check" style="color:var(--green);"></i> ESPN — Maryland men's basketball</div>
-    <div class="src-row"><i class="ti ti-check" style="color:var(--green);"></i> insidetheblackandgold.net</div>
-    <div class="src-row"><i class="ti ti-check" style="color:var(--green);"></i> dbknews.com/category/sports/</div>
-    <div class="src-row"><i class="ti ti-check" style="color:var(--green);"></i> umterps.com — football &amp; basketball archives</div>
-    <div class="src-row"><i class="ti ti-check" style="color:var(--green);"></i> ESPN recruiting — Maryland 2026 basketball class</div>
-    <div class="src-row"><i class="ti ti-check" style="color:var(--green);"></i> CBS Sports College Basketball YouTube</div>
-    <div class="src-row"><i class="ti ti-check" style="color:var(--green);"></i> MarylandAthletics YouTube</div>
-    <div class="src-row"><i class="ti ti-check" style="color:var(--green);"></i> Yahoo Sports — Maryland basketball</div>
-    <div class="src-row"><i class="ti ti-check" style="color:var(--green);"></i> listennotes.com — podcast search</div>
-    <div class="src-row"><i class="ti ti-check" style="color:var(--green);"></i> 247Sports MD commits pages (2026 &amp; 2027 FB &amp; BK)</div>
-    <div class="src-row"><i class="ti ti-check" style="color:var(--green);"></i> On3, Rivals, Terrapin Times, SI/AllTerrapins</div>
-    <div class="src-row"><i class="ti ti-check" style="color:var(--green);"></i> Google News — 4 targeted MD queries</div>
-    <div class="src-row"><i class="ti ti-check" style="color:var(--green);"></i> Reddit — r/MarylandTerrapins, r/CFB, r/CollegeBasketball</div>
-    <div class="src-row"><i class="ti ti-check" style="color:var(--green);"></i> YouTube — Maryland-specific search terms</div>
-  </div>
-
-  <div class="settings-card">
-    <h3><i class="ti ti-adjustments"></i> Priority settings</h3>
-    <div class="pri-row"><span>Football recruiting (commits, decommits, portal)</span><span class="stag red">Highest — Rate 5</span></div>
-    <div class="pri-row"><span>Basketball recruiting</span><span class="stag red">Highest — Rate 5</span></div>
-    <div class="pri-row"><span>Transfer portal moves</span><span class="stag gold">High — Rate 4-5</span></div>
-    <div class="pri-row"><span>Named recruit/target activity</span><span class="stag gold">High — Rate 4</span></div>
-    <div class="pri-row"><span>Beat reporter breaking news</span><span class="stag gold">High — Rate 4</span></div>
-    <div class="pri-row"><span>Coaching news</span><span class="stag gold">High — Rate 4</span></div>
-    <div class="pri-row"><span>Game results &amp; team news</span><span>Normal — Rate 3</span></div>
-    <div class="pri-row"><span>Alumni news (named individuals)</span><span>Normal — Rate 3</span></div>
-    <div class="pri-row"><span>Social &amp; podcasts</span><span>Normal — Rate 2-3</span></div>
-    <div class="ims-only pri-row"><span>InsideMDSports / Jeff Ermann</span><span class="stag excluded">Excluded</span></div>
-  </div>
-
-  <div class="ims-only settings-card">
-    <h3><i class="ti ti-user-star"></i> Coaches &amp; staff watch list</h3>
-    <div class="tag-cloud">
-      <span class="stag red">Mike Locksley</span><span class="stag red">Buzz Williams</span><span class="stag red">Brenda Frese</span><span class="stag red">Ted Monachino</span><span class="stag red">Clint Trickett</span><span class="stag red">Aazaar Abdul-Rahim</span><span class="stag red">Jeremy Shapiro</span><span class="stag">Jim Smith (AD)</span><span class="stag">Darryll Pines</span><span class="stag">Johnny Holliday</span>
-    </div>
-  </div>
-
-  <div class="ims-only settings-card">
-    <h3><i class="ti ti-trophy"></i> Football watch list — 2026 commits</h3>
-    <div class="tag-cloud">
-      <span class="stag red">Zion Elee</span><span class="stag red">Darrell Carey</span><span class="stag red">Jamarcus Whyce</span><span class="stag red">Javonte Williams</span><span class="stag red">Jesse Moody</span><span class="stag red">Ontario Washington Jr.</span><span class="stag red">Chuck Roberts</span>
-    </div>
-    <div class="sdiv-label">2027 commits</div>
-    <div class="tag-cloud">
-      <span class="stag red">Myles McAfee</span><span class="stag red">Levi Babin</span><span class="stag red">Mekhi Graham</span><span class="stag red">Davion Vanderbilt</span>
-    </div>
-    <div class="sdiv-label">Active targets</div>
-    <div class="tag-cloud">
-      <span class="stag gold">Kenaz Sullivan</span><span class="stag gold">James Pace III</span><span class="stag gold">Dallas Pauldo</span><span class="stag gold">Anthony Jennings</span><span class="stag gold">Cahron Wheeler</span><span class="stag gold">Emerson Lewis</span><span class="stag gold">James Branch</span><span class="stag gold">Kendon Bauer</span><span class="stag gold">Franklin Richardson</span>
-    </div>
-    <div class="sdiv-label">Current roster (key names)</div>
-    <div class="tag-cloud">
-      <span class="stag">Malik Washington</span><span class="stag">Zahir Mathis</span><span class="stag">Sidney Stewart</span><span class="stag">Daniel Wingate</span><span class="stag">Dontay Joyner</span><span class="stag">Jamare Glasker</span><span class="stag">Messiah Delhomme</span><span class="stag">Justin Merriman</span>
-    </div>
-  </div>
-
-  <div class="ims-only settings-card">
-    <h3><i class="ti ti-ball-basketball"></i> Basketball watch list</h3>
-    <div class="sdiv-label">2026-27 roster</div>
-    <div class="tag-cloud">
-      <span class="stag red">Pharrel Payne</span><span class="stag red">Andre Mills</span><span class="stag red">DJ Wagner</span><span class="stag red">Tomislav Buljan</span><span class="stag red">Bishop Boswell</span><span class="stag red">Kaden House</span><span class="stag red">Austin Brown</span><span class="stag red">Adama Tambedou</span><span class="stag red">Robert Jennings</span><span class="stag red">Baba Oladotun</span><span class="stag red">Guillermo del Pino</span><span class="stag red">Alexandre K'Medehouto</span><span class="stag red">George Turkson Jr.</span><span class="stag red">Michael McNair</span><span class="stag red">Maban Jabriel</span>
-    </div>
-    <div class="sdiv-label">2027 targets</div>
-    <div class="tag-cloud">
-      <span class="stag gold">Amir Jenkins</span><span class="stag gold">J'Lon Lyons</span><span class="stag gold">Beau Daniels</span>
-    </div>
-  </div>
-
-  <div class="ims-only settings-card">
-    <h3><i class="ti ti-award"></i> Alumni watch list</h3>
-    <div class="sdiv-label">Active NFL Terps</div>
-    <div class="tag-cloud">
-      <span class="stag blue">DJ Moore</span><span class="stag blue">Stefon Diggs</span><span class="stag blue">Chig Okonkwo</span><span class="stag blue">Nick Cross</span><span class="stag blue">Tai Felton</span><span class="stag blue">DJ Glaze</span><span class="stag blue">Deonte Banks</span><span class="stag blue">Jakorian Bennett</span><span class="stag blue">Tarheeb Still</span><span class="stag blue">Corey Bullock</span><span class="stag blue">Jalil Farooq</span><span class="stag blue">Shaleak Knotts</span><span class="stag blue">Dante Trader Jr.</span><span class="stag blue">Kaden Prather</span><span class="stag blue">Ruben Hyppolite II</span>
-    </div>
-    <div class="sdiv-label">NBA/WNBA alumni</div>
-    <div class="tag-cloud">
-      <span class="stag blue">Derik Queen</span><span class="stag blue">Aaron Wiggins</span><span class="stag blue">Kevin Huerter</span>
-    </div>
-    <div class="sdiv-label">All-time scoring leaders</div>
-    <div class="tag-cloud">
-      <span class="stag">Juan Dixon</span><span class="stag">Greivis Vasquez</span><span class="stag">Len Bias</span><span class="stag">Albert King</span><span class="stag">Adrian Branch</span><span class="stag">John Lucas</span><span class="stag">Lonny Baxter</span><span class="stag">Tom McMillen</span><span class="stag">Walt Williams</span><span class="stag">Jake Layman</span><span class="stag">Dez Wells</span><span class="stag">Melo Trimble</span><span class="stag">Anthony Cowan Jr.</span><span class="stag">Steve Blake</span><span class="stag">Gary Williams</span>
-    </div>
-    <div class="sdiv-label">Legends &amp; HOF</div>
-    <div class="tag-cloud">
-      <span class="stag">Shawne Merriman</span><span class="stag">Boomer Esiason</span><span class="stag">Marissa Coleman</span><span class="stag">Taylor Cummings</span><span class="stag">Dominique Dawes</span><span class="stag">Buck Williams</span><span class="stag">Len Elmore</span><span class="stag">Gene Shue</span><span class="stag">Joe Smith</span><span class="stag">Graham Zusi</span>
-    </div>
-  </div>
-
-  <div class="ims-only settings-card">
-    <h3><i class="ti ti-microphone"></i> Channels monitored</h3>
-    <div class="sdiv-label">Beat reporters</div>
-    <div class="tag-cloud">
-      <span class="stag purple">@testudotimes</span><span class="stag purple">@TerpRecruiting</span><span class="stag purple">@DBKSports</span><span class="stag purple">@UMTerps</span><span class="stag purple">Ahmed Ghafir</span><span class="stag purple">Nolan Rogalski</span><span class="stag purple">Matt Germack</span>
-    </div>
-    <div class="sdiv-label">Podcasts</div>
-    <div class="tag-cloud">
-      <span class="stag green">Testudo Talk</span><span class="stag green">Locked On Terps</span><span class="stag green">Hear The Turtle</span><span class="stag green">Under The Shell</span><span class="stag green">Protect The Shell</span><span class="stag green">Testudos &amp; Touchdowns</span>
-      <span class="stag excluded">IMS Radio (yours)</span>
-    </div>
-  </div>
-
-  <div class="settings-card">
-    <h3><i class="ti ti-mail"></i> Email &amp; alerts</h3>
-    <p style="font-size:12px;color:var(--text2);line-height:1.5;margin-bottom:8px;">Rating 5 = immediate email, any time, 24/7. Ratings 1-4 = the rolling updates. The nightly digest and the updates come at the times each person picks on <a href="/preferences#alerts">Permissions &amp; preferences</a>.</p>
-    <div class="email-row">
-      <input class="email-input" id="emailInput" type="email" placeholder="you@insidemdsports.com">
-      <button class="email-save" onclick="saveEmail()">Save</button>
-    </div>
-    <div id="emailStatus" style="font-size:11px;margin-top:6px;color:var(--text3);"></div>
-  </div>
 </div>
 
 <!-- ANALYTICS TAB -->
@@ -3332,16 +3204,6 @@ async function generateBacklog() {
     backlogIdeas = JSON.parse(match[0]).filter(x => x && x.title);
     renderBacklog();
   } catch(e) { c.innerHTML = '<div class="empty"><i class="ti ti-alert-triangle"></i>Failed — try again.</div>'; }
-}
-
-// ============================================================
-// EMAIL
-// ============================================================
-function saveEmail() {
-  savedEmail = document.getElementById('emailInput').value.trim();
-  const st = document.getElementById('emailStatus');
-  if (savedEmail.includes('@')) { st.textContent = '✓ Saved — rating 5 alerts and the nightly digest will send to ' + savedEmail; st.style.color = 'var(--green)'; }
-  else { st.textContent = 'Enter a valid email.'; st.style.color = 'var(--hot)'; }
 }
 
 // ============================================================
