@@ -38,7 +38,6 @@
  ],
  "keyFigures": [
   "Mike Locksley",
-  "Kevin Willard",
   "Buzz Williams",
   "Brenda Frese"
  ],
@@ -841,5 +840,92 @@
   "Under The Shell",
   "Protect The Shell",
   "Testudos and Touchdowns"
- ]
+ ],
+ "searchExtras": {
+  "bluesky": [
+   "\"Terps football\"",
+   "\"Terps basketball\"",
+   "\"Maryland recruiting\"",
+   "\"Maryland transfer portal\"",
+   "\"Maryland lacrosse\"",
+   "\"Terps\" commit OR portal OR injury",
+   "\"Maryland\" \"official visit\""
+  ],
+  "noise": [
+   "insidemd",
+   "jeff ermann",
+   "ims radio",
+   "insidetheshell",
+   "terpene",
+   "cannabis",
+   "marijuana",
+   "weed",
+   "thc",
+   "cbd",
+   "dispensary",
+   "kush",
+   "tortoise",
+   "turtle disaster",
+   "sunbathing",
+   "pet terrapin",
+   " terf",
+   "malik washington + dolphins",
+   "malik washington + miami",
+   "malik washington + dynasty",
+   "malik washington + fantasy"
+  ],
+  "podcastShows": [
+   "Locked On Terps",
+   "Testudo Times Podcast",
+   "Testudo Talk",
+   "Under The Shell Maryland",
+   "Fear the Turtle Podcast",
+   "Wall to Wall Terps",
+   "The Turtle Soup Podcast",
+   "Terrapin Sports Report"
+  ],
+  "regionalShows": [
+   "The Kevin Sheehan Show",
+   "The Sports Junkies",
+   "Grant and Danny",
+   "95 Connected Baltimore Maryland Sports",
+   "Glenn Clark Radio",
+   "BMitch & Finlay",
+   "District of Sports DC",
+   "The Solid Verbal College Football",
+   "Eye on College Basketball",
+   "Josh Pate College Football Show",
+   "Andy & Ari On3",
+   "Cover 3 College Football",
+   "The Field of 68 After Dark",
+   "The Field of 68",
+   "Locked On Big Ten",
+   "Locked On Big Ten Basketball",
+   "The Next Round",
+   "The Athletic College Football Show",
+   "Sports Wave Baltimore",
+   "Split Zone Duo",
+   "The Audible with Feldman and Mandel",
+   "Shutdown Fullcast",
+   "CBB Today",
+   "The Bird Feed College Basketball",
+   "On3 Recruits",
+   "Inside Big Ten Basketball",
+   "The Paul Finebaum Show"
+  ],
+  "blockedPodcasts": [
+   "maryland terrapins football news today",
+   "maryland basketball football news today"
+  ],
+  "podcastDiscovery": [
+   "Maryland Terrapins recruiting",
+   "Maryland football portal",
+   "Maryland basketball recruiting",
+   "Maryland Terrapins lacrosse",
+   "Terps commit",
+   "Xfinity Center",
+   "SECU Stadium",
+   "Maryland Big Ten football"
+  ]
+ }
 }

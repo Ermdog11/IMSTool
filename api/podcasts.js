@@ -7,55 +7,22 @@ module.exports = async function handler(req, res) {
   // then parse each feed directly. No ListenNotes dependency.
   // iTunes limits ~20 requests/min per IP, so we cache feed URLs and rotate discovery terms.
 
-  // Shows that are entirely Terps-focused: include every recent episode.
-  var terpsShows = [
-    'Locked On Terps',
-    'Testudo Times Podcast',
-    'Testudo Talk',
-    'Under The Shell Maryland',
-    'Fear the Turtle Podcast',
-    'Wall to Wall Terps',
-    'The Turtle Soup Podcast',
-    'Terrapin Sports Report'
-  ];
-
-  // Regional DC/Baltimore + national college shows: include only episodes that mention Terps/Maryland.
-  var regionalShows = [
-    'The Kevin Sheehan Show',
-    'The Sports Junkies',
-    'Grant and Danny',
-    '95 Connected Baltimore Maryland Sports',
-    'Glenn Clark Radio',
-    'BMitch & Finlay',
-    'District of Sports DC',
-    'The Solid Verbal College Football',
-    'Eye on College Basketball',
-    'Josh Pate College Football Show',
-    'Andy & Ari On3',
-    'Cover 3 College Football',
-    'The Field of 68 After Dark',
-    'The Field of 68',
-    'Locked On Big Ten',
-    'Locked On Big Ten Basketball',
-    'The Next Round',
-    'The Athletic College Football Show',
-    'Sports Wave Baltimore',
-    'Split Zone Duo',
-    'The Audible with Feldman and Mandel',
-    'Shutdown Fullcast',
-    'CBB Today',
-    'The Bird Feed College Basketball',
-    'On3 Recruits',
-    'Inside Big Ten Basketball',
-    'The Paul Finebaum Show'
-  ];
-
-  // Podcast shows / sources to always exclude from results. Auto-generated
-  // "news today" shows are low-quality text-to-speech spam.
-  var blockedPodcasts = [
-    'maryland terrapins football news today',
-    'maryland basketball football news today'
-  ];
+  // Which shows, keywords and discovery searches: built from the newsroom's
+  // beat profile so they follow its current people (_beat.searchPlan).
+  // InsideMDSports' hand-picked beat shows, regional/national shows and
+  // blocked shows are in its profile's searchExtras.
+  await require('./_supabase').optionalUser(req);
+  var S0 = require('./_supabase');
+  var Beat = require('./_beat');
+  var plan;
+  try { plan = Beat.searchPlan(await Beat.getBeat(S0.isConfigured() ? S0.admin() : null)); }
+  catch (e) { return res.status(500).json({ episodes: [], error: e.message }); }
+  // Shows entirely about the beat: every recent episode.
+  var beatShows = plan.podcastShows;
+  // Regional and national shows: only episodes that mention the beat.
+  var regionalShows = plan.regionalShows;
+  // Shows to always leave out (e.g. auto-generated text-to-speech "news today" shows).
+  var blockedPodcasts = plan.blockedPodcasts.slice();
   try {
     var extraBlocked = String((req.query && req.query.blocked) || '')
       .split(',').map(function(s) { return s.trim().toLowerCase(); }).filter(Boolean);
@@ -66,27 +33,9 @@ module.exports = async function handler(req, res) {
     return blockedPodcasts.some(function(b) { return b && n.includes(b); });
   }
 
-  var keywords = ['terps', 'terrapins', 'maryland football', 'maryland basketball', 'maryland lacrosse', 'maryland recruiting', 'mike locksley', 'buzz williams', 'kevin willard', 'brenda frese', 'university of maryland', 'malik washington', 'zahir mathis', 'pharrel payne', 'baba oladotun', 'kaden house', 'dj wagner', 'andre mills', 'juan dixon', 'big ten basketball', 'derik queen'];
+  var keywords = plan.podcastKeywords;
   var cutoff = Date.now() - 21 * 24 * 60 * 60 * 1000; // 21 days (podcasts age slower than news)
-
-  // Another newsroom: shows, keywords and discovery searches come from its
-  // beat profile (multi-newsroom, 2026-10-06). InsideMDSports keeps the tuned
-  // lists above.
-  var beatDiscovery = null;
-  await require('./_supabase').optionalUser(req);
-  if (!require('./_site').isDefault()) {
-    var S0 = require('./_supabase');
-    var b = await require('./_beat').getBeat(S0.isConfigured() ? S0.admin() : null);
-    var t0 = b.team;
-    terpsShows = b.podcasts.filter(function (p) { return (p.rating || 3) > 1; }).map(function (p) { return p.name; });
-    regionalShows = [];
-    blockedPodcasts = blockedPodcasts.filter(function (x) { return !/maryland/.test(x); })
-      .concat(b.podcasts.filter(function (p) { return (p.rating || 3) <= 1; }).map(function (p) { return p.name.toLowerCase(); }));
-    keywords = b.relevanceWords.slice();
-    beatDiscovery = [t0.name].concat(b.primarySports.slice(0, 3).map(function (sp) { return t0.short + ' ' + sp; }), b.keyFigures.slice(0, 8))
-      .map(function (x) { return String(x).replace(/\s*\(.*?\)\s*/g, '').trim(); }).filter(function (x) { return x && x !== 'our team'; });
-    if (!terpsShows.length && !beatDiscovery.length) return res.status(200).json({ episodes: [], error: 'Set up your beat first (/setup) so we know which shows to follow.' });
-  }
+  if (!beatShows.length && !plan.podcastDiscovery.length) return res.status(200).json({ episodes: [], error: 'Set up your beat first (/setup) so we know which shows to follow.' });
 
   function matchesKeywords(text) {
     var t = (text || '').toLowerCase();
@@ -152,7 +101,7 @@ module.exports = async function handler(req, res) {
   }
 
   try {
-    var allShows = terpsShows.map(function(s) { return { name: s, requireKeywords: false }; })
+    var allShows = beatShows.map(function(s) { return { name: s, requireKeywords: false }; })
       .concat(regionalShows.map(function(s) { return { name: s, requireKeywords: true }; }));
 
     var resolved = await Promise.allSettled(allShows.map(function(s) { return resolveFeed(s.name); }));
@@ -165,8 +114,7 @@ module.exports = async function handler(req, res) {
     });
 
     // Rotate through discovery terms 4 at a time to stay under iTunes rate limits
-    var allDiscoveryTerms = ['Maryland Terrapins', 'Terps basketball', 'Terps football', 'Maryland Terrapins recruiting', 'Buzz Williams Maryland', 'Mike Locksley', 'Malik Washington Maryland', 'Zahir Mathis', 'Pharrel Payne', 'Baba Oladotun', 'Kaden House', 'DJ Wagner Maryland', 'Andre Mills', 'Juan Dixon', 'Big Ten basketball', 'Derik Queen', 'Maryland football portal', 'Maryland basketball recruiting', 'Kevin Willard Maryland', 'Brenda Frese', 'Maryland Terrapins lacrosse', 'Terps commit', 'Xfinity Center', 'SECU Stadium', 'Zion Elee', 'Maryland Big Ten football'];
-    if (beatDiscovery) allDiscoveryTerms = beatDiscovery.length ? beatDiscovery : allDiscoveryTerms.slice(0, 0);
+    var allDiscoveryTerms = plan.podcastDiscovery;
     var batchSize = 6;
     var startIdx = allDiscoveryTerms.length ? (discoveryRotation * batchSize) % allDiscoveryTerms.length : 0;
     discoveryRotation++;
@@ -190,9 +138,9 @@ module.exports = async function handler(req, res) {
         var text = ep.title + ' ' + ep.description + ' ' + ep.podcast;
         // Discovery results must actually mention Maryland/Terps names to avoid noise
         if (!matchesKeywords(text)) return;
-        // Skip Miami Dolphins WR Malik Washington (different player, same name)
-        var t = text.toLowerCase();
-        if (t.includes('malik washington') && (t.includes('dolphins') || t.includes('miami'))) return;
+        // Same-name athletes elsewhere: only the profile's "name + word" noise
+        // rules apply here (an episode mentioning our own outlet is fine).
+        if (Beat.isNoise(text, plan.noise.filter(function (n) { return n.indexOf(' + ') !== -1; }))) return;
         debug.discoveryHits++;
         episodes.push(ep);
       });

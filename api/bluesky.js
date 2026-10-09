@@ -1,71 +1,26 @@
 var Bluesky = require('./_bluesky');
 
 module.exports = async function handler(req, res) {
-  // Bluesky public search API — free, no auth required
+  // Bluesky public search API (authenticated: it blocks datacenter IPs otherwise).
   var cutoff = Date.now() - 72 * 60 * 60 * 1000;
 
-  var queries = [
-    '"Maryland Terrapins"',
-    '"Terps football"',
-    '"Terps basketball"',
-    '"Maryland football"',
-    '"Maryland basketball"',
-    '"Mike Locksley"',
-    '"Buzz Williams"',
-    '"Maryland recruiting"',
-    '"Maryland transfer portal"',
-    { q: 'Terps', requireContext: true },
-    { q: 'Terrapins', requireContext: true },
-    '"Derik Queen"',
-    '"Baba Oladotun"',
-    '"Malik Washington"',
-    '"Brenda Frese"',
-    '"Maryland lacrosse"',
-    '"Kevin Willard" Maryland',
-    '"Terps" commit OR portal OR injury',
-    '"Maryland" "official visit"'
-  ];
+  // What to search comes from the newsroom's beat profile, so it follows the
+  // current coaches and players (_beat.searchPlan; InsideMDSports' extra
+  // phrases and noise rules are in its profile's searchExtras).
+  await require('./_supabase').optionalUser(req);
+  var S0 = require('./_supabase');
+  var Beat = require('./_beat');
+  var plan;
+  try { plan = Beat.searchPlan(await Beat.getBeat(S0.isConfigured() ? S0.admin() : null)); }
+  catch (e) { return res.status(500).json({ posts: [], error: e.message }); }
+  var queries = plan.bluesky;
+  if (!queries.length) return res.status(200).json({ posts: [], error: 'Set up your beat first (/setup) so we know what to search for.' });
 
-  // Beat reporters / outlets — their latest is pulled via `from:<handle>` regardless of
-  // whether the post contains a search phrase. Add verified Bluesky handles here.
-  var beatHandles = [];
-
-  var excluded = ['insidemd', 'jeff ermann', 'ims radio', 'insidetheshell'];
-  var cannabisTerms = ['terpene', 'cannabis', 'marijuana', 'weed', 'thc', 'cbd', 'dispensary', 'kush'];
-
-  function isNoise(text) {
-    var t = (text || '').toLowerCase();
-    if (excluded.some(function(ex) { return t.includes(ex); })) return true;
-    if (cannabisTerms.some(function(c) { return t.includes(c); })) return true;
-    // Actual turtles / off-topic wordplay
-    if (/tortoise|turtle disaster|sunbathing|pet terrapin|terf/.test(t)) return true;
-    // Dolphins WR Malik Washington (different player)
-    if (t.includes('malik washington') && (t.includes('dolphins') || t.includes('miami') || t.includes('dynasty') || t.includes('fantasy'))) return true;
-    return false;
-  }
-
-  // Maryland sports context required for bare Terps/Terrapins searches
-  var contextWords = ['maryland', 'umd', 'college park', 'locksley', 'willard', 'buzz williams', 'frese', 'big ten', 'b1g', 'football', 'basketball', 'lacrosse', 'recruiting', 'commit', 'portal', 'testudo', 'xfinity', 'secu'];
+  // Noise rules match the post; excluded sources (our own outlet and staff) match the author.
+  function isNoise(text, author) { return Beat.isNoise(text + ' ' + author, plan.noise) || Beat.isNoise(author, plan.excludeAuthors); }
   function hasContext(text) {
     var t = (text || '').toLowerCase();
-    return contextWords.some(function(w) { return t.includes(w); });
-  }
-
-  // Another newsroom: the searches come from its beat profile instead
-  // (multi-newsroom, 2026-10-06). InsideMDSports keeps its tuned list above.
-  await require('./_supabase').optionalUser(req);
-  if (!require('./_site').isDefault()) {
-    var S0 = require('./_supabase');
-    var b = await require('./_beat').getBeat(S0.isConfigured() ? S0.admin() : null);
-    var t0 = b.team;
-    queries = [];
-    if (t0.name && t0.name !== 'our team') queries.push('"' + t0.name + '"');
-    b.primarySports.slice(0, 3).forEach(function (sp) { queries.push('"' + t0.short + ' ' + sp + '"'); });
-    b.keyFigures.slice(0, 8).forEach(function (n) { queries.push('"' + String(n).replace(/\s*\(.*?\)\s*/g, '').trim() + '"'); });
-    t0.nicknames.slice(0, 3).forEach(function (n) { queries.push({ q: n, requireContext: true }); });
-    excluded = b.excludeSources.slice();
-    contextWords = b.relevanceWords.concat([String(t0.short || '').toLowerCase(), 'football', 'basketball', 'recruiting', 'commit', 'portal']).filter(Boolean);
-    if (!queries.length) return res.status(200).json({ posts: [], error: 'Set up your beat first (/setup) so we know what to search for.' });
+    return plan.blueskyContext.some(function(w) { return t.includes(w); });
   }
 
   try {
@@ -79,9 +34,7 @@ module.exports = async function handler(req, res) {
     try { token = (await Bluesky.createSession()).token; }
     catch (e) { return res.status(200).json({ posts: [], error: e.message }); }
 
-    var allQueries = queries.concat((require('./_site').isDefault() ? beatHandles : []).map(function(h) {
-      return { q: 'from:' + h + ' Maryland OR Terps OR Terrapins', requireContext: false };
-    }));
+    var allQueries = queries;
 
     var searches = allQueries.map(function(entry) {
       var q = typeof entry === 'string' ? entry : entry.q;
@@ -109,7 +62,7 @@ module.exports = async function handler(req, res) {
         var createdMs = record.createdAt ? new Date(record.createdAt).getTime() : 0;
         if (!text) return;
         if (createdMs && createdMs < cutoff) return;
-        if (isNoise(text + ' ' + handle + ' ' + displayName)) return;
+        if (isNoise(text, handle + ' ' + displayName)) return;
         if (requireContext && !hasContext(text)) return;
         var norm = text.toLowerCase().replace(/[^a-z0-9 ]/g, '').substring(0, 80);
         if (seen.includes(norm)) return;

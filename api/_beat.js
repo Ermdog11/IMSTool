@@ -23,6 +23,9 @@
 //     (official pages Roster Watch checks for changes: each team's player roster and
 //     its coaches/staff page, plus the athletic department staff directory for a
 //     college beat or the front office page for a pro beat; see api/_roster.js)
+//   searchExtras:{bluesky[], noise[], podcastShows[], regionalShows[], blockedPodcasts[],
+//     podcastDiscovery[], transcriptShows[]}  (hand-tuned additions to the Bluesky,
+//     podcast and transcript searches; see searchPlan())
 //   records:{public, agency, law, email, portal, mail, notes}
 //     (public-records requests from the alert cards, api/records-request.js:
 //     public=true for a public university or other government body; the
@@ -368,9 +371,88 @@ function lowPriorityRegex(b) {
   return new RegExp('\\b(' + parts.join('|') + ')\\b', 'i');
 }
 
+// ── Social and podcast searches ─────────────────────────────────────────────
+// Built from the profile for every newsroom (bluesky.js, podcasts.js,
+// transcripts.js), so they follow the newsroom's current coaches and players
+// instead of a list typed into code that goes stale. Optional hand-tuned
+// extras live in the profile as `searchExtras` (InsideMDSports' seed has its
+// own):
+//   bluesky:[query | {q, requireContext}], noise:[term | "name + word"] (matched
+//   against the text; the profile's excludeSources are matched against authors),
+//   podcastShows:[], regionalShows:[], blockedPodcasts:[], podcastDiscovery:[],
+//   transcriptShows:[]
+// A noise entry "a + b" matches only when every part appears (a name that
+// collides with someone else's: "malik washington + dolphins").
+function clean(n) { return String(n || '').replace(/\s*\(.*?\)\s*/g, ' ').replace(/\s+/g, ' ').trim(); }
+function uniq(arr, key) {
+  var seen = {};
+  return arr.filter(function (x) { var k = String(key ? key(x) : x).toLowerCase(); if (!k || seen[k]) return false; seen[k] = 1; return true; });
+}
+// Current people on the beat, most important first: key figures, then the
+// non-alumni watch groups (highest rated first), then current-person key terms.
+function currentPeople(b) {
+  var out = b.keyFigures.map(clean);
+  // One name from each group in turn (highest-rated groups first), so the
+  // first few searches cover coaches, roster and recruits, not one group.
+  var groups = b.watch.slice().sort(function (a, c) { return (c.rating || 3) - (a.rating || 3); }).filter(function (g) {
+    return !g.alumni && (g.rating || 3) > 1 && !/alumni|legend|reporter|outlet|podcast|admin/i.test(g.label);
+  });
+  for (var i = 0; groups.some(function (g) { return i < g.names.length; }); i++) {
+    groups.forEach(function (g) { if (i < g.names.length) out.push(clean(g.names[i])); });
+  }
+  b.keyTerms.forEach(function (x) { if ((x.kind || 'person') === 'person' && x.era !== 'historic') out.push(clean(x.term)); });
+  return uniq(out.filter(function (n) { return n.split(' ').length >= 2; }));
+}
+function searchPlan(b) {
+  var t = b.team, x = b.searchExtras || {};
+  var lst = function (v) { return Array.isArray(v) ? v : list(v); };
+  var real = t.name && t.name !== 'our team';
+  var people = currentPeople(b);
+  var figures = b.keyFigures.map(clean);
+  var others = people.filter(function (n) { return figures.indexOf(n) === -1; });
+  var sports = b.primarySports.slice(0, 3);
+
+  var bsky = [];
+  if (real) bsky.push('"' + t.name + '"');
+  if (real) sports.forEach(function (sp) { bsky.push('"' + t.short + ' ' + sp + '"'); });
+  figures.slice(0, 8).forEach(function (n) { bsky.push('"' + n + '"'); });
+  t.nicknames.slice(0, 3).forEach(function (n) { bsky.push({ q: n, requireContext: true }); });
+  // Players' names collide with other athletes more often: they need a beat word too.
+  others.slice(0, 6).forEach(function (n) { bsky.push({ q: '"' + n + '"', requireContext: true }); });
+  lst(x.bluesky).forEach(function (q) { if (q) bsky.push(q); });
+  bsky = uniq(bsky, function (e) { return typeof e === 'string' ? e : e.q; }).slice(0, 24);
+
+  var lower = function (a) { return a.map(function (s) { return String(s).toLowerCase(); }); };
+  var keywords = uniq(b.relevanceWords.concat(lower(people)).filter(function (w) { return w.length > 3; }));
+  var podcastShows = uniq(b.podcasts.filter(function (p) { return (p.rating || 3) > 1; }).map(function (p) { return p.name; }).concat(lst(x.podcastShows)));
+  var discovery = uniq((real ? [t.name].concat(sports.map(function (sp) { return t.short + ' ' + sp; })) : []).concat(figures.slice(0, 8), others.slice(0, 8), lst(x.podcastDiscovery)));
+  return {
+    bluesky: bsky,
+    blueskyContext: uniq(b.relevanceWords.concat(lower([t.short, t.name, t.school || '', t.conference || '']), lower(sports), ['football', 'basketball', 'recruiting', 'commit', 'portal'])).filter(Boolean),
+    noise: uniq(lower(lst(x.noise))),
+    excludeAuthors: b.excludeSources.slice(),
+    podcastShows: podcastShows,
+    regionalShows: uniq(lst(x.regionalShows)),
+    blockedPodcasts: uniq(lower(b.podcasts.filter(function (p) { return (p.rating || 3) <= 1; }).map(function (p) { return p.name; }).concat(lst(x.blockedPodcasts)))),
+    podcastKeywords: keywords,
+    podcastDiscovery: discovery,
+    transcriptShows: lst(x.transcriptShows),
+    // Captions say "Maryland", not "Maryland football": the team's short name counts there.
+    transcriptKeywords: uniq(keywords.concat(lower([t.short, t.school || ''].filter(function (w) { return w.length > 3 && w !== 'our team'; }))))
+  };
+}
+// True when text hits a noise entry (see searchPlan).
+function isNoise(text, noise) {
+  var t = String(text || '').toLowerCase();
+  return (noise || []).some(function (n) {
+    return String(n).split(/\s+\+\s+/).every(function (part) { return part && t.indexOf(part) !== -1; });
+  });
+}
+
 module.exports = {
   getBeat: getBeat, normalize: normalize, generateFeeds: generateFeeds, feedsFor: feedsFor, redditFor: redditFor,
   isRelevant: isRelevant, recruitOnBeat: recruitOnBeat, topicStopRegex: topicStopRegex, ownDomainRegex: ownDomainRegex, ownArticleRegex: ownArticleRegex,
   alumniNames: alumniNames, ratingPrompt: ratingPrompt, deepPrompt: deepPrompt, watchListText: watchListText,
-  lowPriorityRegex: lowPriorityRegex, nick: nick, weightNote: weightNote
+  lowPriorityRegex: lowPriorityRegex, nick: nick, weightNote: weightNote,
+  searchPlan: searchPlan, currentPeople: currentPeople, isNoise: isNoise
 };
